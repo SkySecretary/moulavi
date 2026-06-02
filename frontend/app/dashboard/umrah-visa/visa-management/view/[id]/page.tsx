@@ -21,6 +21,7 @@ export default function ViewUmrahVisaBookingPage() {
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState<any>(null);
   const [downloadingZip, setDownloadingZip] = useState(false);
+  const [downloadingAll, setDownloadingAll] = useState(false);
   const [downloadingConfirmation, setDownloadingConfirmation] = useState(false);
   const [showAltInfoDialog, setShowAltInfoDialog] = useState(false);
 
@@ -337,6 +338,47 @@ export default function ViewUmrahVisaBookingPage() {
     }
   };
 
+  const handleDownloadAllDocuments = async () => {
+    if (!bookingId || downloadingAll) return;
+    try {
+      setDownloadingAll(true);
+      toast.info('Preparing all documents ZIP...');
+      
+      const response = await umrahVisaAPI.downloadAllDocuments(bookingId);
+      
+      // Since responseType is 'blob', we create a URL for the blob
+      const blob = new Blob([response.data], { type: 'application/zip' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Try to get filename from content-disposition header if available
+      const contentDisposition = response.headers['content-disposition'];
+      let fileName = `booking-documents-${bookingId}.zip`;
+      if (contentDisposition) {
+        const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (fileNameMatch && fileNameMatch[1]) {
+          fileName = fileNameMatch[1];
+        }
+      }
+      
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('All documents downloaded successfully!');
+    } catch (error: any) {
+      console.error('Bulk download error:', error);
+      toast.error('Failed to download documents ZIP');
+    } finally {
+      setDownloadingAll(false);
+    }
+  };
+
   const handleDownloadConfirmationImage = async () => {
     if (!booking || !bookingId || downloadingConfirmation) return;
     const mainIqama = booking.sponsorIqamaDetails?.find((i: any) => !i.isAlternate);
@@ -403,12 +445,22 @@ export default function ViewUmrahVisaBookingPage() {
 
               <Button 
                 variant="outline" 
+                onClick={handleDownloadAllDocuments}
+                disabled={downloadingAll}
+                className="flex items-center gap-2 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+              >
+                <Download className="h-4 w-4" />
+                {downloadingAll ? 'Preparing ZIP...' : 'Download All Documents'}
+              </Button>
+
+              <Button 
+                variant="outline" 
                 onClick={handleDownloadZip}
                 disabled={downloadingZip}
                 className="flex items-center gap-2"
               >
                 <Download className="h-4 w-4" />
-                {downloadingZip ? 'Downloading...' : 'Download Documents'}
+                {downloadingZip ? 'Downloading...' : 'Download PAN ZIP'}
               </Button>
               <Button variant="outline" onClick={() => router.back()}>
                 <ArrowLeft className="h-4 w-4 mr-1" /> Back

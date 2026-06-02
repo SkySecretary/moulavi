@@ -6,11 +6,104 @@ import { syncBookingStatus, syncBookingStatusInTx } from '../services/statusSync
 import { generateVoucherNumber, formatTime, formatDate, generateRouteNumbersForVoucher } from '../services/voucherService';
 import { generateVoucherPDF } from '../services/pdfService';
 import { VoucherPdfData } from '../types/voucher';
-import { isS3Configured, generateDownloadUrl } from '../config/s3';
+import { isS3Configured, S3_CONFIG, generateDownloadUrl, s3Client, extractS3KeyFromUrl } from '../config/s3';
 import { combineDateTime } from '../utils/datetime';
 import fs from 'fs';
+import * as archiverModule from 'archiver';
+import path from 'path';
+
+// Handle both default and namespace imports for archiver
+const archiver = (archiverModule.default || archiverModule) as unknown as typeof archiverModule.default;
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { Readable } from 'stream';
 
 const router = Router();
+
+// GET /api/umrah-visa/:bookingId/download-all-documents - Download all documents as ZIP
+router.get('/:bookingId/download-all-documents', authenticate, async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const user = (req as any).user;
+
+    // Get all documents for this booking
+    // Documents can be linked directly to booking or via passengers
+    const documents = await prisma.document.findMany({
+      where: {
+        OR: [
+          { bookingId: bookingId },
+          { passenger: { bookingId: bookingId } }
+        ],
+        isDeleted: false,
+      },
+      include: {
+        passenger: true
+      }
+    });
+
+    if (documents.length === 0) {
+      return res.status(404).json({ error: 'No documents found for this booking' });
+    }
+
+    // Initialize archive
+    const archive = archiver('zip', {
+      zlib: { level: 9 } // Maximum compression
+    });
+
+    // Set response headers
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    res.attachment(`booking-documents-${bookingId}-${timestamp}.zip`);
+
+    // Pipe archive data to response
+    archive.pipe(res);
+
+    // Handle errors
+    archive.on('error', (err) => {
+      console.error('Archiver error:', err);
+      if (!res.headersSent) {
+        res.status(500).send({ error: 'Failed to create ZIP archive' });
+      }
+    });
+
+    // Add each document to the archive
+    for (const doc of documents) {
+      const fileName = doc.passenger 
+        ? `${doc.passenger.fullName.replace(/[^a-zA-Z0-9]/g, '_')}_${doc.fileName}`
+        : doc.fileName;
+
+      if (isS3Configured() && s3Client) {
+        try {
+          const s3Key = extractS3KeyFromUrl(doc.filePath) || doc.filePath;
+          const command = new GetObjectCommand({
+            Bucket: S3_CONFIG.BUCKET_NAME,
+            Key: s3Key,
+          });
+          const response = await s3Client.send(command);
+          if (response.Body) {
+            archive.append(response.Body as Readable, { name: fileName });
+          }
+        } catch (s3Error) {
+          console.error(`Error fetching file from S3: ${doc.filePath}`, s3Error);
+        }
+      } else {
+        // Local file storage
+        if (fs.existsSync(doc.filePath)) {
+          archive.file(doc.filePath, { name: fileName });
+        } else {
+          console.error(`Local file not found: ${doc.filePath}`);
+        }
+      }
+    }
+
+    // Finalize the archive
+    await archive.finalize();
+
+  } catch (error) {
+    console.error('Error in bulk document download:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to download documents' });
+    }
+  }
+});
 
 // POST /api/umrah-visa/:bookingId/add-group-data - Add group data (Admin/Staff only)
 router.post('/:bookingId/add-group-data', authenticate, async (req, res) => {

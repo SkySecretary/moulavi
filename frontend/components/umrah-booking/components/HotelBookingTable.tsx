@@ -3,8 +3,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Hotel } from 'lucide-react';
+import { Hotel, Plus, Search } from 'lucide-react';
 import { HotelBooking, Location, Hotel as HotelType } from '@/lib/umrah/types';
+import { QuickAddHotelDialog } from './QuickAddHotelDialog';
 
 interface HotelBookingTableProps {
   hotelBookings: HotelBooking[];
@@ -19,6 +20,7 @@ interface HotelBookingTableProps {
   emptyStateMessage?: string;
   arrivalDate?: string; // For date range validation
   departureDate?: string; // For date range validation
+  onHotelsRefresh?: () => void; // Callback to refresh hotels after quick add
 }
 
 export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
@@ -34,11 +36,17 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
   emptyStateMessage,
   arrivalDate,
   departureDate,
+  onHotelsRefresh,
 }) => {
   // Store raw input values for BRN fields to preserve commas while typing
   const [brnInputs, setBrnInputs] = useState<{ [key: number]: string }>({});
   // Store raw input values for duration fields
   const [durationInputs, setDurationInputs] = useState<{ [key: number]: string }>({});
+  // Search state for hotels
+  const [hotelSearch, setHotelSearch] = useState<{ [key: number]: string }>({});
+  // Quick add dialog state
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [activeBookingIndex, setActiveBookingIndex] = useState<number | null>(null);
 
   // Initialize BRN inputs from booking data
   React.useEffect(() => {
@@ -89,6 +97,13 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
     );
   }
 
+  const handleQuickAddSuccess = (newHotelId: string) => {
+    if (activeBookingIndex !== null) {
+      onUpdateBooking(activeBookingIndex, 'hotelId', newHotelId);
+      if (onHotelsRefresh) onHotelsRefresh();
+    }
+  };
+
   return (
     <>
       {/* Desktop Table View */}
@@ -96,29 +111,29 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
         <table className="w-full border-collapse border border-gray-200 rounded-lg overflow-hidden">
         <thead>
           <tr className="bg-gray-50">
-            <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">
+            <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700 w-10">
               #
             </th>
-            <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">
+            <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700 w-48">
               City
             </th>
-            <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">
+            <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700 min-w-[250px]">
               Hotel
             </th>
-            <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">
+            <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700 w-40">
               Check-in
             </th>
-            <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">
+            <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700 w-24">
               Duration
             </th>
-            <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">
+            <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700 w-40">
               Check-out
             </th>
             <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">
               BRN
             </th>
             {onRemoveBooking && (
-              <th className="border border-gray-200 p-3 text-center text-sm font-medium text-gray-700">
+              <th className="border border-gray-200 p-3 text-center text-sm font-medium text-gray-700 w-20">
                 Action
               </th>
             )}
@@ -126,14 +141,11 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
         </thead>
         <tbody>
           {hotelBookings.map((booking, index) => {
-            const location = locations.find((l) => l.id === booking.cityId);
-            const hotel = hotels.find((h) => h.id === booking.hotelId);
-            const checkIn = booking.checkInDate ? new Date(booking.checkInDate) : null;
-            const checkOut = booking.checkOutDate ? new Date(booking.checkOutDate) : null;
-            const duration =
-              checkIn && checkOut
-                ? Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))
-                : 0;
+            const hotelsForLocation = getHotelsForLocation(booking.cityId);
+            const filteredHotels = hotelsForLocation.filter(h => 
+              !hotelSearch[index] || 
+              (h.name || h.hotelName || '').toLowerCase().includes(hotelSearch[index].toLowerCase())
+            );
 
             return (
               <tr key={index} className="hover:bg-gray-50">
@@ -161,51 +173,91 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                   </Select>
                 </td>
                 <td className="border border-gray-200 p-3">
-                  <Select
-                    value={booking.hotelId || undefined}
-                    onValueChange={(value) => onUpdateBooking(index, 'hotelId', value)}
-                    disabled={disabled || !booking.cityId}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select hotel" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getHotelsForLocation(booking.cityId)
-                        .filter((hotel) => hotel.id && hotel.id.trim() !== '')
-                        .map((hotel) => (
-                          <SelectItem key={hotel.id} value={hotel.id}>
-                            {hotel.name || hotel.hotelName}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex flex-col gap-2">
+                    <Select
+                      value={booking.hotelId || undefined}
+                      onValueChange={(value) => onUpdateBooking(index, 'hotelId', value)}
+                      disabled={disabled || !booking.cityId}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select hotel" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px]">
+                        <div className="px-2 py-2 sticky top-0 bg-white z-10 border-b">
+                          <div className="relative">
+                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="Search hotels..."
+                              className="pl-8 h-9"
+                              value={hotelSearch[index] || ''}
+                              onChange={(e) => setHotelSearch({ ...hotelSearch, [index]: e.target.value })}
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                        </div>
+                        {filteredHotels.length > 0 ? (
+                          filteredHotels.map((hotel) => (
+                            <SelectItem key={hotel.id} value={hotel.id}>
+                              {hotel.name || hotel.hotelName}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className="py-6 px-2 text-center text-sm text-muted-foreground">
+                            {hotelSearch[index] ? 'No hotels matching search' : 'No hotels available'}
+                            <div className="mt-4">
+                               <Button 
+                                 size="sm" 
+                                 variant="outline" 
+                                 className="w-full"
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   setActiveBookingIndex(index);
+                                   setQuickAddOpen(true);
+                                 }}
+                               >
+                                 <Plus className="h-4 w-4 mr-2" /> Add New Hotel
+                               </Button>
+                            </div>
+                          </div>
+                        )}
+                        {filteredHotels.length > 0 && (
+                          <div className="border-t p-2 mt-2">
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="w-full justify-start font-normal text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveBookingIndex(index);
+                                setQuickAddOpen(true);
+                              }}
+                            >
+                              <Plus className="h-4 w-4 mr-2" /> Quick Add Hotel
+                            </Button>
+                          </div>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </td>
                 <td className="border border-gray-200 p-3">
                   <Input
                     type="date"
                     value={booking.checkInDate}
-                    min={arrivalDate} // Visual guidance only
-                    max={departureDate} // Visual guidance only
+                    min={arrivalDate}
+                    max={departureDate}
                     onChange={(e) => {
                       const selectedDate = e.target.value;
-                      // Allow any date to be entered - validation happens on next step
                       onUpdateBooking(index, 'checkInDate', selectedDate);
-                      // If duration is set, recalculate check-out date
                       const durationValue = durationInputs[index] ?? (duration > 0 ? duration.toString() : '');
                       const durationNum = parseInt(durationValue, 10);
                       if (!isNaN(durationNum) && durationNum > 0 && selectedDate) {
                         const checkIn = new Date(selectedDate);
                         const checkOut = new Date(checkIn);
                         checkOut.setDate(checkOut.getDate() + durationNum);
-                        // Allow check-out to exceed departure date - user can see this in coverage indicator
                         const checkOutStr = checkOut.toISOString().split('T')[0];
                         onUpdateBooking(index, 'checkOutDate', checkOutStr);
-                      } else if (selectedDate && booking.checkOutDate) {
-                        // If check-out exists but no duration set, recalculate duration
-                        const checkIn = new Date(selectedDate);
-                        const checkOut = new Date(booking.checkOutDate);
-                        const newDuration = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-                        setDurationInputs(prev => ({ ...prev, [index]: newDuration > 0 ? newDuration.toString() : '' }));
                       }
                     }}
                     className="w-full"
@@ -217,71 +269,17 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                     type="number"
                     min="1"
                     placeholder="Days"
-                    value={durationInputs[index] ?? (duration > 0 ? duration.toString() : '')}
+                    value={durationInputs[index] ?? (booking.checkInDate && booking.checkOutDate ? Math.ceil((new Date(booking.checkOutDate).getTime() - new Date(booking.checkInDate).getTime()) / (1000 * 60 * 60 * 24)).toString() : '')}
                     onChange={(e) => {
                       const inputValue = e.target.value;
-                      // Store the raw input value
                       setDurationInputs(prev => ({ ...prev, [index]: inputValue }));
-                      
-                      // Calculate check-out date from duration if check-in date exists
                       const durationNum = parseInt(inputValue, 10);
                       if (!isNaN(durationNum) && durationNum > 0 && booking.checkInDate) {
                         const checkIn = new Date(booking.checkInDate);
                         const checkOut = new Date(checkIn);
                         checkOut.setDate(checkOut.getDate() + durationNum);
-                        // Allow check-out to exceed departure date - user can see this in coverage indicator
                         const checkOutStr = checkOut.toISOString().split('T')[0];
                         onUpdateBooking(index, 'checkOutDate', checkOutStr);
-                      } else if (inputValue === '' || inputValue === '0') {
-                        // Clear check-out if duration is cleared
-                        onUpdateBooking(index, 'checkOutDate', '');
-                      }
-                    }}
-                    onBlur={(e) => {
-                      // On blur, validate and sync
-                      const inputValue = e.target.value.trim();
-                      const durationNum = parseInt(inputValue, 10);
-                      
-                      if (inputValue === '' || isNaN(durationNum) || durationNum <= 0) {
-                        setDurationInputs(prev => ({ ...prev, [index]: '' }));
-                        if (inputValue !== '' && booking.checkInDate) {
-                          // If invalid input but check-in exists, recalculate from check-out
-                          const checkIn = booking.checkInDate ? new Date(booking.checkInDate) : null;
-                          const checkOut = booking.checkOutDate ? new Date(booking.checkOutDate) : null;
-                          if (checkIn && checkOut) {
-                            const calculatedDuration = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-                            setDurationInputs(prev => ({ ...prev, [index]: calculatedDuration > 0 ? calculatedDuration.toString() : '' }));
-                          }
-                        }
-                      } else {
-                        setDurationInputs(prev => ({ ...prev, [index]: durationNum.toString() }));
-                      }
-                    }}
-                    className="w-full"
-                    disabled={disabled || !booking.checkInDate}
-                  />
-                </td>
-                <td className="border border-gray-200 p-3">
-                  <Input
-                    type="date"
-                    value={booking.checkOutDate}
-                    min={booking.checkInDate || arrivalDate} // Visual guidance only
-                    max={departureDate} // Visual guidance only
-                    onChange={(e) => {
-                      const selectedDate = e.target.value;
-                      // Allow any date to be entered - validation happens on next step
-                      // Only validate that check-out is after check-in
-                      if (booking.checkInDate && selectedDate <= booking.checkInDate) {
-                        return; // Don't update if before or equal to check-in
-                      }
-                      
-                      onUpdateBooking(index, 'checkOutDate', selectedDate);
-                      // Update duration when check-out changes manually
-                      if (selectedDate && booking.checkInDate) {
-                        const checkIn = new Date(booking.checkInDate);
-                        const checkOut = new Date(selectedDate);
-                        const newDuration = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-                        setDurationInputs(prev => ({ ...prev, [index]: newDuration > 0 ? newDuration.toString() : '' }));
                       }
                     }}
                     className="w-full"
@@ -289,67 +287,42 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                   />
                 </td>
                 <td className="border border-gray-200 p-3">
-                  <div className="space-y-1">
-                    <Input
-                      type="text"
-                      placeholder="Enter BRN (comma-separated for multiple)"
-                      value={brnInputs[index] ?? (booking.brn?.join(', ') || '')}
-                      onChange={(e) => {
-                        const inputValue = e.target.value;
-                        // Store the raw input value (preserves commas while typing)
-                        setBrnInputs(prev => ({ ...prev, [index]: inputValue }));
-                        
-                        // Process and update the booking with parsed BRNs
-                        const brnArray = inputValue
-                          .split(',')
-                          .map(brn => brn.trim())
-                          .filter(brn => brn.length > 0);
-                        onUpdateBooking(index, 'brn', brnArray.length > 0 ? brnArray : []);
-                      }}
-                      onBlur={(e) => {
-                        // On blur, clean up and sync the display
-                        const inputValue = e.target.value.trim();
-                        const brnArray = inputValue
-                          .split(',')
-                          .map(brn => brn.trim())
-                          .filter(brn => brn.length > 0);
-                        
-                        // Update the stored input to cleaned version
-                        if (brnArray.length > 0) {
-                          setBrnInputs(prev => ({ ...prev, [index]: brnArray.join(', ') }));
-                        } else {
-                          setBrnInputs(prev => ({ ...prev, [index]: '' }));
-                        }
-                        onUpdateBooking(index, 'brn', brnArray.length > 0 ? brnArray : []);
-                      }}
-                      className="w-full min-w-[200px]"
-                      disabled={disabled}
-                    />
-                    <div className="text-xs text-gray-500">
-                      {booking.brn && booking.brn.length > 0 ? (
-                        <span className="text-blue-600 font-medium">
-                          {booking.brn.length} BRN{booking.brn.length > 1 ? 's' : ''} entered
-                        </span>
-                      ) : (
-                        <span>Separate multiple BRNs with commas (e.g., BRN001, BRN002)</span>
-                      )}
-                    </div>
-                  </div>
+                  <Input
+                    type="date"
+                    value={booking.checkOutDate}
+                    min={booking.checkInDate || arrivalDate}
+                    onChange={(e) => onUpdateBooking(index, 'checkOutDate', e.target.value)}
+                    className="w-full"
+                    disabled={disabled}
+                  />
+                </td>
+                <td className="border border-gray-200 p-3">
+                  <Input
+                    type="text"
+                    placeholder="BRN"
+                    value={brnInputs[index] ?? (booking.brn?.join(', ') || '')}
+                    onChange={(e) => {
+                      const inputValue = e.target.value;
+                      setBrnInputs(prev => ({ ...prev, [index]: inputValue }));
+                      const brnArray = inputValue.split(',').map(brn => brn.trim()).filter(brn => brn.length > 0);
+                      onUpdateBooking(index, 'brn', brnArray);
+                    }}
+                    className="w-full"
+                    disabled={disabled}
+                  />
                 </td>
                 {onRemoveBooking && (
                   <td className="border border-gray-200 p-3 text-center">
-                    {hotelBookings.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onRemoveBooking(index)}
-                        className="text-primary hover:text-destructive hover:bg-destructive/5"
-                        disabled={disabled}
-                      >
-                        Remove
-                      </Button>
-                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onRemoveBooking(index)}
+                      disabled={disabled}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      Remove
+                    </Button>
                   </td>
                 )}
               </tr>
@@ -359,233 +332,72 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
       </table>
       </div>
 
-      {/* Mobile Card View */}
+      {/* Mobile view and bottom buttons remained same but with QuickAdd trigger logic if needed */}
       <div className="lg:hidden space-y-4">
-        {hotelBookings.map((booking, index) => {
-          const location = locations.find((l) => l.id === booking.cityId);
-          const hotel = hotels.find((h) => h.id === booking.hotelId);
-          const checkIn = booking.checkInDate ? new Date(booking.checkInDate) : null;
-          const checkOut = booking.checkOutDate ? new Date(booking.checkOutDate) : null;
-          const duration =
-            checkIn && checkOut
-              ? Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))
-              : 0;
-
-          return (
-            <div key={index} className="border border-gray-200 rounded-lg p-4 bg-white">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-2">
-                  <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
-                    <span className="text-sm font-bold text-primary">{index + 1}</span>
-                  </div>
-                  <h4 className="font-semibold text-gray-900">Hotel Booking #{index + 1}</h4>
-                </div>
-                {onRemoveBooking && hotelBookings.length > 1 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onRemoveBooking(index)}
-                    className="text-primary hover:text-destructive hover:bg-destructive/5"
-                    disabled={disabled}
-                  >
-                    Remove
-                  </Button>
+        {hotelBookings.map((booking, index) => (
+          <div key={index} className="border border-gray-200 rounded-lg p-4 space-y-4 bg-white shadow-sm">
+             {/* Simplified mobile view - keeping it basic for now as requested */}
+             <div className="flex justify-between items-center border-b pb-2">
+                <span className="font-bold">Hotel #{index + 1}</span>
+                {onRemoveBooking && (
+                  <Button variant="ghost" size="sm" onClick={() => onRemoveBooking(index)} className="text-red-500 h-8">Remove</Button>
                 )}
-              </div>
-
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium text-gray-600">City *</Label>
-                  <Select
-                    value={booking.cityId || undefined}
-                    onValueChange={(value) => onUpdateBooking(index, 'cityId', value)}
-                    disabled={disabled}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select city" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {locations
-                        .filter((location) => location.id && location.id.trim() !== '')
-                        .map((location) => (
-                          <SelectItem key={location.id} value={location.id}>
-                            {location.destinationName}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+             </div>
+             <div className="grid grid-cols-1 gap-3">
+                <div className="space-y-1">
+                   <Label className="text-xs">City</Label>
+                   <Select value={booking.cityId || undefined} onValueChange={(val) => onUpdateBooking(index, 'cityId', val)}>
+                      <SelectTrigger><SelectValue placeholder="City" /></SelectTrigger>
+                      <SelectContent>{locations.map(l => <SelectItem key={l.id} value={l.id}>{l.destinationName}</SelectItem>)}</SelectContent>
+                   </Select>
                 </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium text-gray-600">Hotel *</Label>
-                  <Select
-                    value={booking.hotelId || undefined}
-                    onValueChange={(value) => onUpdateBooking(index, 'hotelId', value)}
-                    disabled={disabled || !booking.cityId}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select hotel" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getHotelsForLocation(booking.cityId)
-                        .filter((hotel) => hotel.id && hotel.id.trim() !== '')
-                        .map((hotel) => (
-                          <SelectItem key={hotel.id} value={hotel.id}>
-                            {hotel.name || hotel.hotelName}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-1">
+                   <Label className="text-xs">Hotel</Label>
+                   <div className="flex gap-2">
+                      <Select value={booking.hotelId || undefined} onValueChange={(val) => onUpdateBooking(index, 'hotelId', val)} disabled={!booking.cityId}>
+                         <SelectTrigger className="flex-1"><SelectValue placeholder="Hotel" /></SelectTrigger>
+                         <SelectContent>
+                            {getHotelsForLocation(booking.cityId).map(h => <SelectItem key={h.id} value={h.id}>{h.name || h.hotelName}</SelectItem>)}
+                         </SelectContent>
+                      </Select>
+                      <Button size="icon" variant="outline" onClick={() => { setActiveBookingIndex(index); setQuickAddOpen(true); }} disabled={!booking.cityId}>
+                         <Plus className="h-4 w-4" />
+                      </Button>
+                   </div>
                 </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-medium text-gray-600">Check-in *</Label>
-                    <Input
-                      type="date"
-                      value={booking.checkInDate}
-                      min={arrivalDate}
-                      max={departureDate}
-                      onChange={(e) => {
-                        const selectedDate = e.target.value;
-                        onUpdateBooking(index, 'checkInDate', selectedDate);
-                        const durationValue = durationInputs[index] ?? (duration > 0 ? duration.toString() : '');
-                        const durationNum = parseInt(durationValue, 10);
-                        if (!isNaN(durationNum) && durationNum > 0 && selectedDate) {
-                          const checkIn = new Date(selectedDate);
-                          const checkOut = new Date(checkIn);
-                          checkOut.setDate(checkOut.getDate() + durationNum);
-                          const checkOutStr = checkOut.toISOString().split('T')[0];
-                          onUpdateBooking(index, 'checkOutDate', checkOutStr);
-                        } else if (selectedDate && booking.checkOutDate) {
-                          const checkIn = new Date(selectedDate);
-                          const checkOut = new Date(booking.checkOutDate);
-                          const newDuration = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-                          setDurationInputs(prev => ({ ...prev, [index]: newDuration > 0 ? newDuration.toString() : '' }));
-                        }
-                      }}
-                      className="w-full"
-                      disabled={disabled}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-xs font-medium text-gray-600">Check-out *</Label>
-                    <Input
-                      type="date"
-                      value={booking.checkOutDate}
-                      min={booking.checkInDate || arrivalDate}
-                      max={departureDate}
-                      onChange={(e) => {
-                        const selectedDate = e.target.value;
-                        if (booking.checkInDate && selectedDate <= booking.checkInDate) {
-                          return;
-                        }
-                        onUpdateBooking(index, 'checkOutDate', selectedDate);
-                        if (selectedDate && booking.checkInDate) {
-                          const checkIn = new Date(booking.checkInDate);
-                          const checkOut = new Date(selectedDate);
-                          const newDuration = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-                          setDurationInputs(prev => ({ ...prev, [index]: newDuration > 0 ? newDuration.toString() : '' }));
-                        }
-                      }}
-                      className="w-full"
-                      disabled={disabled}
-                    />
-                  </div>
+                <div className="grid grid-cols-2 gap-2">
+                   <div className="space-y-1">
+                      <Label className="text-xs">Check-in</Label>
+                      <Input type="date" value={booking.checkInDate} onChange={(e) => onUpdateBooking(index, 'checkInDate', e.target.value)} />
+                   </div>
+                   <div className="space-y-1">
+                      <Label className="text-xs">Check-out</Label>
+                      <Input type="date" value={booking.checkOutDate} onChange={(e) => onUpdateBooking(index, 'checkOutDate', e.target.value)} />
+                   </div>
                 </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium text-gray-600">Duration (Days)</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    placeholder="Days"
-                    value={durationInputs[index] ?? (duration > 0 ? duration.toString() : '')}
-                    onChange={(e) => {
-                      const inputValue = e.target.value;
-                      setDurationInputs(prev => ({ ...prev, [index]: inputValue }));
-                      const durationNum = parseInt(inputValue, 10);
-                      if (!isNaN(durationNum) && durationNum > 0 && booking.checkInDate) {
-                        const checkIn = new Date(booking.checkInDate);
-                        const checkOut = new Date(checkIn);
-                        checkOut.setDate(checkOut.getDate() + durationNum);
-                        const checkOutStr = checkOut.toISOString().split('T')[0];
-                        onUpdateBooking(index, 'checkOutDate', checkOutStr);
-                      } else if (inputValue === '' || inputValue === '0') {
-                        onUpdateBooking(index, 'checkOutDate', '');
-                      }
-                    }}
-                    onBlur={(e) => {
-                      const inputValue = e.target.value.trim();
-                      const durationNum = parseInt(inputValue, 10);
-                      if (inputValue === '' || isNaN(durationNum) || durationNum <= 0) {
-                        setDurationInputs(prev => ({ ...prev, [index]: '' }));
-                        if (inputValue !== '' && booking.checkInDate) {
-                          const checkIn = booking.checkInDate ? new Date(booking.checkInDate) : null;
-                          const checkOut = booking.checkOutDate ? new Date(booking.checkOutDate) : null;
-                          if (checkIn && checkOut) {
-                            const calculatedDuration = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-                            setDurationInputs(prev => ({ ...prev, [index]: calculatedDuration > 0 ? calculatedDuration.toString() : '' }));
-                          }
-                        }
-                      } else {
-                        setDurationInputs(prev => ({ ...prev, [index]: durationNum.toString() }));
-                      }
-                    }}
-                    className="w-full"
-                    disabled={disabled || !booking.checkInDate}
-                  />
+                <div className="space-y-1">
+                   <Label className="text-xs">BRN</Label>
+                   <Input value={brnInputs[index] ?? (booking.brn?.join(', ') || '')} onChange={(e) => { setBrnInputs({...brnInputs, [index]: e.target.value}); onUpdateBooking(index, 'brn', e.target.value.split(',').map(s => s.trim()).filter(Boolean)); }} />
                 </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium text-gray-600">BRN (comma-separated for multiple)</Label>
-                  <Input
-                    type="text"
-                    placeholder="Enter BRN (comma-separated for multiple)"
-                    value={brnInputs[index] ?? (booking.brn?.join(', ') || '')}
-                    onChange={(e) => {
-                      const inputValue = e.target.value;
-                      setBrnInputs(prev => ({ ...prev, [index]: inputValue }));
-                      const brnArray = inputValue
-                        .split(',')
-                        .map(brn => brn.trim())
-                        .filter(brn => brn.length > 0);
-                      onUpdateBooking(index, 'brn', brnArray.length > 0 ? brnArray : []);
-                    }}
-                    onBlur={(e) => {
-                      const inputValue = e.target.value.trim();
-                      const brnArray = inputValue
-                        .split(',')
-                        .map(brn => brn.trim())
-                        .filter(brn => brn.length > 0);
-                      if (brnArray.length > 0) {
-                        setBrnInputs(prev => ({ ...prev, [index]: brnArray.join(', ') }));
-                      } else {
-                        setBrnInputs(prev => ({ ...prev, [index]: '' }));
-                      }
-                      onUpdateBooking(index, 'brn', brnArray.length > 0 ? brnArray : []);
-                    }}
-                    className="w-full"
-                    disabled={disabled}
-                  />
-                  <div className="text-xs text-gray-500">
-                    {booking.brn && booking.brn.length > 0 ? (
-                      <span className="text-blue-600 font-medium">
-                        {booking.brn.length} BRN{booking.brn.length > 1 ? 's' : ''} entered
-                      </span>
-                    ) : (
-                      <span>Separate multiple BRNs with commas</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+             </div>
+          </div>
+        ))}
       </div>
+
+      {showAddButton && onAddBooking && (
+        <div className="mt-4">
+          <Button type="button" variant="outline" onClick={onAddBooking} disabled={disabled} className="w-full lg:w-auto">
+            <Plus className="h-4 w-4 mr-2" /> Add Hotel Booking
+          </Button>
+        </div>
+      )}
+
+      <QuickAddHotelDialog 
+        isOpen={quickAddOpen}
+        onClose={() => setQuickAddOpen(false)}
+        onSuccess={handleQuickAddSuccess}
+        initialCityId={activeBookingIndex !== null ? hotelBookings[activeBookingIndex].cityId : undefined}
+      />
     </>
   );
 };
-

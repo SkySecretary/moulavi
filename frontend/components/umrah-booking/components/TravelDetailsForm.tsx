@@ -65,7 +65,7 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                 Timeline
               </th>
               <th className="px-6 py-3 text-left text-[8px] font-black text-primary/40 uppercase tracking-[0.2em] w-[120px]">
-                Window
+                Time
               </th>
             </tr>
           </thead>
@@ -123,6 +123,7 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
               <td className="px-6 py-4">
                 <Input
                   type="time"
+                  step="60"
                   value={data.arrivalTime || ''}
                   onChange={(e) => onChange({ arrivalTime: e.target.value })}
                   disabled={disabled}
@@ -184,6 +185,7 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
               <td className="px-6 py-4">
                 <Input
                   type="time"
+                  step="60"
                   value={data.departureTime || ''}
                   onChange={(e) => onChange({ departureTime: e.target.value })}
                   disabled={disabled}
@@ -210,8 +212,8 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                 <Input type="date" value={data.arrivalDate} onChange={(e) => handleDateChange('arrivalDate', e.target.value)} disabled={disabled} className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Window</Label>
-                <Input type="time" value={data.arrivalTime || ''} onChange={(e) => onChange({ arrivalTime: e.target.value })} disabled={disabled} className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs" />
+                <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Time</Label>
+                <Input type="time" step="60" value={data.arrivalTime || ''} onChange={(e) => onChange({ arrivalTime: e.target.value })} disabled={disabled} className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs" />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -241,8 +243,8 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                 <Input type="date" value={data.departureDate} onChange={(e) => handleDateChange('departureDate', e.target.value)} disabled={disabled} className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Window</Label>
-                <Input type="time" value={data.departureTime || ''} onChange={(e) => onChange({ departureTime: e.target.value })} disabled={disabled} className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs" />
+                <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Time</Label>
+                <Input type="time" step="60" value={data.departureTime || ''} onChange={(e) => onChange({ departureTime: e.target.value })} disabled={disabled} className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs" />
               </div>
             </div>
             <div className="space-y-1.5">

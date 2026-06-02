@@ -525,7 +525,7 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
         if (viabadrCache.has(countryId)) return viabadrCache.get(countryId)!;
 
         // Try to find existing Viabadr city
-        let viabadrCity = await prisma.cityMaster.findFirst({
+        let viabadrCity = await tx.cityMaster.findFirst({
           where: {
             name: { equals: 'Viabadr' },
             countryId: countryId,
@@ -536,7 +536,7 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
         // If not found, create it (using the same country as Madinah)
         if (!viabadrCity) {
           try {
-            viabadrCity = await prisma.cityMaster.create({
+            viabadrCity = await tx.cityMaster.create({
               data: {
                 name: 'Viabadr',
                 countryId: countryId,
@@ -545,7 +545,7 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
             });
           } catch (createError) {
             // Concurrent creation might fail on unique constraints, try to find again
-            viabadrCity = await prisma.cityMaster.findFirst({
+            viabadrCity = await tx.cityMaster.findFirst({
               where: {
                 name: { equals: 'Viabadr' },
                 countryId: countryId,
@@ -570,7 +570,7 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
           let fromLocation = locationMap.get(movement.fromLocationId);
           if (!fromLocation) {
             // Try to fetch it if not in pre-fetched map (e.g., for iqama bookings)
-            const fetchedFromLocation = await prisma.locationMaster.findUnique({
+            const fetchedFromLocation = await tx.locationMaster.findUnique({
               where: { id: movement.fromLocationId },
               select: { id: true, cityId: true, locationType: true },
             });
@@ -587,7 +587,7 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
           let toLocation = locationMap.get(movement.toLocationId);
           if (!toLocation) {
             // Try to fetch it if not in pre-fetched map (e.g., Jeddah City Center for iqama)
-            const fetchedToLocation = await prisma.locationMaster.findUnique({
+            const fetchedToLocation = await tx.locationMaster.findUnique({
               where: { id: movement.toLocationId },
               select: { id: true, cityId: true, locationType: true },
             });
@@ -604,7 +604,7 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
           let toCityId = toLocation.cityId;
           if (movement.viabadrOverride) {
             // Get the "To" location's city to get the countryId for Viabadr
-            const toCity = await prisma.cityMaster.findUnique({
+            const toCity = await tx.cityMaster.findUnique({
               where: { id: toLocation.cityId },
               select: { name: true, countryId: true },
             });

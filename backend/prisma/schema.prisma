@@ -74,31 +74,31 @@ model Party {
 }
 
 model UmrahVisaBooking {
-  id                        String                    @id @default(uuid())
-  partyId                   String                    @map("party_id")
-  submittedAt               DateTime                  @default(now()) @map("submitted_at")
-  groupNumber               String?                   @map("group_number")
-  groupName                 String?                   @map("group_name")
-  passengerCount            Int                       @map("passenger_count")
-  umrahVisaProviderId       String?                   @map("umrah_visa_provider_id")
-  status                    UmrahVisaStatus           @default(pending)
-  createdAt                 DateTime                  @default(now()) @map("created_at")
-  updatedAt                 DateTime                  @default(now()) @updatedAt @map("updated_at")
-  deletedAt                 DateTime?                 @map("deleted_at")
-  isDeleted                 Boolean                   @default(false) @map("is_deleted")
-  hasGroupNumber            Boolean                   @default(false) @map("has_group_number")
-  accommodationType         AccommodationType?        @map("accommodation_type")
-  visaType                  VisaType                  @default(individual_visa) @map("visa_type")
-  hasTransportation         Boolean                   @default(false) @map("has_transportation")
-  voucherGeneratedAt        DateTime?                 @map("voucher_generated_at")
-  voucherGeneratedBy        String?                   @map("voucher_generated_by")
-  billGeneratedAt           DateTime?                 @map("bill_generated_at")
-  billGeneratedBy           String?                   @map("bill_generated_by")
-  documentsDownloadCount    Int                       @default(0) @map("documents_download_count")
-  documentsDownloadedBy     String?                   @map("documents_downloaded_by")
-  lastUpdatedBy             String?                   @map("last_updated_by")
-  hasMultipleGroup          Boolean                   @default(false) @map("has_multiple_group")
-  multipleGroupDetails      Json?                     @map("multiple_group_details")
+  id                        String                     @id @default(uuid())
+  partyId                   String                     @map("party_id")
+  submittedAt               DateTime                   @default(now()) @map("submitted_at")
+  groupNumber               String?                    @map("group_number")
+  groupName                 String?                    @map("group_name")
+  passengerCount            Int                        @map("passenger_count")
+  umrahVisaProviderId       String?                    @map("umrah_visa_provider_id")
+  status                    UmrahVisaStatus            @default(pending)
+  createdAt                 DateTime                   @default(now()) @map("created_at")
+  updatedAt                 DateTime                   @default(now()) @updatedAt @map("updated_at")
+  deletedAt                 DateTime?                  @map("deleted_at")
+  isDeleted                 Boolean                    @default(false) @map("is_deleted")
+  hasGroupNumber            Boolean                    @default(false) @map("has_group_number")
+  accommodationType         AccommodationType?         @map("accommodation_type")
+  visaType                  VisaType                   @default(individual_visa) @map("visa_type")
+  hasTransportation         Boolean                    @default(false) @map("has_transportation")
+  voucherGeneratedAt        DateTime?                  @map("voucher_generated_at")
+  voucherGeneratedBy        String?                    @map("voucher_generated_by")
+  billGeneratedAt           DateTime?                  @map("bill_generated_at")
+  billGeneratedBy           String?                    @map("bill_generated_by")
+  documentsDownloadCount    Int                        @default(0) @map("documents_download_count")
+  documentsDownloadedBy     String?                    @map("documents_downloaded_by")
+  lastUpdatedBy             String?                    @map("last_updated_by")
+  hasMultipleGroup          Boolean                    @default(false) @map("has_multiple_group")
+  multipleGroupDetails      Json?                      @map("multiple_group_details")
   statusHistory             BookingStatusHistory[]
   documents                 Document[]
   hotelBookings             UmrahHotelBooking[]
@@ -107,10 +107,10 @@ model UmrahVisaBooking {
   sponsorIqamaDetails       UmrahSponserIqamaDetails[]
   transportBookings         UmrahTransportBooking[]
   travelDetails             UmrahTravelDetails[]
-  lastUpdatedByUser         User?                     @relation("BookingLastUpdatedBy", fields: [lastUpdatedBy], references: [id])
-  documentsDownloadedByUser User?                     @relation("BookingDocumentsDownloadedBy", fields: [documentsDownloadedBy], references: [id])
-  umrahVisaProvider         Party?                    @relation("UmrahVisaProvider", fields: [umrahVisaProviderId], references: [id])
-  party                     Party                     @relation("BookingParty", fields: [partyId], references: [id], onDelete: Cascade)
+  lastUpdatedByUser         User?                      @relation("BookingLastUpdatedBy", fields: [lastUpdatedBy], references: [id])
+  documentsDownloadedByUser User?                      @relation("BookingDocumentsDownloadedBy", fields: [documentsDownloadedBy], references: [id])
+  umrahVisaProvider         Party?                     @relation("UmrahVisaProvider", fields: [umrahVisaProviderId], references: [id])
+  party                     Party                      @relation("BookingParty", fields: [partyId], references: [id], onDelete: Cascade)
 
   @@index([partyId])
   @@index([status])
@@ -141,6 +141,7 @@ model UmrahPassenger {
   deletedAt       DateTime?           @map("deleted_at")
   isDeleted       Boolean             @default(false) @map("is_deleted")
   documents       PassengerDocument[]
+  bookingDocuments Document[]
   booking         UmrahVisaBooking    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@index([bookingId])
@@ -162,6 +163,7 @@ model Document {
   deletedAt    DateTime?        @map("deleted_at")
   isDeleted    Boolean          @default(false) @map("is_deleted")
   booking      UmrahVisaBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  passenger    UmrahPassenger?  @relation(fields: [passengerId], references: [id], onDelete: SetNull)
 
   @@index([bookingId])
   @@index([passengerId])
@@ -298,8 +300,8 @@ model CityMaster {
   transportRoutesAsCity2 TransportRouteMaster[] @relation("TransportRouteCity2")
   transportRoutesAsCity1 TransportRouteMaster[] @relation("TransportRouteCity1")
   hotelBookingCities     UmrahHotelBooking[]    @relation("HotelBookingCities")
-  movementDetailsTo      UmrahMovementDetail[]  @relation("MovementToCity")
   movementDetailsFrom    UmrahMovementDetail[]  @relation("MovementFromCity")
+  movementDetailsTo      UmrahMovementDetail[]  @relation("MovementToCity")
 
   @@unique([name, countryId])
   @@index([name])
@@ -322,10 +324,10 @@ model LocationMaster {
   cityMaster          CityMaster            @relation(fields: [cityId], references: [id])
   country             CountryMaster         @relation(fields: [countryId], references: [id])
   hotelBookings       UmrahHotelBooking[]   @relation("HotelBookings")
-  movementDetailsTo   UmrahMovementDetail[] @relation("MovementToLocation")
   movementDetailsFrom UmrahMovementDetail[] @relation("MovementFromLocation")
-  departureFlights    UmrahTravelDetails[]  @relation("DepartureAirport")
+  movementDetailsTo   UmrahMovementDetail[] @relation("MovementToLocation")
   arrivalFlights      UmrahTravelDetails[]  @relation("ArrivalAirport")
+  departureFlights    UmrahTravelDetails[]  @relation("DepartureAirport")
 
   @@unique([code, locationType])
   @@index([code])
@@ -407,9 +409,9 @@ model UmrahTravelDetails {
   departureFlightNumber String           @map("departure_flight_number")
   createdAt             DateTime         @default(now()) @map("created_at")
   updatedAt             DateTime         @default(now()) @updatedAt @map("updated_at")
-  departureAirport      LocationMaster   @relation("DepartureAirport", fields: [departureAirportId], references: [id])
-  booking               UmrahVisaBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   arrivalAirport        LocationMaster   @relation("ArrivalAirport", fields: [arrivalAirportId], references: [id])
+  booking               UmrahVisaBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  departureAirport      LocationMaster   @relation("DepartureAirport", fields: [departureAirportId], references: [id])
 
   @@unique([bookingId, isAlternate])
   @@index([bookingId])
@@ -431,9 +433,9 @@ model UmrahHotelBooking {
   brn          Json?            @map("brn")
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @default(now()) @updatedAt @map("updated_at")
-  city         CityMaster       @relation("HotelBookingCities", fields: [cityId], references: [id])
-  hotel        LocationMaster   @relation("HotelBookings", fields: [hotelId], references: [id])
   booking      UmrahVisaBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  hotel        LocationMaster   @relation("HotelBookings", fields: [hotelId], references: [id])
+  city         CityMaster       @relation("HotelBookingCities", fields: [cityId], references: [id])
 
   @@index([bookingId])
   @@index([isAlternate])
@@ -474,8 +476,8 @@ model UmrahTransportBooking {
   travelDateTime    DateTime?        @map("travel_datetime")
   createdAt         DateTime         @default(now()) @map("created_at")
   updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at")
-  transportMaster   TransportMaster  @relation(fields: [transportMasterId], references: [id])
   booking           UmrahVisaBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  transportMaster   TransportMaster  @relation(fields: [transportMasterId], references: [id])
 
   @@index([bookingId])
   @@index([isAlternate])
@@ -495,11 +497,11 @@ model UmrahMovementDetail {
   toLocationId   String           @map("to_location_id")
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at")
-  toLocation     LocationMaster   @relation("MovementToLocation", fields: [toLocationId], references: [id])
-  toCity         CityMaster       @relation("MovementToCity", fields: [toCityId], references: [id])
-  fromLocation   LocationMaster   @relation("MovementFromLocation", fields: [fromLocationId], references: [id])
-  fromCity       CityMaster       @relation("MovementFromCity", fields: [fromCityId], references: [id])
   booking        UmrahVisaBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  fromCity       CityMaster       @relation("MovementFromCity", fields: [fromCityId], references: [id])
+  fromLocation   LocationMaster   @relation("MovementFromLocation", fields: [fromLocationId], references: [id])
+  toCity         CityMaster       @relation("MovementToCity", fields: [toCityId], references: [id])
+  toLocation     LocationMaster   @relation("MovementToLocation", fields: [toLocationId], references: [id])
 
   @@index([bookingId])
   @@index([isAlternate])
@@ -687,6 +689,44 @@ model UmrahVisaMaster {
   @@map("umrah_visa_masters")
 }
 
+model LandingRegistration {
+  id                  String   @id @default(uuid())
+  partyName           String   @map("party_name")
+  partyCode           String?  @map("party_code")
+  email               String
+  whatsappNumber      String   @map("whatsapp_number")
+  contactNumber       String?  @map("contact_number")
+  address             String?
+  contactName         String?  @map("contact_name")
+  contactPersonNumber String?  @map("contact_person_number")
+  department          String?
+  gstNumber           String?  @map("gst_number")
+  panNumber           String?  @map("pan_number")
+  aadhaarNumber       String?  @map("aadhaar_number")
+  accountCurrencyId   String   @map("account_currency_id")
+  customerType        String   @map("customer_type")
+  loginRequired       Boolean  @default(false) @map("login_required")
+  emailNotification   Boolean  @default(true) @map("email_notification")
+  smsNotification     Boolean  @default(true) @map("sms_notification")
+  status              String   @default("pending")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("landing_registrations")
+}
+
+model EmailVerification {
+  id        String   @id @default(uuid())
+  email     String
+  code      String
+  expiresAt DateTime @map("expires_at")
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email])
+  @@map("email_verifications")
+}
+
 enum UserRole {
   admin
   staff
@@ -754,42 +794,4 @@ enum RouteType {
 enum PricingType {
   umrah
   others
-}
-
-model LandingRegistration {
-  id                  String   @id @default(uuid())
-  partyName           String   @map("party_name")
-  partyCode           String?  @map("party_code")
-  email               String
-  whatsappNumber      String   @map("whatsapp_number")
-  contactNumber       String?  @map("contact_number")
-  address             String?
-  contactName         String?  @map("contact_name")
-  contactPersonNumber String?  @map("contact_person_number")
-  department          String?
-  gstNumber           String?  @map("gst_number")
-  panNumber           String?  @map("pan_number")
-  aadhaarNumber       String?  @map("aadhaar_number")
-  accountCurrencyId   String   @map("account_currency_id")
-  customerType        String   @map("customer_type")
-  loginRequired       Boolean  @default(false) @map("login_required")
-  emailNotification   Boolean  @default(true) @map("email_notification")
-  smsNotification     Boolean  @default(true) @map("sms_notification")
-  status              String   @default("pending")
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at")
-
-  @@map("landing_registrations")
-}
-
-model EmailVerification {
-  id        String   @id @default(uuid())
-  email     String
-  code      String
-  expiresAt DateTime @map("expires_at")
-  verified  Boolean  @default(false)
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@index([email])
-  @@map("email_verifications")
 }

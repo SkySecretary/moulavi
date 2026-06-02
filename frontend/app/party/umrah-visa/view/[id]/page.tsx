@@ -21,6 +21,7 @@ export default function ViewUmrahVisaBookingPage() {
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState<any>(null);
   const [downloadingVoucher, setDownloadingVoucher] = useState(false);
+  const [downloadingAll, setDownloadingAll] = useState(false);
 
   useEffect(() => {
     if (!user || !hasRole('party')) {
@@ -30,6 +31,45 @@ export default function ViewUmrahVisaBookingPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingId]);
+
+  const handleDownloadAllDocuments = async () => {
+    if (!bookingId || downloadingAll) return;
+    try {
+      setDownloadingAll(true);
+      toast.info('Preparing all documents ZIP...');
+      
+      const response = await api.get(`/umrah-visa/${bookingId}/download-all-documents`, {
+        responseType: 'blob',
+      });
+      
+      const blob = new Blob([response.data], { type: 'application/zip' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const contentDisposition = response.headers['content-disposition'];
+      let fileName = `booking-documents-${bookingId}.zip`;
+      if (contentDisposition) {
+        const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (fileNameMatch && fileNameMatch[1]) {
+          fileName = fileNameMatch[1];
+        }
+      }
+      
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('All documents downloaded successfully!');
+    } catch (error: any) {
+      console.error('Bulk download error:', error);
+      toast.error('Failed to download documents ZIP');
+    } finally {
+      setDownloadingAll(false);
+    }
+  };
 
   const load = async () => {
     try {
@@ -244,7 +284,7 @@ export default function ViewUmrahVisaBookingPage() {
                     </div>
                   </div>
                   {booking.status === 'bill' && booking.hasTransportation && (
-                    <div className="mt-4 pt-4 border-t border-primary/20">
+                    <div className="mt-4 pt-4 border-t border-primary/20 flex flex-wrap gap-3">
                       <Button
                         onClick={downloadVoucherPDF}
                         disabled={downloadingVoucher}
@@ -259,6 +299,48 @@ export default function ViewUmrahVisaBookingPage() {
                           <>
                             <Download className="h-4 w-4 mr-2" />
                             Download Voucher
+                          </>
+                        )}
+                      </Button>
+
+                      <Button
+                        onClick={handleDownloadAllDocuments}
+                        disabled={downloadingAll}
+                        variant="outline"
+                        className="border-primary text-primary hover:bg-primary/5"
+                      >
+                        {downloadingAll ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Preparing ZIP...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="h-4 w-4 mr-2" />
+                            Download All Documents
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+
+                  {booking.status !== 'bill' && (
+                    <div className="mt-4 pt-4 border-t border-primary/20">
+                      <Button
+                        onClick={handleDownloadAllDocuments}
+                        disabled={downloadingAll}
+                        variant="outline"
+                        className="border-primary text-primary hover:bg-primary/5"
+                      >
+                        {downloadingAll ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Preparing ZIP...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="h-4 w-4 mr-2" />
+                            Download All Documents
                           </>
                         )}
                       </Button>
