@@ -450,6 +450,15 @@ router.get(
             email: true,
           },
         },
+        umrahCompany: {
+          select: { partyName: true, address: true, contactNumber: true, whatsappNumber: true, email: true }
+        },
+        party: {
+          select: { partyName: true }
+        },
+        transportCompany: {
+          select: { partyName: true }
+        },
         movements: {
           orderBy: {
             sr: 'asc',
@@ -531,6 +540,9 @@ router.post(
       groupCode,
       paxCount,
       reservationDate,
+      partyId,
+      umrahCompanyId,
+      transportCompanyId,
       hotelSchedules,
       movementDetails,
       flightDetails,
@@ -559,6 +571,9 @@ router.post(
           guestMobile: guestMobile || null,
           groupCode: groupCode || null,
           paxCount,
+          partyId: partyId || null,
+          umrahCompanyId: umrahCompanyId || null,
+          transportCompanyId: transportCompanyId || null,
           generatedBy: user.id,
         },
       });

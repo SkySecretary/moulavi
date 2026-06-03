@@ -8,12 +8,18 @@ export interface VoucherPdfData {
   groupCode: string;
   groupName?: string;
   paxCount: number;
-  umrahVisaProvider?: {
+  umrahCompany?: {
     partyName: string;
     address?: string;
     contactNumber?: string;
     whatsappNumber?: string;
     email?: string;
+  } | null;
+  agentParty?: {
+    partyName: string;
+  } | null;
+  transportCompany?: {
+    partyName: string;
   } | null;
   hotelSchedules: Array<{
     number: number;

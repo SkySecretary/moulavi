@@ -215,7 +215,7 @@ export const umrahVisaAPI = {
     api.get(`/umrah-visa/${bookingId}/download-all-documents`, { responseType: 'blob' }),
 
   downloadBookingZip: (bookingId: string) =>
-    api.get(`/umrah-visa/${bookingId}/download-zip`),
+    api.get(`/umrah-visa/${bookingId}/download-zip`, { responseType: 'blob' }),
 
   addGroupData: (bookingId: string, data: any) =>
     api.post(`/umrah-visa/${bookingId}/add-group-data`, data),

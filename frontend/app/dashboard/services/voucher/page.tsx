@@ -312,7 +312,9 @@ export default function VoucherServicePage() {
         guestMobile: voucher.guestMobile || '',
         groupCode: voucher.groupCode || '',
         paxCount: voucher.paxCount || 0,
-        umrahVisaProvider: voucher.booking?.party || null,
+        umrahCompany: voucher.umrahCompany || null,
+        agentParty: voucher.party || null,
+        transportCompany: voucher.transportCompany || null,
         hotelSchedules: (voucher.hotelSchedules || []).map((hs: any) => ({
           number: hs.number || 0,
           location: hs.location || '',

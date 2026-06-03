@@ -22,7 +22,7 @@ import { GroupDocumentsStep } from '@/components/umrah-booking/steps/GroupDocume
 import { validateStep1, validateStep2, validateStep3, validateStep4, validateStep5 } from '@/lib/umrah/validation';
 import { umrahVisaAPI } from '@/lib/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 export default function GroupUmrahVisaPage() {
   const router = useRouter();

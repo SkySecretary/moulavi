@@ -130,7 +130,7 @@ export default function PartySettingsPage() {
       setSaving(true);
       
       // Use the new my-party endpoint for party users
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/parties/my-party`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'}/parties/my-party`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -184,7 +184,7 @@ export default function PartySettingsPage() {
     try {
       setChangingPassword(true);
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/auth/change-password`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'}/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

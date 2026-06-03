@@ -47,3 +47,5 @@ coverage
 backend/*.json
 nusukautomation-*.json
 backend/prisma/dev.db
+.env.local
+.env.production

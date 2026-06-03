@@ -353,6 +353,33 @@ router.get('/:bookingId', authenticate, async (req, res) => {
   }
 });
 
+// DELETE /api/umrah-visa/booking/:id - Delete a booking (Admin only)
+router.delete('/booking/:id', authenticate, authorize('admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if booking exists
+    const booking = await prisma.umrahVisaBooking.findUnique({
+      where: { id },
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    // Delete the booking (related records will be deleted via Cascade if defined in schema, 
+    // or we might need to handle them manually if not)
+    await prisma.umrahVisaBooking.delete({
+      where: { id },
+    });
+
+    res.json({ message: 'Booking deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting booking:', error);
+    res.status(500).json({ error: 'Failed to delete booking' });
+  }
+});
+
 // GET /api/umrah-visa/:bookingId/voucher - Get voucher for party users by booking ID
 router.get('/:bookingId/voucher', authenticate, async (req, res) => {
   try {

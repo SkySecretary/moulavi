@@ -157,15 +157,21 @@ export default function ViewUmrahVisaBookingPage() {
         guestMobile: fullVoucher.guestMobile || '',
         groupCode: fullVoucher.groupCode || '',
         paxCount: fullVoucher.paxCount || 0,
-        umrahVisaProvider: fullVoucher.booking?.party ? {
-          partyName: fullVoucher.booking.party.partyName || '',
-          address: fullVoucher.booking.party.address || '',
-          city: fullVoucher.booking.party.city || '',
-          state: fullVoucher.booking.party.state || '',
-          country: fullVoucher.booking.party.country || '',
-          contactNumber: fullVoucher.booking.party.contactNumber || '',
-          whatsappNumber: fullVoucher.booking.party.whatsappNumber || '',
-          email: fullVoucher.booking.party.email || '',
+        umrahCompany: fullVoucher.umrahCompany ? {
+          partyName: fullVoucher.umrahCompany.partyName || '',
+          address: fullVoucher.umrahCompany.address || '',
+          city: fullVoucher.umrahCompany.city || '',
+          state: fullVoucher.umrahCompany.state || '',
+          country: fullVoucher.umrahCompany.country || '',
+          contactNumber: fullVoucher.umrahCompany.contactNumber || '',
+          whatsappNumber: fullVoucher.umrahCompany.whatsappNumber || '',
+          email: fullVoucher.umrahCompany.email || '',
+        } : null,
+        agentParty: fullVoucher.party ? {
+          partyName: fullVoucher.party.partyName || '',
+        } : null,
+        transportCompany: fullVoucher.transportCompany ? {
+          partyName: fullVoucher.transportCompany.partyName || '',
         } : null,
         hotelSchedules: (fullVoucher.hotelSchedules || []).map((hs: any) => ({
           number: hs.number || 0,

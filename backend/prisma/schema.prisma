@@ -63,6 +63,9 @@ model Party {
   pricingMasters        PricingMaster[]
   umrahVisaBookings     UmrahVisaBooking[] @relation("UmrahVisaProvider")
   bookings              UmrahVisaBooking[] @relation("BookingParty")
+  umrahCompanyVouchers  Voucher[]          @relation("UmrahCompany")
+  transportCompanyVouchers Voucher[]       @relation("TransportCompany")
+  partyVouchers         Voucher[]          @relation("VoucherParty")
 
   @@index([email])
   @@index([partyName])
@@ -539,6 +542,9 @@ model Voucher {
   groupCode           String?           @map("group_code")
   groupName           String?           @map("group_name")
   umrahVisaProviderId String?           @map("umrah_visa_provider_id")
+  partyId             String?           @map("party_id")
+  umrahCompanyId      String?           @map("umrah_company_id")
+  transportCompanyId  String?           @map("transport_company_id")
   paxCount            Int               @map("pax_count")
   version             Int               @default(1)
   generatedAt         DateTime          @default(now()) @map("generated_at")
@@ -549,6 +555,9 @@ model Voucher {
   hotels              VoucherHotel[]
   movements           VoucherMovement[]
   generatedByUser     User              @relation("VoucherGeneratedBy", fields: [generatedBy], references: [id])
+  party               Party?            @relation("VoucherParty", fields: [partyId], references: [id])
+  umrahCompany        Party?            @relation("UmrahCompany", fields: [umrahCompanyId], references: [id])
+  transportCompany    Party?            @relation("TransportCompany", fields: [transportCompanyId], references: [id])
 
   @@index([voucherNumber])
   @@index([generatedAt])

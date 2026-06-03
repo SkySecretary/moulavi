@@ -692,6 +692,18 @@ export default function CreatePartyDialog({
                     Hotel Service
                   </Label>
                 </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="transport_service"
+                    checked={formData.supplier_service_types.includes('transport_service')}
+                    onChange={() => toggleSupplierServiceType('transport_service')}
+                    className="rounded"
+                  />
+                  <Label htmlFor="transport_service" className="cursor-pointer">
+                    Transport Service
+                  </Label>
+                </div>
               </div>
             </div>
           )}

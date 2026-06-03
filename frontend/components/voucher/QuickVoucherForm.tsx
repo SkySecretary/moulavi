@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { voucherAPI, cityMasterAPI, locationMasterAPI, transportRouteMasterAPI, transportMasterAPI } from '@/lib/api';
+import { voucherAPI, cityMasterAPI, locationMasterAPI, transportRouteMasterAPI, transportMasterAPI, partyAPI } from '@/lib/api';
 import { Loader2, Plus, Minus, Trash2, MapPin, Truck, Ticket, Users, User, Plane, Building, CheckCircle2 } from 'lucide-react';
 import { MovementsTable } from '@/components/umrah-booking/components/MovementsTable';
 import {
@@ -100,12 +100,21 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
     guestName: '',
     guestMobile: '',
     groupCode: '',
+    partyId: '',
+    umrahCompanyId: '',
+    transportCompanyId: '',
     paxCount: 1,
     hotelSchedules: [] as HotelSchedule[],
     movementDetails: [] as MovementDetail[],
     flightDetails: [] as FlightDetail[],
     transportOptions: [] as TransportOption[],
   });
+
+  // Master Data
+  const [parties, setParties] = useState<any[]>([]);
+  const [umrahCompanies, setUmrahCompanies] = useState<any[]>([]);
+  const [transportCompanies, setTransportCompanies] = useState<any[]>([]);
+  const [allParties, setAllParties] = useState<any[]>([]);
 
   // Load Master Data
   useEffect(() => {
@@ -115,21 +124,38 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
   const loadMasterData = async () => {
     try {
       setLoadingMasters(true);
-      const [citiesRes, locationsRes, routesRes] = await Promise.all([
+      const [citiesRes, locationsRes, routesRes, partiesRes] = await Promise.all([
         cityMasterAPI.getActive(),
         locationMasterAPI.getActive(),
         transportRouteMasterAPI.getActive(),
+        partyAPI.getAll(),
       ]);
       
       const citiesData = citiesRes.data?.cityMasters || citiesRes.data || [];
       const locationsData = locationsRes.data?.locationMasters || locationsRes.data || [];
       const routesData = routesRes.data?.transportRouteMasters || routesRes.data || [];
+      const partiesData = partiesRes.data?.data?.parties || partiesRes.data?.parties || [];
       
       setCities(citiesData);
       setLocations(locationsData);
-      
-      // Load all routes (not just fulltrip)
       setRoutes(routesData);
+      setAllParties(partiesData);
+      
+      // Regular agents (isCustomer true)
+      setParties(partiesData.filter((p: any) => p.isCustomer));
+      
+      // Suppliers
+      const suppliers = partiesData.filter((p: any) => p.isSupplier);
+      
+      setUmrahCompanies(suppliers.filter((p: any) => {
+        const types = p.supplierServiceTypes || [];
+        return Array.isArray(types) && types.includes('umrah_service');
+      }));
+      
+      setTransportCompanies(suppliers.filter((p: any) => {
+        const types = p.supplierServiceTypes || [];
+        return Array.isArray(types) && types.includes('transport_service');
+      }));
       
       // Group locations by city and type
       const locationsByCityMap = new Map<string, any[]>();
@@ -1024,7 +1050,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
               <h3 className="text-[11px] font-bold text-primary uppercase tracking-wider">Guest Details</h3>
             </div>
             <CardContent className="p-4">
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
                 <div className="space-y-1">
                   <Label className="text-[10px] font-medium text-muted-foreground ml-0.5">Reservation Date</Label>
                   <Input 
@@ -1034,7 +1060,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
                     className="h-8 rounded-md border-gray-200 text-xs focus:ring-secondary/20"
                   />
                 </div>
-                <div className="space-y-1 md:col-span-2">
+                <div className="space-y-1 lg:col-span-2">
                   <Label className="text-[10px] font-medium text-muted-foreground ml-0.5">Guest Name</Label>
                   <Input 
                     placeholder="Enter Guest Name" 
@@ -1059,6 +1085,35 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
                     <span className="flex-1 text-center font-bold text-xs">{formData.paxCount}</span>
                     <Button variant="ghost" size="icon" onClick={() => setFormData({...formData, paxCount: formData.paxCount + 1})} className="h-6 w-6 rounded-sm"><Plus className="h-3 w-3" /></Button>
                   </div>
+                </div>
+                
+                {/* New Company Selections */}
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-medium text-muted-foreground ml-0.5">Umrah Company</Label>
+                  <Select value={formData.umrahCompanyId} onValueChange={(v) => setFormData({...formData, umrahCompanyId: v})}>
+                    <SelectTrigger className="h-8 rounded-md border-gray-200 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {umrahCompanies.map(p => <SelectItem key={p.id} value={p.id} className="text-xs">{p.partyName}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-medium text-muted-foreground ml-0.5">Agent (Party)</Label>
+                  <Select value={formData.partyId} onValueChange={(v) => setFormData({...formData, partyId: v})}>
+                    <SelectTrigger className="h-8 rounded-md border-gray-200 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {parties.map(p => <SelectItem key={p.id} value={p.id} className="text-xs">{p.partyName}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-medium text-muted-foreground ml-0.5">Transport Co.</Label>
+                  <Select value={formData.transportCompanyId} onValueChange={(v) => setFormData({...formData, transportCompanyId: v})}>
+                    <SelectTrigger className="h-8 rounded-md border-gray-200 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {transportCompanies.map(p => <SelectItem key={p.id} value={p.id} className="text-xs">{p.partyName}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </CardContent>

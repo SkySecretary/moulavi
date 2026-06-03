@@ -31,13 +31,30 @@ function formatTime(timeString: string): string {
 
 // Generate HTML template for voucher
 function generateVoucherHTML(data: VoucherPdfData): string {
-  const providerName = data.umrahVisaProvider?.partyName || 'UMRA SERVICES';
-  const address = data.umrahVisaProvider?.address || 'JEDDAH - SAUDI ARABIA';
-  const contactNumber = data.umrahVisaProvider?.contactNumber || data.umrahVisaProvider?.whatsappNumber || '+966 538634100';
-  const email = data.umrahVisaProvider?.email || 'info@test.com.sa';
+  const providerName = data.umrahCompany?.partyName || 'UMRA SERVICES';
+  const agentName = data.agentParty?.partyName || '';
+  const transportName = data.transportCompany?.partyName || '';
+  const contactNumber = data.umrahCompany?.contactNumber || data.umrahCompany?.whatsappNumber || 'N/A';
 
-  // Primary red color from dashboard (#dc2626 - Tailwind red-600)
-  const primaryRed = '#dc2626';
+  // Aggregate BRNs
+  const brnsList = data.hotelSchedules
+    .map(h => (h.brn && Array.isArray(h.brn)) ? h.brn.join(', ') : '')
+    .filter(b => b.length > 0)
+    .join(', ');
+
+  const arrivalFlight = data.flightDetails.find(f => f.type === 'AA');
+  const departureFlight = data.flightDetails.find(f => f.type === 'AD');
+
+  // Format Dates
+  const formatShortDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+      return `${d.getDate()} ${months[d.getMonth()]}`;
+    } catch { return dateStr; }
+  };
 
   return `
 <!DOCTYPE html>
@@ -46,423 +63,231 @@ function generateVoucherHTML(data: VoucherPdfData): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Travel Voucher - ${data.voucherNumber}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    @page {
-      size: A4;
-      margin: 0;
-    }
-
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    @page { size: A4; margin: 0; }
     body {
-      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       background: #ffffff;
-      color: #1f2937;
-      line-height: 1.5;
+      color: #111827;
+      line-height: 1.4;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
-
-    .voucher-container {
-      width: 210mm;
-      min-height: 297mm;
-      background: #ffffff;
+    :root {
+      --n-green: #0d4732;
+      --n-gold: #c39a5c;
+      --bg-cream: #fbfaf6;
     }
+    .container { width: 210mm; min-height: 297mm; padding: 12mm 15mm; position: relative; }
+    
+    /* Header */
+    .header { text-align: center; margin-bottom: 25px; }
+    .header h1 { color: var(--n-green); font-size: 32px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
+    .header p { color: var(--n-gold); font-size: 13px; font-weight: 700; letter-spacing: 1.5px; margin-top: 4px; }
+    .divider { height: 2px; background: var(--n-gold); width: 50%; margin: 12px auto; position: relative; }
+    .divider::after { content: '◆'; position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background: #fff; padding: 0 10px; color: var(--n-gold); font-size: 14px; }
 
-    /* Header Section - Gradient Red with Overlays */
-    .header {
-      background: linear-gradient(135deg, #c62828 0%, #e53935 100%);
-      color: white;
-      padding: 40px 50px;
-      position: relative;
-      overflow: hidden;
-    }
+    /* Top Boxes */
+    .top-boxes { display: flex; gap: 15px; margin-bottom: 20px; }
+    .box { flex: 1; background: var(--n-green); border: 2px solid var(--n-gold); border-radius: 8px; padding: 12px; display: flex; align-items: center; gap: 10px; color: white; }
+    .box-icon { width: 36px; height: 36px; background: rgba(255,255,255,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .box-text { display: flex; flex-direction: column; justify-content: center; }
+    .box-label { font-size: 8px; color: var(--n-gold); text-transform: uppercase; letter-spacing: 0.5px; }
+    .box-value { font-size: 13px; font-weight: 700; line-height: 1.2; text-transform: uppercase; word-break: break-word; }
 
-    .header::before {
-      content: '';
-      position: absolute;
-      top: -50%;
-      right: -10%;
-      width: 300px;
-      height: 300px;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 50%;
-    }
+    /* Main Info */
+    .main-grid { display: flex; gap: 15px; margin-bottom: 20px; }
+    
+    .guest-card { flex: 1.2; border: 1px solid var(--n-gold); border-radius: 8px; background: var(--bg-cream); padding: 20px; display: flex; flex-direction: column; justify-content: space-between; }
+    .g-row { display: flex; align-items: center; border-bottom: 1px dashed rgba(195,154,92,0.4); padding: 8px 0; }
+    .g-row:last-child { border-bottom: none; }
+    .g-icon { width: 28px; height: 28px; background: var(--n-green); color: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; margin-right: 15px; }
+    .g-label { width: 150px; font-size: 12px; font-weight: 700; color: #374151; }
+    .g-colon { margin-right: 15px; font-weight: bold; }
+    .g-val { font-size: 14px; font-weight: 700; color: #111827; text-transform: uppercase; }
 
-    .header::after {
-      content: '';
-      position: absolute;
-      bottom: -30%;
-      left: -5%;
-      width: 200px;
-      height: 200px;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 50%;
-    }
+    .hotels-col { flex: 0.8; display: flex; flex-direction: column; gap: 10px; }
+    .hotel-card { border: 1px solid var(--n-gold); border-radius: 8px; background: var(--bg-cream); overflow: hidden; display: flex; flex-direction: column; }
+    .h-head { background: var(--n-green); color: white; font-size: 11px; font-weight: 700; text-align: center; padding: 6px; text-transform: uppercase; letter-spacing: 1px; }
+    .h-body { padding: 12px; display: flex; align-items: center; gap: 15px; }
+    .h-icon { width: 40px; height: 40px; background: var(--n-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .h-name { font-size: 16px; font-weight: 800; color: var(--n-green); margin-bottom: 4px; text-transform: uppercase; }
+    .h-dates { font-size: 12px; font-weight: 600; color: #4b5563; text-transform: uppercase; }
 
-    .header-content {
-      position: relative;
-      z-index: 1;
-      text-align: left;
-    }
+    /* Flight Details */
+    .flight-box { border: 1px solid var(--n-gold); border-radius: 8px; padding: 20px; position: relative; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; background: #fff; }
+    .f-badge { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: var(--n-green); color: white; padding: 6px 24px; border-radius: 20px; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 8px; letter-spacing: 1px; }
+    .f-block { display: flex; align-items: center; gap: 15px; width: 35%; }
+    .f-icon { width: 45px; height: 45px; background: var(--n-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+    .f-label { font-size: 11px; font-weight: 700; color: var(--n-green); text-transform: uppercase; margin-bottom: 2px; }
+    .f-val { font-size: 14px; font-weight: 700; color: #111827; text-transform: uppercase; }
+    .f-route { flex: 1; text-align: center; position: relative; font-size: 14px; font-weight: 800; color: var(--n-green); text-transform: uppercase; }
+    .f-route::after { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: var(--n-gold); z-index: 0; }
+    .f-route span { background: #fff; padding: 0 15px; position: relative; z-index: 1; }
 
-    .header-content h1 {
-      font-size: 32px;
-      font-weight: 700;
-      margin-bottom: 8px;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-    }
-
-    .header-content .address {
-      font-size: 13px;
-      margin-bottom: 12px;
-      opacity: 0.95;
-      font-weight: 400;
-      text-transform: uppercase;
-    }
-
-    .header-content .contact {
-      font-size: 11px;
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      flex-wrap: wrap;
-      opacity: 0.9;
-    }
-
-    .header-content .contact span {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    /* Travel Voucher Banner */
-    .voucher-banner {
-      background: #ffffff;
-      margin: -20px auto 0;
-      padding: 10px 30px;
-      width: fit-content;
-      border-radius: 4px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      position: relative;
-      z-index: 10;
-    }
-
-    .voucher-banner h2 {
-      font-size: 14px;
-      font-weight: 700;
-      color: ${primaryRed};
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin: 0;
-    }
-
-    /* Details Section with Red Left Border */
-    .details-section {
-      margin: 15px 0 0 0;
-      background: #ffffff;
-      border-left: 8px solid ${primaryRed};
-      padding: 25px 30px;
-      position: relative;
-    }
-
-    .details-content {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 16px 50px;
-    }
-
-    .info-item {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .info-label {
-      font-size: 7px;
-      font-weight: 600;
-      color: #9ca3af;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .info-value {
-      font-size: 10px;
-      font-weight: 700;
-      color: #111827;
-      line-height: 1.3;
-    }
-
-    /* Section Title */
-    .section-title {
-      font-size: 13px;
-      font-weight: 700;
-      color: #111827;
-      margin: 20px 20px 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      padding-bottom: 6px;
-      border-bottom: 2px solid ${primaryRed};
-    }
-
-    /* Tables */
-    .table-container {
-      margin: 0 20px 18px;
-      border: 1px solid #e5e7eb;
-      overflow: hidden;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: #ffffff;
-    }
-
-    thead {
-      background: ${primaryRed};
-      color: #ffffff;
-    }
-
-    thead th {
-      padding: 8px 6px;
-      text-align: left;
-      font-size: 8px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    tbody tr {
-      border-bottom: 1px solid #e5e7eb;
-    }
-
-    tbody tr:nth-child(even) {
-      background: #f9fafb;
-    }
-
-    tbody tr:last-child {
-      border-bottom: none;
-    }
-
-    tbody td {
-      padding: 7px 6px;
-      font-size: 8px;
-      color: #374151;
-    }
-
-    tbody td:first-child {
-      text-align: center;
-      font-weight: 600;
-      color: #111827;
-    }
+    /* Itinerary */
+    .itin-box { border: 1px solid var(--n-gold); border-radius: 8px; overflow: hidden; margin-bottom: 25px; }
+    .i-head { background: var(--n-green); color: white; font-size: 14px; font-weight: 700; text-align: center; padding: 10px; letter-spacing: 1px; }
+    .i-table { width: 100%; border-collapse: collapse; }
+    .i-table td { padding: 12px; border-bottom: 1px solid rgba(195,154,92,0.3); font-size: 12px; font-weight: 700; text-transform: uppercase; }
+    .i-table tr:last-child td { border-bottom: none; }
+    .col-num { width: 40px; text-align: center; border-right: 1px solid rgba(195,154,92,0.3); }
+    .col-ic { width: 50px; text-align: center; font-size: 18px; }
+    .col-date { width: 130px; border-left: 1px solid rgba(195,154,92,0.3); color: #4b5563; }
+    .col-time { width: 100px; border-left: 1px solid rgba(195,154,92,0.3); color: #4b5563; }
 
     /* Footer */
-    .footer {
-      margin-top: 20px;
-      padding: 12px 20px;
-      border-top: 1px solid #e5e7eb;
-      text-align: center;
-      background: #f9fafb;
-    }
-
-    .footer p {
-      font-size: 7px;
-      color: #6b7280;
-      margin: 1px 0;
-    }
-
-    .footer p strong {
-      color: #374151;
-      font-weight: 600;
-    }
-
-    /* Print Styles */
-    @media print {
-      body {
-        margin: 0;
-        padding: 0;
-      }
-
-      .voucher-container {
-        width: 210mm;
-        min-height: 297mm;
-      }
-
-      .header {
-        page-break-after: avoid;
-      }
-
-      .reservation-card,
-      .table-container {
-        page-break-inside: avoid;
-      }
-    }
+    .footer { display: flex; border: 1px solid var(--n-gold); border-radius: 8px; padding: 15px; align-items: flex-end; }
+    .notes { flex: 1; }
+    .notes h4 { font-size: 12px; font-weight: 800; margin-bottom: 6px; }
+    .notes ul { list-style: none; padding-left: 5px; }
+    .notes li { font-size: 10px; font-weight: 500; margin-bottom: 4px; display: flex; gap: 6px; }
+    .notes li::before { content: '•'; color: var(--n-green); }
+    .stamp { width: 100px; display: flex; justify-content: center; margin: 0 20px; }
+    .stamp-circle { width: 70px; height: 70px; border: 2px dashed var(--n-green); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: var(--n-green); text-align: center; padding: 5px; }
+    .sig { text-align: center; width: 180px; }
+    .sig-title { font-size: 11px; font-weight: 800; margin-bottom: 25px; }
+    .sig-name { font-family: 'Brush Script MT', cursive, serif; font-size: 22px; color: var(--n-green); margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;}
+    .sig-line { border-top: 1px solid #111827; padding-top: 5px; font-size: 10px; font-weight: 700; }
   </style>
 </head>
 <body>
-  <div class="voucher-container">
-    <!-- Header -->
+  <div class="container">
+    
     <div class="header">
-      <div class="header-content">
-        <h1>${providerName.toUpperCase()}</h1>
-        <div class="address">${address.toUpperCase()}</div>
-        <div class="contact">
-          <span>${contactNumber}</span>
-          <span>${email}</span>
+      <h1>${providerName}</h1>
+      <p>YOUR TRUSTED PARTNER FOR A SPIRITUAL JOURNEY</p>
+      <div class="divider"></div>
+    </div>
+
+    <div class="top-boxes">
+      <div class="box">
+        <div class="box-icon">👤</div>
+        <div class="box-text">
+          <div class="box-label">AGENT NAME</div>
+          <div class="box-value">${agentName || 'N/A'}</div>
+        </div>
+      </div>
+      <div class="box">
+        <div class="box-icon">🚐</div>
+        <div class="box-text">
+          <div class="box-label">TRANSPORTATION COMPANY</div>
+          <div class="box-value">${transportName || 'N/A'}</div>
+        </div>
+      </div>
+      <div class="box">
+        <div class="box-icon">🎧</div>
+        <div class="box-text">
+          <div class="box-label">OPERATION NUMBER</div>
+          <div class="box-value">${contactNumber}</div>
         </div>
       </div>
     </div>
 
-    <!-- Travel Voucher Banner -->
-    <div class="voucher-banner">
-      <h2>TRAVEL VOUCHER</h2>
-    </div>
+    <div class="main-grid">
+      <div class="guest-card">
+        <div class="g-row">
+          <div class="g-icon">👥</div>
+          <div class="g-label">GROUP CODES</div><div class="g-colon">:</div>
+          <div class="g-val">${data.groupCode || 'N/A'}</div>
+        </div>
+        <div class="g-row">
+          <div class="g-icon">🎫</div>
+          <div class="g-label">BRNS</div><div class="g-colon">:</div>
+          <div class="g-val">${brnsList || 'N/A'}</div>
+        </div>
+        <div class="g-row">
+          <div class="g-icon">🏷️</div>
+          <div class="g-label">VOUCHER NUMBER</div><div class="g-colon">:</div>
+          <div class="g-val" style="text-decoration: underline;">${data.voucherNumber}</div>
+        </div>
+        <div class="g-row">
+          <div class="g-icon">👤</div>
+          <div class="g-label">GUEST NAME</div><div class="g-colon">:</div>
+          <div class="g-val">${data.guestName || 'N/A'}</div>
+        </div>
+        <div class="g-row">
+          <div class="g-icon">📞</div>
+          <div class="g-label">GUEST CONTACT NUMBER</div><div class="g-colon">:</div>
+          <div class="g-val">${data.guestMobile || 'N/A'}</div>
+        </div>
+      </div>
 
-    <!-- Details Section -->
-    <div class="details-section">
-      <div class="details-content">
-        <div class="info-item">
-          <div class="info-label">RESERVATION NUMBER</div>
-          <div class="info-value">${data.voucherNumber || 'N/A'}</div>
-        </div>
-        <div class="info-item">
-          <div class="info-label">RESERVATION DATE</div>
-          <div class="info-value">${formatDate(data.reservationDate)}</div>
-        </div>
-        <div class="info-item">
-          <div class="info-label">GROUP CODE</div>
-          <div class="info-value">${data.groupCode || 'N/A'}</div>
-        </div>
-        <div class="info-item">
-          <div class="info-label">GUEST NAME</div>
-          <div class="info-value">${data.guestName || 'N/A'}</div>
-        </div>
-        <div class="info-item">
-          <div class="info-label">GUEST MOBILE</div>
-          <div class="info-value">${data.guestMobile || 'N/A'}</div>
-        </div>
-        <div class="info-item">
-          <div class="info-label">TOTAL PASSENGERS</div>
-          <div class="info-value">ADT: ${data.paxCount} | CHD: 0 | INF: 0 = ${data.paxCount}</div>
-        </div>
+      <div class="hotels-col">
+        ${data.hotelSchedules.map(h => `
+          <div class="hotel-card">
+            <div class="h-head">${h.location || 'HOTEL'}</div>
+            <div class="h-body">
+              <div class="h-icon">🏨</div>
+              <div>
+                <div class="h-name">${h.hotelName || 'N/A'}</div>
+                <div class="h-dates">📅 ${formatShortDate(h.checkIn)} – ${formatShortDate(h.checkOut)}</div>
+              </div>
+            </div>
+          </div>
+        `).join('')}
       </div>
     </div>
 
-    ${data.hotelSchedules && data.hotelSchedules.length > 0 ? `
-    <!-- Hotel Schedules -->
-    <div class="section-title">HOTEL SCHEDULES</div>
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Location</th>
-            <th>Hotel Name</th>
-            <th>Days</th>
-            <th>Check In</th>
-            <th>Check Out</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${data.hotelSchedules.map((hotel) => `
-            <tr>
-              <td>${hotel.number}</td>
-              <td>${hotel.location || 'N/A'}</td>
-              <td>${hotel.hotelName || 'N/A'}</td>
-              <td>${hotel.days}</td>
-              <td>${formatDate(hotel.checkIn)}</td>
-              <td>${formatDate(hotel.checkOut)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
+    ${(arrivalFlight || departureFlight) ? `
+    <div class="flight-box">
+      <div class="f-badge">✈️ FLIGHT DETAILS</div>
+      
+      <div class="f-block">
+        <div class="f-icon">🛬</div>
+        <div class="flight-details-col">
+          <div class="f-label">ARRIVAL</div>
+          <div class="f-val">${arrivalFlight ? `${formatShortDate(arrivalFlight.date)} ${arrivalFlight.carrier}${arrivalFlight.number}<br/>${formatTime(arrivalFlight.eta || arrivalFlight.etd)}` : 'N/A'}</div>
+        </div>
+      </div>
+
+      <div class="f-route"><span>${arrivalFlight?.to || 'JEDDAH'} - ${departureFlight?.from || 'MAKKAH'}</span></div>
+
+      <div class="f-block" style="justify-content: flex-end; text-align: right;">
+        <div class="flight-details-col">
+          <div class="f-label">DEPARTURE</div>
+          <div class="f-val">${departureFlight ? `${formatShortDate(departureFlight.date)} ${departureFlight.carrier}${departureFlight.number}<br/>${formatTime(departureFlight.etd || departureFlight.eta)}` : 'N/A'}</div>
+        </div>
+        <div class="f-icon" style="transform: scaleX(-1);">🛫</div>
+      </div>
     </div>
     ` : ''}
 
-    ${data.movementDetails && data.movementDetails.length > 0 ? `
-    <!-- Movement Details -->
-    <div class="section-title">MOVEMENT DETAILS</div>
-    <div class="table-container">
-      <table>
-        <thead>
+    <div class="itin-box">
+      <div class="i-head">ITINERARY & SCHEDULE</div>
+      <table class="i-table">
+        ${data.movementDetails.map((m, i) => `
           <tr>
-            <th>Sr</th>
-            <th>Route</th>
-            <th>Date</th>
-            <th>Time</th>
-            <th>From Location</th>
-            <th>To Location</th>
+            <td class="col-num">${i + 1}</td>
+            <td class="col-ic">${m.from.toLowerCase().includes('mazarath') || m.to.toLowerCase().includes('mazarath') ? '🕋' : '🚌'}</td>
+            <td class="col-desc">${m.from} ${m.to ? `- ${m.to}` : ''}</td>
+            <td class="col-date">📅 ${formatShortDate(m.date)}</td>
+            <td class="col-time">🕒 ${formatTime(m.time)}</td>
           </tr>
-        </thead>
-        <tbody>
-          ${data.movementDetails.map((movement) => `
-            <tr>
-              <td>${movement.sr}</td>
-              <td>${movement.route || 'Auto'}</td>
-              <td>${formatDate(movement.date)}</td>
-              <td>${formatTime(movement.time)}</td>
-              <td>${movement.from ? `${movement.from}${movement.fromLocation ? `, ${movement.fromLocation}` : ''}` : 'N/A'}</td>
-              <td>${movement.to ? `${movement.to}${movement.toLocation ? `, ${movement.toLocation}` : ''}` : 'N/A'}</td>
-            </tr>
-          `).join('')}
-        </tbody>
+        `).join('')}
       </table>
     </div>
-    ` : ''}
 
-    ${data.flightDetails && data.flightDetails.length > 0 ? `
-    <!-- Flight Details -->
-    <div class="section-title">FLIGHT DETAILS</div>
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>Type</th>
-            <th>Date</th>
-            <th>Carrier</th>
-            <th>Number</th>
-            <th>Airport</th>
-            <th>ETD</th>
-            <th>ETA</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${data.flightDetails.map((flight) => {
-            // For arrival (AA), show arrival airport; for departure (AD), show departure airport
-            const airport = flight.type === 'AA' 
-              ? (flight.arrivalAirport || flight.from || 'N/A')
-              : (flight.departureAirport || flight.to || 'N/A');
-            
-            return `
-            <tr>
-              <td>${flight.type || 'N/A'}</td>
-              <td>${formatDate(flight.date)}</td>
-              <td>${flight.carrier || 'N/A'}</td>
-              <td>${flight.number || 'N/A'}</td>
-              <td>${airport}</td>
-              <td>${formatTime(flight.etd)}</td>
-              <td>${formatTime(flight.eta)}</td>
-            </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>
-    ` : ''}
-
-    <!-- Footer -->
     <div class="footer">
-      <p><strong>Generated by Moulavi ERP</strong></p>
-      <p>This document is system generated. Terms and conditions apply.</p>
+      <div class="notes">
+        <h4>NOTES :</h4>
+        <ul>
+          <li>Please carry this voucher during the journey.</li>
+          <li>Verify all details before the travel.</li>
+          <li>For any assistance, contact your agent.</li>
+        </ul>
+      </div>
+      <div class="stamp">
+        <div class="stamp-circle">VALID<br/>VOUCHER</div>
+      </div>
+      <div class="sig">
+        <div class="sig-title">AUTHORIZED SIGNATURE</div>
+        <div class="sig-name">${agentName || 'Agent'}</div>
+        <div class="sig-line">( AGENT )</div>
+      </div>
     </div>
+
   </div>
 </body>
 </html>
@@ -630,7 +455,8 @@ export async function generateVoucherPDF(data: VoucherPdfData): Promise<Buffer> 
     console.log(`${logPrefix} Setting page content and waiting for resources...`);
     const contentStartTime = Date.now();
     await page.setContent(html, {
-      waitUntil: 'networkidle0',
+      waitUntil: 'domcontentloaded',
+      timeout: 30000,
     });
     const contentDuration = Date.now() - contentStartTime;
     console.log(`${logPrefix} ✓ Page content loaded in ${contentDuration}ms`);

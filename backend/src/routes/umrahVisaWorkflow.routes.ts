@@ -9,11 +9,9 @@ import { VoucherPdfData } from '../types/voucher';
 import { isS3Configured, S3_CONFIG, generateDownloadUrl, s3Client, extractS3KeyFromUrl } from '../config/s3';
 import { combineDateTime } from '../utils/datetime';
 import fs from 'fs';
-import * as archiverModule from 'archiver';
+import archiver from 'archiver';
 import path from 'path';
 
-// Handle both default and namespace imports for archiver
-const archiver = (archiverModule.default || archiverModule) as unknown as typeof archiverModule.default;
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
 
@@ -57,7 +55,7 @@ router.get('/:bookingId/download-all-documents', authenticate, async (req, res) 
     archive.pipe(res);
 
     // Handle errors
-    archive.on('error', (err) => {
+    archive.on('error', (err: any) => {
       console.error('Archiver error:', err);
       if (!res.headersSent) {
         res.status(500).send({ error: 'Failed to create ZIP archive' });
@@ -226,10 +224,19 @@ router.get('/:bookingId/download-zip', authenticate, async (req, res) => {
       }
     } else {
       // Serve local file
+      const absolutePath = path.resolve(process.cwd(), zipDocument.filePath);
+      console.log(`Attempting to download local ZIP:
+        - DB Path: ${zipDocument.filePath}
+        - Absolute Path: ${absolutePath}
+        - Exists: ${fs.existsSync(zipDocument.filePath)}
+        - Process CWD: ${process.cwd()}
+      `);
+
       if (fs.existsSync(zipDocument.filePath)) {
         res.download(zipDocument.filePath, zipDocument.fileName);
       } else {
-        res.status(404).json({ error: 'File not found on server' });
+        console.error(`File not found at path: ${zipDocument.filePath}`);
+        res.status(404).json({ error: 'Zip file not found on server disk' });
       }
     }
   } catch (error) {

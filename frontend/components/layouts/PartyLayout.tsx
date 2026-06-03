@@ -45,7 +45,7 @@ export const PartyLayout: React.FC<PartyLayoutProps> = ({
     try {
       const refreshToken = localStorage.getItem('refreshToken');
       if (refreshToken) {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/auth/logout`, {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'}/auth/logout`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

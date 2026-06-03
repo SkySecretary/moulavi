@@ -55,9 +55,9 @@ const createPartyValidation = [
   body('aadhaar_number').optional().isString().trim(),
   body('supplier_service_types').optional().isArray().custom((value) => {
     if (!Array.isArray(value)) return false;
-    const validTypes = ['ticket_issuing', 'umrah_service', 'hotel_service'];
+    const validTypes = ['ticket_issuing', 'umrah_service', 'hotel_service', 'transport_service'];
     return value.every((type: string) => validTypes.includes(type));
-  }).withMessage('Supplier service types must be an array containing one or more of: ticket_issuing, umrah_service, hotel_service'),
+  }).withMessage('Supplier service types must be an array containing one or more of: ticket_issuing, umrah_service, hotel_service, transport_service'),
   body('contacts').optional().isArray().custom((value) => {
     if (!Array.isArray(value)) return false;
     return value.every((contact: any) => 

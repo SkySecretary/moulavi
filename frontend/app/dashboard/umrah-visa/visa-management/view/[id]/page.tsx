@@ -318,21 +318,62 @@ export default function ViewUmrahVisaBookingPage() {
     try {
       setDownloadingZip(true);
       toast.info('Downloading zip file...');
-      const zipResponse = await umrahVisaAPI.downloadBookingZip(bookingId);
-      if (zipResponse.data.downloadUrl) {
+      const response = await umrahVisaAPI.downloadBookingZip(bookingId);
+      
+      // Check if response is a JSON object with downloadUrl (S3 path)
+      // or if it's the raw binary blob (local storage path)
+      if (response.data instanceof Blob || response.headers['content-type']?.includes('application/zip')) {
+        // Local storage path - response is the zip file itself
+        const blob = new Blob([response.data], { type: 'application/zip' });
+        const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = zipResponse.data.downloadUrl;
-        link.download = zipResponse.data.fileName || 'documents.zip';
+        link.href = url;
+        
+        const contentDisposition = response.headers['content-disposition'];
+        let fileName = 'documents.zip';
+        if (contentDisposition) {
+          const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
+          if (fileNameMatch && fileNameMatch[1]) {
+            fileName = fileNameMatch[1];
+          }
+        }
+        
+        link.setAttribute('download', fileName);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        toast.success('Zip file downloaded successfully!');
+      } else if (response.data.downloadUrl) {
+        // S3 path - response is a JSON object containing the URL
+        const link = document.createElement('a');
+        link.href = response.data.downloadUrl;
+        link.download = response.data.fileName || 'documents.zip';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         toast.success('Zip file downloaded successfully!');
       } else {
-        toast.error('Download URL not available');
+        toast.error('Download data not available');
       }
     } catch (error: any) {
       console.error('Download error:', error);
-      toast.error(error.response?.data?.error || error.message || 'Failed to download zip file');
+      
+      // Handle blob error response
+      if (error.response?.data instanceof Blob) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const errorData = JSON.parse(reader.result as string);
+            toast.error(errorData.error || 'Failed to download zip file');
+          } catch (e) {
+            toast.error('Failed to download zip file');
+          }
+        };
+        reader.readAsText(error.response.data);
+      } else {
+        toast.error(error.response?.data?.error || error.message || 'Failed to download zip file');
+      }
     } finally {
       setDownloadingZip(false);
     }
@@ -373,7 +414,22 @@ export default function ViewUmrahVisaBookingPage() {
       toast.success('All documents downloaded successfully!');
     } catch (error: any) {
       console.error('Bulk download error:', error);
-      toast.error('Failed to download documents ZIP');
+      
+      // Handle blob error response
+      if (error.response?.data instanceof Blob) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const errorData = JSON.parse(reader.result as string);
+            toast.error(errorData.error || 'Failed to download documents ZIP');
+          } catch (e) {
+            toast.error('Failed to download documents ZIP');
+          }
+        };
+        reader.readAsText(error.response.data);
+      } else {
+        toast.error('Failed to download documents ZIP');
+      }
     } finally {
       setDownloadingAll(false);
     }
