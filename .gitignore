@@ -46,3 +46,4 @@ coverage
 .turbo
 backend/*.json
 nusukautomation-*.json
+backend/prisma/dev.db
