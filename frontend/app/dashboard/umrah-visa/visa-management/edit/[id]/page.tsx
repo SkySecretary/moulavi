@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MovementsTable } from '@/components/umrah-booking/components/MovementsTable';
 import { Calendar, Plane, Users, Building, MapPin, Mail, ArrowLeft, Clock, DollarSign, Route, Truck, X, Plus, Save } from 'lucide-react';
 import { Movement, LocationMaster } from '@/lib/umrah/types';
+import { TimePicker } from '@/components/ui/time-picker';
 
 export default function EditUmrahVisaBookingPage() {
   const router = useRouter();
@@ -534,7 +535,7 @@ export default function EditUmrahVisaBookingPage() {
                       </div>
                       <div>
                         <label className="text-xs text-gray-600 mb-1 block">Time</label>
-                        <Input type="time" value={arrivalTime} onChange={(e) => setArrivalTime(e.target.value)} />
+                        <TimePicker value={arrivalTime} onChange={setArrivalTime} />
                       </div>
                     </div>
                     <div>
@@ -558,7 +559,7 @@ export default function EditUmrahVisaBookingPage() {
                       </div>
                       <div>
                         <label className="text-xs text-gray-600 mb-1 block">Time</label>
-                        <Input type="time" value={departureTime} onChange={(e) => setDepartureTime(e.target.value)} />
+                        <TimePicker value={departureTime} onChange={setDepartureTime} />
                       </div>
                     </div>
                     <div>
@@ -612,7 +613,7 @@ export default function EditUmrahVisaBookingPage() {
                             <tr key={t.id || idx} className="hover:bg-gray-50">
                               <td className="border border-gray-200 p-3"><Select value={t.transportMasterId || ''} onValueChange={(val) => updateTransportBooking(idx, 'transportMasterId', val)}><SelectTrigger className="w-full"><SelectValue placeholder="Select transport" /></SelectTrigger><SelectContent>{transportMasters.map((tm: any) => (<SelectItem key={tm.id} value={tm.id}>{formatTransportRoute(tm.route)} - {tm.vehicleType?.vehicleName}</SelectItem>))}</SelectContent></Select></td>
                               <td className="border border-gray-200 p-3"><Input type="date" value={travelDateTime.date} onChange={(e) => updateTransportBooking(idx, 'travelDateTime', new Date(`${e.target.value}T${travelDateTime.time}`).toISOString())} /></td>
-                              <td className="border border-gray-200 p-3"><Input type="time" value={travelDateTime.time} onChange={(e) => updateTransportBooking(idx, 'travelDateTime', new Date(`${travelDateTime.date}T${e.target.value}`).toISOString())} /></td>
+                              <td className="border border-gray-200 p-3"><TimePicker value={travelDateTime.time} onChange={(val) => updateTransportBooking(idx, 'travelDateTime', new Date(`${travelDateTime.date}T${val}`).toISOString())} /></td>
                               <td className="border border-gray-200 p-3 text-sm text-gray-600">{t.transportMaster?.vehicleType?.vehicleName || 'N/A'}</td>
                               <td className="border border-gray-200 p-3 text-sm font-semibold text-gray-900">{t.transportMaster?.price ? `₹${Number(t.transportMaster.price).toLocaleString('en-IN')}` : 'N/A'}</td>
                               <td className="border border-gray-200 p-3 text-center"><Button type="button" variant="ghost" size="sm" onClick={() => removeTransportBooking(t.id, idx)} className="text-primary hover:text-destructive"><X className="h-4 w-4" /></Button></td>

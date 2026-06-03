@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Calendar, Plane, Users, Building, MapPin, Mail, ArrowLeft, Clock, Route, Ticket, Truck, Plus, X } from 'lucide-react';
+import { TimePicker } from '@/components/ui/time-picker';
 
 export default function EditVoucherPage() {
   const router = useRouter();
@@ -447,10 +448,9 @@ export default function EditVoucherPage() {
                             </div>
                             <div>
                               <label className="text-xs text-gray-600 mb-1 block">Time</label>
-                              <Input
-                                type="time"
+                              <TimePicker
                                 value={movement.time || ''}
-                                onChange={(e) => updateMovement(index, 'time', e.target.value)}
+                                onChange={(val) => updateMovement(index, 'time', val)}
                               />
                             </div>
                             <div>
@@ -619,22 +619,18 @@ export default function EditVoucherPage() {
                             {flight.type === 'AD' && (
                               <div>
                                 <label className="text-xs text-gray-600 mb-1 block">ETD</label>
-                                <Input
-                                  type="time"
+                                <TimePicker
                                   value={flight.etd || ''}
-                                  onChange={(e) => updateFlight(index, 'etd', e.target.value)}
-                                  placeholder="ETD"
+                                  onChange={(val) => updateFlight(index, 'etd', val)}
                                 />
                               </div>
                             )}
                             {flight.type === 'AA' && (
                               <div>
                                 <label className="text-xs text-gray-600 mb-1 block">ETA</label>
-                                <Input
-                                  type="time"
+                                <TimePicker
                                   value={flight.eta || ''}
-                                  onChange={(e) => updateFlight(index, 'eta', e.target.value)}
-                                  placeholder="ETA"
+                                  onChange={(val) => updateFlight(index, 'eta', val)}
                                 />
                               </div>
                             )}

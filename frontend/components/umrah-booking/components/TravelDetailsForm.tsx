@@ -4,9 +4,10 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar, Plane, MapPin, Clock, ArrowRightLeft } from 'lucide-react';
-import { Step2Data, Airport } from '@/lib/umrah/types';
+import { Airport, Step2Data } from '@/lib/umrah/types';
 import { formatFlightNumber } from '@/lib/umrah/validation';
 import { cn } from '@/lib/utils';
+import { TimePicker } from '@/components/ui/time-picker';
 
 interface TravelDetailsFormProps {
   data: Step2Data;
@@ -121,13 +122,11 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                 />
               </td>
               <td className="px-6 py-4">
-                <Input
-                  type="time"
-                  step="60"
+                <TimePicker
                   value={data.arrivalTime || ''}
-                  onChange={(e) => onChange({ arrivalTime: e.target.value })}
+                  onChange={(value) => onChange({ arrivalTime: value })}
                   disabled={disabled}
-                  className="h-9 border-gray-100 rounded-lg font-black text-primary focus:ring-secondary/20 bg-gray-50/30 text-[10px]"
+                  className="h-9"
                 />
               </td>
             </tr>
@@ -183,13 +182,11 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                 />
               </td>
               <td className="px-6 py-4">
-                <Input
-                  type="time"
-                  step="60"
+                <TimePicker
                   value={data.departureTime || ''}
-                  onChange={(e) => onChange({ departureTime: e.target.value })}
+                  onChange={(value) => onChange({ departureTime: value })}
                   disabled={disabled}
-                  className="h-9 border-gray-100 rounded-lg font-black text-primary focus:ring-secondary/20 bg-gray-50/30 text-[10px]"
+                  className="h-9"
                 />
               </td>
             </tr>
@@ -213,7 +210,7 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
               </div>
               <div className="space-y-1.5">
                 <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Time</Label>
-                <Input type="time" step="60" value={data.arrivalTime || ''} onChange={(e) => onChange({ arrivalTime: e.target.value })} disabled={disabled} className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs" />
+                <TimePicker value={data.arrivalTime || ''} onChange={(value) => onChange({ arrivalTime: value })} disabled={disabled} className="h-10" />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -244,7 +241,7 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
               </div>
               <div className="space-y-1.5">
                 <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Time</Label>
-                <Input type="time" step="60" value={data.departureTime || ''} onChange={(e) => onChange({ departureTime: e.target.value })} disabled={disabled} className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs" />
+                <TimePicker value={data.departureTime || ''} onChange={(value) => onChange({ departureTime: value })} disabled={disabled} className="h-10" />
               </div>
             </div>
             <div className="space-y-1.5">

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { X, Plus } from 'lucide-react';
 import { Movement, LocationMaster } from '@/lib/umrah/types';
 import { umrahVisaAPI } from '@/lib/api';
+import { TimePicker } from '@/components/ui/time-picker';
 
 interface MovementsTableProps {
   movements: Movement[];
@@ -209,10 +210,9 @@ export const MovementsTable: React.FC<MovementsTableProps> = ({
                 />
               </td>
               <td className="border border-gray-200 p-3">
-                <Input
-                  type="time"
+                <TimePicker
                   value={movement.time || ''}
-                  onChange={(e) => onUpdateMovement(index, 'time', e.target.value)}
+                  onChange={(value) => onUpdateMovement(index, 'time', value)}
                   disabled={disabled}
                   className="w-full"
                 />
