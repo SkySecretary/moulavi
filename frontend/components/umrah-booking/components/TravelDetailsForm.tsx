@@ -87,12 +87,12 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                   onValueChange={(value) => handleAirportChange('arrivalAirportId', value)}
                   disabled={disabled}
                 >
-                  <SelectTrigger className="h-9 border-gray-100 rounded-lg font-black text-primary focus:ring-secondary/20 bg-gray-50/30 text-[10px]">
-                    <SelectValue placeholder="SELECT HUB" />
+                  <SelectTrigger className="h-12 border-gray-100 rounded-lg font-semibold text-primary focus:ring-secondary/20 bg-gray-50/30 text-base">
+                    <SelectValue placeholder="Select Hub" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border-0 shadow-2xl p-1">
                     {airports.map((airport) => (
-                      <SelectItem key={airport.id} value={airport.id} className="font-black text-[9px] uppercase p-2">
+                      <SelectItem key={airport.id} value={airport.id} className="font-medium text-base p-3">
                         {airport.airportCode} • {airport.airportName}
                       </SelectItem>
                     ))}
@@ -109,7 +109,7 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                   }}
                   disabled={disabled}
                   maxLength={7}
-                  className="h-9 border-gray-100 rounded-lg font-black text-secondary focus:ring-secondary/20 bg-gray-50/30 text-center tracking-widest text-[10px]"
+                  className="h-12 border-gray-100 rounded-lg font-bold text-secondary focus:ring-secondary/20 bg-gray-50/30 text-center tracking-widest text-base"
                 />
               </td>
               <td className="px-6 py-4">
@@ -118,7 +118,7 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                   value={data.arrivalDate}
                   onChange={(e) => handleDateChange('arrivalDate', e.target.value)}
                   disabled={disabled}
-                  className="h-9 border-gray-100 rounded-lg font-black text-primary focus:ring-secondary/20 bg-gray-50/30 text-[10px]"
+                  className="h-12 border-gray-100 rounded-lg font-semibold text-primary focus:ring-secondary/20 bg-gray-50/30 text-base"
                 />
               </td>
               <td className="px-6 py-4">
@@ -126,7 +126,7 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                   value={data.arrivalTime || ''}
                   onChange={(value) => onChange({ arrivalTime: value })}
                   disabled={disabled}
-                  className="h-9"
+                  className="h-12"
                 />
               </td>
             </tr>
@@ -147,12 +147,12 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                   onValueChange={(value) => handleAirportChange('departureAirportId', value)}
                   disabled={disabled}
                 >
-                  <SelectTrigger className="h-9 border-gray-100 rounded-lg font-black text-primary focus:ring-secondary/20 bg-gray-50/30 text-[10px]">
-                    <SelectValue placeholder="SELECT HUB" />
+                  <SelectTrigger className="h-12 border-gray-100 rounded-lg font-semibold text-primary focus:ring-secondary/20 bg-gray-50/30 text-base">
+                    <SelectValue placeholder="Select Hub" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border-0 shadow-2xl p-1">
                     {airports.map((airport) => (
-                      <SelectItem key={airport.id} value={airport.id} className="font-black text-[9px] uppercase p-2">
+                      <SelectItem key={airport.id} value={airport.id} className="font-medium text-base p-3">
                         {airport.airportCode} • {airport.airportName}
                       </SelectItem>
                     ))}
@@ -169,7 +169,7 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                   }}
                   disabled={disabled}
                   maxLength={7}
-                  className="h-9 border-gray-100 rounded-lg font-black text-secondary focus:ring-secondary/20 bg-gray-50/30 text-center tracking-widest text-[10px]"
+                  className="h-12 border-gray-100 rounded-lg font-bold text-secondary focus:ring-secondary/20 bg-gray-50/30 text-center tracking-widest text-base"
                 />
               </td>
               <td className="px-6 py-4">
@@ -178,7 +178,7 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                   value={data.departureDate}
                   onChange={(e) => handleDateChange('departureDate', e.target.value)}
                   disabled={disabled}
-                  className="h-9 border-gray-100 rounded-lg font-black text-primary focus:ring-secondary/20 bg-gray-50/30 text-[10px]"
+                  className="h-12 border-gray-100 rounded-lg font-semibold text-primary focus:ring-secondary/20 bg-gray-50/30 text-base"
                 />
               </td>
               <td className="px-6 py-4">
@@ -186,7 +186,7 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                   value={data.departureTime || ''}
                   onChange={(value) => onChange({ departureTime: value })}
                   disabled={disabled}
-                  className="h-9"
+                  className="h-12"
                 />
               </td>
             </tr>
@@ -216,11 +216,11 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
             <div className="space-y-1.5">
               <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Hub</Label>
               <Select value={data.arrivalAirportId} onValueChange={(value) => handleAirportChange('arrivalAirportId', value)} disabled={disabled}>
-                <SelectTrigger className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-black text-primary uppercase text-[9px]">
-                  <SelectValue placeholder="SELECT HUB" />
+                <SelectTrigger className="h-11 rounded-xl border-gray-100 bg-gray-50/30 font-semibold text-primary text-sm">
+                  <SelectValue placeholder="Select Hub" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-0 shadow-2xl">
-                  {airports.map(a => <SelectItem key={a.id} value={a.id} className="text-[9px] font-bold">{a.airportCode} - {a.airportName}</SelectItem>)}
+                  {airports.map(a => <SelectItem key={a.id} value={a.id} className="text-sm font-medium">{a.airportCode} - {a.airportName}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -247,11 +247,11 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
             <div className="space-y-1.5">
               <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Hub</Label>
               <Select value={data.departureAirportId} onValueChange={(value) => handleAirportChange('departureAirportId', value)} disabled={disabled}>
-                <SelectTrigger className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-black text-primary uppercase text-[9px]">
-                  <SelectValue placeholder="SELECT HUB" />
+                <SelectTrigger className="h-11 rounded-xl border-gray-100 bg-gray-50/30 font-semibold text-primary text-sm">
+                  <SelectValue placeholder="Select Hub" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-0 shadow-2xl">
-                  {airports.map(a => <SelectItem key={a.id} value={a.id} className="text-[9px] font-bold">{a.airportCode} - {a.airportName}</SelectItem>)}
+                  {airports.map(a => <SelectItem key={a.id} value={a.id} className="text-sm font-medium">{a.airportCode} - {a.airportName}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

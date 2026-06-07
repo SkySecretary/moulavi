@@ -201,7 +201,7 @@ export default function AddToExistingBookingPage() {
                     <SelectContent>
                       {bookings.map((booking) => (
                         <SelectItem key={booking.id} value={booking.id}>
-                          {booking.groupNumber || booking.id} - {booking.groupName || 'No group name'} ({booking.passengerCount} pax)
+                          {booking.bookingReference || booking.groupNumber || booking.id.slice(0, 8)} - {booking.groupName || 'No group name'} ({booking.passengerCount} pax)
                         </SelectItem>
                       ))}
                     </SelectContent>

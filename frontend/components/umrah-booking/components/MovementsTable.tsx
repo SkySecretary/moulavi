@@ -181,84 +181,82 @@ export const MovementsTable: React.FC<MovementsTableProps> = ({
         </thead>
         <tbody>
           {movements.map((movement, index) => (
-            <tr key={movement.id || index} className="hover:bg-gray-50">
-              <td className="border border-gray-200 p-3 font-medium text-gray-900">
+            <tr key={movement.id || index} className="hover:bg-gray-50 border-b border-gray-100">
+              <td className="p-3 font-bold text-[10px] text-slate-500 text-center bg-slate-50/50">
                 {index + 1}
               </td>
-              <td className="border border-gray-200 p-3">
+              <td className="p-2">
                 <span
-                  className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                  className={`inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[9px] font-bold uppercase tracking-tight ${
                     movement.type === 'ziyarath'
-                      ? 'bg-purple-100 text-purple-800'
-                      : 'bg-blue-100 text-blue-800'
+                      ? 'bg-purple-50 text-purple-700 border border-purple-100'
+                      : 'bg-blue-50 text-blue-700 border border-blue-100'
                   }`}
                 >
-                  {movement.type === 'ziyarath' ? 'Ziyarath' : 'Transport'}
+                  {movement.type === 'ziyarath' ? 'Ziyarath' : 'Transfer'}
                 </span>
               </td>
-              <td className="border border-gray-200 p-3">
+              <td className="p-2">
                 <Input
                   type="date"
                   value={movement.date || ''}
                   onChange={(e) => onUpdateMovement(index, 'date', e.target.value)}
                   disabled={disabled}
-                  className={`w-full ${
+                  className={`h-8 text-[10px] font-bold text-slate-900 border-gray-200 bg-white ${
                     movement.type === 'ziyarath' && movement.date
                       ? getZiyarathDateColorClass(movement.date)
                       : ''
                   }`}
                 />
               </td>
-              <td className="border border-gray-200 p-3">
+              <td className="p-2">
                 <TimePicker
                   value={movement.time || ''}
                   onChange={(value) => onUpdateMovement(index, 'time', value)}
                   disabled={disabled}
-                  className="w-full"
+                  className="h-8 text-[10px] font-bold text-slate-900 border-gray-200 bg-white"
                 />
               </td>
-              <td className="border border-gray-200 p-3">
+              <td className="p-2">
                 <Select
                   value={movement.fromLocationId || ''}
                   onValueChange={(value) => onUpdateMovement(index, 'fromLocationId', value)}
                   disabled={disabled}
                 >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select location" />
+                  <SelectTrigger className="h-8 text-[10px] font-bold text-slate-900 border-gray-200 bg-white">
+                    <SelectValue placeholder="Origin" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[300px]">
                     {getAllLocations().map((loc) => (
-                      <SelectItem key={loc.id} value={loc.id}>
-                        {loc.name} ({loc.locationType})
+                      <SelectItem key={loc.id} value={loc.id} className="text-[10px] font-medium">
+                        {loc.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </td>
-              <td className="border border-gray-200 p-3">
+              <td className="p-2">
                 <Select
                   value={movement.toLocationId || ''}
                   onValueChange={(value) => onUpdateMovement(index, 'toLocationId', value)}
                   disabled={disabled}
                 >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select location">
+                  <SelectTrigger className="h-8 text-[10px] font-bold text-slate-900 border-gray-200 bg-white">
+                    <SelectValue placeholder="Destination">
                       {movement.toLocationId && (() => {
                         const location = locationMasters.find(lm => lm.id === movement.toLocationId);
                         const cityName = location?.city || location?.cityMaster?.name || '';
-                        // If viabadrOverride is active, always show Viabadr for "To" city
                         const displayCity = movement.viabadrOverride ? 'Viabadr' : cityName;
                         return location ? `${location.name} (${displayCity})` : '';
                       })()}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[300px]">
                     {getAllLocations().map((loc) => {
                       const cityName = loc.city || loc.cityMaster?.name || '';
-                      // If viabadrOverride is active, always show Viabadr for "To" city in dropdown
                       const displayCity = movement.viabadrOverride ? 'Viabadr' : cityName;
                       return (
-                        <SelectItem key={loc.id} value={loc.id}>
+                        <SelectItem key={loc.id} value={loc.id} className="text-[10px] font-medium">
                           {loc.name} ({displayCity})
                         </SelectItem>
                       );
@@ -266,42 +264,40 @@ export const MovementsTable: React.FC<MovementsTableProps> = ({
                   </SelectContent>
                 </Select>
               </td>
-              <td className="border border-gray-200 p-3 text-center">
+              <td className="p-2 text-center">
                 {(isMadinahCity(movement.fromLocationId) || isMadinahCity(movement.toLocationId)) && (
                   <Button
                     variant={movement.viabadrOverride ? "default" : "outline"}
-                    size="sm"
+                    size="icon"
                     onClick={() => onUpdateMovement(index, 'viabadrOverride', !movement.viabadrOverride)}
                     disabled={disabled}
-                    className={movement.viabadrOverride ? "bg-primary hover:bg-primary/90 text-white" : ""}
-                    title={movement.viabadrOverride ? "Change 'To' city back to Madinah" : "Change 'To' city to Viabadr (only affects 'To' location)"}
+                    className={`h-7 w-7 rounded-full ${movement.viabadrOverride ? "bg-primary text-white" : "border-slate-200 text-slate-300"}`}
                   >
-                    ✔ 
+                    {movement.viabadrOverride ? "✔" : ""}
                   </Button>
                 )}
               </td>
-              <td className="border border-gray-200 p-3 text-center">
-                <div className="flex items-center justify-center gap-2">
+              <td className="p-2">
+                <div className="flex items-center justify-center gap-1">
                   {onAddMovement && (
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon"
                       onClick={() => onAddMovement(index)}
                       disabled={disabled}
-                      className="text-blue-600 hover:text-blue-700"
-                      title="Add movement below"
+                      className="h-7 w-7 text-blue-600 hover:bg-blue-50"
                     >
-                      <Plus className="h-4 w-4" />
+                      <Plus className="h-3.5 w-3.5" />
                     </Button>
                   )}
                   <Button
                     variant="ghost"
-                    size="sm"
+                    size="icon"
                     onClick={() => onRemoveMovement(index)}
                     disabled={disabled}
-                    className="text-primary hover:text-destructive"
+                    className="h-7 w-7 text-slate-400 hover:text-destructive hover:bg-destructive/5"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </td>

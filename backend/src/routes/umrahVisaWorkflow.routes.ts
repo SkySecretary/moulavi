@@ -9,8 +9,8 @@ import { VoucherPdfData } from '../types/voucher';
 import { isS3Configured, S3_CONFIG, generateDownloadUrl, s3Client, extractS3KeyFromUrl } from '../config/s3';
 import { combineDateTime } from '../utils/datetime';
 import fs from 'fs';
-import archiver from 'archiver';
 import path from 'path';
+const archiver = require('archiver');
 
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
@@ -25,18 +25,24 @@ router.get('/:bookingId/download-all-documents', authenticate, async (req, res) 
 
     // Get all documents for this booking
     // Documents can be linked directly to booking or via passengers
-    const documents = await prisma.document.findMany({
-      where: {
-        OR: [
-          { bookingId: bookingId },
-          { passenger: { bookingId: bookingId } }
-        ],
-        isDeleted: false,
-      },
-      include: {
-        passenger: true
-      }
-    });
+    const [booking, documents] = await Promise.all([
+      prisma.umrahVisaBooking.findUnique({
+        where: { id: bookingId },
+        select: { bookingReference: true }
+      }),
+      prisma.document.findMany({
+        where: {
+          OR: [
+            { bookingId: bookingId },
+            { passenger: { bookingId: bookingId } }
+          ],
+          isDeleted: false,
+        },
+        include: {
+          passenger: true
+        }
+      })
+    ]);
 
     if (documents.length === 0) {
       return res.status(404).json({ error: 'No documents found for this booking' });
@@ -49,7 +55,11 @@ router.get('/:bookingId/download-all-documents', authenticate, async (req, res) 
 
     // Set response headers
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    res.attachment(`booking-documents-${bookingId}-${timestamp}.zip`);
+    const zipFileName = booking?.bookingReference 
+      ? `documents-${booking.bookingReference}.zip`
+      : `booking-documents-${bookingId}-${timestamp}.zip`;
+      
+    res.attachment(zipFileName);
 
     // Pipe archive data to response
     archive.pipe(res);
@@ -132,8 +142,8 @@ router.post('/:bookingId/add-group-data', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
-    if (booking.status !== 'documents_downloaded') {
-      return res.status(400).json({ error: 'Group data can only be added when status is documents_downloaded' });
+    if (booking.status !== 'pending' && booking.status !== 'documents_downloaded') {
+      return res.status(400).json({ error: 'Group data can only be added when status is pending or documents_downloaded' });
     }
 
     // Always set status to group_assigned after adding group data
@@ -644,9 +654,11 @@ router.get('/:bookingId/voucher-data', authenticate, async (req, res) => {
       include: {
         party: {
           select: {
+            id: true,
             partyName: true,
             contactNumber: true,
             whatsappNumber: true,
+            accountCurrency: true,
           },
         },
         umrahVisaProvider: {
@@ -909,10 +921,11 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
-    // Check status - must be voucher
-    if (booking.status !== 'voucher') {
+    // Check status - allow voucher generation in appropriate stages
+    const validStatuses = ['voucher', 'ready_for_voucher', 'bill', 'booking_success'];
+    if (!validStatuses.includes(booking.status)) {
       return res.status(400).json({ 
-        error: 'Voucher can only be generated when status is voucher',
+        error: `Voucher cannot be generated when status is ${booking.status}`,
         currentStatus: booking.status,
       });
     }
@@ -1002,6 +1015,8 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
           groupCode,
           groupName: groupName || null,
           paxCount,
+          partyId: booking!.partyId,
+          umrahCompanyId: booking!.umrahVisaProviderId,
           // Increment version to track updates
           version: existingVoucher.version + 1,
         };
@@ -1019,6 +1034,8 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
           groupCode,
           groupName: groupName || null,
           umrahVisaProviderId: booking!.umrahVisaProviderId || null,
+          partyId: booking!.partyId,
+          umrahCompanyId: booking!.umrahVisaProviderId,
           paxCount,
           generatedBy: user.id,
         };
@@ -1235,6 +1252,7 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
           contactNumber: true,
           whatsappNumber: true,
           email: true,
+          logoPath: true,
               },
             });
       umrahVisaProvider = provider;
@@ -1245,7 +1263,7 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
       ...fullVoucher,
       reservationNumber: fullVoucher.voucherNumber, // Use voucherNumber as reservation number
       reservationDate: fullVoucher.reservationDate.toISOString().split('T')[0],
-      umrahVisaProvider,
+      umrahCompany: umrahVisaProvider,
       movementDetails: fullVoucher.movements.map((m) => ({
         sr: m.sr,
         route: m.route || '',

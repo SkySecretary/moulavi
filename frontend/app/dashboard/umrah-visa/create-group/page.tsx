@@ -42,6 +42,7 @@ function CreateGroupContent() {
   const {
     bookingState,
     isLoading,
+    partyCurrency,
     updateStep1Data,
     updateStep2Data,
     updateStep3Data,
@@ -107,7 +108,14 @@ function CreateGroupContent() {
       case 1: return validateStep1(bookingState.step1Data);
       case 2: return validateStep2(bookingState.step2Data, masterData.airports, bookingState.step1Data, masterData.umrahVisaMaster);
       case 3: return validateStep3(bookingState.step3Data, bookingState.step2Data.arrivalDate, bookingState.step2Data.departureDate, bookingState.step2Data, masterData.locationMasters);
-      case 4: return validateStep4(bookingState.step4Data, bookingState.step2Data.arrivalDate, bookingState.step2Data.departureDate);
+      case 4: return validateStep4(
+        bookingState.step4Data, 
+        bookingState.step2Data.arrivalDate, 
+        bookingState.step2Data.departureDate,
+        undefined,
+        undefined,
+        masterData.locationMasters
+      );
       case 5: return validateStep5(bookingState.step5Data, bookingState.step1Data, bookingState.step3Data, true);
       default: return null;
     }
@@ -134,7 +142,7 @@ function CreateGroupContent() {
       case 2:
         return <TravelDetailsStep data={bookingState.step2Data} onChange={updateStep2Data} airports={masterData.airports} disabled={isLoading} isGroupBooking={true} locations={masterData.locations} hotels={masterData.hotels} arrivalDate={bookingState.step2Data.arrivalDate} departureDate={bookingState.step2Data.departureDate} onLoadHotels={loadHotels} getHotelsForLocation={getHotelsForLocation} onAddHotelBooking={addHotelBooking} onRemoveHotelBooking={removeHotelBooking} />;
       case 3:
-        return <TransportVehicleSelectionStep data={bookingState.step3Data} step1Data={bookingState.step1Data} step2Data={bookingState.step2Data} locationMasters={masterData.locationMasters} onChange={updateStep3Data} disabled={isLoading} />;
+        return <TransportVehicleSelectionStep data={bookingState.step3Data} step1Data={bookingState.step1Data} step2Data={bookingState.step2Data} locationMasters={masterData.locationMasters} onChange={updateStep3Data} disabled={isLoading} currency={partyCurrency || undefined} />;
       case 4:
         const arrivalAirport = masterData.locationMasters?.find(lm => lm.id === bookingState.step2Data.arrivalAirportId && lm.locationType === 'AIRPORT');
         return <MovementDetailsStep data={bookingState.step4Data} onChange={updateStep4Data} locations={masterData.locations} locationMasters={masterData.locationMasters} hotelBookings={bookingState.step2Data.hotelBookings || []} arrivalAirportId={bookingState.step2Data.arrivalAirportId} departureAirportId={bookingState.step2Data.departureAirportId} arrivalDate={bookingState.step2Data.arrivalDate} departureDate={bookingState.step2Data.departureDate} arrivalTime={bookingState.step2Data.arrivalTime} departureTime={bookingState.step2Data.departureTime} arrivalAirport={arrivalAirport} getAllHotelsForLocation={getHotelsForLocation} step3Data={bookingState.step3Data} disabled={isLoading} />;

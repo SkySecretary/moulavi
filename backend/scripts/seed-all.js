@@ -10,19 +10,35 @@ async function seedAll() {
   console.log('🌱 Starting comprehensive data seeding...\n');
 
   try {
-    // 1. Seed Currency Master (SAR, INR)
+    // 1. Seed Currency Master (SAR, INR, AED, USD)
     console.log('1️⃣ Seeding Currency Master...');
     const currencies = [
       { 
         currencyCode: 'SAR', 
         currencyName: 'Saudi Riyal', 
         symbol: 'SR',
+        exchangeRate: 22.5,
         isActive: true
       },
       { 
         currencyCode: 'INR', 
         currencyName: 'Indian Rupee', 
         symbol: '₹',
+        exchangeRate: 1.0,
+        isActive: true
+      },
+      { 
+        currencyCode: 'AED', 
+        currencyName: 'UAE Dirham', 
+        symbol: 'AED',
+        exchangeRate: 22.8,
+        isActive: true
+      },
+      { 
+        currencyCode: 'USD', 
+        currencyName: 'US Dollar', 
+        symbol: '$',
+        exchangeRate: 83.5,
         isActive: true
       }
     ];

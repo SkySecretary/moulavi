@@ -46,6 +46,7 @@ function CreateIndividualContent() {
   const {
     bookingState,
     isLoading,
+    partyCurrency,
     updateStep1Data,
     updateStep2Data,
     updateStep3Data,
@@ -62,6 +63,7 @@ function CreateIndividualContent() {
     loadInitialData,
     loadHotels,
     getHotelsForLocation,
+    refreshHotels,
   } = useMasterData();
 
   useEffect(() => {
@@ -104,7 +106,14 @@ function CreateIndividualContent() {
       case 1: return validateStep1(bookingState.step1Data);
       case 2: return validateStep2(bookingState.step2Data, masterData.airports, bookingState.step1Data, masterData.umrahVisaMaster);
       case 3: return validateStep3(bookingState.step3Data, bookingState.step2Data.arrivalDate, bookingState.step2Data.departureDate, bookingState.step2Data);
-      case 4: return validateStep4(bookingState.step4Data, bookingState.step2Data.arrivalDate, bookingState.step2Data.departureDate);
+      case 4: return validateStep4(
+        bookingState.step4Data, 
+        bookingState.step2Data.arrivalDate, 
+        bookingState.step2Data.departureDate,
+        undefined,
+        bookingState.step2Data,
+        masterData.locationMasters
+      );
       case 5: return validateStep5Movements(bookingState.step5Data, bookingState.step1Data, bookingState.step2Data, bookingState.step3Data, bookingState.step4Data, masterData.locationMasters);
       case 6: return validateStep6(bookingState.step6Data || { panCardZipFile: null }, bookingState.step1Data, bookingState.step3Data, false);
       default: return null;
@@ -190,8 +199,8 @@ function CreateIndividualContent() {
                   switch (bookingState.currentStep) {
                     case 1: return <BookingModeStep data={bookingState.step1Data} onChange={updateStep1Data} disabled={isLoading} />;
                     case 2: return <TravelDetailsStep data={bookingState.step2Data} onChange={updateStep2Data} airports={masterData.airports} disabled={isLoading} />;
-                    case 3: return <AccommodationStep data={bookingState.step3Data} onChange={updateStep3Data} locations={masterData.locations} hotels={masterData.hotels} arrivalDate={bookingState.step2Data.arrivalDate} departureDate={bookingState.step2Data.departureDate} onLoadHotels={loadHotels} getHotelsForLocation={getHotelsForLocation} passengerCount={bookingState.step2Data.passengerCount} disabled={isLoading} />;
-                    case 4: return <TransportVehicleSelectionStep data={bookingState.step4Data} step1Data={bookingState.step1Data} step2Data={bookingState.step2Data} step3Data={bookingState.step3Data} locationMasters={masterData.locationMasters} onChange={(d) => { updateStep4Data(d); if (!(d.selectedTransport || (d.selectedTransports && d.selectedTransports.length > 0))) updateStep5Data({ movements: [] }); }} disabled={isLoading} />;
+                    case 3: return <AccommodationStep data={bookingState.step3Data} onChange={updateStep3Data} locations={masterData.locations} hotels={masterData.hotels} arrivalDate={bookingState.step2Data.arrivalDate} departureDate={bookingState.step2Data.departureDate} onLoadHotels={loadHotels} getHotelsForLocation={getHotelsForLocation} refreshHotels={refreshHotels} passengerCount={bookingState.step2Data.passengerCount} disabled={isLoading} />;
+                    case 4: return <TransportVehicleSelectionStep data={bookingState.step4Data} step1Data={bookingState.step1Data} step2Data={bookingState.step2Data} step3Data={bookingState.step3Data} locationMasters={masterData.locationMasters} onChange={(d) => { updateStep4Data(d); if (!(d.selectedTransport || (d.selectedTransports && d.selectedTransports.length > 0))) updateStep5Data({ movements: [] }); }} disabled={isLoading} currency={partyCurrency || undefined} />;
                     case 5: return <MovementDetailsStep data={bookingState.step5Data} step1Data={bookingState.step1Data} step2Data={bookingState.step2Data} step3Data={bookingState.step3Data} step4Data={bookingState.step4Data} locationMasters={masterData.locationMasters} arrivalAirportId={bookingState.step2Data.arrivalAirportId} departureAirportId={bookingState.step2Data.departureAirportId} arrivalDate={bookingState.step2Data.arrivalDate} departureDate={bookingState.step2Data.departureDate} arrivalTime={bookingState.step2Data.arrivalTime} departureTime={bookingState.step2Data.departureTime} onChange={updateStep5Data} disabled={isLoading} />;
                     case 6: return <DocumentsStep data={bookingState.step6Data || { panCardZipFile: null }} step1Data={bookingState.step1Data} step3Data={bookingState.step3Data} onChange={updateStep6Data} disabled={isLoading} />;
                     default: return null;

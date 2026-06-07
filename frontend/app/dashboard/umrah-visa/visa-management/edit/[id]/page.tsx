@@ -14,6 +14,7 @@ import { MovementsTable } from '@/components/umrah-booking/components/MovementsT
 import { Calendar, Plane, Users, Building, MapPin, Mail, ArrowLeft, Clock, DollarSign, Route, Truck, X, Plus, Save } from 'lucide-react';
 import { Movement, LocationMaster } from '@/lib/umrah/types';
 import { TimePicker } from '@/components/ui/time-picker';
+import { formatTransportRoute } from '@/lib/utils';
 
 export default function EditUmrahVisaBookingPage() {
   const router = useRouter();

@@ -15,6 +15,7 @@ import {
 import { combineDateTime } from '../utils/datetime';
 import { syncBookingStatusInTx } from '../services/statusSyncService';
 import { isS3Configured } from '../config/s3';
+import { generateBookingReference } from '../services/bookingService';
 
 const router = Router();
 
@@ -132,18 +133,18 @@ router.post('/group/step3', authenticate, async (req, res) => {
 // POST /api/umrah-visa/group/create-booking - Create complete group booking (all steps in one transaction)
 router.post('/group/create-booking', authenticate, uploadGroup.fields([
   { name: 'panCardZipFile', maxCount: 1 },
-  { name: 'documents', maxCount: 50 }
+  { name: 'documents', maxCount: 500 }
 ]), async (req, res) => {
   try {
     const user = (req as any).user;
     
-    // Check file size limits for multiple documents (3MB each)
+    // Check file size limits for multiple documents (50MB each)
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
     if (files && files['documents']) {
-      const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
+      const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
       for (const file of files['documents']) {
         if (file.size > MAX_FILE_SIZE) {
-          return res.status(400).json({ error: `File ${file.originalname} exceeds the 3MB size limit` });
+          return res.status(400).json({ error: `File ${file.originalname} exceeds the 50MB size limit` });
         }
       }
     }
@@ -318,12 +319,16 @@ router.post('/group/create-booking', authenticate, uploadGroup.fields([
       return null;
     };
 
+    // Generate unique booking reference
+    const bookingReference = await generateBookingReference();
+
     // Save everything in a single transaction
     const result = await prisma.$transaction(async (tx) => {
       // 1. Create UmrahVisaBooking directly with partyId (group visa, always hotel, status = group_assigned)
       const booking = await tx.umrahVisaBooking.create({
         data: {
           partyId: partyId,
+          bookingReference,
           submittedAt: new Date(),
           groupNumber: step1Data.groupNumber,
           groupName: step1Data.groupName,

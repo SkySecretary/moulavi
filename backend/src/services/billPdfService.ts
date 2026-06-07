@@ -9,7 +9,9 @@ export interface BillPdfData {
     name: string;
     visaNumber: string;
   }>;
-  amount: number; // Total amount (price per passenger * passenger count)
+  amount: number; // Total amount in display currency
+  currencyCode?: string;
+  currencySymbol?: string;
 }
 
 // Helper function to find Chrome executable (same as voucher PDF)
@@ -433,11 +435,11 @@ function generateBillHTML(data: BillPdfData): string {
       <div class="summary-box">
         <div class="summary-row">
           <span class="summary-label">Subtotal:</span>
-          <span class="summary-value">₹${data.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          <span class="summary-value">${data.currencySymbol || '₹'}${data.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         <div class="summary-row total">
           <span class="summary-label">Total Amount:</span>
-          <span class="summary-value">₹${data.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          <span class="summary-value">${data.currencySymbol || '₹'}${data.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${data.currencyCode || 'INR'}</span>
         </div>
       </div>
     </div>
@@ -470,7 +472,7 @@ export async function generateBillPDF(data: BillPdfData): Promise<Buffer> {
   console.log(`${logPrefix} Group Name: ${data.groupName || 'N/A'}`);
   console.log(`${logPrefix} Passenger Count: ${data.passengerCount || 0}`);
   console.log(`${logPrefix} Passengers: ${data.passengers?.length || 0}`);
-  console.log(`${logPrefix} Amount: ₹${data.amount?.toLocaleString('en-IN') || '0'}`);
+  console.log(`${logPrefix} Amount: ${data.currencySymbol || '₹'}${data.amount?.toLocaleString('en-IN') || '0'} ${data.currencyCode || 'INR'}`);
   
   try {
     // Prefer bundled Chromium for production reliability

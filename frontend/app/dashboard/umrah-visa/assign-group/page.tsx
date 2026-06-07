@@ -50,6 +50,7 @@ export default function AssignGroupPage() {
   const [umrahVisaProviderId, setUmrahVisaProviderId] = useState('');
   const [umrahVisaProviders, setUmrahVisaProviders] = useState<Party[]>([]);
   const [loadingProviders, setLoadingProviders] = useState(false);
+  const [inlineGroupData, setInlineGroupData] = useState<Record<string, { groupNumber: string, groupName: string, providerId: string }>>({});
 
   if (!user || !hasRole(['admin', 'staff'])) {
     return null;
@@ -78,6 +79,22 @@ export default function AssignGroupPage() {
 
   useEffect(() => {
     filterData();
+    // Initialize inline data for relevant bookings if not already present
+    setInlineGroupData(prev => {
+      const newInlineData = { ...prev };
+      let changed = false;
+      bookingList.forEach(booking => {
+        if ((booking.status === 'pending' || booking.status === 'documents_downloaded') && !newInlineData[booking.id]) {
+          newInlineData[booking.id] = {
+            groupNumber: booking.groupNumber || '',
+            groupName: booking.groupName || '',
+            providerId: booking.umrahVisaProviderId || ''
+          };
+          changed = true;
+        }
+      });
+      return changed ? newInlineData : prev;
+    });
   }, [searchQuery, bookingList]);
 
   const fetchBookings = async () => {
@@ -188,26 +205,65 @@ export default function AssignGroupPage() {
     }
   };
 
+  const handleInlineAssignGroup = async (booking: UmrahVisaBooking) => {
+    const data = inlineGroupData[booking.id];
+    if (!data?.groupNumber || !data?.groupName) {
+      toast.error('Please enter both group number and name');
+      return;
+    }
+
+    try {
+      toast.info('Assigning group...');
+      const payload: any = {
+        groupNumber: data.groupNumber,
+        groupName: data.groupName,
+        umrahVisaProviderId: data.providerId || booking.umrahVisaProviderId
+      };
+      
+      await umrahVisaAPI.addGroupData(booking.id, payload);
+      toast.success('Group assigned successfully');
+      fetchBookings();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to assign group');
+    }
+  };
+
   const renderActionButton = (booking: UmrahVisaBooking) => {
-    if (booking.status === 'pending') {
+    if (booking.status === 'pending' || booking.status === 'documents_downloaded') {
       return (
-        <Button size="sm" onClick={() => handleDownloadDocuments(booking)} className="flex items-center gap-1">
-          <Download className="h-3 w-3" />
-          Download Docs
-        </Button>
-      );
-    } else if (booking.status === 'documents_downloaded') {
-      return (
-        <Button size="sm" onClick={() => { 
-          setSelectedBooking(booking); 
-          setGroupNumber(booking.groupNumber || '');
-          setGroupName(booking.groupName || '');
-          setUmrahVisaProviderId(booking.umrahVisaProviderId || '');
-          setShowAddGroupDialog(true); 
-        }} className="flex items-center gap-1">
-          <Plus className="h-3 w-3" />
-          Assign Group
-        </Button>
+        <div className="flex flex-col gap-2">
+          {booking.status === 'pending' && (
+            <Button size="sm" onClick={() => handleDownloadDocuments(booking)} className="flex items-center gap-1 w-full justify-start h-8 px-2 text-[10px]">
+              <Download className="h-3 w-3" />
+              Download Docs
+            </Button>
+          )}
+          <div className="flex items-center gap-1 w-full">
+            <Button 
+              size="sm" 
+              onClick={() => handleInlineAssignGroup(booking)} 
+              className="flex-1 flex items-center gap-1 bg-green-600 hover:bg-green-700 h-8 px-2 text-[10px]"
+            >
+              <Plus className="h-3 w-3" />
+              Assign
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => { 
+                setSelectedBooking(booking); 
+                setGroupNumber(inlineGroupData[booking.id]?.groupNumber || booking.groupNumber || '');
+                setGroupName(inlineGroupData[booking.id]?.groupName || booking.groupName || '');
+                setUmrahVisaProviderId(inlineGroupData[booking.id]?.providerId || booking.umrahVisaProviderId || '');
+                setShowAddGroupDialog(true); 
+              }} 
+              className="h-8 w-8 p-0"
+              title="More Options"
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
       );
     }
     return null;
@@ -246,6 +302,7 @@ export default function AssignGroupPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[130px]">Visa Type</TableHead>
+                      <TableHead className="w-[130px]">Reference</TableHead>
                       <TableHead className="w-[200px]">Group Details</TableHead>
                       <TableHead className="w-[180px]">Party Name</TableHead>
                       <TableHead className="w-[150px]">Arrival Date</TableHead>
@@ -272,10 +329,38 @@ export default function AssignGroupPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <div className="space-y-1">
-                              <div className="font-semibold">{booking.groupNumber || 'N/A'}</div>
-                              <div className="text-xs text-gray-500">{booking.groupName || 'No group'}</div>
-                            </div>
+                            <span className="font-bold text-primary text-xs whitespace-nowrap">
+                              {booking.bookingReference || 'N/A'}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {(booking.status === 'pending' || booking.status === 'documents_downloaded') ? (
+                              <div className="space-y-2 min-w-[150px]">
+                                <Input 
+                                  placeholder="Group Number" 
+                                  value={inlineGroupData[booking.id]?.groupNumber || ''}
+                                  onChange={(e) => setInlineGroupData(prev => ({
+                                    ...prev, 
+                                    [booking.id]: { ...prev[booking.id], groupNumber: e.target.value }
+                                  }))}
+                                  className="h-8 text-[11px] font-semibold"
+                                />
+                                <Input 
+                                  placeholder="Group Name" 
+                                  value={inlineGroupData[booking.id]?.groupName || ''}
+                                  onChange={(e) => setInlineGroupData(prev => ({
+                                    ...prev, 
+                                    [booking.id]: { ...prev[booking.id], groupName: e.target.value }
+                                  }))}
+                                  className="h-8 text-[11px]"
+                                />
+                              </div>
+                            ) : (
+                              <div className="space-y-1">
+                                <div className="font-semibold">{booking.groupNumber || 'N/A'}</div>
+                                <div className="text-xs text-gray-500">{booking.groupName || 'No group'}</div>
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell><div className="font-medium">{booking.party?.partyName || 'N/A'}</div></TableCell>
                           <TableCell>

@@ -108,7 +108,7 @@ export default function AddGroupNumberDialog({
             {booking && (
               <div className="bg-gray-50 rounded-lg p-3 space-y-2">
                 <p className="text-sm text-gray-600">
-                  <span className="font-medium">Booking ID:</span> {booking.id}
+                  <span className="font-medium">Booking:</span> {booking.bookingReference || booking.id.slice(0, 8)}
                 </p>
                 <p className="text-sm text-gray-600">
                   <span className="font-medium">Party:</span> {booking.party?.partyName || 'N/A'}

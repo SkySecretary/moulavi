@@ -11,6 +11,7 @@ import { PartyLayout } from '@/components/layouts/PartyLayout';
 import { Calendar, Plane, Users, Building, MapPin, Mail, Clock, DollarSign, Route, Truck, Phone, MessageCircle, Loader2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import api from '@/lib/api';
+import { formatTransportRoute } from '@/lib/utils';
 
 export default function ViewUmrahVisaBookingPage() {
   const router = useRouter();
@@ -106,18 +107,6 @@ export default function ViewUmrahVisaBookingPage() {
     } catch {
       return { date: 'N/A', time: 'N/A' };
     }
-  };
-
-  // Helper to format transport route from cities
-  const formatTransportRoute = (route: any) => {
-    if (!route) return 'N/A';
-    const cities = [
-      route.city1?.name,
-      route.city2?.name,
-      route.city3?.name,
-      route.city4?.name,
-    ].filter(Boolean);
-    return cities.length > 0 ? cities.join(' → ') : 'N/A';
   };
 
   const getStatusBadgeColor = (status: string) => {

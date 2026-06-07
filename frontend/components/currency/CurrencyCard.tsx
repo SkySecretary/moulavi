@@ -3,14 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2, Eye, DollarSign } from 'lucide-react';
 
-interface CurrencyMaster {
-  id: string;
-  currencyCode: string;
-  currencyName: string;
-  symbol: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { CurrencyMaster } from '@/types';
 
 interface CurrencyCardProps {
   currency: CurrencyMaster;
@@ -38,16 +31,15 @@ export default function CurrencyCard({
     <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
       <div className="flex items-center space-x-4">
         <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-          <DollarSign className="h-6 w-6 text-green-600" />
+          <span className="text-xl font-bold text-green-600">{currency.symbol}</span>
         </div>
         <div className="flex-1">
           <div className="flex items-center space-x-2 mb-1">
-            <h3 className="text-sm font-medium text-gray-900">{currency.currencyName}</h3>
+            <h3 className="text-sm font-medium text-gray-900">{currency.currencyName} ({currency.currencyCode})</h3>
           </div>
-          <p className="text-sm text-gray-500">Symbol: {currency.symbol}</p>
-          <p className="text-xs text-gray-400">Code: {currency.currencyCode}</p>
+          <p className="text-sm text-gray-600 font-medium">Rate: 1 {currency.currencyCode} = ₹{currency.exchangeRate?.toFixed(2)}</p>
           {currency.createdAt && (
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-gray-400 mt-1">
               Created: {formatDate(currency.createdAt)}
             </p>
           )}

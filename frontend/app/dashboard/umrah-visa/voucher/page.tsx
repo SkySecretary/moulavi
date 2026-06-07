@@ -139,6 +139,7 @@ export default function VoucherPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[130px]">Visa Type</TableHead>
+                      <TableHead className="w-[130px]">Reference</TableHead>
                       <TableHead className="w-[200px]">Group Details</TableHead>
                       <TableHead className="w-[180px]">Party Name</TableHead>
                       <TableHead className="w-[150px]">Arrival Date</TableHead>
@@ -162,6 +163,11 @@ export default function VoucherPage() {
                             <Badge variant={booking.visaType === 'group_visa' ? 'default' : 'secondary'} className="text-xs">
                               {booking.visaType === 'group_visa' ? 'Group Visa' : 'Individual Visa'}
                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-bold text-primary text-xs whitespace-nowrap">
+                              {booking.bookingReference || 'N/A'}
+                            </span>
                           </TableCell>
                           <TableCell>
                             <div className="space-y-1">

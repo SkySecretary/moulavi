@@ -40,16 +40,6 @@ export interface UpdateUserRequest {
 }
 
 // Party Types
-export interface CurrencyMaster {
-  id: string;
-  currencyCode: string;
-  currencyName: string;
-  symbol: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface Party {
   id: string;
   partyCode?: string;
@@ -71,6 +61,7 @@ export interface Party {
   emailNotification: boolean;
   smsNotification: boolean;
   marketingNotification: boolean;
+  logoPath?: string;
   userId?: string;
   createdBy: string;
   createdAt: string;
@@ -99,6 +90,7 @@ export interface CreatePartyRequest {
   email_notification?: boolean;
   sms_notification?: boolean;
   marketing_notification?: boolean;
+  logo_path?: string;
 }
 
 export interface PartyContact {
@@ -123,7 +115,7 @@ export interface UpdatePartyContactRequest {
   department?: string;
 }
 
-export type PartyDocumentType = 'gst_certificate' | 'pan_card' | 'aadhaar_card' | 'other';
+export type PartyDocumentType = 'gst_certificate' | 'pan_card' | 'aadhaar_card' | 'logo' | 'other';
 
 export interface PartyDocument {
   id: string;
@@ -192,6 +184,7 @@ export interface UmrahVisaBooking {
   partyId?: string;
   submittedAt?: string;
   bookingMode: BookingMode;
+  bookingReference?: string;
   groupNumber?: string;
   groupName?: string;
   hasGroupNumber?: boolean;
@@ -253,13 +246,15 @@ export interface UmrahVisaBooking {
       code: string;
     };
   }>;
-  sponsorIqamaDetails?: {
+  sponsorIqamaDetails?: Array<{
+    id?: string;
+    isAlternate?: boolean;
     iqamaNumber?: string;
     iqamaSponserName?: string;
     sponserDob?: string;
     sponserMobileNumber?: string;
     sponserNationalShortAddress?: string;
-  };
+  }>;
   hotelBookings?: Array<{
     id: string;
     isAlternate?: boolean;
@@ -456,6 +451,7 @@ export interface CurrencyMaster {
   currencyCode: string;
   currencyName: string;
   symbol: string;
+  exchangeRate: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -465,12 +461,14 @@ export interface CreateCurrencyMasterRequest {
   currencyCode: string;
   currencyName: string;
   symbol: string;
+  exchangeRate?: number;
 }
 
 export interface UpdateCurrencyMasterRequest {
   currencyCode?: string;
   currencyName?: string;
   symbol?: string;
+  exchangeRate?: number;
   isActive?: boolean;
 }
 

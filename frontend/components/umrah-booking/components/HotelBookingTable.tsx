@@ -97,10 +97,10 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
     );
   }
 
-  const handleQuickAddSuccess = (newHotelId: string) => {
+  const handleQuickAddSuccess = async (newHotelId: string) => {
     if (activeBookingIndex !== null) {
+      if (onHotelsRefresh) await onHotelsRefresh();
       onUpdateBooking(activeBookingIndex, 'hotelId', newHotelId);
-      if (onHotelsRefresh) onHotelsRefresh();
     }
   };
 
@@ -129,7 +129,7 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
             <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700 w-40">
               Check-out
             </th>
-            <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">
+            <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700 min-w-[300px]">
               BRN
             </th>
             {onRemoveBooking && (
@@ -158,14 +158,14 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                     onValueChange={(value) => onUpdateBooking(index, 'cityId', value)}
                     disabled={disabled}
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full h-12 text-base font-medium">
                       <SelectValue placeholder="Select city" />
                     </SelectTrigger>
                     <SelectContent>
                       {locations
                         .filter((location) => location.id && location.id.trim() !== '')
                         .map((location) => (
-                          <SelectItem key={location.id} value={location.id}>
+                          <SelectItem key={location.id} value={location.id} className="text-base py-3">
                             {location.destinationName}
                           </SelectItem>
                         ))}
@@ -179,16 +179,16 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                       onValueChange={(value) => onUpdateBooking(index, 'hotelId', value)}
                       disabled={disabled || !booking.cityId}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full h-12 text-base font-medium">
                         <SelectValue placeholder="Select hotel" />
                       </SelectTrigger>
                       <SelectContent className="max-h-[300px]">
                         <div className="px-2 py-2 sticky top-0 bg-white z-10 border-b">
                           <div className="relative">
-                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Search className="absolute left-2 top-3.5 h-5 w-5 text-muted-foreground" />
                             <Input
                               placeholder="Search hotels..."
-                              className="pl-8 h-9"
+                              className="pl-9 h-11 text-base"
                               value={hotelSearch[index] || ''}
                               onChange={(e) => setHotelSearch({ ...hotelSearch, [index]: e.target.value })}
                               onClick={(e) => e.stopPropagation()}
@@ -198,18 +198,18 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                         </div>
                         {filteredHotels.length > 0 ? (
                           filteredHotels.map((hotel) => (
-                            <SelectItem key={hotel.id} value={hotel.id}>
+                            <SelectItem key={hotel.id} value={hotel.id} className="text-base py-3">
                               {hotel.name || hotel.hotelName}
                             </SelectItem>
                           ))
                         ) : (
-                          <div className="py-6 px-2 text-center text-sm text-muted-foreground">
+                          <div className="py-6 px-2 text-center text-base text-muted-foreground">
                             {hotelSearch[index] ? 'No hotels matching search' : 'No hotels available'}
                             <div className="mt-4">
                                <Button 
                                  size="sm" 
                                  variant="outline" 
-                                 className="w-full"
+                                 className="w-full h-11 text-base"
                                  onClick={(e) => {
                                    e.stopPropagation();
                                    setActiveBookingIndex(index);
@@ -226,7 +226,7 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                             <Button 
                               size="sm" 
                               variant="ghost" 
-                              className="w-full justify-start font-normal text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              className="w-full justify-start font-normal text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-11 text-base"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setActiveBookingIndex(index);
@@ -260,7 +260,7 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                         onUpdateBooking(index, 'checkOutDate', checkOutStr);
                       }
                     }}
-                    className="w-full"
+                    className="w-full h-12 text-base"
                     disabled={disabled}
                   />
                 </td>
@@ -282,7 +282,7 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                         onUpdateBooking(index, 'checkOutDate', checkOutStr);
                       }
                     }}
-                    className="w-full"
+                    className="w-full h-12 text-base"
                     disabled={disabled}
                   />
                 </td>
@@ -292,7 +292,7 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                     value={booking.checkOutDate}
                     min={booking.checkInDate || arrivalDate}
                     onChange={(e) => onUpdateBooking(index, 'checkOutDate', e.target.value)}
-                    className="w-full"
+                    className="w-full h-12 text-base"
                     disabled={disabled}
                   />
                 </td>
@@ -307,7 +307,7 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                       const brnArray = inputValue.split(',').map(brn => brn.trim()).filter(brn => brn.length > 0);
                       onUpdateBooking(index, 'brn', brnArray);
                     }}
-                    className="w-full"
+                    className="w-full h-12 text-base"
                     disabled={disabled}
                   />
                 </td>

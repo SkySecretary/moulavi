@@ -536,7 +536,7 @@ const partyDocumentUpload = multer({
     
     // Validate document type for party documents
     const { document_type } = req.body;
-    const validPartyDocumentTypes = ['gst_certificate', 'pan_card', 'aadhaar_card', 'other'];
+    const validPartyDocumentTypes = ['gst_certificate', 'pan_card', 'aadhaar_card', 'logo', 'other'];
     if (document_type && !validPartyDocumentTypes.includes(document_type)) {
       return cb(new Error(`Invalid document type. Allowed types: ${validPartyDocumentTypes.join(', ')}`));
     }
@@ -573,22 +573,33 @@ router.post(
     }
     
     // Validate document type
-    const validPartyDocumentTypes = ['gst_certificate', 'pan_card', 'aadhaar_card', 'other'];
+    const validPartyDocumentTypes = ['gst_certificate', 'pan_card', 'aadhaar_card', 'logo', 'other'];
     if (!document_type || !validPartyDocumentTypes.includes(document_type)) {
-      return res.status(400).json({ error: 'Valid document_type is required. Allowed types: gst_certificate, pan_card, aadhaar_card, other' });
+      return res.status(400).json({ error: 'Valid document_type is required. Allowed types: gst_certificate, pan_card, aadhaar_card, logo, other' });
     }
     
+    // Get file path (S3 URL or local path)
+    const filePath = isS3Configured() ? (req.file as any).location : req.file.path;
+
     // Save document record
     const document = await prisma.partyDocument.create({
       data: {
         partyId,
         documentType: document_type as any,
         fileName: req.file.originalname,
-        filePath: isS3Configured() ? (req.file as any).location : req.file.path,
+        filePath: filePath,
         fileSize: req.file.size,
         mimeType: req.file.mimetype
       }
     });
+
+    // If this is a logo, update the party's logoPath
+    if (document_type === 'logo') {
+      await prisma.party.update({
+        where: { id: partyId },
+        data: { logoPath: filePath }
+      });
+    }
     
     res.status(201).json({
       document,

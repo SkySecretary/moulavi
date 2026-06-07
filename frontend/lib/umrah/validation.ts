@@ -233,13 +233,22 @@ export const validateStep3 = (
     }
 
     if (data.selectedTransports && data.selectedTransports.length > 0) {
+      let totalCapacity = 0;
       for (const transport of data.selectedTransports) {
         if (!transport.routeId || !transport.transportId || !transport.vehicleTypeId) {
           return 'Please complete all transport selections';
-      }
+        }
         if (transport.quantity && transport.quantity < 1) {
           return 'Transport quantity must be at least 1';
         }
+        if ((transport as any).paxCapacity) {
+          totalCapacity += ((transport as any).paxCapacity * transport.quantity);
+        }
+      }
+      
+      const paxCount = step2Data?.passengerCount || 0;
+      if (totalCapacity > 0 && paxCount > 0 && totalCapacity < paxCount) {
+        return `Total selected vehicle capacity (${totalCapacity} pax) is less than the number of passengers (${paxCount} pax). Please add more vehicles.`;
       }
     } else if (data.selectedTransport) {
       if (!data.selectedTransport.routeId || !data.selectedTransport.transportId || !data.selectedTransport.vehicleTypeId) {
@@ -306,20 +315,20 @@ export const validateStep4 = (
   data: Step4Data, 
   arrivalDate?: string,
   departureDate?: string,
-  ziyarathCounts?: { [date: string]: number }
+  ziyarathCounts?: { [date: string]: number },
+  step2Data?: { passengerCount?: number; arrivalAirportId?: string },
+  locationMasters?: any[]
 ): string | null => {
-  // Step 4: Movement Details (for group bookings)
-  // Validate movements array
-  
+  // Step 4: Movement Details (for group bookings) or Transport Selection (for individual)
   // Check if this is a group booking (has movements)
   const isGroupBooking = data.movements !== undefined;
-  
+
   if (isGroupBooking) {
     // Validate unified movements array
     if (!data.movements || data.movements.length === 0) {
       return 'Please add movements. Select transport routes in Step 3 to auto-generate, or add manually.';
   }
-  
+
     // Validate each movement
     for (const movement of data.movements) {
       if (!movement.fromLocationId || !movement.toLocationId) {
@@ -330,6 +339,29 @@ export const validateStep4 = (
       }
       if (!movement.time) {
         return 'Time is required for all movements';
+      }
+
+      const moveDate = new Date(movement.date);
+      const isFriday = moveDate.getUTCDay() === 5;
+      const hours = parseInt(movement.time.split(':')[0], 10);
+      const isZiyarath = (movement as any).type === 'ziyarath' || (movement as any).tripType === 'ziyarath';
+
+      if (isFriday && isZiyarath && hours < 14) {
+        return `Ziyarah on Friday (${movement.date}) must start from 14:00 (2 PM) onwards.`;
+      }
+
+      if (locationMasters) {
+        const fromLocation = locationMasters.find((lm: any) => lm.id === movement.fromLocationId);
+        const toLocation = locationMasters.find((lm: any) => lm.id === movement.toLocationId);
+
+        const currentCity = (fromLocation?.city || fromLocation?.cityMaster?.name || '').toLowerCase().trim();
+        const nextCity = (toLocation?.city || toLocation?.cityMaster?.name || '').toLowerCase().trim();
+
+        if ((currentCity === 'makkah' || currentCity === 'mecca') && 
+            (nextCity === 'madinah' || nextCity === 'madina' || nextCity === 'medina') && 
+            hours < 14) {
+          return `Movement from Makkah to Madinah (${movement.date}) must start from 14:00 (2 PM) onwards.`;
+        }
       }
     }
 
@@ -348,30 +380,63 @@ export const validateStep4 = (
     return null; // Group booking validation complete
   }
   
-  // For individual bookings, Step4Data might not have movements
-  // (Individual bookings use different flow)
+  // For individual bookings: Step 4 is Transport Selection
+  if (!data.selectedTransports && !data.selectedTransport) {
+    return 'Please select at least one transport vehicle';
+  }
+
+  if (data.selectedTransports && data.selectedTransports.length > 0) {
+    let totalCapacity = 0;
+    for (const transport of data.selectedTransports) {
+      if (!transport.routeId || !transport.transportId || !transport.vehicleTypeId) {
+        return 'Please complete all transport selections';
+      }
+      if (transport.quantity && transport.quantity < 1) {
+        return 'Transport quantity must be at least 1';
+      }
+      if ((transport as any).paxCapacity) {
+        totalCapacity += ((transport as any).paxCapacity * transport.quantity);
+      }
+    }
+    
+    const paxCount = step2Data?.passengerCount || 0;
+    if (totalCapacity > 0 && paxCount > 0 && totalCapacity < paxCount) {
+      return `Total selected vehicle capacity (${totalCapacity} pax) is less than the number of passengers (${paxCount} pax). Please add more vehicles.`;
+    }
+  } else if (data.selectedTransport) {
+    if (!data.selectedTransport.routeId || !data.selectedTransport.transportId || !data.selectedTransport.vehicleTypeId) {
+      return 'Please complete transport selection';
+    }
+  }
+  
   return null;
 };
 
 // For group bookings: Step 5 is documents
 export const validateStep5 = (data: Step5Data, step1Data: Step1Data, step3Data: Step3Data, isGroupVisa: boolean = false): string | null => {
-  // For both group and individual bookings: ONLY ZIP file is required
+  // For group bookings: Either ZIP file OR multiple documents are required
   const zipFile = data.panCardZipFile;
-  if (!zipFile) {
-    return 'Please upload a ZIP file containing all required documents';
+  const multipleDocs = data.documents;
+  
+  if (!zipFile && (!multipleDocs || multipleDocs.length === 0)) {
+    return 'Please upload required documentation (ZIP file or multiple images/PDFs)';
   }
 
-  // Validate ZIP file type
-  const isValidZip = zipFile.type === 'application/zip' || zipFile.name.toLowerCase().endsWith('.zip');
-  if (!isValidZip) {
-    return 'Please upload a valid ZIP file (.zip)';
+  // Validate ZIP file if provided
+  if (zipFile) {
+    const isValidZip = zipFile.type === 'application/zip' || zipFile.name.toLowerCase().endsWith('.zip');
+    if (!isValidZip) {
+      return 'Please upload a valid ZIP file (.zip)';
+    }
+
+    // Validate ZIP file size (max 50MB)
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (zipFile.size > maxSize) {
+      return 'ZIP file size exceeds 50MB limit. Please compress your files.';
+    }
   }
 
-  // Validate ZIP file size (max 50MB)
-  const maxSize = 50 * 1024 * 1024; // 50MB
-  if (zipFile.size > maxSize) {
-    return 'ZIP file size exceeds 50MB limit. Please compress your files.';
-  }
+  // Individual file size validation is already handled in the component for multipleDocs
   
   return null; // All validations passed
 };
@@ -400,6 +465,27 @@ export const validateStep5Movements = (
     }
     if (!movement.time) {
       return 'Time is required for all movements';
+    }
+    
+    const moveDate = new Date(movement.date);
+    const isFriday = moveDate.getUTCDay() === 5;
+    const hours = parseInt(movement.time.split(':')[0], 10);
+    const isZiyarath = (movement as any).type === 'ziyarath' || (movement as any).tripType === 'ziyarath';
+    
+    if (isFriday && isZiyarath && hours < 14) {
+      return `Ziyarah on Friday (${movement.date}) must start from 14:00 (2 PM) onwards.`;
+    }
+    
+    const fromLocation = locationMasters.find((lm: any) => lm.id === movement.fromLocationId);
+    const toLocation = locationMasters.find((lm: any) => lm.id === movement.toLocationId);
+    
+    const currentCity = (fromLocation?.city || fromLocation?.cityMaster?.name || '').toLowerCase().trim();
+    const nextCity = (toLocation?.city || toLocation?.cityMaster?.name || '').toLowerCase().trim();
+    
+    if ((currentCity === 'makkah' || currentCity === 'mecca') && 
+        (nextCity === 'madinah' || nextCity === 'madina' || nextCity === 'medina') && 
+        hours < 14) {
+      return `Movement from Makkah to Madinah (${movement.date}) must start from 14:00 (2 PM) onwards.`;
     }
   }
   

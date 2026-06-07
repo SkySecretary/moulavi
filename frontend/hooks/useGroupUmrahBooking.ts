@@ -55,6 +55,12 @@ export const useGroupUmrahBooking = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [partyId, setPartyId] = useState<string | null>(null);
+  const [partyCurrency, setPartyCurrency] = useState<{
+    id: string;
+    currencyCode: string;
+    symbol: string;
+    exchangeRate: number;
+  } | null>(null);
   const [stepDataHashes, setStepDataHashes] = useState<{[key: number]: string}>({});
 
   // Generate hash for step data to detect changes
@@ -89,19 +95,31 @@ export const useGroupUmrahBooking = () => {
 
   const loadPartyData = useCallback(async (providedPartyId?: string) => {
     try {
+      let party;
       if (providedPartyId) {
         // Use provided partyId (for admin/staff)
+        const response = await partyAPI.getById(providedPartyId);
+        party = response.data.party;
         setPartyId(providedPartyId);
       } else {
         // Get party from authenticated user (for party role)
         const response = await partyAPI.getMyParty();
-        const userParty = response.data.party;
+        party = response.data.party;
         
-        if (userParty) {
-          setPartyId(userParty.id);
+        if (party) {
+          setPartyId(party.id);
         } else {
           toast.error('Party information not found');
         }
+      }
+
+      if (party && party.accountCurrency) {
+        setPartyCurrency({
+          id: party.accountCurrency.id,
+          currencyCode: party.accountCurrency.currencyCode,
+          symbol: party.accountCurrency.symbol,
+          exchangeRate: party.accountCurrency.exchangeRate,
+        });
       }
     } catch (error: any) {
       console.error('Error loading party data:', error);
@@ -475,6 +493,7 @@ export const useGroupUmrahBooking = () => {
     bookingState,
     isLoading,
     partyId,
+    partyCurrency,
     updateStep1Data,
     updateStep2Data,
     updateStep3Data,

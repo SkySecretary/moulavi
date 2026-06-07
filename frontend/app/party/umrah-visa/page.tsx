@@ -32,6 +32,7 @@ export default function UmrahVisaNewPage() {
     bookingState,
     isLoading,
     partyId,
+    partyCurrency,
     updateStep1Data,
     updateStep2Data,
     updateStep3Data,
@@ -48,6 +49,7 @@ export default function UmrahVisaNewPage() {
     loadInitialData,
     loadHotels,
     getHotelsForLocation,
+    refreshHotels,
   } = useMasterData();
 
   useEffect(() => {
@@ -75,7 +77,14 @@ export default function UmrahVisaNewPage() {
       case 3:
         return validateStep3(bookingState.step3Data, bookingState.step2Data.arrivalDate, bookingState.step2Data.departureDate, bookingState.step2Data);
       case 4:
-        return validateStep4(bookingState.step4Data, bookingState.step2Data.arrivalDate, bookingState.step2Data.departureDate);
+        return validateStep4(
+          bookingState.step4Data, 
+          bookingState.step2Data.arrivalDate, 
+          bookingState.step2Data.departureDate,
+          undefined,
+          bookingState.step2Data,
+          masterData.locationMasters
+        );
       case 5:
         return validateStep5Movements(bookingState.step5Data, bookingState.step1Data, bookingState.step2Data, bookingState.step3Data, bookingState.step4Data, masterData.locationMasters);
       case 6:
@@ -187,6 +196,7 @@ export default function UmrahVisaNewPage() {
             departureDate={bookingState.step2Data.departureDate}
             onLoadHotels={loadHotels}
             getHotelsForLocation={getHotelsForLocation}
+            refreshHotels={refreshHotels}
             passengerCount={bookingState.step2Data.passengerCount}
             disabled={isLoading}
           />
@@ -210,6 +220,7 @@ export default function UmrahVisaNewPage() {
               }
             }}
             disabled={isLoading}
+            currency={partyCurrency || undefined}
           />
         );
 

@@ -117,8 +117,8 @@ export function TimePicker({ value, onChange, disabled, className }: TimePickerP
   }
 
   return (
-    <div className={cn("relative", className)}>
-      <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+    <div className={cn("relative w-full min-w-[140px]", className)}>
+      <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none group-focus-within:text-primary transition-colors" />
       <Input
         type="text"
         value={displayValue}
@@ -127,7 +127,7 @@ export function TimePicker({ value, onChange, disabled, className }: TimePickerP
         disabled={disabled}
         placeholder="HH:MM"
         maxLength={5}
-        className="pl-10 font-mono text-center tracking-wider"
+        className="pl-10 h-10 font-mono text-sm tracking-widest bg-white border-gray-200 hover:border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all text-center"
         pattern="[0-9]{2}:[0-9]{2}"
       />
     </div>

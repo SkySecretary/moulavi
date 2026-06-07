@@ -38,6 +38,12 @@ export const useUmrahBooking = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [partyId, setPartyId] = useState<string | null>(null);
+  const [partyCurrency, setPartyCurrency] = useState<{
+    id: string;
+    currencyCode: string;
+    symbol: string;
+    exchangeRate: number;
+  } | null>(null);
 
   const updateStep1Data = useCallback((data: Partial<Step1Data>) => {
     setBookingState(prev => ({
@@ -87,19 +93,31 @@ export const useUmrahBooking = () => {
 
   const loadPartyData = useCallback(async (providedPartyId?: string) => {
     try {
+      let party;
       if (providedPartyId) {
         // Use provided partyId (for admin/staff)
+        const response = await partyAPI.getById(providedPartyId);
+        party = response.data.party;
         setPartyId(providedPartyId);
       } else {
         // Get party from authenticated user (for party role)
         const response = await partyAPI.getMyParty();
-        const userParty = response.data.party;
+        party = response.data.party;
         
-        if (userParty) {
-          setPartyId(userParty.id);
+        if (party) {
+          setPartyId(party.id);
         } else {
           toast.error('Party information not found');
         }
+      }
+
+      if (party && party.accountCurrency) {
+        setPartyCurrency({
+          id: party.accountCurrency.id,
+          currencyCode: party.accountCurrency.currencyCode,
+          symbol: party.accountCurrency.symbol,
+          exchangeRate: party.accountCurrency.exchangeRate,
+        });
       }
     } catch (error: any) {
       console.error('Error loading party data:', error);
@@ -277,6 +295,7 @@ export const useUmrahBooking = () => {
     bookingState,
     isLoading,
     partyId,
+    partyCurrency,
     updateStep1Data,
     updateStep2Data,
     updateStep3Data,
@@ -483,6 +502,7 @@ export const useMasterData = () => {
     loadHotels,
     getHotelsForLocation,
     loadAllLocationMasters,
+    refreshHotels: loadAllLocationMasters,
     loadUmrahVisaMaster,
   };
 };

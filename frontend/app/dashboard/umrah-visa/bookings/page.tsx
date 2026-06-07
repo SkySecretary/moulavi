@@ -254,6 +254,7 @@ export default function UmrahVisaPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[120px]">Visa Type</TableHead>
+                        <TableHead className="w-[120px]">Reference</TableHead>
                         <TableHead className="w-[220px]">Party Details</TableHead>
                         <TableHead className="w-[150px]">Group Details</TableHead>
                         <TableHead className="w-[120px]">Passengers</TableHead>
@@ -278,6 +279,11 @@ export default function UmrahVisaPage() {
                               <Badge className={`${VISA_TYPE_CONFIG[booking.visaType as keyof typeof VISA_TYPE_CONFIG]?.color || 'bg-gray-100'} text-xs`}>
                                 {VISA_TYPE_CONFIG[booking.visaType as keyof typeof VISA_TYPE_CONFIG]?.label || booking.visaType || 'N/A'}
                               </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <span className="font-bold text-primary text-xs whitespace-nowrap">
+                                {booking.bookingReference || 'N/A'}
+                              </span>
                             </TableCell>
                             <TableCell>
                               <div className="space-y-1">

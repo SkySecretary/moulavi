@@ -91,11 +91,13 @@ export interface Step5Data {
   // For group bookings: documents (backward compatibility)
   passengers?: Passenger[]; // Optional - not used for individual/group bookings (backend creates from passengerCount)
   panCardZipFile?: File | null; // ZIP file containing all required documents
+  documents?: File[]; // Multiple files (new feature)
 }
 
 export interface Step6Data {
   // For individual bookings: documents (Step 6 is documents)
   panCardZipFile?: File | null; // ZIP file containing all required documents
+  documents?: File[]; // Multiple files
 }
 
 export interface TransportBooking {

@@ -46,6 +46,15 @@ router.get(
               email: true,
             },
           },
+          umrahCompany: {
+            select: { partyName: true, address: true, contactNumber: true, whatsappNumber: true, email: true }
+          },
+          party: {
+            select: { partyName: true }
+          },
+          transportCompany: {
+            select: { partyName: true }
+          },
           movements: {
             orderBy: {
               sr: 'asc',

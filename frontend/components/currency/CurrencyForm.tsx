@@ -4,20 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-interface CurrencyMaster {
-  id: string;
-  currencyCode: string;
-  currencyName: string;
-  symbol: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface CreateCurrencyMasterRequest {
-  currencyCode: string;
-  currencyName: string;
-  symbol: string;
-}
+import { CurrencyMaster, CreateCurrencyMasterRequest } from '@/types';
 
 interface CurrencyFormProps {
   formData: CreateCurrencyMasterRequest;
@@ -34,7 +21,7 @@ export default function CurrencyForm({
   onSubmit, 
   onCancel 
 }: CurrencyFormProps) {
-  const handleInputChange = (field: keyof CreateCurrencyMasterRequest, value: string) => {
+  const handleInputChange = (field: keyof CreateCurrencyMasterRequest, value: string | number) => {
     onFormDataChange({ ...formData, [field]: value });
   };
 
@@ -76,6 +63,20 @@ export default function CurrencyForm({
             maxLength={10}
           />
           <p className="text-xs text-gray-500">Currency symbol used for display</p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="exchangeRate">Exchange Rate (1 Unit = ? INR) *</Label>
+          <Input
+            id="exchangeRate"
+            type="number"
+            step="0.0001"
+            placeholder="e.g., 22.5"
+            value={formData.exchangeRate || ''}
+            onChange={(e) => handleInputChange('exchangeRate', parseFloat(e.target.value))}
+            required
+          />
+          <p className="text-xs text-gray-500">Rate to convert this currency to INR (e.g., 1 SAR = 22.5 INR)</p>
         </div>
 
         <div className="flex space-x-2 pt-4">

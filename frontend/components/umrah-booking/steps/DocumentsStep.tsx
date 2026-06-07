@@ -44,7 +44,7 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
 
   // Generate dynamic instructions based on conditions
   const getInstructions = () => {
-    const baseWarning = "Ensure all required documents are attached. Individual files should not exceed 3MB. bookings without proper documentation will be subject to cancellation.";
+    const baseWarning = "Ensure all required documents are attached. Individual files should not exceed 50MB. bookings without proper documentation will be subject to cancellation.";
     
     let requiredDocs: string[] = [];
 
@@ -78,26 +78,24 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
   const { baseWarning, requiredDocs } = getInstructions();
 
   const handleFilesSelect = (newFiles: FileList | File[]) => {
-    const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
     const validFiles: File[] = [...uploadedFiles];
     let hasError = false;
 
     Array.from(newFiles).forEach(file => {
-      // Validate file type
-      const isValidType = /jpeg|jpg|png|pdf|zip/.test(file.type) || 
-                          file.name.toLowerCase().endsWith('.zip') ||
-                          file.name.toLowerCase().endsWith('.pdf') ||
-                          /\.(jpg|jpeg|png)$/i.test(file.name);
+      // Validate file type - Expanded to include HEIC/HEIF and WEBP
+      const isValidType = /jpeg|jpg|png|pdf|zip|heic|heif|webp/.test(file.type.toLowerCase()) || 
+                          /\.(zip|pdf|jpg|jpeg|png|heic|heif|webp)$/i.test(file.name);
       
       if (!isValidType) {
-        toast.error(`${file.name} is not a valid file type. Please upload images, PDFs or ZIP.`);
+        toast.error(`${file.name} is not a valid file type. Please upload images (JPG, PNG, HEIC, WEBP), PDFs or ZIP.`);
         hasError = true;
         return;
       }
 
       // Validate size
       if (file.size > MAX_FILE_SIZE) {
-        toast.error(`${file.name} exceeds the 3MB size limit.`);
+        toast.error(`${file.name} exceeds the 50MB size limit.`);
         hasError = true;
         return;
       }
@@ -171,7 +169,7 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
         <div>
           <h4 className="text-lg font-bold text-primary uppercase tracking-tight">Documents Upload</h4>
           <p className="text-[10px] text-muted-foreground font-medium mt-0.5 opacity-60">
-            Upload images, PDFs or a ZIP file (Max 3MB per file)
+            Upload images (JPG, PNG, HEIC), PDFs or a ZIP file (Max 50MB per file)
           </p>
         </div>
       </div>
@@ -195,7 +193,7 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
               ref={fileInputRef}
               type="file"
               multiple
-              accept="image/*,.pdf,.zip"
+              accept="image/*,.pdf,.zip,.heic,.heif"
               onChange={handleFileInputChange}
               disabled={disabled}
               className="hidden"
@@ -214,7 +212,7 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
                 {isDragging ? 'Drop files now' : 'Click to upload multiple files'}
               </p>
               <p className="text-[8px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">
-                Images, PDFs or ZIP (Max 3MB each)
+                JPG, PNG, HEIC, PDF or ZIP (Max 50MB each)
               </p>
             </div>
           </div>
@@ -276,7 +274,7 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
 
             <div className="pt-4 border-t border-white/5 relative z-10">
               <p className="text-[9px] text-gray-500 font-bold leading-relaxed uppercase tracking-widest text-center">
-                Aggregate documents into a single ZIP archive.
+                Individual files or a single ZIP archive.
               </p>
             </div>
           </div>

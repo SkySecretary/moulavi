@@ -32,26 +32,24 @@ export const GroupDocumentsStep: React.FC<GroupDocumentsStepProps> = ({
   const uploadedFiles = data.documents || [];
 
   const handleFilesSelect = (newFiles: FileList | File[]) => {
-    const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
+    const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
     const validFiles: File[] = [...uploadedFiles];
     let hasError = false;
 
     Array.from(newFiles).forEach(file => {
-      // Validate file type
-      const isValidType = /jpeg|jpg|png|pdf|zip/.test(file.type) || 
-                          file.name.toLowerCase().endsWith('.zip') ||
-                          file.name.toLowerCase().endsWith('.pdf') ||
-                          /\.(jpg|jpeg|png)$/i.test(file.name);
+      // Validate file type - Expanded to include HEIC/HEIF and WEBP
+      const isValidType = /jpeg|jpg|png|pdf|zip|heic|heif|webp/.test(file.type.toLowerCase()) || 
+                          /\.(zip|pdf|jpg|jpeg|png|heic|heif|webp)$/i.test(file.name);
       
       if (!isValidType) {
-        toast.error(`${file.name} is not a valid file type. Please upload images, PDFs or ZIP.`);
+        toast.error(`${file.name} is not a valid file type. Please upload images (JPG, PNG, HEIC, WEBP), PDFs or ZIP.`);
         hasError = true;
         return;
       }
 
       // Validate size
       if (file.size > MAX_FILE_SIZE) {
-        toast.error(`${file.name} exceeds the 3MB size limit.`);
+        toast.error(`${file.name} exceeds the 20MB size limit.`);
         hasError = true;
         return;
       }
@@ -121,10 +119,10 @@ export const GroupDocumentsStep: React.FC<GroupDocumentsStepProps> = ({
         </div>
       </div>
 
-      <div className="flex flex-col sm:items-start gap-1 border-b border-secondary/10 pb-4">
-        <h4 className="text-lg font-bold text-primary uppercase tracking-tight">PAN Cards Upload</h4>
+      <div class="flex flex-col sm:items-start gap-1 border-b border-secondary/10 pb-4">
+        <h4 className="text-lg font-bold text-primary uppercase tracking-tight">Group Documentation Upload</h4>
         <p className="text-[10px] text-muted-foreground font-medium opacity-60">
-          Upload individual images, PDFs or a ZIP file containing all PAN cards (Max 3MB per file)
+          Upload individual images (JPG, PNG, HEIC), PDFs or a ZIP file containing all required documents (Max 20MB per file)
         </p>
       </div>
 
@@ -147,7 +145,7 @@ export const GroupDocumentsStep: React.FC<GroupDocumentsStepProps> = ({
               ref={fileInputRef}
               type="file"
               multiple
-              accept="image/*,.pdf,.zip"
+              accept="image/*,.pdf,.zip,.heic,.heif"
               onChange={handleFileInputChange}
               disabled={disabled}
               className="hidden"
@@ -166,7 +164,7 @@ export const GroupDocumentsStep: React.FC<GroupDocumentsStepProps> = ({
                 {isDragging ? 'Drop files now' : 'Click to upload multiple files'}
               </p>
               <p className="text-[8px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">
-                Images, PDFs or ZIP (Max 3MB each)
+                JPG, PNG, HEIC, PDF or ZIP (Max 20MB each)
               </p>
             </div>
           </div>
@@ -210,13 +208,13 @@ export const GroupDocumentsStep: React.FC<GroupDocumentsStepProps> = ({
                  <h6 className="text-[9px] font-bold text-secondary uppercase tracking-[0.2em]">Important Instructions</h6>
               </div>
               <p className="text-[11px] font-medium text-gray-300 leading-relaxed italic border-l-2 border-secondary/30 pl-3 py-0.5">
-                "Ensure all PAN cards for the group are attached. Submissions without proper documentation will be subject to cancellation."
+                "Ensure all documentation for the group is attached. Submissions without proper documentation (PAN Cards, Passports, etc.) will be subject to cancellation."
               </p>
             </div>
 
             <div className="pt-4 border-t border-white/5 relative z-10">
               <p className="text-[9px] text-gray-500 font-bold leading-relaxed uppercase tracking-widest text-center">
-                Supported formats: PNG, JPG, PDF, ZIP
+                Supported: JPG, PNG, HEIC, PDF, ZIP
               </p>
             </div>
           </div>

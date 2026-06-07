@@ -22,8 +22,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TransportRouteMaster, TransportMaster, RouteType } from '@/types';
-import { cn } from '@/lib/utils';
+import { TransportRouteMaster, TransportMaster, RouteType, CurrencyMaster } from '@/types';
+import { cn, formatCurrency } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 
 interface TransportVehicleSelectionStepProps {
@@ -34,6 +34,11 @@ interface TransportVehicleSelectionStepProps {
   locationMasters?: LocationMaster[];
   onChange: (data: Partial<Step3Data>) => void; // Now updates Step3Data
   disabled?: boolean;
+  currency?: {
+    symbol: string;
+    currencyCode: string;
+    exchangeRate: number;
+  };
 }
 
 
@@ -45,6 +50,7 @@ export const TransportVehicleSelectionStep: React.FC<TransportVehicleSelectionSt
   locationMasters = [],
   onChange,
   disabled = false,
+  currency,
 }) => {
   const [loadingRoutes, setLoadingRoutes] = useState(false);
   const [loadingTransports, setLoadingTransports] = useState(false);
@@ -289,6 +295,7 @@ export const TransportVehicleSelectionStep: React.FC<TransportVehicleSelectionSt
           vehicleTypeId: transport.vehicleType.id,
           price: Number(transport.price),
           quantity,
+          paxCapacity: transport.vehicleType.paxCount,
         };
       })
       .filter(Boolean) as Array<{
@@ -297,6 +304,7 @@ export const TransportVehicleSelectionStep: React.FC<TransportVehicleSelectionSt
         vehicleTypeId: string;
         price: number;
         quantity: number;
+        paxCapacity?: number;
       }>;
 
     onChange({
@@ -436,7 +444,7 @@ export const TransportVehicleSelectionStep: React.FC<TransportVehicleSelectionSt
                           </div>
                         </TableCell>
                         <TableCell className="text-center py-0"><span className="text-[9px] font-bold bg-muted px-1.5 py-0.5 rounded uppercase">{transport.vehicleType.paxCount} PAX</span></TableCell>
-                        <TableCell className="py-0"><span className="text-[10px] font-bold text-primary">SAR {Number(transport.price).toLocaleString()}</span></TableCell>
+                        <TableCell className="py-0"><span className="text-[10px] font-bold text-primary">{formatCurrency(Number(transport.price), currency)}</span></TableCell>
                         <TableCell className="py-0">
                           <div className="flex items-center justify-center gap-2 bg-gray-50 p-0.5 rounded-md border border-gray-100 w-fit mx-auto">
                             <Button variant="ghost" size="icon" onClick={() => handleQuantityChange(transport.id, -1)} disabled={disabled || quantity === 0} className="h-5 w-5 rounded hover:text-destructive"><Minus className="h-2 w-2" /></Button>
@@ -444,7 +452,7 @@ export const TransportVehicleSelectionStep: React.FC<TransportVehicleSelectionSt
                             <Button variant="ghost" size="icon" onClick={() => handleQuantityChange(transport.id, 1)} disabled={disabled} className="h-5 w-5 rounded hover:text-emerald-600"><Plus className="h-2 w-2" /></Button>
                           </div>
                         </TableCell>
-                        <TableCell className="px-4 py-0 text-right"><span className={cn("text-[10px] font-bold", isSelected ? 'text-secondary' : 'text-primary/10')}>SAR {total.toLocaleString()}</span></TableCell>
+                        <TableCell className="px-4 py-0 text-right"><span className={cn("text-[10px] font-bold", isSelected ? 'text-secondary' : 'text-primary/10')}>{formatCurrency(total, currency)}</span></TableCell>
                       </TableRow>
                     );
                   });

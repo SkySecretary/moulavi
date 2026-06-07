@@ -34,6 +34,7 @@ export default function GroupUmrahVisaPage() {
     bookingState,
     isLoading,
     partyId,
+    partyCurrency,
     updateStep1Data,
     updateStep2Data,
     updateStep3Data,
@@ -131,12 +132,13 @@ export default function GroupUmrahVisaPage() {
             // Continue with validation even if counts fetch fails
           }
         }
-        
         return validateStep4(
           bookingState.step4Data,
           bookingState.step2Data.arrivalDate,
           bookingState.step2Data.departureDate,
-          ziyarathCounts
+          ziyarathCounts,
+          undefined,
+          masterData.locationMasters
         );
       case 5:
         return validateStep5(bookingState.step5Data, bookingState.step1Data, bookingState.step3Data, true); // true = isGroupVisa
@@ -207,6 +209,7 @@ export default function GroupUmrahVisaPage() {
             locationMasters={masterData.locationMasters}
             onChange={updateStep3Data}
             disabled={isLoading}
+            currency={partyCurrency || undefined}
           />
         );
 

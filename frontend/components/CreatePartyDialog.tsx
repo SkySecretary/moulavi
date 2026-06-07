@@ -52,6 +52,7 @@ export default function CreatePartyDialog({
     gst_certificate?: File;
     pan_card?: File;
     aadhaar_card?: File;
+    logo?: File;
     other?: File;
   }>({});
   const { currencies, loading: currenciesLoading } = useCurrencyMaster();
@@ -502,8 +503,32 @@ export default function CreatePartyDialog({
 
             {/* Document Uploads */}
             <div className="space-y-3">
-              <Label className="text-sm font-medium">Documents</Label>
+              <Label className="text-sm font-medium">Documents & Assets</Label>
               
+              <div className="space-y-2 p-3 border-2 border-dashed border-green-100 rounded-lg bg-green-50/30">
+                <Label htmlFor="company_logo" className="text-xs font-bold text-green-700 flex items-center gap-1">
+                  <Upload className="h-3 w-3" />
+                  Company Logo (For Voucher Header)
+                </Label>
+                <div className="flex flex-col gap-2">
+                  <Input
+                    id="company_logo"
+                    type="file"
+                    accept=".jpg,.jpeg,.png"
+                    onChange={(e) => handleDocumentFileChange('logo', e.target.files?.[0])}
+                    className="text-xs bg-white"
+                  />
+                  {documentFiles.logo ? (
+                    <span className="text-[10px] text-green-600 font-medium">✓ {documentFiles.logo.name}</span>
+                  ) : editingParty?.logoPath ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-blue-600 font-medium">✓ Existing logo loaded</span>
+                      <a href={editingParty.logoPath} target="_blank" rel="noreferrer" className="text-[10px] underline text-blue-500">View</a>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="gst_certificate" className="text-xs">GST Certificate</Label>
                 <div className="flex items-center gap-2">

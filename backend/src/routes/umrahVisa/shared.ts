@@ -88,29 +88,29 @@ const groupStorage = isS3Configured()
 
 // Common file filter for both individual and group
 const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  // Allow ZIP files for PAN card uploads (legacy/alternate support)
+  // Allow ZIP files and various images for PAN card uploads (legacy/alternate support)
   if (file.fieldname === 'panCardZipFile' || file.fieldname === 'documents') {
-    const allowedTypes = /zip|application\/zip|application\/x-zip-compressed|jpeg|jpg|png|pdf/;
+    const allowedTypes = /zip|application\/zip|application\/x-zip-compressed|jpeg|jpg|png|pdf|heic|heif|webp|image\/(jpeg|jpg|png|heic|heif|webp)/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
     
     if (mimetype || extname || file.originalname.toLowerCase().endsWith('.zip')) {
       return cb(null, true);
     } else {
-      cb(new Error('Only ZIP, images (JPEG, JPG, PNG) and PDF files are allowed'));
+      cb(new Error('Only ZIP, images (JPEG, JPG, PNG, HEIC, WEBP) and PDF files are allowed'));
     }
     return;
   }
   
-  // For other files, use existing validation
-  const allowedTypes = /jpeg|jpg|png|pdf/;
+  // For other files, use expanded validation
+  const allowedTypes = /jpeg|jpg|png|pdf|heic|heif|webp|image\/(jpeg|jpg|png|heic|heif|webp)/;
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
   const mimetype = allowedTypes.test(file.mimetype);
   
-  if (mimetype && extname) {
+  if (mimetype || extname) {
     return cb(null, true);
   } else {
-    cb(new Error('Only images (JPEG, JPG, PNG) and PDF files are allowed'));
+    cb(new Error('Only images (JPEG, JPG, PNG, HEIC, WEBP) and PDF files are allowed'));
   }
 };
 

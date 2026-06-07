@@ -414,6 +414,11 @@ export default function PartyDashboardPage() {
                               <h3 className="font-bold text-secondary text-lg">
                                 {booking.groupName || 'Umrah Group'}
                               </h3>
+                              {booking.bookingReference && (
+                                <Badge variant="outline" className="text-[10px] py-0 border-primary/20 text-primary font-bold">
+                                  {booking.bookingReference}
+                                </Badge>
+                              )}
                               {getStatusBadge(booking.status)}
                             </div>
                             <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-gray-500">

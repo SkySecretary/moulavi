@@ -280,11 +280,15 @@ router.post('/invoice/generate-bills', authenticate, async (req, res) => {
     // Process each booking
     for (const bookingId of bookingIds) {
       try {
-        // Fetch booking with party and passengers
+        // Fetch booking with party, account currency and passengers
         const booking = await prisma.umrahVisaBooking.findUnique({
           where: { id: bookingId, isDeleted: false },
           include: {
-            party: true,
+            party: {
+              include: {
+                accountCurrency: true
+              }
+            },
             passengers: {
               where: { isDeleted: false },
               orderBy: { createdAt: 'asc' },
@@ -336,8 +340,16 @@ router.post('/invoice/generate-bills', authenticate, async (req, res) => {
         }));
 
         // Calculate amount (price per passenger * passenger count)
-        const pricePerPassenger = Number(pricing.price);
-        const totalAmount = pricePerPassenger * booking.passengerCount;
+        const pricePerPassengerINR = Number(pricing.price);
+        const totalAmountINR = pricePerPassengerINR * booking.passengerCount;
+
+        // Convert to party's account currency if needed
+        let totalAmountDisplay = totalAmountINR;
+        const currency = booking.party.accountCurrency;
+        
+        if (currency && currency.currencyCode !== 'INR' && currency.exchangeRate > 0) {
+          totalAmountDisplay = totalAmountINR / currency.exchangeRate;
+        }
 
         // Generate PDF
         const billData: BillPdfData = {
@@ -346,7 +358,9 @@ router.post('/invoice/generate-bills', authenticate, async (req, res) => {
           groupName: booking.groupName || 'N/A',
           passengerCount: booking.passengerCount,
           passengers,
-          amount: totalAmount,
+          amount: totalAmountDisplay,
+          currencyCode: currency?.currencyCode || 'INR',
+          currencySymbol: currency?.symbol || '₹',
         };
 
         const pdfBuffer = await generateBillPDF(billData);
@@ -439,11 +453,15 @@ router.post('/:bookingId/generate-bill', authenticate, async (req, res) => {
       return res.status(403).json({ error: 'Only admin/staff can generate bills' });
     }
 
-    // Fetch booking with party and passengers
+    // Fetch booking with party, account currency and passengers
     const booking = await prisma.umrahVisaBooking.findUnique({
       where: { id: bookingId, isDeleted: false },
       include: {
-        party: true,
+        party: {
+          include: {
+            accountCurrency: true
+          }
+        },
         passengers: {
           where: { isDeleted: false },
           orderBy: { createdAt: 'asc' },
@@ -479,8 +497,16 @@ router.post('/:bookingId/generate-bill', authenticate, async (req, res) => {
     }));
 
     // Calculate amount (price per passenger * passenger count)
-    const pricePerPassenger = Number(pricing.price);
-    const totalAmount = pricePerPassenger * booking.passengerCount;
+    const pricePerPassengerINR = Number(pricing.price);
+    const totalAmountINR = pricePerPassengerINR * booking.passengerCount;
+
+    // Convert to party's account currency if needed
+    let totalAmountDisplay = totalAmountINR;
+    const currency = booking.party.accountCurrency;
+    
+    if (currency && currency.currencyCode !== 'INR' && currency.exchangeRate > 0) {
+      totalAmountDisplay = totalAmountINR / currency.exchangeRate;
+    }
 
     // Generate PDF
     const billData: BillPdfData = {
@@ -489,7 +515,9 @@ router.post('/:bookingId/generate-bill', authenticate, async (req, res) => {
       groupName: booking.groupName || 'N/A',
       passengerCount: booking.passengerCount,
       passengers,
-      amount: totalAmount,
+      amount: totalAmountDisplay,
+      currencyCode: currency?.currencyCode || 'INR',
+      currencySymbol: currency?.symbol || '₹',
     };
 
     const pdfBuffer = await generateBillPDF(billData);

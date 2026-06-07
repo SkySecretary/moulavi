@@ -4,20 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { currencyMasterAPI } from '@/lib/api';
 
-interface CurrencyMaster {
-  id: string;
-  currencyCode: string;
-  currencyName: string;
-  symbol: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface CreateCurrencyMasterRequest {
-  currencyCode: string;
-  currencyName: string;
-  symbol: string;
-}
+import { CurrencyMaster, CreateCurrencyMasterRequest } from '@/types';
 
 export function useCurrencyMaster() {
   const [currencies, setCurrencies] = useState<CurrencyMaster[]>([]);
@@ -29,14 +16,9 @@ export function useCurrencyMaster() {
       setLoading(true);
       const response = await currencyMasterAPI.getAll();
       console.log('Currency getAll Response:', response);
-      console.log('Response data:', response.data);
       // Backend returns: { success: true, data: { currencyMasters: [...] }, pagination: {...} }
-      // Axios wraps it in response.data, so we need response.data.data.currencyMasters
-      const currencies = response.data?.data?.currencyMasters || response.data?.currencyMasters || response.data || [];
-      console.log('Extracted currencies:', currencies);
-      // Ensure it's always an array
-      const currencyArray = Array.isArray(currencies) ? currencies : [];
-      console.log('Setting currencies array:', currencyArray);
+      const currenciesData = response.data?.data?.currencyMasters || response.data?.currencyMasters || response.data || [];
+      const currencyArray = Array.isArray(currenciesData) ? currenciesData : [];
       setCurrencies(currencyArray);
     } catch (error) {
       toast.error('Failed to load currencies');

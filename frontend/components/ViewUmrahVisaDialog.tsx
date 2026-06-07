@@ -121,8 +121,14 @@ export default function ViewUmrahVisaDialog({ bookingId, open, onOpenChange }: V
               </CardHeader>
               <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <p className="text-xs sm:text-sm text-gray-500">Booking ID</p>
-                  <p className="font-medium text-xs sm:text-sm break-all">{booking.id}</p>
+                  <p className="text-xs sm:text-sm text-gray-500">Booking ID / Reference</p>
+                  <p className="font-medium text-xs sm:text-sm break-all">
+                    {booking.bookingReference ? (
+                      <span className="text-primary font-bold">{booking.bookingReference}</span>
+                    ) : (
+                      booking.id
+                    )}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs sm:text-sm text-gray-500">Status</p>

@@ -138,7 +138,7 @@ export default function InvoicePage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `Bill_${selectedBooking.groupNumber || selectedBooking.id}.pdf`);
+      link.setAttribute('download', `Bill_${selectedBooking.bookingReference || selectedBooking.groupNumber || selectedBooking.id}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);

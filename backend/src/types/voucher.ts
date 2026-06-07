@@ -14,6 +14,7 @@ export interface VoucherPdfData {
     contactNumber?: string;
     whatsappNumber?: string;
     email?: string;
+    logoPath?: string;
   } | null;
   agentParty?: {
     partyName: string;

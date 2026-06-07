@@ -21,6 +21,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RouteType } from '@/types';
+import { cn, formatCurrency } from '@/lib/utils';
 
 interface QuickVoucherFormProps {
   onSuccess: () => void;
@@ -115,6 +116,21 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
   const [umrahCompanies, setUmrahCompanies] = useState<any[]>([]);
   const [transportCompanies, setTransportCompanies] = useState<any[]>([]);
   const [allParties, setAllParties] = useState<any[]>([]);
+  const [selectedPartyCurrency, setSelectedPartyCurrency] = useState<any>(null);
+
+  // Update selected party currency when partyId changes
+  useEffect(() => {
+    if (formData.partyId) {
+      const party = allParties.find(p => p.id === formData.partyId);
+      if (party && party.accountCurrency) {
+        setSelectedPartyCurrency(party.accountCurrency);
+      } else {
+        setSelectedPartyCurrency(null);
+      }
+    } else {
+      setSelectedPartyCurrency(null);
+    }
+  }, [formData.partyId, allParties]);
 
   // Load Master Data
   useEffect(() => {
@@ -1052,66 +1068,66 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
             <CardContent className="p-4">
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
                 <div className="space-y-1">
-                  <Label className="text-[10px] font-medium text-muted-foreground ml-0.5">Reservation Date</Label>
+                  <Label className="text-[11px] font-bold text-muted-foreground ml-0.5 uppercase tracking-wider">Reservation Date</Label>
                   <Input 
                     type="date" 
                     value={formData.reservationDate} 
                     onChange={(e) => setFormData({...formData, reservationDate: e.target.value})}
-                    className="h-8 rounded-md border-gray-200 text-xs focus:ring-secondary/20"
+                    className="h-11 rounded-md border-gray-200 text-sm focus:ring-secondary/20"
                   />
                 </div>
                 <div className="space-y-1 lg:col-span-2">
-                  <Label className="text-[10px] font-medium text-muted-foreground ml-0.5">Guest Name</Label>
+                  <Label className="text-[11px] font-bold text-muted-foreground ml-0.5 uppercase tracking-wider">Guest Name</Label>
                   <Input 
                     placeholder="Enter Guest Name" 
                     value={formData.guestName} 
                     onChange={(e) => setFormData({...formData, guestName: e.target.value})}
-                    className="h-8 rounded-md border-gray-200 text-xs focus:ring-secondary/20"
+                    className="h-11 rounded-md border-gray-200 text-sm focus:ring-secondary/20"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[10px] font-medium text-muted-foreground ml-0.5">Guest Mobile</Label>
+                  <Label className="text-[11px] font-bold text-muted-foreground ml-0.5 uppercase tracking-wider">Guest Mobile</Label>
                   <Input 
                     placeholder="Mobile Number" 
                     value={formData.guestMobile} 
                     onChange={(e) => setFormData({...formData, guestMobile: e.target.value})}
-                    className="h-8 rounded-md border-gray-200 text-xs"
+                    className="h-11 rounded-md border-gray-200 text-sm"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[10px] font-medium text-muted-foreground ml-0.5">Pax Count</Label>
-                  <div className="flex items-center gap-2 bg-muted/30 p-0.5 rounded-md border border-gray-100">
-                    <Button variant="ghost" size="icon" onClick={() => setFormData({...formData, paxCount: Math.max(1, formData.paxCount - 1)})} className="h-6 w-6 rounded-sm"><Minus className="h-3 w-3" /></Button>
-                    <span className="flex-1 text-center font-bold text-xs">{formData.paxCount}</span>
-                    <Button variant="ghost" size="icon" onClick={() => setFormData({...formData, paxCount: formData.paxCount + 1})} className="h-6 w-6 rounded-sm"><Plus className="h-3 w-3" /></Button>
+                  <Label className="text-[11px] font-bold text-muted-foreground ml-0.5 uppercase tracking-wider">Pax Count</Label>
+                  <div className="flex items-center gap-2 bg-muted/30 p-1 rounded-md border border-gray-100 h-11">
+                    <Button variant="ghost" size="icon" onClick={() => setFormData({...formData, paxCount: Math.max(1, formData.paxCount - 1)})} className="h-8 w-8 rounded-sm"><Minus className="h-4 w-4" /></Button>
+                    <span className="flex-1 text-center font-bold text-sm">{formData.paxCount}</span>
+                    <Button variant="ghost" size="icon" onClick={() => setFormData({...formData, paxCount: formData.paxCount + 1})} className="h-8 w-8 rounded-sm"><Plus className="h-4 w-4" /></Button>
                   </div>
                 </div>
                 
                 {/* New Company Selections */}
                 <div className="space-y-1">
-                  <Label className="text-[10px] font-medium text-muted-foreground ml-0.5">Umrah Company</Label>
+                  <Label className="text-[11px] font-bold text-muted-foreground ml-0.5 uppercase tracking-wider">Umrah Company</Label>
                   <Select value={formData.umrahCompanyId} onValueChange={(v) => setFormData({...formData, umrahCompanyId: v})}>
-                    <SelectTrigger className="h-8 rounded-md border-gray-200 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectTrigger className="h-11 rounded-md border-gray-200 text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
-                      {umrahCompanies.map(p => <SelectItem key={p.id} value={p.id} className="text-xs">{p.partyName}</SelectItem>)}
+                      {umrahCompanies.map(p => <SelectItem key={p.id} value={p.id} className="text-sm">{p.partyName}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[10px] font-medium text-muted-foreground ml-0.5">Agent (Party)</Label>
+                  <Label className="text-[11px] font-bold text-muted-foreground ml-0.5 uppercase tracking-wider">Agent (Party)</Label>
                   <Select value={formData.partyId} onValueChange={(v) => setFormData({...formData, partyId: v})}>
-                    <SelectTrigger className="h-8 rounded-md border-gray-200 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectTrigger className="h-11 rounded-md border-gray-200 text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
-                      {parties.map(p => <SelectItem key={p.id} value={p.id} className="text-xs">{p.partyName}</SelectItem>)}
+                      {parties.map(p => <SelectItem key={p.id} value={p.id} className="text-sm">{p.partyName}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[10px] font-medium text-muted-foreground ml-0.5">Transport Co.</Label>
+                  <Label className="text-[11px] font-bold text-muted-foreground ml-0.5 uppercase tracking-wider">Transport Co.</Label>
                   <Select value={formData.transportCompanyId} onValueChange={(v) => setFormData({...formData, transportCompanyId: v})}>
-                    <SelectTrigger className="h-8 rounded-md border-gray-200 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectTrigger className="h-11 rounded-md border-gray-200 text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
-                      {transportCompanies.map(p => <SelectItem key={p.id} value={p.id} className="text-xs">{p.partyName}</SelectItem>)}
+                      {transportCompanies.map(p => <SelectItem key={p.id} value={p.id} className="text-sm">{p.partyName}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1141,6 +1157,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
                         <TableHead className="text-[9px] font-bold uppercase py-0">Carrier & No</TableHead>
                         <TableHead className="text-[9px] font-bold uppercase py-0">Route</TableHead>
                         <TableHead className="text-[9px] font-bold uppercase py-0 w-[110px]">Date</TableHead>
+                        <TableHead className="text-[9px] font-bold uppercase py-0 w-[80px]">Time</TableHead>
                         <TableHead className="w-[40px] py-0"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1173,6 +1190,14 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
                             </div>
                           </TableCell>
                           <TableCell><Input type="date" value={flight.date} onChange={(e) => updateFlightDetail(idx, 'date', e.target.value)} className="h-7 rounded border-gray-100 text-[9px]" /></TableCell>
+                          <TableCell>
+                            <Input 
+                              type="time" 
+                              value={flight.type === 'AA' ? (flight.eta || '') : (flight.etd || '')} 
+                              onChange={(e) => updateFlightDetail(idx, flight.type === 'AA' ? 'eta' : 'etd', e.target.value)} 
+                              className="h-7 rounded border-gray-100 text-[9px]" 
+                            />
+                          </TableCell>
                           <TableCell className="px-2 text-right"><Button variant="ghost" size="icon" onClick={() => removeFlightDetail(idx)} className="h-6 w-6 text-muted-foreground hover:text-destructive"><Trash2 className="h-3 w-3" /></Button></TableCell>
                         </TableRow>
                       ))}
@@ -1240,23 +1265,53 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
 
             {/* Movement Details */}
             <Card className="rounded-xl border-secondary/10 shadow-sm bg-white overflow-hidden">
-              <div className="bg-[#0B1120] px-4 py-2 flex items-center justify-between">
+              <div className="bg-[#0f172a] px-4 py-2.5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <MapPin className="h-3.5 w-3.5 text-secondary" />
-                  <span className="text-[11px] font-bold text-white uppercase tracking-wider">Movement Details</span>
+                  <MapPin className="h-4 w-4 text-sky-400" />
+                  <span className="text-[11px] font-extrabold text-white uppercase tracking-widest">Movement & Itinerary</span>
                 </div>
-                <Button variant="outline" size="sm" onClick={addMovementDetail} className="h-7 px-3 rounded-md border-white/10 text-white font-bold text-[9px] uppercase hover:bg-secondary transition-all">
-                  <Plus className="h-3 w-3 mr-1" /> Add Movement
+                <Button 
+                  variant="secondary" 
+                  size="sm" 
+                  onClick={addMovementDetail} 
+                  className="h-8 px-4 rounded-md border-none bg-sky-500 text-white font-bold text-[10px] uppercase hover:bg-sky-600 transition-all shadow-md active:scale-95"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Movement
                 </Button>
               </div>
-              <CardContent className="p-0">
+              <CardContent className="p-0 bg-white">
                 <div className="overflow-x-auto">
                   <MovementsTable 
                     movements={formData.movementDetails as any} 
                     onUpdateMovement={updateMovementDetail as any} 
                     onRemoveMovement={removeMovementDetail} 
+                    onAddMovement={(idx) => {
+                      const newMovements = [...formData.movementDetails];
+                      newMovements.splice(idx + 1, 0, {
+                        sr: newMovements.length + 1,
+                        route: '',
+                        date: '',
+                        time: '',
+                        from: '',
+                        fromLocationId: '',
+                        to: '',
+                        toLocationId: '',
+                        type: 'transport'
+                      });
+                      setFormData({...formData, movementDetails: newMovements});
+                    }}
                     locationMasters={locations} 
                   />
+                </div>
+                <div className="p-4 border-t border-slate-100 flex justify-center bg-slate-50/50">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={addMovementDetail}
+                    className="h-9 px-6 rounded-full border-2 border-dashed border-slate-300 text-slate-600 font-bold text-[11px] uppercase hover:bg-white hover:text-sky-600 hover:border-sky-300 transition-all group"
+                  >
+                    <Plus className="h-4 w-4 mr-2 group-hover:rotate-90 transition-transform" /> Add Trip Segment
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -1309,9 +1364,9 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
                     {loadingTransports ? <div className="py-4 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-secondary/40" /></div> : transports.map(t => {
                       const qty = formData.transportOptions.find(o => o.transportId === t.id)?.quantity || 0;
                       return (
-                        <div key={t.id} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 border border-gray-100">
-                          <div className="flex flex-col"><span className="text-[9px] font-bold text-primary uppercase truncate w-24">{t.vehicleType?.vehicleName}</span><span className="text-[8px] text-secondary">SAR {Number(t.price).toLocaleString()}</span></div>
-                          <div className="flex items-center gap-2 bg-white p-0.5 rounded border border-gray-100">
+                         <div key={t.id} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 border border-gray-100">
+                           <div className="flex flex-col"><span className="text-[9px] font-bold text-primary uppercase truncate w-24">{t.vehicleType?.vehicleName}</span><span className="text-[8px] text-secondary">{formatCurrency(Number(t.price), selectedPartyCurrency)}</span></div>
+                           <div className="flex items-center gap-2 bg-white p-0.5 rounded border border-gray-100">
                             <Button variant="ghost" size="icon" className="h-5 w-5 hover:text-destructive" onClick={() => updateTransportQuantity(t.id, Math.max(0, qty - 1))}><Minus className="h-2 w-2" /></Button>
                             <span className="text-[10px] font-bold">{qty}</span>
                             <Button variant="ghost" size="icon" className="h-5 w-5 hover:text-emerald-600" onClick={() => updateTransportQuantity(t.id, qty + 1)}><Plus className="h-2 w-2" /></Button>

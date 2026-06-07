@@ -377,6 +377,11 @@ export default function UmrahBookingDashboard({
                         <h3 className="text-sm font-medium text-gray-900">
                           {booking.groupName || `${booking.passengerCount} Passengers`}
                         </h3>
+                        {booking.bookingReference && (
+                          <Badge variant="outline" className="text-[10px] py-0 border-primary/20 text-primary">
+                            {booking.bookingReference}
+                          </Badge>
+                        )}
                         {getStatusBadge(booking.status || 'group_processing')}
                         <div className="flex items-center gap-1 bg-primary/10 text-secondary px-1.5 py-0.5 rounded text-[10px] font-bold">
                            <Activity className="h-3 w-3" />

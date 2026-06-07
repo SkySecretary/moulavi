@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import authRoutes from './routes/auth.routes';
 import partyRoutes from './routes/party.routes';
@@ -29,8 +30,18 @@ import cancellationRoutes from './routes/cancellation.routes';
 import notificationRoutes from './routes/notifications.routes';
 import landingRoutes from './routes/landing.routes';
 
-// Load environment variables from .env file in the backend directory
-dotenv.config({ path: path.join(__dirname, '..', '.env') });
+// Load environment variables based on environment
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
+const envPath = path.join(__dirname, '..', envFile);
+const defaultEnvPath = path.join(__dirname, '..', '.env');
+
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+  console.log(`[SERVER] Loading environment from ${envFile}`);
+} else {
+  dotenv.config({ path: defaultEnvPath });
+  console.log(`[SERVER] Loading environment from .env (fallback)`);
+}
 
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
@@ -50,8 +61,8 @@ app.use(
 console.log(`[SERVER] Configured CORS for origin: ${FRONTEND_URL}`);
 
 // Body parser middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '500mb' }));
+app.use(express.urlencoded({ extended: true, limit: '500mb' }));
 
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));

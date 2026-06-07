@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Plane, Users, Building, MapPin, Mail, CheckCircle, ArrowLeft, Clock, DollarSign, Route, Truck, ArrowRight, Download, Info } from 'lucide-react';
 import { ManageAlternateInfoDialog } from '@/components/umrah-booking/components/ManageAlternateInfoDialog';
+import { formatTransportRoute } from '@/lib/utils';
 
 export default function ViewUmrahVisaBookingPage() {
   const router = useRouter();
@@ -69,17 +70,6 @@ export default function ViewUmrahVisaBookingPage() {
     } catch {
       return { date: 'N/A', time: 'N/A' };
     }
-  };
-
-  const formatTransportRoute = (route: any) => {
-    if (!route) return 'N/A';
-    const cities = [
-      route.city1?.name,
-      route.city2?.name,
-      route.city3?.name,
-      route.city4?.name,
-    ].filter(Boolean);
-    return cities.length > 0 ? cities.join(' → ') : 'N/A';
   };
 
   const renderBookingDetails = (isAlt: boolean) => {

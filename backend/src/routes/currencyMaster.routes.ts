@@ -13,6 +13,7 @@ const createCurrencyValidation = [
   body('currencyCode').isString().notEmpty().trim().withMessage('Currency code is required'),
   body('currencyName').isString().notEmpty().trim().withMessage('Currency name is required'),
   body('symbol').isString().notEmpty().trim().withMessage('Currency symbol is required'),
+  body('exchangeRate').isFloat({ min: 0 }).optional().withMessage('Exchange rate must be a positive number'),
 ];
 
 // Create new currency
@@ -22,7 +23,7 @@ router.post(
   authorize('admin', 'staff'),
   createCurrencyValidation,
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { currencyCode, currencyName, symbol } = req.body;
+    const { currencyCode, currencyName, symbol, exchangeRate } = req.body;
 
     // Check if currency code already exists
     const existingCurrency = await prisma.currencyMaster.findFirst({
@@ -43,6 +44,7 @@ router.post(
         currencyCode: currencyCode.toUpperCase(),
         currencyName,
         symbol,
+        exchangeRate: exchangeRate ? parseFloat(exchangeRate) : 1.0,
         isActive: true
       }
     });
@@ -144,7 +146,7 @@ router.put(
   createCurrencyValidation,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
-    const { currencyCode, currencyName, symbol } = req.body;
+    const { currencyCode, currencyName, symbol, exchangeRate } = req.body;
 
     // Check if currency exists
     const existingCurrency = await prisma.currencyMaster.findUnique({
@@ -175,7 +177,8 @@ router.put(
       data: {
         currencyCode: currencyCode.toUpperCase(),
         currencyName,
-        symbol
+        symbol,
+        exchangeRate: exchangeRate !== undefined ? parseFloat(exchangeRate) : existingCurrency.exchangeRate
       }
     });
 

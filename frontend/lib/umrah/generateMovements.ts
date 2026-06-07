@@ -320,13 +320,31 @@ export function generateMovementsFromRoutes({
     for (let i = 0; i < hotelBookings.length - 1; i++) {
       const currentHotel = hotelBookings[i];
       const nextHotel = hotelBookings[i + 1];
+      
+      let moveDate = new Date(nextHotel.checkInDate);
+      let time = '12:00';
+
+      const currentCity = getCityName(currentHotel.hotelId, locationMasters)?.toLowerCase().trim();
+      const nextCity = getCityName(nextHotel.hotelId, locationMasters)?.toLowerCase().trim();
+      
+      // Makkah to Madina rule: must be after 14:00
+      if ((currentCity === 'makkah' || currentCity === 'mecca') && 
+          (nextCity === 'madinah' || nextCity === 'madina' || nextCity === 'medina')) {
+        time = '14:00';
+      }
+
+      // Friday skip rule for auto-generation
+      if (moveDate.getUTCDay() === 5) {
+        moveDate.setDate(moveDate.getDate() + 1); // Skip to Saturday
+      }
+
       movements.push({
         id: `movement-${i + 2}`,
         type: 'transport',
         fromLocationId: currentHotel.hotelId,
         toLocationId: nextHotel.hotelId,
-        date: nextHotel.checkInDate,
-        time: '12:00',
+        date: moveDate.toISOString().split('T')[0],
+        time: time,
       });
     }
   }

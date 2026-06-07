@@ -50,12 +50,15 @@ export default function TripInfoPage() {
   const fetchBookings = async () => {
     try {
       setIsLoading(true);
-      const response = await umrahVisaAPI.getBookings({ limit: 1000, status: 'group_assigned' });
+      const response = await umrahVisaAPI.getBookings({ limit: 1000 });
       const data = response.data;
       
       const bookingsData = data.bookings
-        .filter((booking: any) => booking.status === 'group_assigned')
-        .map((booking: any) => booking);
+        .filter((booking: any) => 
+          booking.status === 'group_assigned' || 
+          booking.status === 'voucher' || 
+          booking.status === 'bill'
+        );
 
       setBookingList(bookingsData);
     } catch (error) {
@@ -81,7 +84,7 @@ export default function TripInfoPage() {
         booking.party?.partyName?.toLowerCase().includes(query) ||
         booking.groupNumber?.toLowerCase().includes(query) ||
         booking.groupName?.toLowerCase().includes(query) ||
-        booking.sponsorIqamaDetails?.iqamaNumber?.toLowerCase().includes(query)
+        booking.sponsorIqamaDetails?.some((id: any) => id.iqamaNumber?.toLowerCase().includes(query))
       );
     }
 
@@ -315,7 +318,7 @@ export default function TripInfoPage() {
                       </TableRow>
                     ) : (
                       filteredData.map((booking) => {
-                        const iqamaDetails = booking.sponsorIqamaDetails;
+                        const iqamaDetails = booking.sponsorIqamaDetails?.find(id => !id.isAlternate);
                         return (
                           <TableRow key={booking.id} className="group">
                             {/* Visa Type */}
@@ -337,6 +340,11 @@ export default function TripInfoPage() {
                                 <div className="space-y-1">
                                   <div className="font-semibold text-gray-900 flex items-center gap-1">
                                     {booking.party?.partyCode ? `${booking.party.partyCode} - ${booking.party.partyName || 'N/A'}` : booking.party?.partyName || 'N/A'}
+                                    {booking.bookingReference && (
+                                      <Badge variant="outline" className="text-[10px] py-0 border-primary/20 text-primary font-bold">
+                                        {booking.bookingReference}
+                                      </Badge>
+                                    )}
                                     <button
                                       onClick={() => copyToClipboard(
                                         booking.party?.partyCode ? `${booking.party.partyCode} - ${booking.party.partyName || 'N/A'}` : booking.party?.partyName || 'N/A',
@@ -417,6 +425,11 @@ export default function TripInfoPage() {
                                 <div className="space-y-1">
                                   <div className="font-semibold text-gray-900 flex items-center gap-1">
                                     {booking.party?.partyName || 'N/A'}
+                                    {booking.bookingReference && (
+                                      <Badge variant="outline" className="text-[10px] py-0 border-primary/20 text-primary font-bold">
+                                        {booking.bookingReference}
+                                      </Badge>
+                                    )}
                                     <button
                                       onClick={() => copyToClipboard(booking.party?.partyName || '', 'Party Name')}
                                       className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
@@ -816,27 +829,58 @@ export default function TripInfoPage() {
                                   <div className="text-xs text-gray-500 text-center">
                                     Downloads: {booking.documentsDownloadCount || 0}/1
                                   </div>
-                                  <Input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file) {
-                                        handleUploadConfirmation(booking, file);
-                                        e.target.value = '';
-                                      }
-                                    }}
-                                    className="text-xs cursor-pointer"
-                                  />
+                                  
+                                  {iqamaDetails?.confirmationImagePath ? (
+                                    <div className="flex flex-col items-center gap-1">
+                                      <a 
+                                        href={`${process.env.NEXT_PUBLIC_API_URL || ''}/uploads/${iqamaDetails.confirmationImagePath}`.replace('/api/uploads/', '/uploads/')} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="text-[10px] text-blue-600 font-bold hover:underline bg-blue-50 px-2 py-1 rounded border border-blue-200"
+                                      >
+                                        View Image
+                                      </a>
+                                      <span className="text-[8px] text-gray-400">Uploaded at {iqamaDetails.confirmationUploadedAt ? formatDate(iqamaDetails.confirmationUploadedAt) : 'N/A'}</span>
+                                      
+                                      <div className="mt-2 pt-2 border-t w-full">
+                                        <p className="text-[8px] text-gray-500 mb-1 text-center">Re-upload:</p>
+                                        <Input
+                                          type="file"
+                                          accept="image/*"
+                                          onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                              handleUploadConfirmation(booking, file);
+                                              e.target.value = '';
+                                            }
+                                          }}
+                                          className="text-[10px] h-7 cursor-pointer"
+                                        />
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <Input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          handleUploadConfirmation(booking, file);
+                                          e.target.value = '';
+                                        }
+                                      }}
+                                      className="text-xs cursor-pointer"
+                                    />
+                                  )}
                                 </div>
                               </TableCell>
                             )}
 
                             <TableCell>
                               <div className="flex items-center justify-between gap-3">
-                                <Badge className={`${UMRAH_VISA_STATUS_CONFIG.group_assigned.color} flex items-center gap-1 text-xs whitespace-nowrap`}>
-                                  <Users className="h-3 w-3" />
-                                  {UMRAH_VISA_STATUS_CONFIG.group_assigned.label}
+                                <Badge className={`${UMRAH_VISA_STATUS_CONFIG[booking.status || 'group_assigned'].color} flex items-center gap-1 text-xs whitespace-nowrap`}>
+                                  {booking.status === 'group_assigned' && <Users className="h-3 w-3" />}
+                                  {UMRAH_VISA_STATUS_CONFIG[booking.status || 'group_assigned'].label}
                                 </Badge>
                                 <div className="flex-shrink-0">
                                   {renderActionButton(booking)}

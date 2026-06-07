@@ -27,6 +27,7 @@ interface AccommodationStepProps {
   departureDate: string;
   onLoadHotels: (locationId: string) => void;
   getHotelsForLocation: (locationId: string) => HotelType[];
+  refreshHotels?: () => void;
   passengerCount?: number; // Add passenger count from step 1
   disabled?: boolean;
 }
@@ -40,6 +41,7 @@ export const AccommodationStep: React.FC<AccommodationStepProps> = ({
   departureDate,
   onLoadHotels,
   getHotelsForLocation,
+  refreshHotels,
   passengerCount,
   disabled = false,
 }) => {
@@ -222,9 +224,10 @@ export const AccommodationStep: React.FC<AccommodationStepProps> = ({
               onRemoveBooking={removeHotelBooking}
               onAddBooking={addHotelBooking}
               disabled={disabled}
-              showAddButton={false}
+              showAddButton={true}
               arrivalDate={arrivalDate}
               departureDate={departureDate}
+              onHotelsRefresh={refreshHotels}
             />
           </div>
         </div>
@@ -286,19 +289,19 @@ export const AccommodationStep: React.FC<AccommodationStepProps> = ({
               <Label htmlFor="iqamaNationalShortAddress" className="text-[10px] font-bold text-primary/60 uppercase ml-1">National Short Address *</Label>
               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 <InputOTP
-                  maxLength={6}
+                  maxLength={8}
                   pattern={REGEXP_ONLY_DIGITS_AND_CHARS}
                   value={data.iqamaDetails?.iqamaNationalShortAddress || ''}
                   onChange={(value) => onChange({ iqamaDetails: { ...data.iqamaDetails, iqamaNationalShortAddress: value } })}
                   disabled={disabled}
                 >
                   <InputOTPGroup className="gap-2">
-                    {Array.from({ length: 6 }).map((_, i) => (
+                    {Array.from({ length: 8 }).map((_, i) => (
                       <InputOTPSlot key={i} index={i} className="h-10 w-9 rounded-lg border-gray-100 bg-white font-bold text-base text-primary shadow-sm" />
                     ))}
                   </InputOTPGroup>
                 </InputOTP>
-                <p className="text-[8px] font-bold text-primary/40 uppercase tracking-widest">6-character short address</p>
+                <p className="text-[8px] font-bold text-primary/40 uppercase tracking-widest">8-character short address</p>
               </div>
             </div>
           </div>
