@@ -8,6 +8,7 @@ export interface VoucherPdfData {
   groupCode: string;
   groupName?: string;
   paxCount: number;
+  vehicleType?: string; // Type of vehicle for the trip
   umrahCompany?: {
     partyName: string;
     address?: string;
@@ -40,6 +41,8 @@ export interface VoucherPdfData {
     fromLocation: string;
     to: string;
     toLocation: string;
+    viaBdr?: boolean; // If true, display "VIA BDR" in the row
+    vehicleType?: string; // Optional per-movement vehicle type
   }>;
   flightDetails: Array<{
     type: string;

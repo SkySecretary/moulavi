@@ -55,12 +55,34 @@ function extractAirportCode(str: string | undefined): string {
   return 'JED';
 }
 
-// Generate HTML template for voucher based EXACTLY on voucher.html
+// Helper to get image as base64
+function getImageAsBase64(filePath: string | undefined): string | null {
+  if (!filePath) return null;
+  const fs = require('fs');
+  const path = require('path');
+  
+  try {
+    if (filePath.startsWith('http')) return filePath;
+    const absolutePath = path.isAbsolute(filePath) ? filePath : path.join(process.cwd(), filePath);
+    if (fs.existsSync(absolutePath)) {
+      const bitmap = fs.readFileSync(absolutePath);
+      const extension = path.extname(absolutePath).slice(1);
+      return `data:image/${extension};base64,${bitmap.toString('base64')}`;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error converting image to base64:', error);
+    return null;
+  }
+}
+
+// Generate HTML template for voucher based EXACTLY on voucher.html with specific refinements
 function generateVoucherHTML(data: VoucherPdfData): string {
-  const providerName = data.umrahCompany?.partyName || '';
+  const umrahCompanyName = data.umrahCompany?.partyName || 'UMRA SERVICES';
   const agentName = data.agentParty?.partyName || 'N/A';
-  const transportName = data.transportCompany?.partyName || '';
-  const contactNumber = data.umrahCompany?.contactNumber || data.umrahCompany?.whatsappNumber || '';
+  const transportName = data.transportCompany?.partyName || 'N/A';
+  const staticOpNumber = '+966 53 863 4100';
+  const logoBase64 = getImageAsBase64(data.umrahCompany?.logoPath);
 
   // Aggregate BRNs
   const brnsList = data.hotelSchedules
@@ -86,7 +108,8 @@ function generateVoucherHTML(data: VoucherPdfData): string {
     takeoff: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3d167a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"/><path d="M15.5 5.5l-5.5 3.3L9 12l-2 2-3-1-2 2 2.4 1.1L3 19l2-1 3.2.7L12 15l4-3 2-2z"/></svg>`,
     plane: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c19142" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-1 .1-1.4.5l-.3.3c-.4.4-.4 1.1 0 1.5L9 12l-5 5H2l1 1 3.2.7L9 22l1 1v-2l5-5 3.5 5.7c.4.4 1.1.4 1.5 0l.3-.3c.4-.4.6-.9.5-1.4z"/></svg>`,
     chevronRight: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#c19142" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`,
-    checkList: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3d167a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`
+    checkList: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3d167a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
+    truck: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`
   };
 
   return `
@@ -139,14 +162,13 @@ function generateVoucherHTML(data: VoucherPdfData): string {
             width: 20%;
             display: flex;
             align-items: center;
+            justify-content: flex-start;
         }
         
-        .logo-placeholder {
-            color: var(--primary-purple);
-            font-weight: 700;
-            font-size: 24px;
-            line-height: 1.1;
-            text-align: center;
+        .logo-img {
+            max-width: 120px;
+            max-height: 80px;
+            object-fit: contain;
         }
 
         .center-title {
@@ -156,7 +178,7 @@ function generateVoucherHTML(data: VoucherPdfData): string {
 
         .main-title {
             color: var(--primary-purple);
-            font-size: 22px;
+            font-size: 24px;
             font-weight: 700;
             line-height: 1.2;
             margin: 0 0 10px 0;
@@ -341,7 +363,7 @@ function generateVoucherHTML(data: VoucherPdfData): string {
             gap: 5px;
         }
 
-        .flight-label { font-size: 12px; font-weight: 700; color: var(--primary-purple); }
+        .flight-label { font-size: 12px; font-weight: 700; color: var(--primary-purple); display: flex; align-items: center; justify-content: center; gap: 5px; }
         .flight-date { font-size: 13px; font-weight: 700; }
         .flight-time { font-size: 14px; font-weight: 700; color: var(--primary-gold); }
         .flight-airport { font-size: 14px; font-weight: 700; }
@@ -385,7 +407,7 @@ function generateVoucherHTML(data: VoucherPdfData): string {
         }
 
         .accom-text { display: flex; flex-direction: column; gap: 3px; }
-        .accom-name { font-size: 12px; font-weight: 700; text-transform: uppercase; }
+        .accom-name { font-size: 12px; font-weight: 700; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
         .accom-dates { font-size: 12px; color: var(--text-gray); }
 
         /* --- Itinerary Table --- */
@@ -431,6 +453,7 @@ function generateVoucherHTML(data: VoucherPdfData): string {
 
         td.time-col { color: var(--primary-gold); font-weight: 700; }
         td.sr-col { font-weight: 700; }
+        .via-bdr { color: var(--primary-gold); font-weight: 800; font-size: 10px; }
 
         /* --- Terms --- */
         .terms-section {
@@ -473,17 +496,19 @@ function generateVoucherHTML(data: VoucherPdfData): string {
     <!-- Header -->
     <div class="header">
         <div class="logo-area">
+            ${logoBase64 ? `<img src="${logoBase64}" class="logo-img" alt="Logo">` : `
             <div class="logo-placeholder">
                 ${icons.bus}<br>
-                <span style="font-size: 14px;">${providerName}</span>
+                <span style="font-size: 14px;">${umrahCompanyName}</span>
             </div>
+            `}
         </div>
 
         <div class="center-title">
-            <h1 class="main-title">${transportName}</h1>
+            <h1 class="main-title">${umrahCompanyName}</h1>
             <div class="sub-title">Professional Transportation Services</div>
             <div class="op-number-box">
-                ${icons.phone} &nbsp; OPERATION NUMBER: ${contactNumber}
+                ${icons.phone} &nbsp; OPERATION NUMBER: ${staticOpNumber}
             </div>
             <div class="transportation-text">Transportation: ${transportName}</div>
         </div>
@@ -517,6 +542,13 @@ function generateVoucherHTML(data: VoucherPdfData): string {
                 <div class="info-text">
                     <span class="info-label">DATE OF ISSUE</span>
                     <span class="info-val">${formatDateYY(data.reservationDate)}</span>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-icon">${icons.truck}</div>
+                <div class="info-text">
+                    <span class="info-label">VEHICLE TYPE</span>
+                    <span class="info-val">${data.vehicleType || 'N/A'}</span>
                 </div>
             </div>
         </div>
@@ -556,7 +588,7 @@ function generateVoucherHTML(data: VoucherPdfData): string {
     <div class="two-columns">
         <!-- Flight Connectivity -->
         <div class="col">
-            <div class="col-tab flight-tab">${icons.plane.replace('color="#c19142"','color="white"')} &nbsp; FLIGHT CONNECTIVITY</div>
+            <div class="col-tab flight-tab">${icons.plane.replace('stroke="#c19142"','stroke="white"')} &nbsp; FLIGHT CONNECTIVITY</div>
             <div class="flight-content">
                 <div class="flight-leg">
                     <span class="flight-label">${icons.landing.replace('width="24"','width="16"').replace('height="24"','height="16"')} ARRIVAL</span>
@@ -586,7 +618,7 @@ function generateVoucherHTML(data: VoucherPdfData): string {
                 <div class="accom-item">
                     <div class="accom-icon">${icons.hotel}</div>
                     <div class="accom-text">
-                        <span class="accom-name">${h.hotelName} - ${h.location}</span>
+                        <span class="accom-name">${icons.hotel.replace('width="24"','width="14"').replace('height="24"','height="14"')} ${h.hotelName} - ${h.location}</span>
                         <span class="accom-dates">${formatDateYY(h.checkIn)} TO ${formatDateYY(h.checkOut)}</span>
                     </div>
                 </div>
@@ -606,17 +638,20 @@ function generateVoucherHTML(data: VoucherPdfData): string {
                     <th width="5%">SR</th>
                     <th width="15%">DATE</th>
                     <th width="10%">TIME</th>
-                    <th width="35%">FROM LOCATION</th>
-                    <th width="35%">TO LOCATION</th>
+                    <th width="30%">FROM LOCATION</th>
+                    <th width="10%">VIA</th>
+                    <th width="30%">TO LOCATION</th>
                 </tr>
             </thead>
             <tbody>
                 ${data.movementDetails.map((m, i) => {
-                    const isMazarath = m.from.toLowerCase().includes('mazarath') || m.to.toLowerCase().includes('mazarath') || m.fromLocation.toLowerCase().includes('mazarath') || m.toLocation.toLowerCase().includes('mazarath');
+                    const fromLocStr = (m.from || m.fromLocation || '').toLowerCase();
+                    const toLocStr = (m.to || m.toLocation || '').toLowerCase();
+                    const isMazarath = fromLocStr.includes('mazarath') || toLocStr.includes('mazarath');
                     const isFlight = (i === 0 && arrivalFlight) || (i === data.movementDetails.length - 1 && departureFlight);
-                    let icon = icons.bus;
+                    let icon = icons.bus.replace('width="24"','width="16"').replace('height="24"','height="16"');
                     if (isMazarath) icon = '🕋';
-                    if (isFlight) icon = i === 0 ? icons.landing : icons.takeoff;
+                    if (isFlight) icon = i === 0 ? icons.landing.replace('width="24"','width="16"').replace('height="24"','height="16"') : icons.takeoff.replace('width="24"','width="16"').replace('height="24"','height="16"');
 
                     return `
                     <tr>
@@ -624,6 +659,7 @@ function generateVoucherHTML(data: VoucherPdfData): string {
                         <td>${formatDateYY(m.date)}</td>
                         <td class="time-col">${formatTime(m.time)}</td>
                         <td>${m.from || m.fromLocation || 'N/A'}</td>
+                        <td class="via-bdr">${m.viaBdr ? 'VIA BDR' : ''}</td>
                         <td>${m.to || m.toLocation || 'N/A'}</td>
                     </tr>
                     `
@@ -632,7 +668,7 @@ function generateVoucherHTML(data: VoucherPdfData): string {
         </table>
     </div>
 
-    <!-- Terms and Conditions (PRESERVED EXACTLY) -->
+    <!-- Terms and Conditions -->
     <div class="terms-section">
         <div class="terms-title">TERMS AND CONDITIONS</div>
         <ul class="terms-list">
@@ -656,7 +692,7 @@ function generateVoucherHTML(data: VoucherPdfData): string {
     <!-- Footer -->
     <div class="footer">
         <div class="op-number-box">
-            ${icons.phone} &nbsp; OPERATION NUMBER: ${contactNumber}
+            ${icons.phone} &nbsp; OPERATION NUMBER: ${staticOpNumber}
         </div>
         <div class="transportation-text">Transportation: ${transportName}</div>
     </div>

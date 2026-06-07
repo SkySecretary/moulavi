@@ -167,19 +167,82 @@ export default function TripInfoPage() {
     }
   };
 
+  const handleCopyAll = async (booking: UmrahVisaBooking) => {
+    const mainTravel = booking.travelDetails?.find(t => !t.isAlternate);
+    const makkahHotel = booking.hotelBookings?.find(h => (h.city?.name || '').toLowerCase().includes('makkah'));
+    const madinahHotel = booking.hotelBookings?.find(h => (h.city?.name || '').toLowerCase().includes('madinah'));
+    
+    const formatDateShort = (dateStr: string | undefined) => {
+      if (!dateStr) return 'N/A';
+      return new Date(dateStr).toLocaleDateString('en-US', {
+        day: '2-digit',
+        month: 'short',
+      });
+    };
+
+    const brnToString = (brn: any) => {
+      if (!brn) return 'N/A';
+      if (Array.isArray(brn)) return brn.join(', ');
+      return String(brn);
+    };
+
+    let text = `📋 *Group Number:* ${booking.groupNumber || 'N/A'}\n`;
+    text += `🏷️ *Group Name:* ${booking.groupName || 'N/A'}\n`;
+    text += `👥 *Number of Pilgrims:* ${booking.passengerCount || 0}\n\n`;
+
+    if (makkahHotel) {
+      text += `🏨 *Makkah Hotel:* ${makkahHotel.hotel?.name || 'N/A'}\n`;
+      text += `📄 *Agreement No.:* ${brnToString(makkahHotel.brn)}\n`;
+      text += `📅 *Check-in:* ${formatDateShort(makkahHotel.checkInDate)}\n`;
+      text += `📅 *Check-out:* ${formatDateShort(makkahHotel.checkOutDate)}\n\n`;
+    }
+
+    if (madinahHotel) {
+      text += `🏨 *Madinah Hotel:* ${madinahHotel.hotel?.name || 'N/A'}\n`;
+      text += `📄 *Agreement No.:* ${brnToString(madinahHotel.brn)}\n`;
+      text += `📅 *Check-in:* ${formatDateShort(madinahHotel.checkInDate)}\n`;
+      text += `📅 *Check-out:* ${formatDateShort(madinahHotel.checkOutDate)}\n\n`;
+    }
+
+    text += `🛫 *Arrival Flight:* ${mainTravel?.arrivalFlightNumber || 'N/A'}\n`;
+    text += `📅 *Arrival Date:* ${formatDateShort(mainTravel?.arrivalDateTime)}\n\n`;
+
+    text += `🛬 *Departure Flight:* ${mainTravel?.departureFlightNumber || 'N/A'}\n`;
+    text += `📅 *Departure Date:* ${formatDateShort(mainTravel?.departureDateTime)}\n\n`;
+
+    text += `Kindly issue the visas for all pilgrims at the earliest.\nThank you.`;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('All trip info copied to clipboard');
+    } catch (error) {
+      toast.error('Failed to copy info');
+    }
+  };
+
   const renderActionButton = (booking: UmrahVisaBooking) => {
-    if (booking.accommodationType === 'hotel') {
-      return (
+    return (
+      <div className="flex items-center gap-2">
         <Button
           size="sm"
-          onClick={() => handleMarkReadyForVoucher(booking)}
-          className="flex items-center gap-1 whitespace-nowrap"
+          variant="outline"
+          onClick={() => handleCopyAll(booking)}
+          className="flex items-center gap-1 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
         >
-          Done
+          <Copy className="h-3 w-3" />
+          Copy All
         </Button>
-      );
-    }
-    return null;
+        {booking.accommodationType === 'hotel' && (
+          <Button
+            size="sm"
+            onClick={() => handleMarkReadyForVoucher(booking)}
+            className="flex items-center gap-1 whitespace-nowrap"
+          >
+            Done
+          </Button>
+        )}
+      </div>
+    );
   };
 
   if (!user) {
