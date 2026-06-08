@@ -43,11 +43,18 @@ export default function EditUmrahVisaBookingPage() {
   // Accommodation
   const [accommodationType, setAccommodationType] = useState<'hotel' | 'iqama'>('hotel');
   const [hotelBookings, setHotelBookings] = useState<any[]>([]);
-  const [iqamaNumber, setIqamaNumber] = useState('');
   const [iqamaName, setIqamaName] = useState('');
+  const [iqamaNumber, setIqamaNumber] = useState('');
   const [iqamaDob, setIqamaDob] = useState('');
   const [iqamaMobile, setIqamaMobile] = useState('');
   const [iqamaNationalShortAddress, setIqamaNationalShortAddress] = useState('');
+
+  // Iqama Hotel Details
+  const [iqamaMakkahHotelName, setIqamaMakkahHotelName] = useState('');
+  const [iqamaMakkahBrn, setIqamaMakkahBrn] = useState('');
+  const [iqamaMadinahHotelName, setIqamaMadinahHotelName] = useState('');
+  const [iqamaMadinahBrn, setIqamaMadinahBrn] = useState('');
+
 
   // Transportation
   const [transportBookings, setTransportBookings] = useState<any[]>([]);
@@ -116,6 +123,10 @@ export default function EditUmrahVisaBookingPage() {
           }
           setIqamaMobile(mainIqama.sponserMobileNumber || '');
           setIqamaNationalShortAddress(mainIqama.sponserNationalShortAddress || '');
+          setIqamaMakkahHotelName(mainIqama.makkahHotelName || '');
+          setIqamaMakkahBrn(mainIqama.makkahBrn || '');
+          setIqamaMadinahHotelName(mainIqama.madinahHotelName || '');
+          setIqamaMadinahBrn(mainIqama.madinahBrn || '');
         }
       }
 
@@ -270,6 +281,10 @@ export default function EditUmrahVisaBookingPage() {
           sponserDob: iqamaDob,
           sponserMobileNumber: iqamaMobile,
           sponserNationalShortAddress: iqamaNationalShortAddress,
+          makkahHotelName: iqamaMakkahHotelName,
+          makkahBrn: iqamaMakkahBrn,
+          madinahHotelName: iqamaMadinahHotelName,
+          madinahBrn: iqamaMadinahBrn,
         });
       }
 
@@ -666,6 +681,16 @@ export default function EditUmrahVisaBookingPage() {
                     <div className="space-y-1"><label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Date of Birth</label><Input type="date" value={iqamaDob} onChange={(e) => setIqamaDob(e.target.value)} /></div>
                     <div className="space-y-1"><label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Mobile Number</label><Input value={iqamaMobile} onChange={(e) => setIqamaMobile(e.target.value)} placeholder="Mobile Number" /></div>
                     <div className="space-y-1 sm:col-span-2"><label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">National Short Address</label><Input value={iqamaNationalShortAddress} onChange={(e) => setIqamaNationalShortAddress(e.target.value)} placeholder="National Short Address" /></div>
+                    
+                    <div className="col-span-1 sm:col-span-2 mt-4 pt-4 border-t border-gray-200">
+                      <h4 className="text-sm font-bold text-gray-700 mb-4">Iqama Hotel Details (For Reference & Copy All)</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1"><label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Makkah Hotel Name</label><Input value={iqamaMakkahHotelName} onChange={(e) => setIqamaMakkahHotelName(e.target.value)} placeholder="e.g., ANWAR AL SALAH" /></div>
+                        <div className="space-y-1"><label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Makkah BRN</label><Input value={iqamaMakkahBrn} onChange={(e) => setIqamaMakkahBrn(e.target.value)} placeholder="BRN or Agreement No" /></div>
+                        <div className="space-y-1"><label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Madinah Hotel Name</label><Input value={iqamaMadinahHotelName} onChange={(e) => setIqamaMadinahHotelName(e.target.value)} placeholder="e.g., Dalla Taiba" /></div>
+                        <div className="space-y-1"><label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Madinah BRN</label><Input value={iqamaMadinahBrn} onChange={(e) => setIqamaMadinahBrn(e.target.value)} placeholder="BRN or Agreement No" /></div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </CardContent>
