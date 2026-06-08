@@ -54,7 +54,9 @@ export default function VoucherPage() {
   };
 
   const filterData = () => {
-    let filtered = bookingList.filter(booking => booking.status === 'voucher');
+    let filtered = bookingList.filter(booking => 
+      booking.status === 'voucher' || booking.status === 'bill'
+    );
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
