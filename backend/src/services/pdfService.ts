@@ -63,15 +63,28 @@ function getImageAsBase64(filePath: string | undefined): string | null {
   
   try {
     if (filePath.startsWith('http')) return filePath;
-    const absolutePath = path.isAbsolute(filePath) ? filePath : path.join(process.cwd(), filePath);
-    if (fs.existsSync(absolutePath)) {
-      const bitmap = fs.readFileSync(absolutePath);
-      const extension = path.extname(absolutePath).slice(1);
+    
+    // Normalize path: if it contains 'uploads', ensure we use the relative version
+    // joined with the current process working directory. This fixes issues where
+    // absolute server paths were stored in the database.
+    let targetPath = filePath;
+    if (filePath.includes('uploads')) {
+      const relativePath = filePath.replace(/.*[\/\\]uploads[\/\\]/, 'uploads/');
+      targetPath = path.join(process.cwd(), relativePath);
+    } else if (!path.isAbsolute(filePath)) {
+      targetPath = path.join(process.cwd(), filePath);
+    }
+    
+    if (fs.existsSync(targetPath)) {
+      const bitmap = fs.readFileSync(targetPath);
+      const extension = path.extname(targetPath).slice(1) || 'png';
       return `data:image/${extension};base64,${bitmap.toString('base64')}`;
     }
+    
+    console.warn(`[PDF-VOUCHER] Image file not found at path: ${targetPath} (original: ${filePath})`);
     return null;
   } catch (error) {
-    console.error('Error converting image to base64:', error);
+    console.error('[PDF-VOUCHER] Error converting image to base64:', error);
     return null;
   }
 }

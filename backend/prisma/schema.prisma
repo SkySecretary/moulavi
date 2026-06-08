@@ -589,8 +589,10 @@ model VoucherMovement {
   vehicleNumber  String?  @map("vehicle_number")
   paxCount       Int?     @map("pax_count")
   price          Decimal?
-  vehicleType    String?  @map("vehicle_type")
-  createdAt      DateTime @default(now()) @map("created_at")
+  vehicleType         String?           @map("vehicle_type")
+  viaBdr              Boolean           @default(false) @map("via_bdr")
+  createdAt           DateTime          @default(now()) @map("created_at")
+
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
   voucher        Voucher  @relation(fields: [voucherId], references: [id], onDelete: Cascade)
 

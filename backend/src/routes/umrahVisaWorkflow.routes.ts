@@ -21,7 +21,10 @@ const router = Router();
 router.get('/:bookingId/download-all-documents', authenticate, async (req, res) => {
   try {
     const { bookingId } = req.params;
+    const user = (req as any).user;
 
+    // Get all documents for this booking
+    // Documents can be linked directly to booking or via passengers
     const [booking, documents] = await Promise.all([
       prisma.umrahVisaBooking.findUnique({
         where: { id: bookingId },
@@ -35,7 +38,9 @@ router.get('/:bookingId/download-all-documents', authenticate, async (req, res) 
           ],
           isDeleted: false,
         },
-        include: { passenger: true }
+        include: {
+          passenger: true
+        }
       })
     ]);
 
@@ -43,20 +48,31 @@ router.get('/:bookingId/download-all-documents', authenticate, async (req, res) 
       return res.status(404).json({ error: 'No documents found for this booking' });
     }
 
-    const archive = archiver('zip', { zlib: { level: 9 } });
+    // Initialize archive
+    const archive = archiver('zip', {
+      zlib: { level: 9 } // Maximum compression
+    });
+
+    // Set response headers
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const zipFileName = booking?.bookingReference 
       ? `documents-${booking.bookingReference}.zip`
       : `booking-documents-${bookingId}-${timestamp}.zip`;
       
     res.attachment(zipFileName);
+
+    // Pipe archive data to response
     archive.pipe(res);
 
+    // Handle errors
     archive.on('error', (err: any) => {
       console.error('Archiver error:', err);
-      if (!res.headersSent) res.status(500).send({ error: 'Failed to create ZIP archive' });
+      if (!res.headersSent) {
+        res.status(500).send({ error: 'Failed to create ZIP archive' });
+      }
     });
 
+    // Add each document to the archive
     for (const doc of documents) {
       const fileName = doc.passenger 
         ? `${doc.passenger.fullName.replace(/[^a-zA-Z0-9]/g, '_')}_${doc.fileName}`
@@ -77,16 +93,23 @@ router.get('/:bookingId/download-all-documents', authenticate, async (req, res) 
           console.error(`Error fetching file from S3: ${doc.filePath}`, s3Error);
         }
       } else {
+        // Local file storage
         if (fs.existsSync(doc.filePath)) {
           archive.file(doc.filePath, { name: fileName });
+        } else {
+          console.error(`Local file not found: ${doc.filePath}`);
         }
       }
     }
 
+    // Finalize the archive
     await archive.finalize();
+
   } catch (error) {
     console.error('Error in bulk document download:', error);
-    if (!res.headersSent) res.status(500).json({ error: 'Failed to download documents' });
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to download documents' });
+    }
   }
 });
 
@@ -96,6 +119,7 @@ router.post('/:bookingId/add-group-data', authenticate, async (req, res) => {
     const { bookingId } = req.params;
     const user = (req as any).user;
 
+    // Only admin/staff can add group data
     if (user.role === 'party') {
       return res.status(403).json({ error: 'Only admin/staff can add group data' });
     }
@@ -106,28 +130,63 @@ router.post('/:bookingId/add-group-data', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Group number and group name are required' });
     }
 
+    // Log for debugging (can be removed later)
+    console.log('Add group data - received umrahVisaProviderId:', umrahVisaProviderId);
+
+    // Check if booking exists
     const booking = await prisma.umrahVisaBooking.findUnique({
       where: { id: bookingId },
     });
 
-    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
 
+    if (booking.status !== 'pending' && booking.status !== 'documents_downloaded') {
+      return res.status(400).json({ error: 'Group data can only be added when status is pending or documents_downloaded' });
+    }
+
+    // Always set status to group_assigned after adding group data
+    // For hotel bookings, admin will use "Done" button to transition to voucher
+    // For iqama bookings, admin will upload confirmation to transition to voucher/bill
+    const nextStatus = 'group_assigned';
+    
+    if (!booking.accommodationType) {
+      return res.status(400).json({ error: 'Accommodation type not set for this booking' });
+    }
+
+    // Update booking - use sync function to ensure status consistency
     await prisma.$transaction(async (tx) => {
+      const updateData: any = {
+        groupNumber,
+        groupName,
+        hasGroupNumber: true,
+        lastUpdatedBy: user.id,
+      };
+
+      // Only update umrahVisaProviderId if it's provided (not undefined)
+      if (umrahVisaProviderId !== undefined) {
+        updateData.umrahVisaProviderId = umrahVisaProviderId || null;
+      }
+
       await tx.umrahVisaBooking.update({
         where: { id: bookingId },
-        data: {
-          groupNumber,
-          groupName,
-          hasGroupNumber: true,
-          umrahVisaProviderId: umrahVisaProviderId || null,
-          lastUpdatedBy: user.id,
-        },
+        data: updateData,
       });
 
-      await syncBookingStatusInTx(bookingId, 'group_assigned', user.id, 'Group data added', tx);
+      // Sync status separately (handles booking status + history)
+      await syncBookingStatusInTx(bookingId, nextStatus, user.id, 'Group data added', tx);
     });
     
-    res.json({ message: 'Group data added successfully' });
+    // Re-fetch updated booking
+    const finalBooking = await prisma.umrahVisaBooking.findUnique({ where: { id: bookingId } });
+
+    res.json({
+      message: 'Group data added successfully',
+      data: {
+        booking: finalBooking,
+      },
+    });
   } catch (error) {
     console.error('Error adding group data:', error);
     res.status(500).json({ error: 'Failed to add group data' });
@@ -140,29 +199,58 @@ router.get('/:bookingId/download-zip', authenticate, async (req, res) => {
     const { bookingId } = req.params;
     const user = (req as any).user;
 
-    if (user.role === 'party') return res.status(403).json({ error: 'Access denied' });
+    // Only admin/staff can download zip files
+    if (user.role === 'party') {
+      return res.status(403).json({ error: 'Only admin/staff can download zip files' });
+    }
 
+    // Find document with pan_card_zip type for this booking
     const zipDocument = await prisma.document.findFirst({
-      where: { bookingId, documentType: 'pan_card_zip', isDeleted: false },
+      where: {
+        bookingId,
+        documentType: 'pan_card_zip',
+        isDeleted: false,
+      },
     });
 
-    if (!zipDocument) return res.status(404).json({ error: 'Zip file not found' });
+    if (!zipDocument) {
+      return res.status(404).json({ error: 'Zip file not found for this booking' });
+    }
 
+    // Handle file download based on storage type
     if (isS3Configured()) {
+      // Generate presigned URL for S3 file
       try {
         const downloadUrl = await generateDownloadUrl(zipDocument.filePath);
-        res.json({ downloadUrl, fileName: zipDocument.fileName });
+        res.json({
+          downloadUrl,
+          fileName: zipDocument.fileName,
+          fileSize: zipDocument.fileSize,
+          mimeType: zipDocument.mimeType,
+        });
       } catch (error) {
+        console.error('Error generating download URL:', error);
         res.status(500).json({ error: 'Failed to generate download URL' });
       }
     } else {
+      // Serve local file
+      const absolutePath = path.resolve(process.cwd(), zipDocument.filePath);
+      console.log(`Attempting to download local ZIP:
+        - DB Path: ${zipDocument.filePath}
+        - Absolute Path: ${absolutePath}
+        - Exists: ${fs.existsSync(zipDocument.filePath)}
+        - Process CWD: ${process.cwd()}
+      `);
+
       if (fs.existsSync(zipDocument.filePath)) {
         res.download(zipDocument.filePath, zipDocument.fileName);
       } else {
-        res.status(404).json({ error: 'Zip file not found on server' });
+        console.error(`File not found at path: ${zipDocument.filePath}`);
+        res.status(404).json({ error: 'Zip file not found on server disk' });
       }
     }
   } catch (error) {
+    console.error('Error downloading zip file:', error);
     res.status(500).json({ error: 'Failed to download zip file' });
   }
 });
@@ -173,18 +261,54 @@ router.post('/:bookingId/download-documents', authenticate, async (req, res) => 
     const { bookingId } = req.params;
     const user = (req as any).user;
 
-    if (user.role === 'party') return res.status(403).json({ error: 'Access denied' });
-
-    const booking = await prisma.umrahVisaBooking.findUnique({
-      where: { id: bookingId },
-    });
-
-    if (!booking) return res.status(404).json({ error: 'Booking not found' });
-
-    if (booking.documentsDownloadCount > 0) {
-      return res.status(400).json({ error: 'Documents already downloaded' });
+    // Only admin/staff can download documents
+    if (user.role === 'party') {
+      return res.status(403).json({ error: 'Only admin/staff can download documents' });
     }
 
+    // Get booking with all passenger documents
+    const booking = await prisma.umrahVisaBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        passengers: {
+          include: {
+            documents: {
+              where: { isDeleted: false },
+            },
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    if (booking.status !== 'pending') {
+      return res.status(400).json({ 
+        error: 'Documents can only be downloaded when status is pending',
+        currentStatus: booking.status 
+      });
+    }
+
+    // Check if documents have already been downloaded
+    if (booking.documentsDownloadCount > 0) {
+      return res.status(400).json({ 
+        error: 'Documents have already been downloaded. Please request admin permission for re-download.',
+        downloadCount: booking.documentsDownloadCount,
+        lastDownloadedBy: booking.documentsDownloadedBy,
+      });
+    }
+
+    // Collect all documents
+    const allDocuments = booking.passengers.flatMap(p => p.documents);
+
+    // For testing: Skip document check
+    // if (allDocuments.length === 0) {
+    //   return res.status(400).json({ error: 'No documents found for this booking' });
+    // }
+
+    // Update booking - mark as downloaded
     await prisma.$transaction(async (tx) => {
       await tx.umrahVisaBooking.update({
         where: { id: bookingId },
@@ -195,11 +319,22 @@ router.post('/:bookingId/download-documents', authenticate, async (req, res) => 
         },
       });
 
+      // Sync status separately (handles booking status + history)
       await syncBookingStatusInTx(bookingId, 'documents_downloaded', user.id, 'Documents downloaded', tx);
     });
     
-    res.json({ message: 'Documents download tracked successfully' });
+    // Re-fetch updated booking
+    const finalBooking = await prisma.umrahVisaBooking.findUnique({ where: { id: bookingId } });
+
+    res.json({
+      message: 'Documents download tracked successfully',
+      data: {
+        documents: allDocuments,
+        booking: finalBooking,
+      },
+    });
   } catch (error) {
+    console.error('Error tracking document download:', error);
     res.status(500).json({ error: 'Failed to track document download' });
   }
 });
@@ -209,19 +344,69 @@ router.post('/:bookingId/upload-confirmation', authenticate, async (req, res) =>
   try {
     const { bookingId } = req.params;
     const user = (req as any).user;
+
+    // Only admin/staff can upload confirmation
+    if (user.role === 'party') {
+      return res.status(403).json({ error: 'Only admin/staff can upload confirmation' });
+    }
+
     const { confirmationImagePath } = req.body;
 
-    if (!confirmationImagePath) return res.status(400).json({ error: 'Path is required' });
+    if (!confirmationImagePath) {
+      return res.status(400).json({ error: 'Confirmation image path is required' });
+    }
 
-    const booking = await prisma.umrahVisaBooking.findUnique({ where: { id: bookingId } });
-    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    // Check if booking exists
+    const booking = await prisma.umrahVisaBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        sponsorIqamaDetails: true,
+        umrahVisaProvider: {
+          select: {
+            email: true,
+            whatsappNumber: true,
+          },
+        },
+      },
+    });
 
-    let nextStatus: 'voucher' | 'bill' = booking.hasTransportation ? 'voucher' : 'bill';
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
 
+    if (booking.accommodationType !== 'iqama') {
+      return res.status(400).json({ 
+        error: 'Confirmation can only be uploaded for iqama accommodation bookings'
+      });
+    }
+
+    if (!booking.sponsorIqamaDetails) {
+      return res.status(404).json({ error: 'Iqama details not found for this booking' });
+    }
+
+    if (booking.status !== 'group_assigned') {
+      return res.status(400).json({ 
+        error: 'Confirmation can only be uploaded when status is group_assigned',
+        currentStatus: booking.status 
+      });
+    }
+
+    // Determine next status based on hasTransportation
+    let nextStatus: 'voucher' | 'bill';
+    if (booking.hasTransportation) {
+      nextStatus = 'voucher';
+    } else {
+      nextStatus = 'bill';
+    }
+
+    // Update iqama details with confirmation image
     await prisma.$transaction(async (tx) => {
       await tx.umrahSponserIqamaDetails.update({
         where: {
-          bookingId_isAlternate: { bookingId, isAlternate: false },
+          bookingId_isAlternate: {
+            bookingId,
+            isAlternate: false,
+          },
         },
         data: {
           confirmationImagePath,
@@ -229,11 +414,69 @@ router.post('/:bookingId/upload-confirmation', authenticate, async (req, res) =>
         },
       });
 
+      await tx.umrahVisaBooking.update({
+        where: { id: bookingId },
+        data: {
+          lastUpdatedBy: user.id,
+        },
+      });
+
+      // Sync status separately (handles booking status + history)
       await syncBookingStatusInTx(bookingId, nextStatus, user.id, 'Confirmation image uploaded', tx);
     });
     
-    res.json({ message: 'Confirmation uploaded successfully' });
+    // Re-fetch updated booking with iqama details
+    const finalBooking = await prisma.umrahVisaBooking.findUnique({ 
+      where: { id: bookingId },
+      include: {
+        sponsorIqamaDetails: true,
+        umrahVisaProvider: {
+          select: {
+            email: true,
+            whatsappNumber: true,
+          },
+        },
+      },
+    });
+
+    // Send notification (email + WhatsApp) to iqama holder
+    const mainIqama = finalBooking?.sponsorIqamaDetails?.find((i: any) => !i.isAlternate);
+    if (mainIqama) {
+      try {
+        const { sendIqamaConfirmationEmail } = await import('../services/emailService');
+        const iqamaHolderName = mainIqama.iqamaSponserName || 'Valued Customer';
+        const iqamaHolderPhone = mainIqama.sponserMobileNumber || undefined;
+        const confirmationImagePath = mainIqama.confirmationImagePath || undefined;
+        
+        // Use umrahVisaProvider email if available, otherwise skip email
+        const recipientEmail = finalBooking?.umrahVisaProvider?.email || undefined;
+        
+        if (recipientEmail || iqamaHolderPhone) {
+          await sendIqamaConfirmationEmail(
+            recipientEmail,
+            iqamaHolderName,
+            confirmationImagePath,
+            iqamaHolderPhone
+          );
+          console.log('✅ Iqama confirmation notification sent successfully');
+        } else {
+          console.log('⚠️ No email or phone number available for iqama confirmation notification');
+        }
+      } catch (error: any) {
+        console.error('❌ Failed to send iqama confirmation notification:', error?.message || 'Unknown error');
+        console.error('Error details:', error);
+        // Don't fail the request if notification fails
+      }
+    }
+
+    res.json({
+      message: 'Confirmation uploaded successfully',
+      data: {
+        booking: finalBooking,
+      },
+    });
   } catch (error) {
+    console.error('Error uploading confirmation:', error);
     res.status(500).json({ error: 'Failed to upload confirmation' });
   }
 });
@@ -242,49 +485,156 @@ router.post('/:bookingId/upload-confirmation', authenticate, async (req, res) =>
 router.get('/:bookingId/download-confirmation', authenticate, async (req, res) => {
   try {
     const { bookingId } = req.params;
+    const user = (req as any).user;
+
+    // Only admin/staff can download confirmation images
+    if (user.role === 'party') {
+      return res.status(403).json({ error: 'Only admin/staff can download confirmation images' });
+    }
+
+    // Get booking with iqama details
     const booking = await prisma.umrahVisaBooking.findUnique({
       where: { id: bookingId },
-      include: { sponsorIqamaDetails: true },
+      include: {
+        sponsorIqamaDetails: true,
+      },
     });
 
-    if (!booking) return res.status(404).json({ error: 'Booking not found' });
-    const mainIqama = booking.sponsorIqamaDetails?.find((i: any) => !i.isAlternate);
-    if (!mainIqama?.confirmationImagePath) return res.status(404).json({ error: 'Image not found' });
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
 
+    if (booking.accommodationType !== 'iqama') {
+      return res.status(400).json({ 
+        error: 'Confirmation image is only available for iqama accommodation bookings'
+      });
+    }
+
+    const mainIqama = booking.sponsorIqamaDetails?.find((i: any) => !i.isAlternate);
+    if (!mainIqama) {
+      return res.status(404).json({ error: 'Iqama details not found for this booking' });
+    }
+
+    const confirmationImagePath = mainIqama.confirmationImagePath;
+    if (!confirmationImagePath) {
+      return res.status(404).json({ error: 'Confirmation image not found for this booking' });
+    }
+
+    // Try to find the document with confirmation_image type
+    const confirmationDoc = await prisma.document.findFirst({
+      where: {
+        bookingId,
+        documentType: 'confirmation_image',
+        isDeleted: false,
+      },
+    });
+
+    // Use document filePath if found, otherwise use the path from iqama details
+    const filePath = confirmationDoc?.filePath || confirmationImagePath;
+    const fileName = confirmationDoc?.fileName || 'confirmation-image.jpg';
+
+    // Handle file download based on storage type
     if (isS3Configured()) {
-      const downloadUrl = await generateDownloadUrl(mainIqama.confirmationImagePath);
-      res.json({ downloadUrl });
+      // Generate presigned URL for S3 file
+      try {
+        const downloadUrl = await generateDownloadUrl(filePath);
+        res.json({
+          downloadUrl,
+          fileName,
+          fileSize: confirmationDoc?.fileSize || null,
+          mimeType: confirmationDoc?.mimeType || 'image/jpeg',
+        });
+      } catch (error) {
+        console.error('Error generating download URL:', error);
+        res.status(500).json({ error: 'Failed to generate download URL' });
+      }
     } else {
-      if (fs.existsSync(mainIqama.confirmationImagePath)) {
-        res.download(mainIqama.confirmationImagePath);
+      // Serve local file
+      if (fs.existsSync(filePath)) {
+        res.download(filePath, fileName);
       } else {
-        res.status(404).json({ error: 'File not found' });
+        res.status(404).json({ error: 'File not found on server' });
       }
     }
   } catch (error) {
-    res.status(500).json({ error: 'Failed' });
+    console.error('Error downloading confirmation image:', error);
+    res.status(500).json({ error: 'Failed to download confirmation image' });
   }
 });
 
-// POST /api/umrah-visa/:bookingId/mark-ready-for-voucher - Mark hotel booking as ready for voucher
+// POST /api/umrah-visa/:bookingId/mark-ready-for-voucher - Mark hotel booking as ready for voucher (Admin/Staff only)
 router.post('/:bookingId/mark-ready-for-voucher', authenticate, async (req, res) => {
   try {
     const { bookingId } = req.params;
     const user = (req as any).user;
 
-    const booking = await prisma.umrahVisaBooking.findUnique({ where: { id: bookingId } });
-    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    // Only admin/staff can mark as ready
+    if (user.role === 'party') {
+      return res.status(403).json({ error: 'Only admin/staff can mark booking as ready for voucher' });
+    }
 
-    let nextStatus: 'voucher' | 'bill' = booking.hasTransportation ? 'voucher' : 'bill';
+    // Check if booking exists
+    const booking = await prisma.umrahVisaBooking.findUnique({
+      where: { id: bookingId },
+    });
 
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    if (booking.accommodationType !== 'hotel') {
+      return res.status(400).json({ 
+        error: 'This action is only available for hotel accommodation bookings'
+      });
+    }
+
+    if (booking.status !== 'group_assigned') {
+      return res.status(400).json({ 
+        error: 'Booking can only be marked as ready when status is group_assigned',
+        currentStatus: booking.status 
+      });
+    }
+
+    // Determine next status based on hasTransportation
+    // If hasTransportation = true → voucher (needs transport voucher)
+    // If hasTransportation = false → bill (no transport, skip voucher)
+    let nextStatus: 'voucher' | 'bill';
+    if (booking.hasTransportation) {
+      nextStatus = 'voucher';
+    } else {
+      nextStatus = 'bill';
+    }
+
+    // Update status
     await prisma.$transaction(async (tx) => {
-      await tx.umrahVisaBooking.update({ where: { id: bookingId }, data: { lastUpdatedBy: user.id } });
-      await syncBookingStatusInTx(bookingId, nextStatus, user.id, 'Marked as ready', tx);
+      await tx.umrahVisaBooking.update({
+        where: { id: bookingId },
+        data: {
+          lastUpdatedBy: user.id,
+        },
+      });
+
+      // Sync status separately (handles booking status + history)
+      const statusMessage = nextStatus === 'voucher' 
+        ? 'Marked as ready for voucher generation'
+        : 'Marked as ready for bill generation (no transportation)';
+      await syncBookingStatusInTx(bookingId, nextStatus, user.id, statusMessage, tx);
     });
     
-    res.json({ message: 'Booking marked as ready' });
+    // Re-fetch updated booking
+    const finalBooking = await prisma.umrahVisaBooking.findUnique({ where: { id: bookingId } });
+
+    res.json({
+      message: nextStatus === 'voucher' 
+        ? 'Booking marked as ready for voucher generation'
+        : 'Booking marked as ready for bill generation (no transportation required)',
+      data: {
+        booking: finalBooking,
+      },
+    });
   } catch (error) {
-    res.status(500).json({ error: 'Failed' });
+    console.error('Error marking booking as ready for voucher:', error);
+    res.status(500).json({ error: 'Failed to mark booking as ready for voucher' });
   }
 });
 
@@ -292,65 +642,179 @@ router.post('/:bookingId/mark-ready-for-voucher', authenticate, async (req, res)
 router.get('/:bookingId/voucher-data', authenticate, async (req, res) => {
   try {
     const { bookingId } = req.params;
+    const user = (req as any).user;
+
+    // Only admin/staff can access voucher data
+    if (user.role === 'party') {
+      return res.status(403).json({ error: 'Only admin/staff can access voucher data' });
+    }
+
     const booking = await prisma.umrahVisaBooking.findUnique({
       where: { id: bookingId },
       include: {
-        party: true,
-        umrahVisaProvider: true,
-        travelDetails: { include: { arrivalAirport: true, departureAirport: true } },
-        hotelBookings: { include: { hotel: true, city: true }, orderBy: { checkInDate: 'asc' } },
-        movementDetails: { include: { fromCity: true, fromLocation: true, toCity: true, toLocation: true }, orderBy: { travelDateTime: 'asc' } },
+        party: {
+          select: {
+            id: true,
+            partyName: true,
+            contactNumber: true,
+            whatsappNumber: true,
+            accountCurrency: true,
+          },
+        },
+        umrahVisaProvider: {
+          select: {
+            id: true,
+            partyName: true,
+            address: true,
+            contactNumber: true,
+            whatsappNumber: true,
+            email: true,
+          },
+        },
+        travelDetails: {
+          include: {
+            arrivalAirport: true,
+            departureAirport: true,
+          },
+        },
+        hotelBookings: {
+          include: {
+            hotel: true,
+            city: true,
+          },
+          orderBy: {
+            checkInDate: 'asc',
+          },
+        },
+        sponsorIqamaDetails: true,
+        transportBookings: {
+          include: {
+            transportMaster: {
+              include: {
+                route: {
+                  include: {
+                    city1: true,
+                    city2: true,
+                    city3: true,
+                    city4: true,
+                  },
+                },
+                vehicleType: true,
+              },
+            },
+          },
+          orderBy: {
+            travelDateTime: 'asc',
+          },
+        },
+        passengers: {
+          where: {
+            isDeleted: false,
+          },
+        },
+        movementDetails: {
+          include: {
+            fromCity: true,
+            fromLocation: true,
+            toCity: true,
+            toLocation: true,
+          },
+          orderBy: {
+            travelDateTime: 'asc',
+          },
+        },
       },
     });
 
-    if (!booking) return res.status(404).json({ error: 'Booking not found' });
-
-    let groupCode = booking.groupNumber || '';
-    let paxCount = booking.passengerCount;
-    if (booking.hasMultipleGroup && booking.multipleGroupDetails) {
-      try {
-        const details = booking.multipleGroupDetails as any[];
-        groupCode = details.map(g => g.groupNumber).filter(n => n).join(', ');
-        paxCount = details.reduce((sum, g) => sum + (g.passengerCount || 0), 0);
-      } catch (e) {}
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
     }
 
-    res.json({
+
+    // Handle multiple groups - combine group numbers and sum passengers
+    let groupCode = booking.groupNumber || '';
+    let paxCount = booking.passengerCount;
+    
+    if (booking.hasMultipleGroup && booking.multipleGroupDetails) {
+      interface GroupDetail {
+        groupNumber?: string;
+        groupName?: string;
+        passengerCount?: number;
+        documentId?: string | null;
+      }
+
+      let multipleGroupDetails: GroupDetail[] = [];
+      try {
+        if (Array.isArray(booking.multipleGroupDetails)) {
+          multipleGroupDetails = booking.multipleGroupDetails as unknown as GroupDetail[];
+        }
+      } catch (e) {
+        console.error('Error parsing multipleGroupDetails:', e);
+      }
+      
+      if (multipleGroupDetails.length > 0) {
+        // Combine all group numbers
+        groupCode = multipleGroupDetails
+          .map((g) => g.groupNumber)
+          .filter((gn): gn is string => !!gn)
+          .join(', ');
+        
+        // Sum all passenger counts
+        paxCount = multipleGroupDetails.reduce(
+          (sum: number, g) => sum + (g.passengerCount || 0),
+          0
+        );
+      }
+    }
+
+    // Format data for voucher preview
+    // Note: Reservation number and route numbers are NOT included in preview
+    // They will be generated only when the voucher is actually created
+    const voucherData = {
       bookingId: booking.id,
       reservationDate: booking.createdAt,
-      guestName: booking.party?.partyName || '',
-      guestMobile: booking.party?.contactNumber || booking.party?.whatsappNumber || '',
-      groupCode,
-      paxCount,
+      guestName: booking.party.partyName,
+      guestMobile: booking.party.contactNumber || booking.party.whatsappNumber || '',
+      groupCode: groupCode,
+      groupName: booking.groupName || '',
+      paxCount: paxCount,
+      // Umrah Visa Provider details (for header section)
       umrahVisaProvider: booking.umrahVisaProvider ? {
         partyName: booking.umrahVisaProvider.partyName,
         address: booking.umrahVisaProvider.address || '',
         contactNumber: booking.umrahVisaProvider.contactNumber || '',
         whatsappNumber: booking.umrahVisaProvider.whatsappNumber || '',
         email: booking.umrahVisaProvider.email || '',
-        logoPath: booking.umrahVisaProvider.logoPath || '',
       } : null,
       hotelSchedules: booking.hotelBookings?.map((hb: any, idx: number) => ({
         number: idx + 1,
         location: hb.city.name,
+        cityId: hb.cityId, // Include city ID
         hotelName: hb.hotel.name,
+        hotelId: hb.hotelId, // Include hotel ID (LocationMaster ID)
         checkIn: hb.checkInDate,
         checkOut: hb.checkOutDate,
         days: Math.ceil((new Date(hb.checkOutDate).getTime() - new Date(hb.checkInDate).getTime()) / (1000 * 60 * 60 * 24)),
-        brn: hb.brn || null,
+        brn: hb.brn && Array.isArray(hb.brn) ? hb.brn : null, // Include BRN if available
       })) || [],
       movementDetails: (booking.movementDetails || []).map((md: any, idx: number) => ({
         sr: idx + 1,
-        date: formatDate(md.travelDateTime),
-        time: formatTime(md.travelDateTime),
+        route: '', // Empty - will be generated when voucher is created
+        date: formatDate(md.travelDateTime), // DD-MM-YYYY format
+        time: formatTime(md.travelDateTime), // HH:MM format
         from: md.fromCity?.name || '',
+          fromCityId: md.fromCityId, // Include city ID
         fromLocation: md.fromLocation?.name || '',
-        fromCityId: md.fromCityId,
         fromLocationId: md.fromLocationId,
+        fromSpecificLocationId: '', // Not used in new schema
         to: md.toCity?.name || '',
+          toCityId: md.toCityId, // Include city ID
         toLocation: md.toLocation?.name || '',
-        toCityId: md.toCityId,
         toLocationId: md.toLocationId,
+        toSpecificLocationId: '', // Not used in new schema
+        vehicleType: '', // Not stored in movement details (only in transport bookings)
+        paxCount: 0, // Not stored in movement details (only in transport bookings)
+        price: 0, // Not stored in movement details (only in transport bookings)
         viaBdr: !!md.viabadrOverride,
       })),
       flightDetails: (() => {
@@ -358,26 +822,70 @@ router.get('/:bookingId/voucher-data', authenticate, async (req, res) => {
         if (!mainTravel) return [];
         return [
           {
-            type: 'AA',
-            date: formatDate(mainTravel.arrivalDateTime),
+            type: 'AA', // Arrival
+            date: mainTravel.arrivalDateTime ? formatDate(mainTravel.arrivalDateTime) : '',
             carrier: mainTravel.arrivalFlightNumber?.split('-')[0] || '',
             number: mainTravel.arrivalFlightNumber?.split('-')[1] || '',
-            arrivalAirport: mainTravel.arrivalAirport?.name || '',
-            eta: formatTime(mainTravel.arrivalDateTime),
+            arrivalAirportId: mainTravel.arrivalAirportId,
+            arrivalAirport: mainTravel.arrivalAirport.name || mainTravel.arrivalAirport.code || '',
+            etd: '',
+            eta: mainTravel.arrivalDateTime ? formatTime(mainTravel.arrivalDateTime) : '',
           },
           {
-            type: 'AD',
-            date: formatDate(mainTravel.departureDateTime),
+            type: 'AD', // Departure
+            date: mainTravel.departureDateTime ? formatDate(mainTravel.departureDateTime) : '',
             carrier: mainTravel.departureFlightNumber?.split('-')[0] || '',
             number: mainTravel.departureFlightNumber?.split('-')[1] || '',
-            departureAirport: mainTravel.departureAirport?.name || '',
-            etd: formatTime(mainTravel.departureDateTime),
+            departureAirportId: mainTravel.departureAirportId,
+            departureAirport: mainTravel.departureAirport.name || mainTravel.departureAirport.code || '',
+            etd: mainTravel.departureDateTime ? formatTime(mainTravel.departureDateTime) : '',
+            eta: '',
           },
         ];
       })(),
-    });
+      // Aggregate transport bookings by transportMasterId to get quantity
+      transportOptions: (() => {
+        const transportMap = new Map<string, any>();
+        
+        (booking.transportBookings || []).forEach((tb: any) => {
+          const transportMasterId = tb.transportMasterId;
+          
+          if (!transportMap.has(transportMasterId)) {
+            // First occurrence - create entry
+            transportMap.set(transportMasterId, {
+              transportId: transportMasterId,
+              routeId: tb.transportMaster?.routeId || '',
+              route: tb.transportMaster?.route ? {
+                id: tb.transportMaster.route.id,
+                city1: tb.transportMaster.route.city1 ? { id: tb.transportMaster.route.city1.id, name: tb.transportMaster.route.city1.name } : null,
+                city2: tb.transportMaster.route.city2 ? { id: tb.transportMaster.route.city2.id, name: tb.transportMaster.route.city2.name } : null,
+                city3: tb.transportMaster.route.city3 ? { id: tb.transportMaster.route.city3.id, name: tb.transportMaster.route.city3.name } : null,
+                city4: tb.transportMaster.route.city4 ? { id: tb.transportMaster.route.city4.id, name: tb.transportMaster.route.city4.name } : null,
+                routeType: tb.transportMaster.route.routeType,
+              } : null,
+              vehicleType: tb.transportMaster?.vehicleType ? {
+                id: tb.transportMaster.vehicleType.id,
+                vehicleName: tb.transportMaster.vehicleType.vehicleName,
+                paxCount: tb.transportMaster.vehicleType.paxCount,
+              } : null,
+              price: tb.transportMaster?.price || 0,
+              quantity: 1, // Start with 1
+            });
+          } else {
+            // Increment quantity for existing transport
+            const existing = transportMap.get(transportMasterId);
+            existing.quantity += 1;
+          }
+        });
+        
+        return Array.from(transportMap.values());
+      })(),
+    };
+
+    res.json(voucherData);
   } catch (error) {
-    res.status(500).json({ error: 'Failed' });
+    console.error('Error fetching voucher data:', error);
+    res.status(500).json({ error: 'Failed to fetch voucher data' });
   }
 });
 
@@ -386,229 +894,1043 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
   try {
     const { bookingId } = req.params;
     const user = (req as any).user;
-    const voucherData = req.body;
+    const voucherData = req.body; // Voucher data from preview form
 
-    if (user.role === 'party') return res.status(403).json({ error: 'Access denied' });
+    // Only admin/staff can generate voucher
+    if (user.role === 'party') {
+      return res.status(403).json({ error: 'Only admin/staff can generate voucher' });
+    }
 
+    // Check if booking exists
     const booking = await prisma.umrahVisaBooking.findUnique({
       where: { id: bookingId },
-      include: { umrahVisaProvider: true, party: true },
-    });
-
-    if (!booking) return res.status(404).json({ error: 'Booking not found' });
-
-    // Handle multiple groups
-    let groupCode = voucherData.groupCode || booking.groupNumber || '';
-    let paxCount = voucherData.paxCount || booking.passengerCount;
-
-    // Check existing voucher
-    const existingVoucher = await prisma.voucher.findFirst({
-      where: {
-        guestName: voucherData.guestName || booking.party?.partyName || '',
-        umrahVisaProviderId: booking.umrahVisaProviderId,
+      include: {
+        umrahVisaProvider: {
+          select: {
+            id: true,
+          },
+        },
+        party: {
+          select: {
+            partyName: true,
+          },
+        },
       },
-      orderBy: { generatedAt: 'desc' },
     });
 
-    const voucherNumber = existingVoucher ? existingVoucher.voucherNumber : await generateVoucherNumber();
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
 
-    const voucherResultId = await prisma.$transaction(async (tx) => {
-      let vRec;
-      const dataToSave = {
-        groupCode,
-        paxCount,
-        vehicleType: voucherData.vehicleType || null,
-        transportCompanyId: voucherData.transportCompanyId || null,
-        partyId: booking.partyId,
-        umrahCompanyId: booking.umrahVisaProviderId,
-      };
+    // Check status - allow voucher generation in appropriate stages
+    const validStatuses = ['voucher', 'ready_for_voucher', 'bill', 'booking_success'];
+    if (!validStatuses.includes(booking.status)) {
+      return res.status(400).json({ 
+        error: `Voucher cannot be generated when status is ${booking.status}`,
+        currentStatus: booking.status,
+      });
+    }
 
-      if (existingVoucher) {
-        vRec = await tx.voucher.update({
-          where: { id: existingVoucher.id },
-          data: { ...dataToSave, version: existingVoucher.version + 1, updatedAt: new Date() },
-        });
-        await tx.voucherMovement.deleteMany({ where: { voucherId: vRec.id } });
-        await tx.voucherHotel.deleteMany({ where: { voucherId: vRec.id } });
-        await tx.voucherFlight.deleteMany({ where: { voucherId: vRec.id } });
-      } else {
-        vRec = await tx.voucher.create({
-          data: {
-            ...dataToSave,
-            voucherNumber,
-            reservationDate: new Date(voucherData.reservationDate || booking.createdAt),
-            guestName: voucherData.guestName || booking.party?.partyName || '',
-            guestMobile: voucherData.guestMobile || '',
-            generatedBy: user.id,
-            umrahVisaProviderId: booking.umrahVisaProviderId || null,
+    // Fetch full booking details
+    const fullBooking = await prisma.umrahVisaBooking.findUnique({
+      where: { id: bookingId },
+    });
+
+    if (!fullBooking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    // Handle multiple groups - combine group numbers as comma-separated string
+    let groupCode = voucherData.groupCode || booking!.groupNumber || '';
+    let groupName = voucherData.groupName || booking!.groupName || '';
+    let paxCount = voucherData.paxCount || booking!.passengerCount;
+    
+      if (fullBooking.hasMultipleGroup && fullBooking.multipleGroupDetails) {
+        try {
+          if (Array.isArray(fullBooking.multipleGroupDetails)) {
+          const multipleGroupDetails = fullBooking.multipleGroupDetails as any[];
+          if (multipleGroupDetails.length > 0) {
+            // Combine all group numbers
+            const groupNumbers = multipleGroupDetails
+              .map((g: any) => g.groupNumber)
+              .filter((num: string) => num)
+              .join(', ');
+            if (groupNumbers) {
+              groupCode = groupNumbers;
+            }
+            // Combine all group names
+            const groupNames = multipleGroupDetails
+              .map((g: any) => g.groupName)
+              .filter((name: string) => name)
+              .join(', ');
+            if (groupNames) {
+              groupName = groupNames;
+            }
+            // Sum all passenger counts
+            const totalPassengers = multipleGroupDetails.reduce(
+              (sum: number, g: any) => sum + (g.passengerCount || 0),
+              0
+            );
+            if (totalPassengers > 0) {
+              paxCount = totalPassengers;
+            }
           }
+          }
+        } catch (e) {
+          console.error('Error parsing multipleGroupDetails:', e);
+        }
+    }
+
+    // Check if voucher already exists for this booking (when hasMultipleGroup is true)
+    // Find existing voucher by matching guestName, umrahVisaProviderId, and voucherGeneratedAt
+    let existingVoucher = null;
+    if (fullBooking.hasMultipleGroup && fullBooking.voucherGeneratedAt) {
+      const guestName = voucherData.guestName || booking!.party?.partyName || '';
+      existingVoucher = await prisma.voucher.findFirst({
+        where: {
+          guestName: guestName,
+          umrahVisaProviderId: booking!.umrahVisaProviderId || null,
+          generatedAt: {
+            gte: new Date(fullBooking.voucherGeneratedAt.getTime() - 60000), // Within 1 minute
+            lte: new Date(fullBooking.voucherGeneratedAt.getTime() + 60000),
+          },
+        },
+        orderBy: {
+          generatedAt: 'desc',
+        },
+      });
+    }
+
+    // Generate voucher number only if creating new voucher
+    const voucherNumber = existingVoucher 
+      ? existingVoucher.voucherNumber 
+      : await generateVoucherNumber();
+
+    // Create or update voucher (standalone, no booking connection)
+    const voucher = await prisma.$transaction(async (tx) => {
+      let voucherRecord;
+      
+      if (existingVoucher) {
+        // Update existing voucher with new group data
+        const updateData: any = {
+          groupCode,
+          groupName: groupName || null,
+          paxCount,
+          partyId: booking!.partyId,
+          umrahCompanyId: booking!.umrahVisaProviderId,
+          // Increment version to track updates
+          version: existingVoucher.version + 1,
+        };
+        voucherRecord = await tx.voucher.update({
+          where: { id: existingVoucher.id },
+          data: updateData,
+        });
+      } else {
+        // Create new voucher
+        const voucherDataToCreate: any = {
+          voucherNumber, // Voucher number is used as reservation number
+          reservationDate: new Date(voucherData.reservationDate || booking!.createdAt),
+          guestName: voucherData.guestName || booking!.party?.partyName || '',
+          guestMobile: voucherData.guestMobile || '',
+          groupCode,
+          groupName: groupName || null,
+          umrahVisaProviderId: booking!.umrahVisaProviderId || null,
+          partyId: booking!.partyId,
+          umrahCompanyId: booking!.umrahVisaProviderId,
+          paxCount,
+          generatedBy: user.id,
+        };
+        
+        voucherRecord = await tx.voucher.create({
+          data: voucherDataToCreate,
         });
       }
 
-      if (voucherData.movementDetails) {
-        for (const m of voucherData.movementDetails) {
-          await tx.voucherMovement.create({
-            data: {
-              voucherId: vRec.id, sr: m.sr, date: new Date(m.date), time: m.time,
-              from: m.from, fromLocation: m.fromLocation, to: m.to, toLocation: m.toLocation,
-              vehicleType: m.vehicleType || null, viaBdr: !!m.viaBdr,
-            }
-          });
-        }
-      }
-      
-      if (voucherData.hotelSchedules) {
-        for (const h of voucherData.hotelSchedules) {
-          let brnValue = Array.isArray(h.brn) ? h.brn.join(', ') : (h.brn || null);
-          await tx.voucherHotel.create({
-            data: {
-              voucherId: vRec.id, number: h.number, location: h.location, hotelName: h.hotelName,
-              checkIn: new Date(h.checkIn), checkOut: new Date(h.checkOut), days: h.days, brn: brnValue,
-            }
-          });
-        }
-      }
+      // Only create movements, hotels, flights if this is a new voucher
+      // For existing vouchers, we only update groupCode, groupName, and paxCount
+      if (!existingVoucher) {
+        // Create movements, hotels, flights
+        // Generate route numbers when creating voucher (not in preview)
+        const movementCount = voucherData.movementDetails && Array.isArray(voucherData.movementDetails) 
+          ? voucherData.movementDetails.length 
+          : 0;
+        const routeNumbers = movementCount > 0 
+          ? await generateRouteNumbersForVoucher(movementCount)
+          : [];
 
-      if (voucherData.flightDetails) {
-        for (const f of voucherData.flightDetails) {
-          const airport = f.type === 'AA' ? (f.arrivalAirport || f.from || '') : (f.departureAirport || f.to || '');
-          await tx.voucherFlight.create({
-            data: {
-              voucherId: vRec.id, type: String(f.type || 'AA').substring(0, 2), carrier: String(f.carrier || '').substring(0, 10),
-              number: String(f.number || '').substring(0, 20), date: new Date(f.date),
-              from: f.type === 'AA' ? String(airport).substring(0, 10) : 'JED',
-              to: f.type === 'AD' ? String(airport).substring(0, 10) : 'JED',
+        // Create VoucherMovement records
+        if (voucherData.movementDetails && Array.isArray(voucherData.movementDetails)) {
+              await Promise.all(
+            voucherData.movementDetails.map((movement: any, index: number) =>
+              tx.voucherMovement.create({
+                    data: {
+                  voucherId: voucherRecord.id,
+                  sr: movement.sr || index + 1,
+                  route: routeNumbers[index] || null, // Use generated route number
+                  date: new Date(movement.date),
+                  time: movement.time || '',
+                  from: movement.from || '',
+                  fromLocation: movement.fromLocation || '',
+                  fromLocationId: movement.fromLocationId || null,
+                  to: movement.to || '',
+                  toLocation: movement.toLocation || '',
+                  toLocationId: movement.toLocationId || null,
+                  driverDetails1: movement.driverDetails1 || null,
+                  driverDetails2: movement.driverDetails2 || null,
+                  vehicleNumber: movement.vehicleNumber || null,
+                  paxCount: movement.paxCount || null,
+                  price: movement.price ? parseFloat(movement.price) : null,
+                  vehicleType: movement.vehicleType || null,
+                    },
+                  })
+                )
+              );
             }
-          });
-        }
-      }
 
-      await tx.umrahVisaBooking.update({ where: { id: bookingId }, data: { status: 'bill', voucherGeneratedAt: new Date() } });
-      await syncBookingStatusInTx(bookingId, 'bill', user.id, 'Voucher generated/updated', tx);
-      return vRec.id;
+        // Create VoucherHotel records
+        if (voucherData.hotelSchedules && Array.isArray(voucherData.hotelSchedules)) {
+          await Promise.all(
+            voucherData.hotelSchedules.map((hotel: any) => {
+              // Handle BRN: convert array to comma-separated string if needed
+              let brnValue: string | null = null;
+              if (hotel.brn) {
+                if (Array.isArray(hotel.brn)) {
+                  // If BRN is an array, join with comma or take first element
+                  brnValue = hotel.brn.length > 0 ? hotel.brn.join(', ') : null;
+                } else if (typeof hotel.brn === 'string') {
+                  brnValue = hotel.brn;
+                }
+              }
+              
+              return tx.voucherHotel.create({
+                    data: {
+                  voucherId: voucherRecord.id,
+                  number: hotel.number || 0,
+                  location: hotel.location || '',
+                  hotelName: hotel.hotelName || '',
+                  checkIn: new Date(hotel.checkIn),
+                  checkOut: new Date(hotel.checkOut),
+                  days: hotel.days || 0,
+                  brn: brnValue,
+                    },
+              });
+            })
+              );
+            }
+
+        // Create VoucherFlight records
+        if (voucherData.flightDetails && Array.isArray(voucherData.flightDetails)) {
+              await Promise.all(
+            voucherData.flightDetails.map((flight: any) => {
+              // For arrival (AA), airport is in arrivalAirport (or from as fallback)
+              // For departure (AD), airport is in departureAirport (or to as fallback)
+              const airport = flight.type === 'AA' 
+                ? (flight.arrivalAirport || flight.from || '')
+                : (flight.departureAirport || flight.to || '');
+              
+              return tx.voucherFlight.create({
+                    data: {
+                  voucherId: voucherRecord.id,
+                  type: String(flight.type || 'AA').substring(0, 2),
+                  carrier: String(flight.carrier || '').substring(0, 10),
+                  number: String(flight.number || '').substring(0, 20),
+                  date: new Date(flight.date),
+                  // Store airport in 'from' for AA, in 'to' for AD (for PDF display)
+                  from: flight.type === 'AA' ? String(airport).substring(0, 10) : 'JED',
+                  to: flight.type === 'AD' ? String(airport).substring(0, 10) : 'JED',
+                  etd: flight.etd ? String(flight.etd).substring(0, 10) : null,
+                  eta: flight.eta ? String(flight.eta).substring(0, 10) : null,
+                    },
+              });
+            })
+              );
+        }
+            }
+
+      // Update booking with voucher metadata
+      if (!existingVoucher) {
+        await tx.umrahVisaBooking.update({
+          where: { id: bookingId },
+                  data: {
+            voucherGeneratedAt: new Date(),
+            voucherGeneratedBy: user.id,
+          },
+        });
+      } else {
+        // For existing voucher, just update the timestamp
+        await tx.umrahVisaBooking.update({
+          where: { id: bookingId },
+                  data: {
+            voucherGeneratedAt: new Date(), // Update timestamp to reflect latest update
+                  },
+                });
+              }
+
+      // Sync status using helper (updates booking status + history)
+      await syncBookingStatusInTx(bookingId, 'bill', user.id, existingVoucher ? 'Voucher updated with additional groups' : 'Voucher generated', tx);
+
+      return voucherRecord.id;
+    }, {
+      maxWait: 10000, // Maximum time to wait for a transaction slot
+      timeout: 20000, // Maximum time the transaction can run (increased for safety)
     });
 
-    const fullV = await prisma.voucher.findUnique({
-      where: { id: voucherResultId },
-      include: { umrahCompany: true, transportCompany: true, movements: true, hotels: true, flights: true },
+    // ========== DEBUG LOGGING: BOOKING DATA ==========
+    const bookingWithMovements = await prisma.umrahVisaBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        movementDetails: {
+          include: {
+            fromCity: true,
+            toCity: true,
+          },
+          orderBy: {
+            travelDateTime: 'asc',
+          },
+        },
+              },
+            });
+
+    console.log('========== VOUCHER GENERATION DEBUG ==========');
+    console.log('📋 FROM BOOKING (UmrahVisaBooking):');
+    console.log('  - Booking ID:', bookingId);
+    console.log('  - Reservation Number: N/A (not stored in booking)');
+    console.log('  - Route Numbers: N/A (route numbers removed from UmrahMovementDetail)');
+    console.log('  - Movement Details Count:', bookingWithMovements?.movementDetails?.length || 0);
+    if (bookingWithMovements?.movementDetails) {
+      bookingWithMovements.movementDetails.forEach((md, idx) => {
+        console.log(`    Movement ${idx + 1}: From ${md.fromCity?.name || 'N/A'} to ${md.toCity?.name || 'N/A'}`);
+      });
+    }
+
+    // Fetch the complete voucher with all relations for PDF generation
+    const fullVoucher = await prisma.voucher.findUnique({
+      where: { id: voucher },
+      include: {
+        movements: {
+          orderBy: {
+            sr: 'asc',
+          },
+        },
+        hotels: {
+          orderBy: {
+            number: 'asc',
+          },
+        },
+        flights: {
+          orderBy: {
+            date: 'asc',
+          },
+        },
+            },
+          });
+
+    if (!fullVoucher) {
+      return res.status(500).json({ error: 'Failed to fetch created voucher' });
+    }
+
+    // ========== DEBUG LOGGING: VOUCHER DATA ==========
+    console.log('📄 FROM VOUCHER TABLE:');
+    console.log('  - Voucher ID:', fullVoucher.id);
+    console.log('  - Voucher Number (Reservation Number):', fullVoucher.voucherNumber);
+    const voucherRouteNumbers = fullVoucher.movements
+      .map(m => m.route)
+      .filter((r): r is string => !!r);
+    console.log('  - Route Numbers:', voucherRouteNumbers.length > 0 ? voucherRouteNumbers : 'NONE');
+    console.log('  - Movement Details Count:', fullVoucher.movements.length);
+    fullVoucher.movements.forEach((m, idx) => {
+      console.log(`    Movement ${idx + 1} (SR: ${m.sr}): Route="${m.route || 'NULL'}", From="${m.from}", To="${m.to}"`);
     });
 
-    if (!fullV) return res.status(500).json({ error: 'Failed' });
+    // Fetch umrah visa provider separately if needed
+    let umrahVisaProvider = null;
+    if (fullVoucher.umrahVisaProviderId) {
+      const provider = await prisma.party.findUnique({
+        where: { id: fullVoucher.umrahVisaProviderId },
+        select: {
+          partyName: true,
+          address: true,
+          contactNumber: true,
+          whatsappNumber: true,
+          email: true,
+          logoPath: true,
+              },
+            });
+      umrahVisaProvider = provider;
+    }
 
-    const pdfData: VoucherPdfData = {
-      voucherNumber: fullV.voucherNumber,
-      reservationDate: fullV.reservationDate.toISOString(),
-      guestName: fullV.guestName,
-      guestMobile: fullV.guestMobile || '',
-      groupCode: fullV.groupCode || '',
-      paxCount: fullV.paxCount,
-      vehicleType: fullV.vehicleType || '',
-      umrahCompany: fullV.umrahCompany ? {
-        partyName: fullV.umrahCompany.partyName,
-        address: fullV.umrahCompany.address || '',
-        contactNumber: fullV.umrahCompany.contactNumber || '',
-        whatsappNumber: fullV.umrahCompany.whatsappNumber || '',
-        email: fullV.umrahCompany.email || '',
-        logoPath: fullV.umrahCompany.logoPath || '',
-      } : null,
-      transportCompany: fullV.transportCompany ? { partyName: fullV.transportCompany.partyName } : null,
-      hotelSchedules: fullV.hotels.map(h => ({
-        number: h.number, location: h.location, hotelName: h.hotelName, days: h.days,
-        checkIn: h.checkIn.toISOString(), checkOut: h.checkOut.toISOString(), brn: h.brn ? [h.brn] : [],
+    // Transform voucher data to match PDF format
+    const voucherForPdf = {
+      ...fullVoucher,
+      reservationNumber: fullVoucher.voucherNumber, // Use voucherNumber as reservation number
+      reservationDate: fullVoucher.reservationDate.toISOString().split('T')[0],
+      umrahCompany: umrahVisaProvider,
+      movementDetails: fullVoucher.movements.map((m) => ({
+        sr: m.sr,
+        route: m.route || '',
+        date: m.date.toISOString().split('T')[0],
+        time: m.time,
+        from: m.from,
+        fromLocation: m.fromLocation,
+        to: m.to,
+        toLocation: m.toLocation,
       })),
-      movementDetails: fullV.movements.map(m => ({
-        sr: m.sr, route: m.route || '', date: m.date.toISOString(), time: m.time, from: m.from, fromLocation: m.fromLocation,
-        to: m.to, toLocation: m.toLocation, vehicleType: m.vehicleType || '', viaBdr: !!m.viaBdr,
+      hotelSchedules: fullVoucher.hotels.map((h) => ({
+        number: h.number,
+        location: h.location,
+        hotelName: h.hotelName,
+        checkIn: h.checkIn.toISOString().split('T')[0],
+        checkOut: h.checkOut.toISOString().split('T')[0],
+        days: h.days,
+        brn: h.brn ? (h.brn.includes(',') ? h.brn.split(', ') : [h.brn]) : null,
       })),
-      flightDetails: fullV.flights.map(f => ({
-        type: f.type, date: f.date.toISOString(), carrier: f.carrier, number: f.number, from: f.from, to: f.to,
-        etd: '', eta: '',
+      flightDetails: fullVoucher.flights.map((f) => ({
+        type: f.type,
+        carrier: f.carrier,
+        number: f.number,
+        date: f.date.toISOString().split('T')[0],
+        // For arrival (AA), use 'from' as arrivalAirport; for departure (AD), use 'to' as departureAirport
+        arrivalAirport: f.type === 'AA' ? (f.from || 'N/A') : undefined,
+        departureAirport: f.type === 'AD' ? (f.to || 'N/A') : undefined,
+        from: f.from, // Keep for backward compatibility
+        to: f.to, // Keep for backward compatibility
+        etd: f.etd || '',
+        eta: f.eta || '',
       })),
     };
 
-    const pdfBuffer = await generateVoucherPDF(pdfData);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="Voucher_${fullV.voucherNumber}.pdf"`);
-    res.send(pdfBuffer);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    // ========== DEBUG LOGGING: PDF DATA ==========
+    console.log('📑 FROM PDF DATA (voucherForPdf):');
+    console.log('  - Reservation Number (Voucher Number):', voucherForPdf.reservationNumber || 'NULL');
+    const pdfRouteNumbers = voucherForPdf.movementDetails
+      .map(m => m.route)
+      .filter((r): r is string => !!r && r !== '');
+    console.log('  - Route Numbers:', pdfRouteNumbers.length > 0 ? pdfRouteNumbers : 'NONE');
+    console.log('  - Movement Details Count:', voucherForPdf.movementDetails.length);
+    voucherForPdf.movementDetails.forEach((m, idx) => {
+      console.log(`    Movement ${idx + 1} (SR: ${m.sr}): Route="${m.route || 'NULL'}", From="${m.from}", To="${m.to}"`);
+    });
+    console.log('==========================================');
+
+    res.json({
+      message: 'Voucher generated successfully',
+      data: {
+        voucher: voucherForPdf,
+      },
+    });
+  } catch (error) {
+    console.error('Error generating voucher:', error);
+    res.status(500).json({ error: 'Failed to generate voucher' });
   }
 });
 
 // POST /api/umrah-visa/generate-pdf - Generate PDF from voucher data
 router.post('/generate-pdf', authenticate, async (req, res) => {
   try {
-    const pdfBuffer = await generateVoucherPDF(req.body);
+    const voucherData: VoucherPdfData = req.body;
+
+    // ========== DEBUG LOGGING: PDF GENERATION ==========
+    console.log('========== PDF GENERATION DEBUG ==========');
+    console.log('📑 PDF GENERATION - Received Data:');
+    console.log('  - Voucher Number (Reservation Number):', voucherData.voucherNumber);
+    console.log('  - Reservation Number:', voucherData.reservationNumber || voucherData.voucherNumber || 'NULL');
+    const pdfRouteNumbers = voucherData.movementDetails
+      .map(m => m.route)
+      .filter((r): r is string => !!r && r !== '');
+    console.log('  - Route Numbers:', pdfRouteNumbers.length > 0 ? pdfRouteNumbers : 'NONE');
+    console.log('  - Movement Details Count:', voucherData.movementDetails.length);
+    voucherData.movementDetails.forEach((m, idx) => {
+      console.log(`    Movement ${idx + 1} (SR: ${m.sr}): Route="${m.route || 'NULL'}", From="${m.from}", To="${m.to}"`);
+    });
+    console.log('==========================================');
+
+    // Validate required fields
+    if (!voucherData.voucherNumber || !voucherData.reservationDate || !voucherData.guestName) {
+      return res.status(400).json({ error: 'Missing required voucher data' });
+    }
+
+    // Generate PDF
+    const pdfBuffer = await generateVoucherPDF(voucherData);
+
+    // Set response headers
+    const fileName = `Voucher_${voucherData.voucherNumber}_${voucherData.guestName
+      .replace(/\s+/g, '_')
+      .slice(0, 20)}.pdf`;
+
     res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Length', pdfBuffer.length.toString());
+
+    // Send PDF
     res.send(pdfBuffer);
   } catch (error) {
+    console.error('Error generating PDF:', error);
     res.status(500).json({ error: 'Failed to generate PDF' });
   }
 });
 
-// GET /api/umrah-visa/:bookingId/available-actions
+// GET /api/umrah-visa/:bookingId/available-actions - Get available actions based on status
 router.get('/:bookingId/available-actions', authenticate, async (req, res) => {
   try {
-    const booking = await prisma.umrahVisaBooking.findUnique({ where: { id: req.params.bookingId } });
-    if (!booking) return res.status(404).json({ error: 'Not found' });
+    const { bookingId } = req.params;
     const user = (req as any).user;
-    const isAdmin = ['admin', 'staff'].includes(user.role);
-    let actions: any[] = [];
-    if (isAdmin) {
-      if (booking.status === 'pending') actions.push({ action: 'download_documents', label: 'Download Documents', endpoint: `/api/umrah-visa/${booking.id}/download-documents`, method: 'POST' });
-      if (booking.status === 'documents_downloaded') actions.push({ action: 'add_group_data', label: 'Assign Group', endpoint: `/api/umrah-visa/${booking.id}/add-group-data`, method: 'POST' });
-      if (booking.status === 'group_assigned') {
-        if (booking.accommodationType === 'iqama') actions.push({ action: 'upload_confirmation', label: 'Upload Image', endpoint: `/api/umrah-visa/${booking.id}/upload-confirmation`, method: 'POST' });
-        else actions.push({ action: 'mark_ready_for_voucher', label: 'Done', endpoint: `/api/umrah-visa/${booking.id}/mark-ready-for-voucher`, method: 'POST' });
-      }
-      if (['voucher', 'bill', 'booking_success'].includes(booking.status)) actions.push({ action: 'generate_voucher', label: 'Generate Voucher', endpoint: `/api/umrah-visa/${booking.id}/generate-voucher`, method: 'POST' });
-      if (booking.status === 'bill') actions.push({ action: 'generate_bill', label: 'Generate Bill', endpoint: `/api/umrah-visa/${booking.id}/generate-bill`, method: 'POST' });
-    }
-    res.json({ availableActions: actions });
-  } catch (error) { res.status(500).json({ error: 'Failed' }); }
-});
 
-// GET /api/umrah-visa/:bookingId/trip-info
-router.get('/:bookingId/trip-info', authenticate, async (req, res) => {
-  try {
+    // Get booking
     const booking = await prisma.umrahVisaBooking.findUnique({
-      where: { id: req.params.bookingId },
-      include: {
-        party: true, travelDetails: { include: { arrivalAirport: true, departureAirport: true } },
-        sponsorIqamaDetails: true, hotelBookings: { include: { city: true, hotel: true } },
+      where: { id: bookingId },
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const status = booking.status;
+    const isAdminOrStaff = user.role === 'admin' || user.role === 'staff';
+
+    let availableActions: any[] = [];
+
+    switch (status) {
+      case 'pending':
+        if (isAdminOrStaff) {
+          availableActions.push({
+            action: 'download_documents',
+            label: 'Download Documents',
+            description: 'Download passenger documents',
+            endpoint: `/api/umrah-visa/${bookingId}/download-documents`,
+            method: 'POST',
+            warning: booking.documentsDownloadCount > 0 
+              ? 'Documents already downloaded. Contact admin for re-download.' 
+              : null,
+          });
+        }
+        break;
+
+      case 'documents_downloaded':
+        if (isAdminOrStaff) {
+          availableActions.push({
+            action: 'add_group_data',
+            label: 'Assign Group',
+            description: 'Assign group number and name to this booking',
+            endpoint: `/api/umrah-visa/${bookingId}/add-group-data`,
+            method: 'POST',
+          });
+        }
+        break;
+
+      case 'group_assigned':
+        if (isAdminOrStaff) {
+          // For iqama bookings: show upload confirmation
+          if (booking.accommodationType === 'iqama') {
+            availableActions.push({
+              action: 'upload_confirmation',
+              label: 'Upload Image',
+              description: 'Upload confirmation image',
+              endpoint: `/api/umrah-visa/${bookingId}/upload-confirmation`,
+              method: 'POST',
+            });
+          }
+          // For hotel bookings: show done button to transition to voucher
+          else if (booking.accommodationType === 'hotel') {
+            availableActions.push({
+              action: 'mark_ready_for_voucher',
+              label: 'Done',
+              description: 'Mark booking as ready for voucher generation',
+              endpoint: `/api/umrah-visa/${bookingId}/mark-ready-for-voucher`,
+              method: 'POST',
+            });
+          }
+        }
+        break;
+
+      case 'voucher':
+        if (isAdminOrStaff) {
+          availableActions.push({
+            action: 'generate_voucher',
+            label: 'Generate Voucher',
+            description: 'Generate transport voucher',
+            endpoint: `/api/umrah-visa/${bookingId}/generate-voucher`,
+            method: 'POST',
+          });
+        }
+        break;
+
+      case 'bill':
+        if (isAdminOrStaff) {
+          availableActions.push({
+            action: 'generate_bill',
+            label: 'Generate Bill',
+            description: 'Generate bill for this booking',
+            endpoint: `/api/umrah-visa/${bookingId}/generate-bill`,
+            method: 'POST',
+          });
+        }
+        break;
+
+      case 'booking_success':
+        // Final success status - no more actions needed
+        break;
+
+      case 'cancelled':
+        // No actions available for cancelled bookings
+        break;
+    }
+
+    res.json({
+      bookingId,
+      currentStatus: status,
+      availableActions,
+      booking: {
+        documentsDownloadCount: booking.documentsDownloadCount,
+        documentsDownloadedBy: booking.documentsDownloadedBy,
+        lastUpdatedBy: booking.lastUpdatedBy,
       },
     });
-    if (!booking) return res.status(404).json({ error: 'Not found' });
-    res.json(booking);
-  } catch (error) { res.status(500).json({ error: 'Failed' }); }
+  } catch (error) {
+    console.error('Error fetching available actions:', error);
+    res.status(500).json({ error: 'Failed to fetch available actions' });
+  }
 });
 
-// Movement routes
+// GET /api/umrah-visa/:bookingId/trip-info - Get booking details (replaces trip-info)
+router.get('/:bookingId/trip-info', authenticate, async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+
+    const booking = await prisma.umrahVisaBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        party: {
+          select: {
+            id: true,
+            partyName: true,
+            email: true,
+            contactNumber: true,
+            whatsappNumber: true,
+          },
+        },
+        travelDetails: true,
+        sponsorIqamaDetails: true,
+        lastUpdatedByUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        documentsDownloadedByUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    res.json(booking);
+  } catch (error) {
+    console.error('Error fetching booking info:', error);
+    res.status(500).json({ error: 'Failed to fetch booking info' });
+  }
+});
+
+// PATCH /api/umrah-visa/:bookingId/transport-bookings - Bulk update transport rows
+router.patch('/:bookingId/transport-bookings', authenticate, async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { transportBookings } = req.body || {};
+    if (Array.isArray(transportBookings)) {
+      for (const t of transportBookings) {
+        if (!t?.id) continue;
+        
+        // Parse travelDateTime if provided
+        const travelDateTime = t.travelDateTime 
+          ? (t.travelDateTime instanceof Date ? t.travelDateTime : new Date(t.travelDateTime))
+          : undefined;
+        
+        // Build update data - only travelDateTime and transportMasterId can be updated
+        // vehicleType, paxCount, and price come from TransportMaster and cannot be changed here
+        const updateData: any = {};
+        if (travelDateTime !== undefined) {
+          updateData.travelDateTime = travelDateTime;
+        }
+        if (t.transportMasterId) {
+          updateData.transportMasterId = t.transportMasterId;
+        }
+        
+        // Only update if there's data to update
+        if (Object.keys(updateData).length > 0) {
+        await prisma.umrahTransportBooking.update({
+          where: { id: t.id },
+            data: updateData,
+        });
+        }
+      }
+    }
+
+    const refreshed = await prisma.umrahTransportBooking.findMany({
+      where: { bookingId },
+      include: { 
+        transportMaster: {
+          include: {
+            route: {
+              include: {
+                city1: true,
+                city2: true,
+                city3: true,
+                city4: true,
+              },
+            },
+            vehicleType: true,
+          },
+        },
+      },
+    });
+    res.json({ transportBookings: refreshed });
+  } catch (error) {
+    console.error('Error updating transport bookings:', error);
+    res.status(500).json({ error: 'Failed to update transport bookings' });
+  }
+});
+
+// POST /api/umrah-visa/:bookingId/transport-bookings - create transport row
+router.post('/:bookingId/transport-bookings', authenticate, async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { transportMasterId, travelDateTime } = req.body || {};
+    
+    if (!transportMasterId) {
+      return res.status(400).json({ error: 'transportMasterId is required' });
+    }
+    
+    // Parse travelDateTime if provided
+    const parsedDateTime = travelDateTime 
+      ? (travelDateTime instanceof Date ? travelDateTime : new Date(travelDateTime))
+      : undefined;
+    
+    const created = await prisma.umrahTransportBooking.create({
+      data: {
+        bookingId,
+        transportMasterId,
+        travelDateTime: parsedDateTime,
+      },
+      include: { 
+        transportMaster: {
+          include: {
+            route: {
+              include: {
+                city1: true,
+                city2: true,
+                city3: true,
+                city4: true,
+              },
+            },
+            vehicleType: true,
+          },
+        },
+      },
+    });
+    res.json({ transportBooking: created });
+  } catch (error) {
+    console.error('Error creating transport booking:', error);
+    res.status(500).json({ error: 'Failed to create transport booking' });
+  }
+});
+
+// DELETE /api/umrah-visa/transport-bookings/:id - delete transport row
+router.delete('/transport-bookings/:id', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.umrahTransportBooking.delete({ where: { id } });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error deleting transport booking:', error);
+    res.status(500).json({ error: 'Failed to delete transport booking' });
+  }
+});
+
+// POST /api/umrah-visa/:bookingId/hotel-bookings - create hotel booking row
+router.post('/:bookingId/hotel-bookings', authenticate, async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { cityId, hotelId, checkInDate, checkOutDate } = req.body || {};
+    
+    // Verify booking exists and has hotel accommodation type
+    const booking = await prisma.umrahVisaBooking.findUnique({
+      where: { id: bookingId },
+      select: { accommodationType: true },
+    });
+    
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+    
+    if (booking.accommodationType !== 'hotel') {
+      return res.status(400).json({ error: 'Booking accommodation type is not hotel' });
+    }
+
+    const created = await prisma.umrahHotelBooking.create({
+      data: {
+        bookingId,
+        cityId,
+        hotelId,
+        checkInDate: checkInDate ? new Date(checkInDate) : new Date(),
+        checkOutDate: checkOutDate ? new Date(checkOutDate) : new Date(),
+      },
+      include: { hotel: true, city: true },
+    });
+    res.json({ hotelBooking: created });
+  } catch (error) {
+    console.error('Error creating hotel booking:', error);
+    res.status(500).json({ error: 'Failed to create hotel booking' });
+  }
+});
+
+// DELETE /api/umrah-visa/hotel-bookings/:id - delete hotel booking row
+router.delete('/hotel-bookings/:id', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.umrahHotelBooking.delete({ where: { id } });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error deleting hotel booking:', error);
+    res.status(500).json({ error: 'Failed to delete hotel booking' });
+  }
+});
+
+// Helper function to get Viabadr city ID
+const getViabadrCityId = async (countryId: string): Promise<string> => {
+  const viabadrCity = await prisma.cityMaster.findFirst({
+    where: {
+      countryId,
+      name: { equals: 'Viabadr' },
+    },
+  });
+  if (!viabadrCity) {
+    throw new Error(`Viabadr city not found for country ${countryId}`);
+  }
+  return viabadrCity.id;
+};
+
+// PATCH /api/umrah-visa/:bookingId/movement-details - Bulk update movement details
 router.patch('/:bookingId/movement-details', authenticate, async (req, res) => {
   try {
-    const { movementDetails } = req.body;
-    for (const m of movementDetails) {
-      const travelDateTime = combineDateTime(m.date, m.time) || new Date();
-      const data = { travelDateTime, fromCityId: m.fromCityId, toCityId: m.toCityId, fromLocationId: m.fromLocationId, toLocationId: m.toLocationId, viabadrOverride: !!m.viabadrOverride };
-      if (m.id && !m.id.startsWith('new-')) await prisma.umrahMovementDetail.update({ where: { id: m.id }, data });
-      else await prisma.umrahMovementDetail.create({ data: { ...data, bookingId: req.params.bookingId } });
+    const { bookingId } = req.params;
+    const { movementDetails } = req.body || {};
+    
+    if (!Array.isArray(movementDetails)) {
+      return res.status(400).json({ error: 'movementDetails must be an array' });
     }
-    res.json({ ok: true });
-  } catch (error) { res.status(500).json({ error: 'Failed' }); }
+
+    // Get existing movements
+    const existingMovements = await prisma.umrahMovementDetail.findMany({
+      where: { bookingId },
+    });
+    const existingIds = new Set(existingMovements.map(m => m.id));
+    const incomingIds = new Set(movementDetails.filter((m: any) => m.id && !m.id.startsWith('new-')).map((m: any) => m.id));
+
+    // Delete movements that are not in the incoming list
+    const toDelete = existingMovements.filter(m => !incomingIds.has(m.id));
+    if (toDelete.length > 0) {
+      await prisma.umrahMovementDetail.deleteMany({
+        where: { id: { in: toDelete.map(m => m.id) } },
+      });
+    }
+
+    // Update or create movements
+    for (const movement of movementDetails) {
+      const timeToUse = movement.time && movement.time.trim() !== '' ? movement.time : '12:00';
+      if (!movement.date) {
+        continue; // Skip invalid movements
+      }
+
+      const travelDateTime = combineDateTime(movement.date, timeToUse);
+      if (!travelDateTime) {
+        continue; // Skip invalid date/time
+      }
+
+      // Get location details
+      const fromLocation = await prisma.locationMaster.findUnique({
+        where: { id: movement.fromLocationId },
+        include: { cityMaster: true },
+      });
+      const toLocation = await prisma.locationMaster.findUnique({
+        where: { id: movement.toLocationId },
+        include: { cityMaster: true },
+      });
+
+      if (!fromLocation || !toLocation) {
+        continue; // Skip invalid locations
+      }
+
+      let toCityId = toLocation.cityId;
+      if (movement.viabadrOverride) {
+        const toCity = await prisma.cityMaster.findUnique({
+          where: { id: toLocation.cityId },
+          select: { name: true, countryId: true },
+        });
+        if (toCity) {
+          toCityId = await getViabadrCityId(toCity.countryId);
+        }
+      }
+
+      if (movement.id && !movement.id.startsWith('new-') && existingIds.has(movement.id)) {
+        // Update existing
+        await prisma.umrahMovementDetail.update({
+          where: { id: movement.id },
+          data: {
+            travelDateTime,
+            fromCityId: fromLocation.cityId,
+            fromLocationId: fromLocation.id,
+            toCityId,
+            toLocationId: toLocation.id,
+          },
+        });
+      } else {
+        // Create new
+        await prisma.umrahMovementDetail.create({
+          data: {
+            bookingId,
+            travelDateTime,
+            fromCityId: fromLocation.cityId,
+            fromLocationId: fromLocation.id,
+            toCityId,
+            toLocationId: toLocation.id,
+          },
+        });
+      }
+    }
+
+    // Return refreshed movements
+    const refreshed = await prisma.umrahMovementDetail.findMany({
+      where: { bookingId },
+      include: {
+        fromCity: true,
+        fromLocation: {
+          select: {
+            id: true,
+            name: true,
+            locationType: true,
+            city: true,
+            cityId: true,
+          },
+        },
+        toCity: true,
+        toLocation: {
+          select: {
+            id: true,
+            name: true,
+            locationType: true,
+            city: true,
+            cityId: true,
+          },
+        },
+      },
+      orderBy: { travelDateTime: 'asc' },
+    });
+
+    res.json({ movementDetails: refreshed });
+  } catch (error) {
+    console.error('Error updating movement details:', error);
+    res.status(500).json({ error: 'Failed to update movement details' });
+  }
 });
 
+// POST /api/umrah-visa/:bookingId/movement-details - Create a single movement detail
 router.post('/:bookingId/movement-details', authenticate, async (req, res) => {
   try {
-    const travelDateTime = combineDateTime(req.body.date, req.body.time) || new Date();
-    const m = await prisma.umrahMovementDetail.create({
-      data: {
-        bookingId: req.params.bookingId, travelDateTime, fromCityId: req.body.fromCityId,
-        toCityId: req.body.toCityId, fromLocationId: req.body.fromLocationId, toLocationId: req.body.toLocationId,
-        viabadrOverride: !!req.body.viabadrOverride
-      }
+    const { bookingId } = req.params;
+    const { date, time, fromLocationId, toLocationId, viabadrOverride } = req.body || {};
+    
+    if (!date || !fromLocationId || !toLocationId) {
+      return res.status(400).json({ error: 'date, fromLocationId, and toLocationId are required' });
+    }
+
+    const timeToUse = time && time.trim() !== '' ? time : '12:00';
+    const travelDateTime = combineDateTime(date, timeToUse);
+    if (!travelDateTime) {
+      return res.status(400).json({ error: 'Invalid date/time' });
+    }
+
+    // Get location details
+    const fromLocation = await prisma.locationMaster.findUnique({
+      where: { id: fromLocationId },
+      include: { cityMaster: true },
     });
-    res.json({ movementDetail: m });
-  } catch (error) { res.status(500).json({ error: 'Failed' }); }
+    const toLocation = await prisma.locationMaster.findUnique({
+      where: { id: toLocationId },
+      include: { cityMaster: true },
+    });
+
+    if (!fromLocation || !toLocation) {
+      return res.status(400).json({ error: 'Invalid location IDs' });
+    }
+
+    let toCityId = toLocation.cityId;
+    if (viabadrOverride) {
+      const toCity = await prisma.cityMaster.findUnique({
+        where: { id: toLocation.cityId },
+        select: { name: true, countryId: true },
+      });
+      if (toCity) {
+        toCityId = await getViabadrCityId(toCity.countryId);
+      }
+    }
+
+    const created = await prisma.umrahMovementDetail.create({
+      data: {
+        bookingId,
+        travelDateTime,
+        fromCityId: fromLocation.cityId,
+        fromLocationId: fromLocation.id,
+        toCityId,
+        toLocationId: toLocation.id,
+      },
+      include: {
+        fromCity: true,
+        fromLocation: {
+          select: {
+            id: true,
+            name: true,
+            locationType: true,
+            city: true,
+            cityId: true,
+          },
+        },
+        toCity: true,
+        toLocation: {
+          select: {
+            id: true,
+            name: true,
+            locationType: true,
+            city: true,
+            cityId: true,
+          },
+        },
+      },
+    });
+
+    res.json({ movementDetail: created });
+  } catch (error) {
+    console.error('Error creating movement detail:', error);
+    res.status(500).json({ error: 'Failed to create movement detail' });
+  }
+});
+
+// DELETE /api/umrah-visa/movement-details/:id - Delete a movement detail
+router.delete('/movement-details/:id', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.umrahMovementDetail.delete({ where: { id } });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error deleting movement detail:', error);
+    res.status(500).json({ error: 'Failed to delete movement detail' });
+  }
 });
 
 export default router;

@@ -208,9 +208,11 @@ router.post(
       }
     }
     
-    // Get file path (S3 URL or local path)
-    const filePath = isS3Configured() ? (req.file as any).location : req.file.path;
-    console.log('[UPLOAD] File path:', filePath);
+    // Get file path (S3 URL or relative local path)
+    const filePath = isS3Configured() 
+      ? (req.file as any).location 
+      : req.file.path.replace(/.*[\/\\]uploads[\/\\]/, 'uploads/');
+    console.log('[UPLOAD] File path for DB:', filePath);
     
     // Save document record
     const document = await prisma.document.create({
@@ -578,8 +580,10 @@ router.post(
       return res.status(400).json({ error: 'Valid document_type is required. Allowed types: gst_certificate, pan_card, aadhaar_card, logo, other' });
     }
     
-    // Get file path (S3 URL or local path)
-    const filePath = isS3Configured() ? (req.file as any).location : req.file.path;
+    // Get file path (S3 URL or relative local path)
+    const filePath = isS3Configured() 
+      ? (req.file as any).location 
+      : req.file.path.replace(/.*[\/\\]uploads[\/\\]/, 'uploads/');
 
     // Save document record
     const document = await prisma.partyDocument.create({

@@ -26,6 +26,7 @@ import { toast } from 'sonner';
 import { umrahVisaAPI, transportMasterAPI, transportRouteMasterAPI, cityMasterAPI, locationMasterAPI, partyAPI } from '@/lib/api';
 import api from '@/lib/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RouteType } from '@/types';
 import { cn, formatCurrency } from '@/lib/utils';
@@ -750,6 +751,14 @@ export function VoucherPreviewDialog({
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label>Vehicle Type</Label>
+                  <Input
+                    value={voucherData.vehicleType}
+                    onChange={(e) => setVoucherData({ ...voucherData, vehicleType: e.target.value })}
+                    placeholder="e.g. GMC, Hiace, Bus"
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label>Transport Company</Label>
                   <Select value={selectedTransportCompanyId} onValueChange={setSelectedTransportCompanyId}>
                     <SelectTrigger className="w-full">
@@ -924,7 +933,9 @@ export function VoucherPreviewDialog({
                         <TableHead className="min-w-[120px]">To Location</TableHead>
                         <TableHead className="min-w-[120px]">Driver Details 1</TableHead>
                         <TableHead className="min-w-[120px]">Driver Details 2</TableHead>
-                        <TableHead className="min-w-[120px]">Vehicle Number</TableHead>
+                        <TableHead className="min-w-[120px]">Vehicle No</TableHead>
+                        <TableHead className="min-w-[100px]">Vehicle Type</TableHead>
+                        <TableHead className="w-16">Bdr</TableHead>
                         <TableHead className="w-16">Action</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1105,6 +1116,20 @@ export function VoucherPreviewDialog({
                               className="min-w-[120px] min-h-[60px] resize-none text-sm"
                               placeholder="Vehicle No"
                               rows={2}
+                            />
+                          </TableCell>
+                          <TableCell className="p-2">
+                            <Input
+                              value={movement.vehicleType || ''}
+                              onChange={(e) => handleMovementChange(idx, 'vehicleType', e.target.value)}
+                              className="min-w-[100px] text-sm"
+                              placeholder="Type"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Checkbox
+                              checked={!!movement.viaBdr}
+                              onCheckedChange={(checked) => handleMovementChange(idx, 'viaBdr', !!checked)}
                             />
                           </TableCell>
                           <TableCell>
