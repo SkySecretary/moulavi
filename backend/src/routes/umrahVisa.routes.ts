@@ -93,7 +93,23 @@ router.get('/bookings', authenticate, async (req, res) => {
               city: true,
             },
           },
-          sponsorIqamaDetails: true,
+          sponsorIqamaDetails: {
+            select: {
+              id: true,
+              iqamaNumber: true,
+              iqamaSponserName: true,
+              sponserDob: true,
+              sponserMobileNumber: true,
+              sponserNationalShortAddress: true,
+              makkahHotelName: true,
+              makkahBrn: true,
+              madinahHotelName: true,
+              madinahBrn: true,
+              confirmationImagePath: true,
+              confirmationUploadedAt: true,
+              isAlternate: true,
+            },
+          },
           umrahVisaProvider: {
             select: {
               id: true,

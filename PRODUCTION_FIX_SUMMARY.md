@@ -1,155 +1,75 @@
-# Production Email & WhatsApp Fix Summary
-
-## ✅ What I've Done
-
-### 1. **Added Debug Endpoint**
-   - **URL**: `GET /api/debug/services-config`
-   - **Purpose**: Check if environment variables are loaded correctly
-   - **Usage**: Visit this URL in your browser to see configuration status
-   - **Shows**: Which variables are set/missing (without exposing sensitive data)
-
-### 2. **Improved Email Service**
-   - Now verifies SMTP connection in production (not just development)
-   - Better error messages to help diagnose issues
-   - More detailed logging
-
-### 3. **Added Startup Validation**
-   - Server now logs email/WhatsApp configuration status on startup
-   - You'll see warnings if variables are missing
-   - Helps catch configuration issues immediately
-
-### 4. **Created Comprehensive Guide**
-   - See `PRODUCTION_EMAIL_WHATSAPP_SETUP.md` for detailed troubleshooting
+# PRODUCTION_FIX_SUMMARY.md
 
 ---
 
-## 🚀 What You Need to Do
+**Date:** 2026-06-08 (User's locale date)
 
-### Step 1: Set Environment Variables in Coolify
+### Database Backup
 
-1. Open your Coolify dashboard
-2. Navigate to your application
-3. Go to **Environment Variables** section
-4. Add these variables (use **exact names**):
+- **Action:** Created a backup of the production database `dev.db` before deploying new code.
+- **Location:** The backup is named `dev.db.backup_manual` and is located in `/var/www/umrasystem/backend/`.
+- **Purpose:** To ensure data integrity and provide a rollback point in case of unforeseen issues during deployment, specifically as requested by the user to avoid data loss.
 
-```bash
-# Email Configuration
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=your-email@gmail.com
-SMTP_PASSWORD=your-gmail-app-password
-FRONTEND_URL=https://your-production-domain.com
+### Code Deployment Summary (Current State)
 
-# WhatsApp Configuration  
-WHATSAPP_API_KEY=your-api-key-here
-WHATSAPP_INSTANCE_ID=your-instance-id-here
-```
+This deployment includes fixes and enhancements for the voucher PDF, UI components, and backend logic.
 
-**⚠️ IMPORTANT:**
-- For Gmail, you **MUST** use an App Password (not your regular password)
-- Generate App Password: Google Account → Security → 2-Step Verification → App passwords
-- Don't wrap values in quotes unless they contain spaces
+**Frontend Changes:**
+- **`frontend/components/voucher/VoucherPreviewDialog.tsx`**:
+    - Initialized `selectedTransportCompanyId` from `data.transportCompany?.id` for proper pre-selection.
+    - Fixed syntax error: Removed extra closing parenthesis after `setSelectedRouteId(firstTransportRouteId);`.
+- **`frontend/app/dashboard/umrah-visa/voucher/page.tsx`**:
+    - Modified `filterData` function to include bookings with `'bill'` status, making them visible in the voucher generation list.
+- **`frontend/app/dashboard/umrah-visa/trip-info/page.tsx`**:
+    - Updated `handleCopyAll` to extract Makkah/Madinah hotel and BRN from `sponsorIqamaDetails` for Iqama bookings.
+- **`frontend/components/CreatePartyDialog.tsx`**:
+    - Fixed `logoPath` URL to be absolute from the root (prepended leading slash if missing) to correctly display company logos.
+- **`frontend/components/ui/checkbox.tsx`**:
+    - Created the missing `Checkbox` UI component.
+- **`frontend/package.json`**:
+    - Added `@radix-ui/react-checkbox` dependency.
 
-### Step 2: Restart Application
+**Backend Changes:**
+- **`backend/prisma/schema.prisma`**:
+    - Added `makkahHotelName`, `makkahBrn`, `madinahHotelName`, `madinahBrn` to `UmrahSponserIqamaDetails`.
+    - Added `viaBdr` to `VoucherMovement` model.
+- **`backend/src/routes/upload.routes.ts`**:
+    - Modified upload routes to save relative file paths (`uploads/...`) instead of absolute paths.
+    - Increased max file limit for document uploads from 10 to 50.
+- **`backend/src/services/pdfService.ts`**:
+    - Removed `VIA` column from movement table; integrated `(VIA BDR)` tag into `FROM LOCATION` column when `viaBdr` is true.
+    - Changed "FLIGHT CONNECTIVITY" label to "Flight Details".
+    - Updated `getImageAsBase64` to resolve relative `uploads/` paths correctly.
+    - Dynamically extracts unique vehicle types from `transportBookings` to display in the header info block (e.g., "12 Seater, Sedan, GMC").
+- **`backend/src/services/emailService.ts`**:
+    - Added `sendVoucherGeneratedEmail` function to send PDF vouchers as attachments.
+    - Restored `sendVerificationEmail` function.
+- **`backend/src/routes/umrahVisaWorkflow.routes.ts`**:
+    - Modified `generate-voucher` route to correctly save/update all voucher sub-records (movements, hotels, flights).
+    - Added call to `sendVoucherGeneratedEmail` after PDF generation.
+    - Updated `fullVoucher` query to explicitly include `umrahCompany` details for the PDF header.
+    - Updated `GET /api/umrah-visa/:bookingId/voucher-data` to explicitly select `logoPath` for `umrahVisaProvider` and derive top-level `vehicleType` from `transportBookings`.
+    - Corrected `voucherId` to `voucher` after the transaction return.
+- **`backend/src/routes/umrahVisa.routes.ts`**:
+    - Explicitly selected `makkahHotelName`, `makkahBrn`, `madinahHotelName`, `madinahBrn` in `sponsorIqamaDetails` include for the main bookings query.
+- **`backend/app/dashboard/umrah-visa/visa-management/edit/[id]/page.tsx`**:
+    - Added state variables and UI inputs for Iqama Makkah/Madinah hotel names and BRNs.
+    - Updated `load` and `handleSave` functions to handle new Iqama hotel fields.
+- **`backend/scripts/alter_db.js`**:
+    - Script to non-destructively add new columns (`logo_path`, `vehicle_type`, `via_bdr`, `viabadr_override`) to the `dev.db` using raw SQL queries via Prisma.
+- **`backend/scripts/fix-logo-paths.js`**:
+    - Script to convert absolute database paths to relative paths for `logoPath` and `filePath` columns.
 
-After adding environment variables, **restart your application** in Coolify.
+### Post-Deployment Actions on Server
 
-### Step 3: Verify Configuration
+- **`npx prisma db push`**: Will be run to apply new schema changes.
+- **`node scripts/fix-logo-paths.js`**: Will be re-run to ensure all logo paths in the database are relative.
 
-1. Visit: `https://your-api-domain.com/api/debug/services-config`
-2. Check the response - all variables should show as "SET" (not "NOT SET")
-3. If any show "NOT SET", the variable wasn't added correctly
+### Deployment Issue (2026-06-08)
 
-### Step 4: Check Startup Logs
-
-In Coolify logs, you should now see:
-```
-📧 Email Service: Configured (smtp.gmail.com:587)
-💬 WhatsApp Service: Configured
-```
-
-If you see warnings instead, variables are missing.
-
-### Step 5: Test Email/WhatsApp
-
-Try sending an email or WhatsApp message and check logs for:
-- `[EMAIL] ✅ SUCCESS` - Email sent successfully
-- `[WHATSAPP] ✅ SUCCESS` - WhatsApp sent successfully
-- `[EMAIL] ❌ EXCEPTION` - Check the error message
-
----
-
-## 🔧 Common Issues & Solutions
-
-### Issue: Variables show "NOT SET" in debug endpoint
-**Solution**: 
-- Variables not added in Coolify, or
-- Application not restarted after adding variables, or
-- Wrong variable names (must be exact: `SMTP_HOST`, not `EMAIL_HOST`)
-
-### Issue: "Connection timeout" or "ECONNREFUSED"
-**Solution**: 
-- Digital Ocean firewall blocking outbound connections
-- Open ports 587, 465, 443 in Digital Ocean firewall
-- Or test from droplet: `nc -zv smtp.gmail.com 587`
-
-### Issue: "Authentication failed"
-**Solution**: 
-- Using regular Gmail password instead of App Password
-- Generate App Password from Google Account settings
-- Make sure 2-Step Verification is enabled
-
-### Issue: "API key not configured"
-**Solution**: 
-- `WHATSAPP_API_KEY` or `WHATSAPP_INSTANCE_ID` not set
-- Check Coolify environment variables
-- Restart application after adding
+- **Problem:** Attempting to build the frontend directly on the production server resulted in a `SIGBUS` error, indicating a memory limitation.
+- **Cause:** The `GEMINI.md` explicitly states that due to server memory limitations, the frontend should be built locally and then synced. My previous deployment command failed to adhere to this.
+- **Resolution:** I will now build the frontend locally and sync only the `.next` output directory to the server, then restart PM2.
 
 ---
-
-## 📊 Debugging Tools
-
-### 1. Configuration Check
-```
-GET /api/debug/services-config
-```
-Shows which environment variables are loaded.
-
-### 2. Application Logs
-Check Coolify logs for:
-- `[EMAIL]` - Email service logs
-- `[WHATSAPP]` - WhatsApp service logs
-- Look for `✅ SUCCESS` or `❌ EXCEPTION`
-
-### 3. Network Test (if you have SSH access)
-```bash
-# Test SMTP connection
-nc -zv smtp.gmail.com 587
-
-# Test WhatsApp API
-curl -I https://wa.smsidea.com
-```
-
----
-
-## 🎯 Most Likely Issues (90% of cases)
-
-1. **Environment variables not set in Coolify** → Set them and restart
-2. **Using regular Gmail password** → Use App Password instead
-3. **Firewall blocking connections** → Open ports 587, 465, 443
-4. **Wrong variable names** → Use exact names: `SMTP_HOST`, `SMTP_USER`, etc.
-
----
-
-## 📞 Still Not Working?
-
-1. Check the debug endpoint: `/api/debug/services-config`
-2. Share the exact error logs from Coolify (the `[EMAIL]` and `[WHATSAPP]` messages)
-3. Verify network connectivity from the droplet
-4. Check if your SMTP provider blocks Digital Ocean IPs
-
----
-
-**After following these steps, your email and WhatsApp services should work in production! 🚀**
-
+**Prepared by Gemini CLI**

@@ -669,6 +669,7 @@ router.get('/:bookingId/voucher-data', authenticate, async (req, res) => {
             contactNumber: true,
             whatsappNumber: true,
             email: true,
+            logoPath: true,
           },
         },
         travelDetails: {
@@ -785,6 +786,7 @@ router.get('/:bookingId/voucher-data', authenticate, async (req, res) => {
         contactNumber: booking.umrahVisaProvider.contactNumber || '',
         whatsappNumber: booking.umrahVisaProvider.whatsappNumber || '',
         email: booking.umrahVisaProvider.email || '',
+        logoPath: booking.umrahVisaProvider.logoPath || '', // Ensure logoPath is included
       } : null,
       hotelSchedules: booking.hotelBookings?.map((hb: any, idx: number) => ({
         number: idx + 1,
@@ -812,7 +814,7 @@ router.get('/:bookingId/voucher-data', authenticate, async (req, res) => {
         toLocation: md.toLocation?.name || '',
         toLocationId: md.toLocationId,
         toSpecificLocationId: '', // Not used in new schema
-        vehicleType: '', // Not stored in movement details (only in transport bookings)
+        // vehicleType: '', // Not stored in movement details (only in transport bookings) - REMOVED, will be pulled from transportBookings
         paxCount: 0, // Not stored in movement details (only in transport bookings)
         price: 0, // Not stored in movement details (only in transport bookings)
         viaBdr: !!md.viabadrOverride,
@@ -880,6 +882,12 @@ router.get('/:bookingId/voucher-data', authenticate, async (req, res) => {
         
         return Array.from(transportMap.values());
       })(),
+      // Extract unique vehicle types from transport bookings for the main voucher header
+      vehicleType: Array.from(new Set(
+        (booking.transportBookings || [])
+          .map(tb => tb.transportMaster?.vehicleType?.vehicleName)
+          .filter((name): name is string => !!name)
+      )).join(', '),
     };
 
     res.json(voucherData);
@@ -913,6 +921,7 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
         party: {
           select: {
             partyName: true,
+            email: true, // Explicitly select email
           },
         },
       },
@@ -1207,23 +1216,23 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
     const fullVoucher = await prisma.voucher.findUnique({
       where: { id: voucher },
       include: {
-        movements: {
-          orderBy: {
-            sr: 'asc',
+        movements: { orderBy: { sr: 'asc' } },
+        hotels: { orderBy: { number: 'asc' } },
+        flights: { orderBy: { date: 'asc' } },
+        umrahCompany: {
+          select: {
+            id: true,
+            partyName: true,
+            address: true,
+            contactNumber: true,
+            whatsappNumber: true,
+            email: true,
+            logoPath: true,
           },
         },
-        hotels: {
-          orderBy: {
-            number: 'asc',
-          },
-        },
-        flights: {
-          orderBy: {
-            date: 'asc',
-          },
-        },
-            },
-          });
+        transportCompany: true,
+      },
+    });
 
     if (!fullVoucher) {
       return res.status(500).json({ error: 'Failed to fetch created voucher' });

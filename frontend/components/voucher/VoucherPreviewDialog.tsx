@@ -351,6 +351,10 @@ export function VoucherPreviewDialog({
           setSelectedRouteId(firstTransportRouteId);
         }
       }
+
+      // Initialize selectedTransportCompanyId from data
+      setSelectedTransportCompanyId(data.transportCompany?.id || '');
+
     } catch (error: any) {
       console.error('Error loading voucher data:', error);
       toast.error(error.message || 'Failed to load voucher data');

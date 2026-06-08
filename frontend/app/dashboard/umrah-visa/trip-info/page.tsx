@@ -48,25 +48,33 @@ export default function TripInfoPage() {
   }, [searchQuery, bookingList, activeTab]);
 
   const fetchBookings = async () => {
-    try {
-      setIsLoading(true);
-      const response = await umrahVisaAPI.getBookings({ limit: 1000 });
-      const data = response.data;
-      
-      const bookingsData = data.bookings
-        .filter((booking: any) => 
-          booking.status === 'group_assigned' || 
-          booking.status === 'voucher' || 
-          booking.status === 'bill'
-        );
+  try {
+    setIsLoading(true);
+    const response = await umrahVisaAPI.getBookings({ limit: 1000 });
+    const data = response.data;
 
-      setBookingList(bookingsData);
-    } catch (error) {
-      console.error('Error fetching bookings:', error);
-      toast.error('Failed to load bookings');
-    } finally {
-      setIsLoading(false);
-    }
+    const bookingsData = data.bookings
+      .filter((booking: any) => 
+        booking.status === 'group_assigned' || 
+        booking.status === 'voucher' || 
+        booking.status === 'bill'
+      )
+      .map((booking: any) => ({
+        ...booking,
+        // Map makkah/madinah hotel details from sponsorIqamaDetails for Iqama bookings
+        makkahHotelName: booking.accommodationType === 'iqama' && booking.sponsorIqamaDetails?.[0]?.makkahHotelName || null,
+        makkahBrn: booking.accommodationType === 'iqama' && booking.sponsorIqamaDetails?.[0]?.makkahBrn || null,
+        madinahHotelName: booking.accommodationType === 'iqama' && booking.sponsorIqamaDetails?.[0]?.madinahHotelName || null,
+        madinahBrn: booking.accommodationType === 'iqama' && booking.sponsorIqamaDetails?.[0]?.madinahBrn || null,
+      }));
+
+    setBookingList(bookingsData);
+  } catch (error) {
+    console.error('Error fetching bookings:', error);
+    toast.error('Failed to load bookings');
+  } finally {
+    setIsLoading(false);
+  }
   };
 
   const filterData = () => {

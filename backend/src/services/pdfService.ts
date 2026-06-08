@@ -659,9 +659,8 @@ function generateVoucherHTML(data: VoucherPdfData): string {
                     <th width="5%">SR</th>
                     <th width="15%">DATE</th>
                     <th width="10%">TIME</th>
-                    <th width="30%">FROM LOCATION</th>
-                    <th width="10%">VIA</th>
-                    <th width="30%">TO LOCATION</th>
+                    <th width="35%">FROM LOCATION</th>
+                    <th width="35%">TO LOCATION</th>
                 </tr>
             </thead>
             <tbody>
@@ -679,8 +678,10 @@ function generateVoucherHTML(data: VoucherPdfData): string {
                         <td class="sr-col">${m.sr || i + 1}</td>
                         <td>${formatDateYY(m.date)}</td>
                         <td class="time-col">${formatTime(m.time)}</td>
-                        <td>${m.from || 'N/A'} ${m.fromLocation ? `<br><span style="font-size: 9px; color: #6b7280;">(${m.fromLocation})</span>` : ''}</td>
-                        <td class="via-bdr">${m.viaBdr ? 'VIA BDR' : ''}</td>
+                        <td>
+                            ${m.from || 'N/A'} ${m.fromLocation ? `<br><span style="font-size: 9px; color: #6b7280;">(${m.fromLocation})</span>` : ''}
+                            ${m.viaBdr ? `<span style="font-size: 9px; color: var(--primary-gold); font-weight: bold; margin-left: 5px;">(VIA BDR)</span>` : ''}
+                        </td>
                         <td>${m.to || 'N/A'} ${m.toLocation ? `<br><span style="font-size: 9px; color: #6b7280;">(${m.toLocation})</span>` : ''}</td>
                     </tr>
                     `
