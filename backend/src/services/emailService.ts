@@ -1089,6 +1089,44 @@ export const sendLandingRegistrationAdminNotificationEmail = async (
 };
 
 
+// Send Voucher Generated Email
+export const sendVoucherGeneratedEmail = async (
+  to: string,
+  partyName: string,
+  voucherNumber: string,
+  pdfBuffer: Buffer
+): Promise<void> => {
+  const mailOptions: nodemailer.SendMailOptions = {
+    from: EMAIL_CONFIG.from,
+    to,
+    subject: `Voucher Generated - Booking ${voucherNumber}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #3d167a;">Voucher Generated</h2>
+        <p>Dear ${partyName},</p>
+        <p>Your transport and accommodation voucher for booking <strong>${voucherNumber}</strong> has been successfully generated.</p>
+        <p>Please find the PDF voucher attached to this email.</p>
+        <br/>
+        <p>Best regards,<br/><strong>Moulavi Travel Agency</strong></p>
+      </div>
+    `,
+    attachments: [
+      {
+        filename: `Voucher_${voucherNumber}.pdf`,
+        content: pdfBuffer,
+        contentType: 'application/pdf',
+      },
+    ],
+  };
+
+  try {
+    await sendEmail(mailOptions);
+  } catch (error: any) {
+    console.error('[EMAIL] ❌ sendVoucherGeneratedEmail failed:', error?.message);
+    // Don't throw, just log so it doesn't break the flow
+  }
+};
+
 // Send verification code email
 export const sendVerificationEmail = async (
   to: string,

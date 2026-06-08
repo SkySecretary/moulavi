@@ -106,6 +106,14 @@ function generateVoucherHTML(data: VoucherPdfData): string {
   const arrivalFlight = data.flightDetails.find(f => f.type === 'AA');
   const departureFlight = data.flightDetails.find(f => f.type === 'AD');
 
+  // Compute dynamic vehicle type from movements
+  const uniqueVehicles = Array.from(new Set(
+    data.movementDetails
+      .map(m => m.vehicleType)
+      .filter(v => v && v.trim() !== '')
+  )).join(', ');
+  const displayVehicleType = uniqueVehicles || data.vehicleType || 'N/A';
+
   // Professional SVG Icons (PDF compatible)
   const icons = {
     bus: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="12" rx="2"/><path d="M6 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"/><path d="M4 19v2"/><path d="M20 19v2"/><circle cx="7" cy="15" r="1"/><circle cx="17" cy="15" r="1"/></svg>`,
@@ -561,7 +569,7 @@ function generateVoucherHTML(data: VoucherPdfData): string {
                 <div class="info-icon">${icons.truck}</div>
                 <div class="info-text">
                     <span class="info-label">VEHICLE TYPE</span>
-                    <span class="info-val">${data.vehicleType || 'N/A'}</span>
+                    <span class="info-val">${displayVehicleType}</span>
                 </div>
             </div>
         </div>
@@ -601,7 +609,7 @@ function generateVoucherHTML(data: VoucherPdfData): string {
     <div class="two-columns">
         <!-- Flight Connectivity -->
         <div class="col">
-            <div class="col-tab flight-tab">${icons.plane.replace('stroke="#c19142"','stroke="white"')} &nbsp; FLIGHT CONNECTIVITY</div>
+            <div class="col-tab flight-tab">${icons.plane.replace('stroke="#c19142"','stroke="white"')} &nbsp; Flight Details</div>
             <div class="flight-content">
                 <div class="flight-leg">
                     <span class="flight-label">${icons.landing.replace('width="24"','width="16"').replace('height="24"','height="16"')} ARRIVAL</span>
@@ -671,9 +679,9 @@ function generateVoucherHTML(data: VoucherPdfData): string {
                         <td class="sr-col">${m.sr || i + 1}</td>
                         <td>${formatDateYY(m.date)}</td>
                         <td class="time-col">${formatTime(m.time)}</td>
-                        <td>${m.from || m.fromLocation || 'N/A'}</td>
+                        <td>${m.from || 'N/A'} ${m.fromLocation ? `<br><span style="font-size: 9px; color: #6b7280;">(${m.fromLocation})</span>` : ''}</td>
                         <td class="via-bdr">${m.viaBdr ? 'VIA BDR' : ''}</td>
-                        <td>${m.to || m.toLocation || 'N/A'}</td>
+                        <td>${m.to || 'N/A'} ${m.toLocation ? `<br><span style="font-size: 9px; color: #6b7280;">(${m.toLocation})</span>` : ''}</td>
                     </tr>
                     `
                 }).join('')}

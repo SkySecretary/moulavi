@@ -1312,6 +1312,25 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
     });
     console.log('==========================================');
 
+    // Generate PDF and send email to agency
+    try {
+      if (booking.party?.email) {
+        console.log(`Sending voucher email to agency: ${booking.party.email}`);
+        const pdfBuffer = await generateVoucherPDF(voucherForPdf as any);
+        const { sendVoucherGeneratedEmail } = await import('../services/emailService');
+        await sendVoucherGeneratedEmail(
+          booking.party.email,
+          booking.party.partyName,
+          fullVoucher.voucherNumber,
+          pdfBuffer
+        );
+        console.log('✅ Voucher email sent to agency successfully');
+      }
+    } catch (emailError) {
+      console.error('⚠️ Failed to send voucher email to agency:', emailError);
+      // Don't fail the request if email fails
+    }
+
     res.json({
       message: 'Voucher generated successfully',
       data: {

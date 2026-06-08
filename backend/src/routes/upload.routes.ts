@@ -261,7 +261,7 @@ router.post(
 router.post(
   '/booking/:bookingId/passenger/:passengerId',
   authenticate,
-  upload.array('documents', 10), // Max 10 files
+  upload.array('documents', 50), // Max 50 files
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const { bookingId, passengerId } = req.params;
     const { document_types } = req.body; // Array of document types
