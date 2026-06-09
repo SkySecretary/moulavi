@@ -134,6 +134,7 @@ export function VoucherPreviewDialog({
     groupCode: '',
     paxCount: 0,
     vehicleType: '',
+    bookingReference: '',
     umrahVisaProvider: null as {
       partyName: string;
       address?: string;
@@ -259,6 +260,7 @@ export function VoucherPreviewDialog({
         guestMobile: data.guestMobile || '',
         groupCode: data.groupCode || '',
         paxCount: data.paxCount || 0,
+        bookingReference: data.bookingReference || '',
         umrahVisaProvider: data.umrahVisaProvider || null,
         hotelSchedules: (data.hotelSchedules || []).map((hs: any) => {
           // Get city name from cities array if cityId is present
@@ -326,11 +328,11 @@ export function VoucherPreviewDialog({
             driverDetails1: m.driverDetails1 || '',
             driverDetails2: m.driverDetails2 || '',
             vehicleNumber: m.vehicleNumber || '',
-            vehicleType: m.vehicleType || '',
+            vehicleType: m.vehicleType || data.vehicleType || '',
             viaBdr: !!m.viaBdr || !!m.viabadrOverride,
           };
         }),
-        vehicleType: data.movementDetails?.[0]?.vehicleType || '',
+        vehicleType: data.vehicleType || '',
         flightDetails: (data.flightDetails || []).map((fd: any) => ({
           ...fd,
           arrivalAirportId: fd.arrivalAirportId || '',
@@ -640,14 +642,16 @@ export function VoucherPreviewDialog({
       try {
         const pdfData = {
           voucherNumber: generatedVoucher.voucherNumber,
+          bookingReference: generatedVoucher.bookingReference || '',
           reservationNumber: generatedVoucher.reservationNumber || '',
           reservationDate: generatedVoucher.reservationDate,
           guestName: generatedVoucher.guestName,
           guestMobile: generatedVoucher.guestMobile || '',
           groupCode: generatedVoucher.groupCode || '',
           paxCount: generatedVoucher.paxCount,
+          vehicleType: generatedVoucher.vehicleType || '',
           umrahCompany: generatedVoucher.umrahCompany || null,
-          agentParty: generatedVoucher.party || null,
+          agentParty: generatedVoucher.agentParty || null,
           transportCompany: generatedVoucher.transportCompany || null,
           hotelSchedules: generatedVoucher.hotelSchedules || [],
           movementDetails: generatedVoucher.movementDetails || [],
@@ -664,7 +668,8 @@ export function VoucherPreviewDialog({
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `Voucher_${pdfData.voucherNumber}_${pdfData.guestName
+        const refPart = pdfData.bookingReference ? `_${pdfData.bookingReference}` : '';
+        link.download = `Voucher_${pdfData.voucherNumber}${refPart}_${pdfData.guestName
           .replace(/\s+/g, '_')
           .slice(0, 20)}.pdf`;
         document.body.appendChild(link);

@@ -34,6 +34,10 @@ export default function TripInfoPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'iqama' | 'hotel'>('iqama');
+  const [editingIqama, setEditingIqama] = useState<Record<string, {
+    hotelName: string;
+    brn: string;
+  }>>({});
 
   useEffect(() => {
     if (!user || !hasRole(['admin', 'staff'])) {
@@ -61,12 +65,22 @@ export default function TripInfoPage() {
       )
       .map((booking: any) => ({
         ...booking,
-        // Map makkah/madinah hotel details from sponsorIqamaDetails for Iqama bookings
-        makkahHotelName: booking.accommodationType === 'iqama' && booking.sponsorIqamaDetails?.[0]?.makkahHotelName || null,
-        makkahBrn: booking.accommodationType === 'iqama' && booking.sponsorIqamaDetails?.[0]?.makkahBrn || null,
-        madinahHotelName: booking.accommodationType === 'iqama' && booking.sponsorIqamaDetails?.[0]?.madinahHotelName || null,
-        madinahBrn: booking.accommodationType === 'iqama' && booking.sponsorIqamaDetails?.[0]?.madinahBrn || null,
+        // Map hotel details from sponsorIqamaDetails for Iqama bookings (using Makkah fields as primary)
+        hotelName: booking.accommodationType === 'iqama' && booking.sponsorIqamaDetails?.[0]?.makkahHotelName || null,
+        brn: booking.accommodationType === 'iqama' && booking.sponsorIqamaDetails?.[0]?.makkahBrn || null,
       }));
+
+    // Initialize editing state for Iqama bookings
+    const iqamaEditing: Record<string, any> = {};
+    bookingsData.forEach((booking: any) => {
+      if (booking.accommodationType === 'iqama') {
+        iqamaEditing[booking.id] = {
+          hotelName: booking.hotelName || '',
+          brn: booking.brn || '',
+        };
+      }
+    });
+    setEditingIqama(iqamaEditing);
 
     setBookingList(bookingsData);
   } catch (error) {
@@ -75,6 +89,23 @@ export default function TripInfoPage() {
   } finally {
     setIsLoading(false);
   }
+  };
+
+  const handleUpdateIqamaHotel = async (bookingId: string) => {
+    const data = editingIqama[bookingId];
+    if (!data) return;
+
+    try {
+      toast.info('Updating hotel details...');
+      await umrahVisaAPI.updateAccommodation(bookingId, {
+        makkahHotelName: data.hotelName,
+        makkahBrn: data.brn,
+      });
+      toast.success('Hotel details updated successfully');
+      fetchBookings();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update hotel details');
+    }
   };
 
   const filterData = () => {
@@ -187,6 +218,8 @@ export default function TripInfoPage() {
     let madinahCheckIn = 'N/A';
     let madinahCheckOut = 'N/A';
 
+    let iqamaInfo = '';
+
     const formatDateShort = (dateStr: string | undefined) => {
       if (!dateStr) return 'N/A';
       return new Date(dateStr).toLocaleDateString('en-US', {
@@ -222,14 +255,16 @@ export default function TripInfoPage() {
       if (mainIqama) {
         makkahHotelName = mainIqama.makkahHotelName || 'N/A';
         makkahBrn = brnToString(mainIqama.makkahBrn);
-        // We don't store checkin/out for Iqama hotels directly yet, could infer from flight or leave N/A
+        // Simplified: only one hotel
         makkahCheckIn = 'N/A'; 
         makkahCheckOut = 'N/A';
 
-        madinahHotelName = mainIqama.madinahHotelName || 'N/A';
-        madinahBrn = brnToString(mainIqama.madinahBrn);
-        madinahCheckIn = 'N/A';
-        madinahCheckOut = 'N/A';
+        // Additional Iqama info for copy text
+        iqamaInfo = `💳 *Iqama Number:* ${mainIqama.iqamaNumber || 'N/A'}\n`;
+        iqamaInfo += `👤 *Iqama Holder:* ${mainIqama.iqamaSponserName || 'N/A'}\n`;
+        iqamaInfo += `🎂 *DOB:* ${formatDateShort(mainIqama.sponserDob)}\n`;
+        iqamaInfo += `📱 *Phone:* ${mainIqama.sponserMobileNumber || 'N/A'}\n`;
+        iqamaInfo += `📍 *Address:* ${mainIqama.sponserNationalShortAddress || 'N/A'}\n\n`;
       }
     }
 
@@ -237,11 +272,18 @@ export default function TripInfoPage() {
     text += `🏷️ *Group Name:* ${booking.groupName || 'N/A'}\n`;
     text += `👥 *Number of Pilgrims:* ${booking.passengerCount || 0}\n\n`;
 
+    if (iqamaInfo) {
+      text += iqamaInfo;
+    }
+
     if (makkahHotelName !== 'N/A') {
-      text += `🏨 *Makkah Hotel:* ${makkahHotelName}\n`;
+      text += `🏨 *Hotel Name:* ${makkahHotelName}\n`;
       text += `📄 *Agreement No.:* ${makkahBrn}\n`;
-      text += `📅 *Check-in:* ${makkahCheckIn}\n`;
-      text += `📅 *Check-out:* ${makkahCheckOut}\n\n`;
+      if (booking.accommodationType === 'hotel') {
+        text += `📅 *Check-in:* ${makkahCheckIn}\n`;
+        text += `📅 *Check-out:* ${makkahCheckOut}\n`;
+      }
+      text += `\n`;
     }
 
     if (madinahHotelName !== 'N/A') {
@@ -286,6 +328,15 @@ export default function TripInfoPage() {
             className="flex items-center gap-1 whitespace-nowrap"
           >
             Done
+          </Button>
+        )}
+        {booking.accommodationType === 'iqama' && (
+          <Button
+            size="sm"
+            onClick={() => handleUpdateIqamaHotel(booking.id!)}
+            className="flex items-center gap-1 bg-green-600 hover:bg-green-700"
+          >
+            Save
           </Button>
         )}
       </div>
@@ -750,24 +801,40 @@ export default function TripInfoPage() {
                             {/* Accommodation Details */}
                             <TableCell>
                               {activeTab === 'iqama' ? (
-                                <div className="space-y-1 text-xs">
-                                  <div>
-                                    <span className="text-gray-500">Number:</span>{' '}
-                                    <span className="font-medium">{iqamaDetails?.iqamaNumber || 'N/A'}</span>
+                                <div className="space-y-3">
+                                  {/* Existing Iqama Info */}
+                                  <div className="space-y-1 text-[10px] text-gray-500 pb-2 border-b">
+                                    <div className="flex justify-between">
+                                      <span>Number:</span> <span className="font-medium text-gray-700">{iqamaDetails?.iqamaNumber || 'N/A'}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Holder:</span> <span className="font-medium text-gray-700">{iqamaDetails?.iqamaSponserName || 'N/A'}</span>
+                                    </div>
                                   </div>
-                                  <div>
-                                    <span className="text-gray-500">Holder:</span>{' '}
-                                    <span className="font-medium">{iqamaDetails?.iqamaSponserName || 'N/A'}</span>
-                                  </div>
-                                  <div>
-                                    <span className="text-gray-500">DOB:</span>{' '}
-                                    <span className="font-medium">
-                                      {iqamaDetails?.sponserDob ? formatDate(iqamaDetails.sponserDob) : 'N/A'}
-                                    </span>
-                                  </div>
-                                  <div>
-                                    <span className="text-gray-500">Phone:</span>{' '}
-                                    <span className="font-medium">{iqamaDetails?.sponserMobileNumber || 'N/A'}</span>
+
+                                  {/* New Editable Hotel/BRN Fields */}
+                                  <div className="space-y-2">
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] font-semibold text-purple-700">Hotel Name & BRN</label>
+                                      <Input
+                                        placeholder="Hotel Name"
+                                        value={editingIqama[booking.id!]?.hotelName || ''}
+                                        onChange={(e) => setEditingIqama({
+                                          ...editingIqama,
+                                          [booking.id!]: { ...editingIqama[booking.id!], hotelName: e.target.value }
+                                        })}
+                                        className="h-7 text-[10px] px-2"
+                                      />
+                                      <Input
+                                        placeholder="BRN"
+                                        value={editingIqama[booking.id!]?.brn || ''}
+                                        onChange={(e) => setEditingIqama({
+                                          ...editingIqama,
+                                          [booking.id!]: { ...editingIqama[booking.id!], brn: e.target.value }
+                                        })}
+                                        className="h-7 text-[10px] px-2"
+                                      />
+                                    </div>
                                   </div>
                                 </div>
                               ) : (

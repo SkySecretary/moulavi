@@ -639,7 +639,7 @@ function generateVoucherHTML(data: VoucherPdfData): string {
                 <div class="accom-item">
                     <div class="accom-icon">${icons.hotel}</div>
                     <div class="accom-text">
-                        <span class="accom-name">${icons.hotel.replace('width="24"','width="14"').replace('height="24"','height="14"')} ${h.hotelName} - ${h.location}</span>
+                        <span class="accom-name">${h.hotelName} - ${h.location}</span>
                         <span class="accom-dates">${formatDateYY(h.checkIn)} TO ${formatDateYY(h.checkOut)}</span>
                     </div>
                 </div>

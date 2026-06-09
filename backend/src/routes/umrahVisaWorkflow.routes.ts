@@ -773,6 +773,7 @@ router.get('/:bookingId/voucher-data', authenticate, async (req, res) => {
     // They will be generated only when the voucher is actually created
     const voucherData = {
       bookingId: booking.id,
+      bookingReference: booking.bookingReference || '',
       reservationDate: booking.createdAt,
       guestName: booking.party.partyName,
       guestMobile: booking.party.contactNumber || booking.party.whatsappNumber || '',
@@ -1027,6 +1028,10 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
           paxCount,
           partyId: booking!.partyId,
           umrahCompanyId: booking!.umrahVisaProviderId,
+          transportCompanyId: voucherData.transportCompanyId || existingVoucher.transportCompanyId || null,
+          vehicleType: voucherData.vehicleType || existingVoucher.vehicleType || null,
+          bookingId: booking!.id,
+          bookingReference: booking!.bookingReference || null,
           // Increment version to track updates
           version: existingVoucher.version + 1,
         };
@@ -1039,15 +1044,19 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
         const voucherDataToCreate: any = {
           voucherNumber, // Voucher number is used as reservation number
           reservationDate: new Date(voucherData.reservationDate || booking!.createdAt),
-          guestName: voucherData.guestName || booking!.party?.partyName || '',
+          guestName: voucherData.guestName || (booking && booking.party ? booking.party.partyName : ''),
           guestMobile: voucherData.guestMobile || '',
           groupCode,
           groupName: groupName || null,
           umrahVisaProviderId: booking!.umrahVisaProviderId || null,
           partyId: booking!.partyId,
           umrahCompanyId: booking!.umrahVisaProviderId,
+          transportCompanyId: voucherData.transportCompanyId || null,
           paxCount,
           generatedBy: user.id,
+          vehicleType: voucherData.vehicleType || null,
+          bookingId: booking!.id,
+          bookingReference: booking!.bookingReference || null,
         };
         
         voucherRecord = await tx.voucher.create({
@@ -1219,6 +1228,16 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
         movements: { orderBy: { sr: 'asc' } },
         hotels: { orderBy: { number: 'asc' } },
         flights: { orderBy: { date: 'asc' } },
+        party: {
+          select: {
+            id: true,
+            partyName: true,
+            address: true,
+            contactNumber: true,
+            whatsappNumber: true,
+            email: true,
+          },
+        },
         umrahCompany: {
           select: {
             id: true,
@@ -1230,7 +1249,12 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
             logoPath: true,
           },
         },
-        transportCompany: true,
+        transportCompany: {
+          select: {
+            id: true,
+            partyName: true,
+          },
+        },
       },
     });
 
@@ -1238,71 +1262,69 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
       return res.status(500).json({ error: 'Failed to fetch created voucher' });
     }
 
-    // ========== DEBUG LOGGING: VOUCHER DATA ==========
-    console.log('📄 FROM VOUCHER TABLE:');
-    console.log('  - Voucher ID:', fullVoucher.id);
-    console.log('  - Voucher Number (Reservation Number):', fullVoucher.voucherNumber);
-    const voucherRouteNumbers = fullVoucher.movements
-      .map(m => m.route)
-      .filter((r): r is string => !!r);
-    console.log('  - Route Numbers:', voucherRouteNumbers.length > 0 ? voucherRouteNumbers : 'NONE');
-    console.log('  - Movement Details Count:', fullVoucher.movements.length);
-    fullVoucher.movements.forEach((m, idx) => {
-      console.log(`    Movement ${idx + 1} (SR: ${m.sr}): Route="${m.route || 'NULL'}", From="${m.from}", To="${m.to}"`);
-    });
-
-    // Fetch umrah visa provider separately if needed
-    let umrahVisaProvider = null;
-    if (fullVoucher.umrahVisaProviderId) {
-      const provider = await prisma.party.findUnique({
+    // Fetch umrah visa provider separately if needed (fallback if relation not populated)
+    let umrahVisaProvider = fullVoucher.umrahCompany;
+    if (!umrahVisaProvider && fullVoucher.umrahVisaProviderId) {
+      umrahVisaProvider = await prisma.party.findUnique({
         where: { id: fullVoucher.umrahVisaProviderId },
         select: {
+          id: true,
           partyName: true,
           address: true,
           contactNumber: true,
           whatsappNumber: true,
           email: true,
           logoPath: true,
-              },
-            });
-      umrahVisaProvider = provider;
+        },
+      }) as any;
     }
 
-    // Transform voucher data to match PDF format
-    const voucherForPdf = {
-      ...fullVoucher,
+    // Transform voucher data to match PDF format explicitly
+    const voucherForPdf: any = {
+      id: fullVoucher.id,
+      voucherNumber: fullVoucher.voucherNumber,
+      bookingReference: fullVoucher.bookingReference || '',
       reservationNumber: fullVoucher.voucherNumber, // Use voucherNumber as reservation number
-      reservationDate: fullVoucher.reservationDate.toISOString().split('T')[0],
+      reservationDate: fullVoucher.reservationDate.toISOString(),
+      guestName: fullVoucher.guestName,
+      guestMobile: fullVoucher.guestMobile || '',
+      groupCode: fullVoucher.groupCode || '',
+      groupName: fullVoucher.groupName || '',
+      paxCount: fullVoucher.paxCount,
+      vehicleType: fullVoucher.vehicleType || '',
       umrahCompany: umrahVisaProvider,
+      agentParty: fullVoucher.party,
+      transportCompany: fullVoucher.transportCompany,
       movementDetails: fullVoucher.movements.map((m) => ({
         sr: m.sr,
         route: m.route || '',
-        date: m.date.toISOString().split('T')[0],
+        date: m.date.toISOString(),
         time: m.time,
         from: m.from,
         fromLocation: m.fromLocation,
         to: m.to,
         toLocation: m.toLocation,
+        vehicleType: m.vehicleType || '',
+        viaBdr: !!(m as any).viaBdr,
       })),
       hotelSchedules: fullVoucher.hotels.map((h) => ({
         number: h.number,
         location: h.location,
         hotelName: h.hotelName,
-        checkIn: h.checkIn.toISOString().split('T')[0],
-        checkOut: h.checkOut.toISOString().split('T')[0],
+        checkIn: h.checkIn.toISOString(),
+        checkOut: h.checkOut.toISOString(),
         days: h.days,
-        brn: h.brn ? (h.brn.includes(',') ? h.brn.split(', ') : [h.brn]) : null,
+        brn: h.brn ? (h.brn.includes(',') ? h.brn.split(',').map(s => s.trim()) : [h.brn]) : [],
       })),
       flightDetails: fullVoucher.flights.map((f) => ({
         type: f.type,
         carrier: f.carrier,
         number: f.number,
-        date: f.date.toISOString().split('T')[0],
-        // For arrival (AA), use 'from' as arrivalAirport; for departure (AD), use 'to' as departureAirport
-        arrivalAirport: f.type === 'AA' ? (f.from || 'N/A') : undefined,
-        departureAirport: f.type === 'AD' ? (f.to || 'N/A') : undefined,
-        from: f.from, // Keep for backward compatibility
-        to: f.to, // Keep for backward compatibility
+        date: f.date.toISOString(),
+        from: f.from,
+        to: f.to,
+        arrivalAirport: f.type === 'AA' ? f.from : undefined,
+        departureAirport: f.type === 'AD' ? f.to : undefined,
         etd: f.etd || '',
         eta: f.eta || '',
       })),
@@ -1312,12 +1334,12 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
     console.log('📑 FROM PDF DATA (voucherForPdf):');
     console.log('  - Reservation Number (Voucher Number):', voucherForPdf.reservationNumber || 'NULL');
     const pdfRouteNumbers = voucherForPdf.movementDetails
-      .map(m => m.route)
-      .filter((r): r is string => !!r && r !== '');
+      .map((m: any) => m.route)
+      .filter((r: any): r is string => !!r && r !== '');
     console.log('  - Route Numbers:', pdfRouteNumbers.length > 0 ? pdfRouteNumbers : 'NONE');
     console.log('  - Movement Details Count:', voucherForPdf.movementDetails.length);
-    voucherForPdf.movementDetails.forEach((m, idx) => {
-      console.log(`    Movement ${idx + 1} (SR: ${m.sr}): Route="${m.route || 'NULL'}", From="${m.from}", To="${m.to}"`);
+    voucherForPdf.movementDetails.forEach((m: any) => {
+      console.log(`    Movement (SR: ${m.sr}): Route="${m.route || 'NULL'}", From="${m.from}", To="${m.to}"`);
     });
     console.log('==========================================');
 
@@ -1381,7 +1403,8 @@ router.post('/generate-pdf', authenticate, async (req, res) => {
     const pdfBuffer = await generateVoucherPDF(voucherData);
 
     // Set response headers
-    const fileName = `Voucher_${voucherData.voucherNumber}_${voucherData.guestName
+    const referencePart = voucherData.bookingReference ? `_${voucherData.bookingReference}` : '';
+    const fileName = `Voucher_${voucherData.voucherNumber}${referencePart}_${voucherData.guestName
       .replace(/\s+/g, '_')
       .slice(0, 20)}.pdf`;
 

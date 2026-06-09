@@ -829,7 +829,19 @@ router.patch('/:bookingId/travel-details', authenticate, async (req, res) => {
 router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
   try {
     const { bookingId } = req.params;
-    const { accommodationType, iqamaSponserName, iqamaNumber, sponserDob, sponserMobileNumber, sponserNationalShortAddress, hotelBookings } = req.body || {};
+    const { 
+      accommodationType, 
+      iqamaSponserName, 
+      iqamaNumber, 
+      sponserDob, 
+      sponserMobileNumber, 
+      sponserNationalShortAddress,
+      makkahHotelName,
+      makkahBrn,
+      madinahHotelName,
+      madinahBrn,
+      hotelBookings 
+    } = req.body || {};
 
     // Get booking to check accommodation type
     const booking = await prisma.umrahVisaBooking.findUnique({
@@ -857,6 +869,10 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
           sponserDob: sponserDob ? new Date(sponserDob) : undefined,
           sponserMobileNumber: sponserMobileNumber ?? undefined,
           sponserNationalShortAddress: sponserNationalShortAddress ?? undefined,
+          makkahHotelName: makkahHotelName ?? undefined,
+          makkahBrn: makkahBrn ?? undefined,
+          madinahHotelName: madinahHotelName ?? undefined,
+          madinahBrn: madinahBrn ?? undefined,
         },
         create: {
           bookingId,
@@ -866,6 +882,10 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
           sponserDob: sponserDob ? new Date(sponserDob) : new Date(),
           sponserMobileNumber: sponserMobileNumber || '',
           sponserNationalShortAddress: sponserNationalShortAddress || '',
+          makkahHotelName: makkahHotelName || null,
+          makkahBrn: makkahBrn || null,
+          madinahHotelName: madinahHotelName || null,
+          madinahBrn: madinahBrn || null,
         },
       });
 

@@ -1,6 +1,7 @@
 
 export interface VoucherPdfData {
   voucherNumber: string;
+  bookingReference?: string;
   reservationNumber?: string;
   reservationDate: string;
   guestName: string;

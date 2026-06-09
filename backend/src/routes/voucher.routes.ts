@@ -460,13 +460,13 @@ router.get(
           },
         },
         umrahCompany: {
-          select: { partyName: true, address: true, contactNumber: true, whatsappNumber: true, email: true }
+          select: { id: true, partyName: true, address: true, contactNumber: true, whatsappNumber: true, email: true, logoPath: true }
         },
         party: {
-          select: { partyName: true }
+          select: { id: true, partyName: true }
         },
         transportCompany: {
-          select: { partyName: true }
+          select: { id: true, partyName: true }
         },
         movements: {
           orderBy: {
@@ -493,6 +493,7 @@ router.get(
     // Transform normalized data to match frontend expectations (for backward compatibility)
     const voucherResponse = {
       ...voucher,
+      bookingReference: voucher.bookingReference || '',
       movementDetails: voucher.movements.map((m) => ({
         sr: m.sr,
         route: m.route || '',

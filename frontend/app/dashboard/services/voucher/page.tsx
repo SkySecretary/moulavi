@@ -43,6 +43,7 @@ import { cn } from '@/lib/utils';
 interface Voucher {
   id: string;
   voucherNumber: string;
+  bookingReference?: string;
   reservationDate: string;
   guestName: string;
   guestMobile?: string;
@@ -306,6 +307,7 @@ export default function VoucherServicePage() {
       
       const pdfData = {
         voucherNumber: voucher.voucherNumber,
+        bookingReference: voucher.bookingReference || '',
         reservationNumber: voucher.voucherNumber,
         reservationDate: voucher.reservationDate ? (typeof voucher.reservationDate === 'string' ? voucher.reservationDate.split('T')[0] : new Date(voucher.reservationDate).toISOString().split('T')[0]) : '',
         guestName: voucher.guestName || '',
@@ -322,7 +324,7 @@ export default function VoucherServicePage() {
           checkIn: hs.checkIn ? (typeof hs.checkIn === 'string' ? hs.checkIn.split('T')[0] : new Date(hs.checkIn).toISOString().split('T')[0]) : '',
           checkOut: hs.checkOut ? (typeof hs.checkOut === 'string' ? hs.checkOut.split('T')[0] : new Date(hs.checkOut).toISOString().split('T')[0]) : '',
           days: hs.days || 0,
-          brn: hs.brn || null,
+          brn: hs.brn ? (hs.brn.includes(',') ? hs.brn.split(',').map((s: string) => s.trim()) : [hs.brn]) : [],
         })),
         movementDetails: (voucher.movementDetails || []).map((md: any) => ({
           sr: md.sr || 0,
@@ -333,6 +335,7 @@ export default function VoucherServicePage() {
           fromLocation: md.fromLocation || '',
           to: md.to || '',
           toLocation: md.toLocation || '',
+          vehicleType: md.vehicleType || voucher.vehicleType || '',
         })),
         flightDetails: (voucher.flightDetails || []).map((fd: any) => ({
           type: fd.type || 'AA',
@@ -351,7 +354,8 @@ export default function VoucherServicePage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Voucher_${pdfData.voucherNumber}.pdf`;
+      const refPart = pdfData.bookingReference ? `_${pdfData.bookingReference}` : '';
+      link.download = `Voucher_${pdfData.voucherNumber}${refPart}_${pdfData.guestName.replace(/\s+/g, '_')}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

@@ -30,6 +30,7 @@ cat <<EOF > /etc/nginx/sites-available/umra.moulavi.in
 server {
     listen 81;
     server_name umra.moulavi.in;
+    client_max_body_size 500M;
 
     location / {
         proxy_pass http://localhost:3001;
