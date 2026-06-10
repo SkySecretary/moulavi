@@ -22,8 +22,8 @@ router.get('/bookings', authenticate, async (req, res) => {
       sortBy = 'createdAt',
       sortOrder = 'desc'
     } = req.query;
-    const pageNum = parseInt(page as string);
-    const limitNum = parseInt(limit as string);
+    const pageNum = parseInt(page as string) || 1;
+    const limitNum = parseInt(limit as string) || 10;
     const skip = (pageNum - 1) * limitNum;
 
     // Get the authenticated user
