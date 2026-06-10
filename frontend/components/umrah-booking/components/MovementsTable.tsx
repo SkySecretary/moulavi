@@ -7,6 +7,7 @@ import { X, Plus } from 'lucide-react';
 import { Movement, LocationMaster } from '@/lib/umrah/types';
 import { umrahVisaAPI } from '@/lib/api';
 import { TimePicker } from '@/components/ui/time-picker';
+import { toDisplayDate, fromDisplayDate } from '@/lib/umrah/validation';
 
 interface MovementsTableProps {
   movements: Movement[];
@@ -110,10 +111,16 @@ export const MovementsTable: React.FC<MovementsTableProps> = ({
 
   // Extract ziyarath dates and fetch counts when they change (with debouncing)
   useEffect(() => {
-    // Filter and validate ziyarath dates (must be in YYYY-MM-DD format)
+    // Filter and validate ziyarath dates (handle both display DD/MM/YY and ISO YYYY-MM-DD formats)
     const ziyarathDates = movements
-      .filter(m => m.type === 'ziyarath' && m.date && /^\d{4}-\d{2}-\d{2}$/.test(m.date))
-      .map(m => m.date!)
+      .filter(m => m.type === 'ziyarath' && m.date)
+      .map(m => {
+        const d = m.date!;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+        if (d.split('/').length === 3) return fromDisplayDate(d);
+        return null;
+      })
+      .filter((date): date is string => !!date && /^\d{4}-\d{2}-\d{2}$/.test(date))
       .filter((date, index, self) => self.indexOf(date) === index); // Unique dates
 
     console.log('Ziyarath dates extracted:', ziyarathDates);
@@ -198,13 +205,14 @@ export const MovementsTable: React.FC<MovementsTableProps> = ({
               </td>
               <td className="p-2">
                 <Input
-                  type="date"
-                  value={movement.date || ''}
+                  type="text"
+                  placeholder="DD/MM/YY"
+                  value={toDisplayDate(movement.date || '')}
                   onChange={(e) => onUpdateMovement(index, 'date', e.target.value)}
                   disabled={disabled}
                   className={`h-8 text-[10px] font-bold text-slate-900 border-gray-200 bg-white ${
-                    movement.type === 'ziyarath' && movement.date
-                      ? getZiyarathDateColorClass(movement.date)
+                    movement.type === 'ziyarath' && movement.date && movement.date.split('/').length === 3
+                      ? getZiyarathDateColorClass(fromDisplayDate(movement.date))
                       : ''
                   }`}
                 />

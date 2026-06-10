@@ -76,9 +76,44 @@ export default function ViewUmrahVisaBookingPage() {
     try {
       setLoading(true);
       const res = await umrahVisaAPI.getBookingById(bookingId);
-      const bookingData = res.data;
+      const b = res.data;
       
-      setBooking(bookingData);
+      // Flatten travel details
+      const mainTravel = b.travelDetails?.find((t: any) => !t.isAlternate);
+      if (mainTravel) {
+        b.arrivalDate = mainTravel.arrivalDateTime;
+        b.departureDate = mainTravel.departureDateTime;
+        b.flightNumber = mainTravel.arrivalFlightNumber;
+        b.flightBrn = mainTravel.brn;
+      }
+
+      // Flatten hotel BRNs
+      if (b.accommodationType === 'hotel' && b.hotelBookings) {
+        const makkahHotel = b.hotelBookings.find((h: any) => h.city?.name?.toLowerCase().includes('makkah') || h.city?.name?.toLowerCase().includes('mecca'));
+        const madinaHotel = b.hotelBookings.find((h: any) => h.city?.name?.toLowerCase().includes('madinah') || h.city?.name?.toLowerCase().includes('medina'));
+        
+        if (makkahHotel) {
+          b.makkahBrn = Array.isArray(makkahHotel.brn) ? makkahHotel.brn.join(', ') : makkahHotel.brn;
+        }
+        if (madinaHotel) {
+          b.madinaBrn = Array.isArray(madinaHotel.brn) ? madinaHotel.brn.join(', ') : madinaHotel.brn;
+        }
+      }
+
+      // Flatten iqama details
+      if (b.accommodationType === 'iqama' && b.sponsorIqamaDetails) {
+        const mainIqama = b.sponsorIqamaDetails.find((i: any) => !i.isAlternate);
+        if (mainIqama) {
+          b.iqamaNumber = mainIqama.iqamaNumber;
+          b.iqamaName = mainIqama.iqamaSponserName;
+          b.iqamaDob = mainIqama.sponserDob;
+          b.iqamaMobile = mainIqama.sponserMobileNumber;
+          b.makkahBrn = mainIqama.makkahBrn;
+          b.madinaBrn = mainIqama.madinahBrn;
+        }
+      }
+
+      setBooking(b);
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.error || 'Failed to load booking');
@@ -90,7 +125,7 @@ export default function ViewUmrahVisaBookingPage() {
   const formatDate = (date?: string | Date) => {
     if (!date) return 'N/A';
     try {
-      return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+      return new Date(date).toLocaleDateString('en-US', { timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric' });
     } catch {
       return 'N/A';
     }
@@ -101,8 +136,8 @@ export default function ViewUmrahVisaBookingPage() {
     try {
       const dt = new Date(dateTime);
       return {
-        date: dt.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
-        time: dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        date: dt.toLocaleDateString('en-US', { timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric' }),
+        time: dt.toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' }),
       };
     } catch {
       return { date: 'N/A', time: 'N/A' };
@@ -267,6 +302,12 @@ export default function ViewUmrahVisaBookingPage() {
                       <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Group Number</p>
                       <p className="text-xl font-bold text-primary">{booking.groupNumber || '—'}</p>
                     </div>
+                    {booking.brn && (
+                      <div className="bg-primary/5 rounded-lg p-4 border border-primary/10">
+                        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Booking BRN</p>
+                        <p className="text-xl font-bold text-primary">{booking.brn}</p>
+                      </div>
+                    )}
                     <div className="bg-primary/5 rounded-lg p-4 border border-primary/10">
                       <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Passengers</p>
                       <p className="text-xl font-bold text-primary">{booking.passengerCount || 0}</p>
@@ -472,6 +513,15 @@ export default function ViewUmrahVisaBookingPage() {
                                 </div>
                               </div>
                             </div>
+                            {booking.flightBrn && (
+                              <div className="lg:col-span-2 bg-gray-50 border border-gray-100 rounded-lg p-4 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Hash className="h-4 w-4 text-primary" />
+                                  <span className="text-xs font-bold text-gray-600 uppercase tracking-widest">Travel BRN / PNR</span>
+                                </div>
+                                <span className="text-sm font-black text-secondary">{booking.flightBrn}</span>
+                              </div>
+                            )}
                           </>
                         );
                       })()}
@@ -489,15 +539,17 @@ export default function ViewUmrahVisaBookingPage() {
                 </CardHeader>
                 <CardContent className="pt-6 space-y-6">
                   {/* Accommodation Type Badge */}
-                  <div className="flex items-center gap-4 p-4 bg-primary/5 rounded-lg border border-primary/10">
-                    <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center">
-                      <Building className="h-6 w-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Accommodation Type</p>
-                      <Badge className="bg-primary text-white text-sm font-semibold px-3 py-1">
-                        {booking.accommodationType?.toUpperCase() || 'N/A'}
-                      </Badge>
+                  <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg border border-primary/10">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center">
+                        <Building className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Accommodation Type</p>
+                        <Badge className="bg-primary text-white text-sm font-semibold px-3 py-1">
+                          {booking.accommodationType?.toUpperCase() || 'N/A'}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
 
@@ -532,6 +584,7 @@ export default function ViewUmrahVisaBookingPage() {
                                 <tr>
                                   <th className="py-3 px-3 lg:px-4 text-left text-xs font-bold uppercase tracking-wide text-white">City</th>
                                   <th className="py-3 px-3 lg:px-4 text-left text-xs font-bold uppercase tracking-wide text-white">Hotel Name</th>
+                                  <th className="py-3 px-3 lg:px-4 text-left text-xs font-bold uppercase tracking-wide text-white">BRN</th>
                                   <th className="py-3 px-3 lg:px-4 text-left text-xs font-bold uppercase tracking-wide text-white">Check-In</th>
                                   <th className="py-3 px-3 lg:px-4 text-left text-xs font-bold uppercase tracking-wide text-white">Check-Out</th>
                                 </tr>
@@ -542,6 +595,7 @@ export default function ViewUmrahVisaBookingPage() {
                                   const hotelName = h.hotel?.name || h.hotel?.hotelName || 'N/A';
                                   const checkIn = h.checkInDate || h.checkIn;
                                   const checkOut = h.checkOutDate || h.checkOut;
+                                  const brnDisplay = Array.isArray(h.brn) ? h.brn.join(', ') : (h.brn || 'N/A');
                                   
                                   return (
                                     <tr 
@@ -561,6 +615,9 @@ export default function ViewUmrahVisaBookingPage() {
                                           <Building className="h-4 w-4 text-gray-400 flex-shrink-0" />
                                           <span className="text-xs lg:text-sm text-gray-700">{hotelName}</span>
                                         </div>
+                                      </td>
+                                      <td className="py-3 px-3 lg:px-4">
+                                        <Badge variant="outline" className="text-[10px] font-mono font-bold bg-gray-50">{brnDisplay}</Badge>
                                       </td>
                                       <td className="py-3 px-3 lg:px-4 whitespace-nowrap">
                                         <div className="flex items-center gap-2">
@@ -589,27 +646,33 @@ export default function ViewUmrahVisaBookingPage() {
                   {booking.accommodationType === 'iqama' && (
                     <>
                       {booking.sponsorIqamaDetails ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
                           <div className="bg-primary/5 rounded-lg p-4 border border-primary/10">
                             <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Iqama Number</p>
-                            <p className="text-base font-bold text-primary">{booking.sponsorIqamaDetails.iqamaNumber || 'N/A'}</p>
+                            <p className="text-base font-bold text-primary">{booking.iqamaNumber || 'N/A'}</p>
                           </div>
                           <div className="bg-primary/5 rounded-lg p-4 border border-primary/10">
                             <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Holder Name</p>
-                            <p className="text-base font-bold text-gray-900">{booking.sponsorIqamaDetails.iqamaSponserName || 'N/A'}</p>
+                            <p className="text-base font-bold text-gray-900">{booking.iqamaName || 'N/A'}</p>
                           </div>
                           <div className="bg-primary/5 rounded-lg p-4 border border-primary/10">
                             <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Date of Birth</p>
-                            <p className="text-base font-bold text-gray-900">{formatDate(booking.sponsorIqamaDetails.sponserDob)}</p>
+                            <p className="text-base font-bold text-gray-900">{formatDate(booking.iqamaDob)}</p>
                           </div>
                           <div className="bg-primary/5 rounded-lg p-4 border border-primary/10">
                             <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Mobile Number</p>
-                            <p className="text-base font-bold text-gray-900">{booking.sponsorIqamaDetails.sponserMobileNumber || 'N/A'}</p>
+                            <p className="text-base font-bold text-gray-900">{booking.iqamaMobile || 'N/A'}</p>
                           </div>
-                          {booking.sponsorIqamaDetails.sponserNationalShortAddress && (
-                            <div className="sm:col-span-2 bg-primary/5 rounded-lg p-4 border border-primary/10">
-                              <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">National Short Address</p>
-                              <p className="text-base font-semibold text-gray-900">{booking.sponsorIqamaDetails.sponserNationalShortAddress}</p>
+                          {booking.makkahBrn && (
+                             <div className="bg-primary/5 rounded-lg p-4 border border-primary/10">
+                              <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Makkah BRN</p>
+                              <p className="text-base font-bold text-secondary tracking-tighter">{booking.makkahBrn}</p>
+                            </div>
+                          )}
+                          {booking.madinaBrn && (
+                             <div className="bg-primary/5 rounded-lg p-4 border border-primary/10">
+                              <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Madinah BRN</p>
+                              <p className="text-base font-bold text-secondary tracking-tighter">{booking.madinaBrn}</p>
                             </div>
                           )}
                         </div>

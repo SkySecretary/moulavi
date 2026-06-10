@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar, Plane, MapPin, Clock, ArrowRightLeft } from 'lucide-react';
 import { Airport, Step2Data } from '@/lib/umrah/types';
-import { formatFlightNumber } from '@/lib/umrah/validation';
+import { formatFlightNumber, toDisplayDate, fromDisplayDate } from '@/lib/umrah/validation';
 import { cn } from '@/lib/utils';
 import { TimePicker } from '@/components/ui/time-picker';
 
@@ -68,6 +68,9 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
               <th className="px-6 py-3 text-left text-[8px] font-black text-primary/40 uppercase tracking-[0.2em] w-[120px]">
                 Time
               </th>
+              <th className="px-6 py-3 text-left text-[8px] font-black text-primary/40 uppercase tracking-[0.2em] w-[150px]">
+                Travel BRN
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -108,14 +111,15 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                     onChange({ arrivalFlightNumber: formatted });
                   }}
                   disabled={disabled}
-                  maxLength={7}
+                  maxLength={8}
                   className="h-12 border-gray-100 rounded-lg font-bold text-secondary focus:ring-secondary/20 bg-gray-50/30 text-center tracking-widest text-base"
                 />
               </td>
               <td className="px-6 py-4">
                 <Input
-                  type="date"
-                  value={data.arrivalDate}
+                  type="text"
+                  placeholder="DD/MM/YY"
+                  value={toDisplayDate(data.arrivalDate)}
                   onChange={(e) => handleDateChange('arrivalDate', e.target.value)}
                   disabled={disabled}
                   className="h-12 border-gray-100 rounded-lg font-semibold text-primary focus:ring-secondary/20 bg-gray-50/30 text-base"
@@ -127,6 +131,15 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                   onChange={(value) => onChange({ arrivalTime: value })}
                   disabled={disabled}
                   className="h-12"
+                />
+              </td>
+              <td className="px-6 py-4" rowSpan={2}>
+                <Input
+                  placeholder="Travel BRN"
+                  value={data.brn || ''}
+                  onChange={(e) => onChange({ brn: e.target.value })}
+                  disabled={disabled}
+                  className="h-full min-h-[100px] border-gray-100 rounded-lg font-bold text-primary focus:ring-secondary/20 bg-gray-50/30 text-center text-base"
                 />
               </td>
             </tr>
@@ -168,14 +181,15 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                     onChange({ departureFlightNumber: formatted });
                   }}
                   disabled={disabled}
-                  maxLength={7}
+                  maxLength={8}
                   className="h-12 border-gray-100 rounded-lg font-bold text-secondary focus:ring-secondary/20 bg-gray-50/30 text-center tracking-widest text-base"
                 />
               </td>
               <td className="px-6 py-4">
                 <Input
-                  type="date"
-                  value={data.departureDate}
+                  type="text"
+                  placeholder="DD/MM/YY"
+                  value={toDisplayDate(data.departureDate)}
                   onChange={(e) => handleDateChange('departureDate', e.target.value)}
                   disabled={disabled}
                   className="h-12 border-gray-100 rounded-lg font-semibold text-primary focus:ring-secondary/20 bg-gray-50/30 text-base"
@@ -206,7 +220,14 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Timeline</Label>
-                <Input type="date" value={data.arrivalDate} onChange={(e) => handleDateChange('arrivalDate', e.target.value)} disabled={disabled} className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs" />
+                <Input 
+                  type="text" 
+                  placeholder="DD/MM/YY"
+                  value={toDisplayDate(data.arrivalDate)} 
+                  onChange={(e) => handleDateChange('arrivalDate', e.target.value)} 
+                  disabled={disabled} 
+                  className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs" 
+                />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Time</Label>
@@ -237,7 +258,14 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Timeline</Label>
-                <Input type="date" value={data.departureDate} onChange={(e) => handleDateChange('departureDate', e.target.value)} disabled={disabled} className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs" />
+                <Input 
+                  type="text" 
+                  placeholder="DD/MM/YY"
+                  value={toDisplayDate(data.departureDate)} 
+                  onChange={(e) => handleDateChange('departureDate', e.target.value)} 
+                  disabled={disabled} 
+                  className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs" 
+                />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Time</Label>
@@ -254,6 +282,16 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                   {airports.map(a => <SelectItem key={a.id} value={a.id} className="text-sm font-medium">{a.airportCode} - {a.airportName}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Travel BRN</Label>
+              <Input 
+                placeholder="Enter BRN" 
+                value={data.brn || ''} 
+                onChange={(e) => onChange({ brn: e.target.value })} 
+                disabled={disabled} 
+                className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs" 
+              />
             </div>
           </CardContent>
         </Card>

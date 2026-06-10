@@ -20,6 +20,8 @@ import {
   Edit, 
   Trash2, 
   Calendar,
+  Clock,
+  CheckCircle,
   Users,
   Plane,
   Hotel,
@@ -77,7 +79,18 @@ export default function UmrahBookingDashboard({
         ? await umrahVisaAPI.getPartyBookings(params)
         : await umrahVisaAPI.getBookings(params);
       
-      setBookings(response.data.bookings);
+      const flattenedBookings = (response.data.bookings || []).map((b: any) => {
+        const mainTravel = b.travelDetails?.find((t: any) => !t.isAlternate);
+        if (mainTravel) {
+          b.flightNumber = mainTravel.arrivalFlightNumber;
+          b.flightBrn = mainTravel.brn;
+          b.arrivalDate = mainTravel.arrivalDateTime ? new Date(mainTravel.arrivalDateTime).toLocaleDateString() : 'N/A';
+          b.departureDate = mainTravel.departureDateTime ? new Date(mainTravel.departureDateTime).toLocaleDateString() : 'N/A';
+        }
+        return b;
+      });
+
+      setBookings(flattenedBookings);
       setPagination(response.data.pagination);
     } catch (error: any) {
       console.error('Error loading bookings:', error);
@@ -202,7 +215,7 @@ export default function UmrahBookingDashboard({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-500">Total Bookings</p>
-                  <p className="text-2xl font-bold">{stats.totalBookings}</p>
+                  <p className="text-2xl font-bold">{stats.total || 0}</p>
                 </div>
                 <Calendar className="h-8 w-8 text-secondary" />
               </div>
@@ -214,9 +227,9 @@ export default function UmrahBookingDashboard({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-500">Pending</p>
-                  <p className="text-2xl font-bold text-yellow-600">{stats.statusBreakdown.pending}</p>
+                  <p className="text-2xl font-bold text-yellow-600">{(stats.pending || 0) + (stats.documents_downloaded || 0) + (stats.group_assigned || 0)}</p>
                 </div>
-                <Calendar className="h-8 w-8 text-yellow-500" />
+                <Clock className="h-8 w-8 text-yellow-500" />
               </div>
             </CardContent>
           </Card>
@@ -225,10 +238,10 @@ export default function UmrahBookingDashboard({
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Approved</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.statusBreakdown.approved}</p>
+                  <p className="text-sm font-medium text-gray-500">Visa Issued</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.booking_success || 0}</p>
                 </div>
-                <Calendar className="h-8 w-8 text-green-500" />
+                <CheckCircle className="h-8 w-8 text-green-500" />
               </div>
             </CardContent>
           </Card>
@@ -237,8 +250,8 @@ export default function UmrahBookingDashboard({
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Total Passengers</p>
-                  <p className="text-2xl font-bold">{stats.totalPassengers}</p>
+                  <p className="text-sm font-medium text-gray-500">Total Pilgrims</p>
+                  <p className="text-2xl font-bold">{stats.totalPassengers || 0}</p>
                 </div>
                 <Users className="h-8 w-8 text-primary" />
               </div>
@@ -390,6 +403,7 @@ export default function UmrahBookingDashboard({
                       </div>
                       <p className="text-sm text-gray-500">
                         {booking.flightNumber} • {booking.arrivalDate} - {booking.departureDate}
+                        {booking.flightBrn && <span className="ml-2 px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] font-medium">BRN: {booking.flightBrn}</span>}
                       </p>
                       <p className="text-xs text-gray-400">
                         {booking.passengerCount} passengers • {booking.bookingMode?.replace('_', ' ')} • {booking.visaType === 'group_visa' ? 'Group Visa' : 'Individual Visa'}
@@ -453,14 +467,14 @@ export default function UmrahBookingDashboard({
           )}
           
           {/* Pagination */}
-          {pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6">
-              <p className="text-sm text-gray-500">
-                Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
-                {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-                {pagination.total} results
-              </p>
-              
+          <div className="flex items-center justify-between mt-6">
+            <p className="text-sm text-gray-500">
+              Showing {pagination.total > 0 ? ((pagination.page - 1) * (pagination.limit || 10)) + 1 : 0} to{' '}
+              {Math.min(pagination.page * (pagination.limit || 10), pagination.total)} of{' '}
+              {pagination.total} results
+            </p>
+            
+            {pagination.totalPages > 1 && (
               <div className="flex items-center space-x-2">
                 <Button
                   variant="outline"
@@ -484,8 +498,8 @@ export default function UmrahBookingDashboard({
                   Next
                 </Button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

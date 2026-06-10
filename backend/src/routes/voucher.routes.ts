@@ -16,7 +16,7 @@ router.get(
   authenticate,
   authorize('admin', 'staff'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { page = '1', limit = '10', search = '' } = req.query;
+    const { page = '1', limit = '10', search = '', dateFrom, dateTo } = req.query;
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
     const skip = (pageNum - 1) * limitNum;
@@ -29,7 +29,15 @@ router.get(
         { guestName: { contains: search as string } },
         { guestMobile: { contains: search as string } },
         { groupCode: { contains: search as string } },
+        { bookingReference: { contains: search as string } },
       ];
+    }
+
+    if (dateFrom || dateTo) {
+      where.reservationDate = {
+        ...(dateFrom ? { gte: new Date(dateFrom as string) } : {}),
+        ...(dateTo ? { lte: new Date(dateTo as string) } : {}),
+      };
     }
 
     const [vouchers, total] = await Promise.all([
@@ -137,7 +145,10 @@ router.get(
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const { from, to } = req.query;
+    const { from, to, page = '1', limit = '50', search = '' } = req.query;
+    const pageNum = parseInt(page as string, 10);
+    const limitNum = parseInt(limit as string, 10);
+    const skip = (pageNum - 1) * limitNum;
 
     const where: any = {
         date: {
@@ -146,36 +157,40 @@ router.get(
         },
     };
 
-    if (from) {
-      where.from = from as string;
+    if (from) where.from = from as string;
+    if (to) where.to = to as string;
+    if (search) {
+      where.OR = [
+        { route: { contains: search as string } },
+        { voucher: { guestName: { contains: search as string } } },
+        { voucher: { voucherNumber: { contains: search as string } } },
+      ];
     }
 
-    if (to) {
-      where.to = to as string;
-    }
+    const [movementsData, total] = await Promise.all([
+      prisma.voucherMovement.findMany({
+        where,
+        skip,
+        take: limitNum,
+        include: { voucher: true },
+        orderBy: { date: 'asc' },
+      }),
+      prisma.voucherMovement.count({ where }),
+    ]);
 
-    const movementsData = await prisma.voucherMovement.findMany({
-      where,
-      include: {
-        voucher: true,
-      },
-      orderBy: {
-        date: 'asc',
-      },
+    // Get all movements for vouchers in the current page to calculate correct indices
+    const voucherIds = [...new Set(movementsData.map(m => m.voucherId))];
+    const allVoucherMovements = await prisma.voucherMovement.findMany({
+      where: { voucherId: { in: voucherIds } },
+      orderBy: { sr: 'asc' },
     });
 
-    // Get all movements with their sr numbers to calculate index
     const movementsByVoucher = new Map<string, any[]>();
-    movementsData.forEach((movement) => {
+    allVoucherMovements.forEach((movement) => {
       if (!movementsByVoucher.has(movement.voucherId)) {
         movementsByVoucher.set(movement.voucherId, []);
       }
       movementsByVoucher.get(movement.voucherId)!.push(movement);
-    });
-
-    // Sort by sr to get correct index
-    movementsByVoucher.forEach((movements) => {
-      movements.sort((a, b) => a.sr - b.sr);
     });
 
     const movements = movementsData.map((movement) => {
@@ -208,7 +223,15 @@ router.get(
       };
     });
 
-    res.json({ movements });
+    res.json({ 
+      movements,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      }
+    });
   })
 );
 
@@ -224,7 +247,10 @@ router.get(
     const dayAfterTomorrow = new Date(tomorrow);
     dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
 
-    const { from, to } = req.query;
+    const { from, to, page = '1', limit = '50', search = '' } = req.query;
+    const pageNum = parseInt(page as string, 10);
+    const limitNum = parseInt(limit as string, 10);
+    const skip = (pageNum - 1) * limitNum;
 
     const where: any = {
         date: {
@@ -233,36 +259,40 @@ router.get(
         },
     };
 
-    if (from) {
-      where.from = from as string;
+    if (from) where.from = from as string;
+    if (to) where.to = to as string;
+    if (search) {
+      where.OR = [
+        { route: { contains: search as string } },
+        { voucher: { guestName: { contains: search as string } } },
+        { voucher: { voucherNumber: { contains: search as string } } },
+      ];
     }
 
-    if (to) {
-      where.to = to as string;
-    }
+    const [movementsData, total] = await Promise.all([
+      prisma.voucherMovement.findMany({
+        where,
+        skip,
+        take: limitNum,
+        include: { voucher: true },
+        orderBy: { date: 'asc' },
+      }),
+      prisma.voucherMovement.count({ where }),
+    ]);
 
-    const movementsData = await prisma.voucherMovement.findMany({
-      where,
-      include: {
-        voucher: true,
-      },
-      orderBy: {
-        date: 'asc',
-      },
+    // Get all movements for vouchers in the current page to calculate correct indices
+    const voucherIds = [...new Set(movementsData.map(m => m.voucherId))];
+    const allVoucherMovements = await prisma.voucherMovement.findMany({
+      where: { voucherId: { in: voucherIds } },
+      orderBy: { sr: 'asc' },
     });
 
-    // Get all movements with their sr numbers to calculate index
     const movementsByVoucher = new Map<string, any[]>();
-    movementsData.forEach((movement) => {
+    allVoucherMovements.forEach((movement) => {
       if (!movementsByVoucher.has(movement.voucherId)) {
         movementsByVoucher.set(movement.voucherId, []);
       }
       movementsByVoucher.get(movement.voucherId)!.push(movement);
-    });
-
-    // Sort by sr to get correct index
-    movementsByVoucher.forEach((movements) => {
-      movements.sort((a, b) => a.sr - b.sr);
     });
 
     const movements = movementsData.map((movement) => {
@@ -295,7 +325,15 @@ router.get(
       };
     });
 
-    res.json({ movements });
+    res.json({ 
+      movements,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      }
+    });
   })
 );
 

@@ -317,6 +317,48 @@ export interface AvailableAction {
   disabled?: boolean;
 }
 
+export interface Voucher {
+  id: string;
+  voucherNumber: string;
+  reservationDate: string;
+  guestName: string;
+  guestMobile?: string;
+  groupCode?: string;
+  paxCount: number;
+  version: number;
+  generatedBy: string;
+  createdAt: string;
+  updatedAt: string;
+  generatedByUser?: {
+    name: string;
+  };
+}
+
+export interface Movement {
+  voucherId: string;
+  voucherNumber: string;
+  movementIndex: number;
+  movementId: string;
+  routeNumber: string;
+  date: string;
+  time: string;
+  agentName: string;
+  guestName: string;
+  mobile: string;
+  pax: number;
+  from: string;
+  fromLocation: string;
+  fromLocationId: string | null;
+  to: string;
+  toLocation: string;
+  toLocationId: string | null;
+  driverDetails1: string;
+  driverDetails2: string;
+  vehicleNumber: string;
+  partyEmail: string;
+  partyWhatsApp: string;
+}
+
 export interface AvailableActionsResponse {
   bookingId: string;
   currentStatus: UmrahVisaStatus;

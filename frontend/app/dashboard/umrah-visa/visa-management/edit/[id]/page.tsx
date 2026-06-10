@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getUser, hasRole } from '@/lib/auth';
-import { umrahVisaAPI, umrahVisaMasterAPI, locationMasterAPI, cityMasterAPI, transportMasterAPI, transportRouteMasterAPI } from '@/lib/api';
+import { umrahVisaAPI, umrahVisaMasterAPI, locationMasterAPI, cityMasterAPI, transportMasterAPI, transportRouteMasterAPI, partyAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import { Calendar, Plane, Users, Building, MapPin, Mail, ArrowLeft, Clock, Dolla
 import { Movement, LocationMaster } from '@/lib/umrah/types';
 import { TimePicker } from '@/components/ui/time-picker';
 import { formatTransportRoute } from '@/lib/utils';
+import { formatFlightNumber, toDisplayDate, fromDisplayDate } from '@/lib/umrah/validation';
 
 export default function EditUmrahVisaBookingPage() {
   const router = useRouter();
@@ -29,6 +30,8 @@ export default function EditUmrahVisaBookingPage() {
   // Form state
   const [groupNumber, setGroupNumber] = useState('');
   const [groupName, setGroupName] = useState('');
+  const [brn, setBrn] = useState('');
+  const [umrahVisaProviderId, setUmrahVisaProviderId] = useState('');
   
   // Travel Details
   const [arrivalDate, setArrivalDate] = useState('');
@@ -39,6 +42,7 @@ export default function EditUmrahVisaBookingPage() {
   const [departureTime, setDepartureTime] = useState('');
   const [departureAirportId, setDepartureAirportId] = useState('');
   const [departureFlightNumber, setDepartureFlightNumber] = useState('');
+  const [flightBrn, setFlightBrn] = useState('');
 
   // Accommodation
   const [accommodationType, setAccommodationType] = useState<'hotel' | 'iqama'>('hotel');
@@ -73,6 +77,7 @@ export default function EditUmrahVisaBookingPage() {
   const [transportRoutes, setTransportRoutes] = useState<any[]>([]);
   const [transportMasters, setTransportMasters] = useState<any[]>([]);
   const [vehicleTypes, setVehicleTypes] = useState<any[]>([]);
+  const [umrahCompanies, setUmrahCompanies] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user || !hasRole(['admin', 'staff'])) {
@@ -92,11 +97,13 @@ export default function EditUmrahVisaBookingPage() {
 
       setGroupNumber(b.groupNumber || '');
       setGroupName(b.groupName || '');
+      setBrn(b.brn || '');
+      setUmrahVisaProviderId(b.umrahVisaProviderId || '');
 
       const mainTravel = b.travelDetails?.find((t: any) => !t.isAlternate);
       if (mainTravel?.arrivalDateTime) {
         const arrival = new Date(mainTravel.arrivalDateTime);
-        setArrivalDate(arrival.toISOString().split('T')[0]);
+        setArrivalDate(toDisplayDate(arrival.toISOString().split('T')[0]));
         setArrivalTime(arrival.toTimeString().slice(0, 5));
       }
       setArrivalAirportId(mainTravel?.arrivalAirportId || '');
@@ -104,14 +111,22 @@ export default function EditUmrahVisaBookingPage() {
 
       if (mainTravel?.departureDateTime) {
         const departure = new Date(mainTravel.departureDateTime);
-        setDepartureDate(departure.toISOString().split('T')[0]);
+        setDepartureDate(toDisplayDate(departure.toISOString().split('T')[0]));
         setDepartureTime(departure.toTimeString().slice(0, 5));
       }
       setDepartureAirportId(mainTravel?.departureAirportId || '');
-      setDepartureFlightNumber(mainTravel?.departureFlightNumber || '');
-
+      setDepartureFlightNumber(mainTravel.departureFlightNumber || '');
+      setFlightBrn(mainTravel.brn || '');
+      
       setAccommodationType(b.accommodationType || 'hotel');
-      setHotelBookings(b.hotelBookings || []);
+      
+      if (b.hotelBookings) {
+        setHotelBookings(b.hotelBookings.map((hb: any) => ({
+          ...hb,
+          checkInDate: toDisplayDate(hb.checkInDate),
+          checkOutDate: toDisplayDate(hb.checkOutDate),
+        })));
+      }
 
       if (b.sponsorIqamaDetails) {
         const mainIqama = b.sponsorIqamaDetails.find((i: any) => !i.isAlternate);
@@ -119,7 +134,7 @@ export default function EditUmrahVisaBookingPage() {
           setIqamaNumber(mainIqama.iqamaNumber || '');
           setIqamaName(mainIqama.iqamaSponserName || '');
           if (mainIqama.sponserDob) {
-            setIqamaDob(new Date(mainIqama.sponserDob).toISOString().split('T')[0]);
+            setIqamaDob(toDisplayDate(new Date(mainIqama.sponserDob).toISOString().split('T')[0]));
           }
           setIqamaMobile(mainIqama.sponserMobileNumber || '');
           setIqamaNationalShortAddress(mainIqama.sponserNationalShortAddress || '');
@@ -133,13 +148,25 @@ export default function EditUmrahVisaBookingPage() {
       setTransportBookings(b.transportBookings || []);
 
       const convertedMovements: Movement[] = (b.movementDetails || []).map((md: any) => {
-        const travelDateTime = new Date(md.travelDateTime);
+        const travelDateTime = md.travelDateTime ? new Date(md.travelDateTime) : new Date();
         const isZiyarath = md.toLocation?.locationType === 'ZIYARAT';
+        
+        let dateStr = '';
+        try {
+          if (!isNaN(travelDateTime.getTime())) {
+            dateStr = toDisplayDate(travelDateTime.toISOString().split('T')[0]);
+          } else {
+            dateStr = toDisplayDate(new Date().toISOString().split('T')[0]);
+          }
+        } catch (e) {
+          dateStr = toDisplayDate(new Date().toISOString().split('T')[0]);
+        }
+
         return {
           id: md.id,
           type: isZiyarath ? 'ziyarath' : 'transport',
-          date: travelDateTime.toISOString().split('T')[0],
-          time: travelDateTime.toTimeString().slice(0, 5),
+          date: dateStr,
+          time: !isNaN(travelDateTime.getTime()) ? travelDateTime.toTimeString().slice(0, 5) : '12:00',
           fromLocationId: md.fromLocationId,
           toLocationId: md.toLocationId,
           viabadrOverride: false,
@@ -205,6 +232,13 @@ export default function EditUmrahVisaBookingPage() {
         ).values()
       );
       setVehicleTypes(uniqueVehicleTypes);
+
+      const umrahCompaniesRes = await partyAPI.getAll({ 
+        is_supplier: 'true', 
+        supplier_service_type: 'umra_visa_service',
+        limit: '1000' 
+      });
+      setUmrahCompanies(umrahCompaniesRes.data?.parties || umrahCompaniesRes.data || []);
     } catch (err) {
       console.error('Error loading master data:', err);
     }
@@ -212,25 +246,36 @@ export default function EditUmrahVisaBookingPage() {
 
   const handleSave = async () => {
     try {
+      // Basic validation
+      if (!isValidStrictDate(arrivalDate)) {
+        toast.error('Arrival date must be in DD/MM/YY format');
+        return;
+      }
+      if (!isValidStrictDate(departureDate)) {
+        toast.error('Departure date must be in DD/MM/YY format');
+        return;
+      }
+
       setSaving(true);
 
-      await umrahVisaAPI.updateGroupNumber(bookingId, groupNumber, groupName);
+      await umrahVisaAPI.updateGroupNumber(bookingId, groupNumber, groupName, brn, umrahVisaProviderId);
 
       await umrahVisaAPI.updateTravelDetails(bookingId, {
-        arrivalDate,
+        arrivalDate: fromDisplayDate(arrivalDate),
         arrivalTime,
         arrivalAirportId,
         arrivalFlightNumber,
-        departureDate,
+        departureDate: fromDisplayDate(departureDate),
         departureTime,
         departureAirportId,
         departureFlightNumber,
+        brn: flightBrn,
       });
 
       const movementDetailsToSave = movements.map((m) => {
         return {
           id: m.id?.startsWith('new-') ? undefined : m.id,
-          date: m.date,
+          date: fromDisplayDate(m.date),
           time: m.time || '12:00',
           fromLocationId: m.fromLocationId,
           toLocationId: m.toLocationId,
@@ -260,16 +305,18 @@ export default function EditUmrahVisaBookingPage() {
               accommodationType: 'hotel',
               hotelBookings: [{
                 id: h.id,
-                checkInDate: h.checkInDate,
-                checkOutDate: h.checkOutDate,
+                checkInDate: fromDisplayDate(h.checkInDate),
+                checkOutDate: fromDisplayDate(h.checkOutDate),
+                brn: h.brn,
               }],
             });
           } else {
             await umrahVisaAPI.createHotelBooking(bookingId, {
               cityId: cityId,
               hotelId: h.hotelId,
-              checkInDate: h.checkInDate,
-              checkOutDate: h.checkOutDate,
+              checkInDate: fromDisplayDate(h.checkInDate),
+              checkOutDate: fromDisplayDate(h.checkOutDate),
+              brn: h.brn,
             });
           }
         }
@@ -278,7 +325,7 @@ export default function EditUmrahVisaBookingPage() {
           accommodationType: 'iqama',
           iqamaSponserName: iqamaName,
           iqamaNumber: iqamaNumber,
-          sponserDob: iqamaDob,
+          sponserDob: fromDisplayDate(iqamaDob),
           sponserMobileNumber: iqamaMobile,
           sponserNationalShortAddress: iqamaNationalShortAddress,
           makkahHotelName: iqamaMakkahHotelName,
@@ -293,6 +340,10 @@ export default function EditUmrahVisaBookingPage() {
         fullName: p.fullName,
         passportNumber: p.passportNumber,
         nationality: p.nationality,
+        passportExpiry: fromDisplayDate(p.passportExpiry),
+        dateOfBirth: fromDisplayDate(p.dateOfBirth),
+        gender: p.gender,
+        phoneNumber: p.phoneNumber,
       })));
 
       toast.success('Booking updated successfully');
@@ -377,7 +428,20 @@ export default function EditUmrahVisaBookingPage() {
   };
 
   const updateTransportBooking = (index: number, field: string, value: any) => {
-    setTransportBookings(prev => prev.map((t, i) => i === index ? { ...t, [field]: value } : t));
+    setTransportBookings(prev => prev.map((t, i) => {
+      if (i === index) {
+        const updated = { ...t, [field]: value };
+        // If updating master ID, also update the master object for immediate UI feedback
+        if (field === 'transportMasterId') {
+          const master = transportMasters.find((m: any) => m.id === value);
+          if (master) {
+            updated.transportMaster = master;
+          }
+        }
+        return updated;
+      }
+      return t;
+    }));
   };
 
   const addHotelBooking = () => {
@@ -414,6 +478,10 @@ export default function EditUmrahVisaBookingPage() {
       fullName: '',
       passportNumber: '',
       nationality: '',
+      passportExpiry: '',
+      dateOfBirth: '',
+      gender: 'male',
+      phoneNumber: '',
       isLeadPassenger: prev.length === 0,
     }]);
   };
@@ -444,12 +512,48 @@ export default function EditUmrahVisaBookingPage() {
     if (!dateTime) return { date: '', time: '' };
     try {
       const dt = new Date(dateTime);
+      if (isNaN(dt.getTime())) return { date: '', time: '' };
+      
+      const year = dt.getFullYear();
+      const month = String(dt.getMonth() + 1).padStart(2, '0');
+      const day = String(dt.getDate()).padStart(2, '0');
+      const hours = String(dt.getHours()).padStart(2, '0');
+      const minutes = String(dt.getMinutes()).padStart(2, '0');
+      
       return {
-        date: dt.toISOString().split('T')[0],
-        time: dt.toTimeString().slice(0, 5),
+        date: `${year}-${month}-${day}`,
+        time: `${hours}:${minutes}`,
       };
     } catch {
       return { date: '', time: '' };
+    }
+  };
+
+  const safeISODate = (dateStr: string, timeStr: string) => {
+    if (!dateStr) return new Date().toISOString();
+    try {
+      // Use "YYYY-MM-DDTHH:mm" for local time parsing
+      const combined = `${dateStr}T${timeStr || '12:00'}`;
+      const dt = new Date(combined);
+      if (isNaN(dt.getTime())) return new Date().toISOString();
+      return dt.toISOString();
+    } catch {
+      return new Date().toISOString();
+    }
+  };
+
+  const formatDateForInput = (dateStr?: string | Date) => {
+    if (!dateStr) return '';
+    try {
+      const dt = new Date(dateStr);
+      if (isNaN(dt.getTime())) return '';
+      
+      const year = dt.getFullYear();
+      const month = String(dt.getMonth() + 1).padStart(2, '0');
+      const day = String(dt.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } catch {
+      return '';
     }
   };
 
@@ -528,6 +632,28 @@ export default function EditUmrahVisaBookingPage() {
                     />
                   </div>
                   <div className="space-y-1">
+                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">BRN</p>
+                    <Input 
+                      value={brn} 
+                      onChange={(e) => setBrn(e.target.value)} 
+                      placeholder="BRN"
+                      className="font-bold"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Umrah Company</p>
+                    <Select value={umrahVisaProviderId} onValueChange={setUmrahVisaProviderId}>
+                      <SelectTrigger className="font-bold">
+                        <SelectValue placeholder="Select Umrah Company" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {umrahCompanies.map(c => (
+                          <SelectItem key={c.id} value={c.id}>{c.partyName}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
                     <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Passengers</p>
                     <p className="text-lg font-bold text-gray-900">{booking.passengerCount}</p>
                   </div>
@@ -547,7 +673,7 @@ export default function EditUmrahVisaBookingPage() {
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-xs text-gray-600 mb-1 block">Date</label>
-                        <Input type="date" value={arrivalDate} onChange={(e) => setArrivalDate(e.target.value)} />
+                        <Input type="text" placeholder="DD/MM/YY" value={arrivalDate} onChange={(e) => setArrivalDate(e.target.value)} />
                       </div>
                       <div>
                         <label className="text-xs text-gray-600 mb-1 block">Time</label>
@@ -563,7 +689,16 @@ export default function EditUmrahVisaBookingPage() {
                     </div>
                     <div>
                       <label className="text-xs text-gray-600 mb-1 block">Flight Number</label>
-                      <Input value={arrivalFlightNumber} onChange={(e) => setArrivalFlightNumber(e.target.value)} placeholder="Flight Number" />
+                      <Input 
+                        value={arrivalFlightNumber} 
+                        onChange={(e) => setArrivalFlightNumber(formatFlightNumber(e.target.value))} 
+                        placeholder="SV-XXXX" 
+                        maxLength={8}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-600 mb-1 block">Travel BRN</label>
+                      <Input value={flightBrn} onChange={(e) => setFlightBrn(e.target.value)} placeholder="Travel BRN" />
                     </div>
                   </div>
                   <div className="border-l-4 border-orange-500 pl-4 py-2 space-y-4">
@@ -571,7 +706,7 @@ export default function EditUmrahVisaBookingPage() {
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-xs text-gray-600 mb-1 block">Date</label>
-                        <Input type="date" value={departureDate} onChange={(e) => setDepartureDate(e.target.value)} />
+                        <Input type="text" placeholder="DD/MM/YY" value={departureDate} onChange={(e) => setDepartureDate(e.target.value)} />
                       </div>
                       <div>
                         <label className="text-xs text-gray-600 mb-1 block">Time</label>
@@ -587,7 +722,12 @@ export default function EditUmrahVisaBookingPage() {
                     </div>
                     <div>
                       <label className="text-xs text-gray-600 mb-1 block">Flight Number</label>
-                      <Input value={departureFlightNumber} onChange={(e) => setDepartureFlightNumber(e.target.value)} placeholder="Flight Number" />
+                      <Input 
+                        value={departureFlightNumber} 
+                        onChange={(e) => setDepartureFlightNumber(formatFlightNumber(e.target.value))} 
+                        placeholder="SV-XXXX" 
+                        maxLength={8}
+                      />
                     </div>
                   </div>
                 </div>
@@ -628,8 +768,28 @@ export default function EditUmrahVisaBookingPage() {
                           return (
                             <tr key={t.id || idx} className="hover:bg-gray-50">
                               <td className="border border-gray-200 p-3"><Select value={t.transportMasterId || ''} onValueChange={(val) => updateTransportBooking(idx, 'transportMasterId', val)}><SelectTrigger className="w-full"><SelectValue placeholder="Select transport" /></SelectTrigger><SelectContent>{transportMasters.map((tm: any) => (<SelectItem key={tm.id} value={tm.id}>{formatTransportRoute(tm.route)} - {tm.vehicleType?.vehicleName}</SelectItem>))}</SelectContent></Select></td>
-                              <td className="border border-gray-200 p-3"><Input type="date" value={travelDateTime.date} onChange={(e) => updateTransportBooking(idx, 'travelDateTime', new Date(`${e.target.value}T${travelDateTime.time}`).toISOString())} /></td>
-                              <td className="border border-gray-200 p-3"><TimePicker value={travelDateTime.time} onChange={(val) => updateTransportBooking(idx, 'travelDateTime', new Date(`${travelDateTime.date}T${val}`).toISOString())} /></td>
+                              <td className="border border-gray-200 p-3">
+                                <Input 
+                                  type="text" 
+                                  placeholder="DD/MM/YY"
+                                  value={travelDateTime.date} 
+                                  onChange={(e) => {
+                                    const newDate = e.target.value;
+                                    if (!newDate) return;
+                                    updateTransportBooking(idx, 'travelDateTime', newDate);
+                                  }} 
+                                />
+                              </td>
+                              <td className="border border-gray-200 p-3">
+                                <TimePicker 
+                                  value={travelDateTime.time} 
+                                  onChange={(val) => {
+                                    if (!val) return;
+                                    const isoStr = safeISODate(travelDateTime.date || new Date().toISOString().split('T')[0], val);
+                                    updateTransportBooking(idx, 'travelDateTime', isoStr);
+                                  }} 
+                                />
+                              </td>
                               <td className="border border-gray-200 p-3 text-sm text-gray-600">{t.transportMaster?.vehicleType?.vehicleName || 'N/A'}</td>
                               <td className="border border-gray-200 p-3 text-sm font-semibold text-gray-900">{t.transportMaster?.price ? `₹${Number(t.transportMaster.price).toLocaleString('en-IN')}` : 'N/A'}</td>
                               <td className="border border-gray-200 p-3 text-center"><Button type="button" variant="ghost" size="sm" onClick={() => removeTransportBooking(t.id, idx)} className="text-primary hover:text-destructive"><X className="h-4 w-4" /></Button></td>
@@ -657,14 +817,26 @@ export default function EditUmrahVisaBookingPage() {
                     {hotelBookings.length === 0 ? (<div className="text-center py-8 bg-gray-50 rounded-lg"><Building className="h-10 w-10 text-gray-300 mx-auto mb-2" /><p className="text-sm text-gray-600">No hotel bookings found</p></div>) : (
                       <div className="overflow-x-auto">
                         <table className="w-full border-collapse border border-gray-200 rounded-lg overflow-hidden">
-                          <thead><tr className="bg-gray-50"><th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">Location</th><th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">Hotel Name</th><th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">Check-In</th><th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">Check-Out</th><th className="border border-gray-200 p-3 text-center text-sm font-medium text-gray-700">Action</th></tr></thead>
+                          <thead><tr className="bg-gray-50"><th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">Location</th><th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">Hotel Name</th><th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">Check-In</th><th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">Check-Out</th><th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">BRN</th><th className="border border-gray-200 p-3 text-center text-sm font-medium text-gray-700">Action</th></tr></thead>
                           <tbody>
                             {hotelBookings.map((h: any, idx: number) => (
                               <tr key={h.id || idx} className="hover:bg-gray-50">
                                 <td className="border border-gray-200 p-3"><Select value={h.locationId || ''} onValueChange={(val) => updateHotelBooking(idx, 'locationId', val)}><SelectTrigger className="w-full"><SelectValue placeholder="Select location" /></SelectTrigger><SelectContent>{locations.filter((l: any) => l.locationType === 'OTHERS').map((loc: any) => (<SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>))}</SelectContent></Select></td>
                                 <td className="border border-gray-200 p-3"><Select value={h.hotelId || ''} onValueChange={(val) => updateHotelBooking(idx, 'hotelId', val)}><SelectTrigger className="w-full"><SelectValue placeholder="Select hotel" /></SelectTrigger><SelectContent>{getHotelsForLocation(h.locationId).map((hotel: any) => (<SelectItem key={hotel.id} value={hotel.id}>{hotel.name}</SelectItem>))}</SelectContent></Select></td>
-                                <td className="border border-gray-200 p-3"><Input type="date" value={h.checkInDate ? h.checkInDate.split('T')[0] : ''} onChange={(e) => updateHotelBooking(idx, 'checkInDate', e.target.value)} /></td>
-                                <td className="border border-gray-200 p-3"><Input type="date" value={h.checkOutDate ? h.checkOutDate.split('T')[0] : ''} onChange={(e) => updateHotelBooking(idx, 'checkOutDate', e.target.value)} /></td>
+                                <td className="border border-gray-200 p-3"><Input type="text" placeholder="DD/MM/YY" value={h.checkInDate} onChange={(e) => updateHotelBooking(idx, 'checkInDate', e.target.value)} /></td>
+                                <td className="border border-gray-200 p-3"><Input type="text" placeholder="DD/MM/YY" value={h.checkOutDate} onChange={(e) => updateHotelBooking(idx, 'checkOutDate', e.target.value)} /></td>
+                                <td className="border border-gray-200 p-3">
+                                  <Input 
+                                    value={Array.isArray(h.brn) ? h.brn.join(', ') : (h.brn || '')} 
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      // If it contains commas, store as array for consistency with creation flow
+                                      const brnValue = val.includes(',') ? val.split(',').map(s => s.trim()).filter(Boolean) : val;
+                                      updateHotelBooking(idx, 'brn', brnValue);
+                                    }} 
+                                    placeholder="BRN" 
+                                  />
+                                </td>
                                 <td className="border border-gray-200 p-3 text-center"><Button type="button" variant="ghost" size="sm" onClick={() => removeHotelBooking(h.id, idx)} className="text-primary hover:text-destructive"><X className="h-4 w-4" /></Button></td>
                               </tr>
                             ))}
@@ -678,8 +850,22 @@ export default function EditUmrahVisaBookingPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <div className="space-y-1"><label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Iqama Number</label><Input value={iqamaNumber} onChange={(e) => setIqamaNumber(e.target.value)} placeholder="Iqama Number" /></div>
                     <div className="space-y-1"><label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Holder Name</label><Input value={iqamaName} onChange={(e) => setIqamaName(e.target.value)} placeholder="Holder Name" /></div>
-                    <div className="space-y-1"><label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Date of Birth</label><Input type="date" value={iqamaDob} onChange={(e) => setIqamaDob(e.target.value)} /></div>
-                    <div className="space-y-1"><label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Mobile Number</label><Input value={iqamaMobile} onChange={(e) => setIqamaMobile(e.target.value)} placeholder="Mobile Number" /></div>
+                    <div className="space-y-1"><label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Date of Birth</label><Input type="text" placeholder="DD/MM/YY" value={iqamaDob} onChange={(e) => setIqamaDob(e.target.value)} /></div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Mobile Number</label>
+                      <Input 
+                        value={iqamaMobile} 
+                        onChange={(e) => {
+                          let val = e.target.value;
+                          if (val && !val.startsWith('+966')) {
+                            if (val.startsWith('0')) val = val.substring(1);
+                            if (!val.startsWith('+')) val = '+966' + val;
+                          }
+                          setIqamaMobile(val);
+                        }} 
+                        placeholder="+966" 
+                      />
+                    </div>
                     <div className="space-y-1 sm:col-span-2"><label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">National Short Address</label><Input value={iqamaNationalShortAddress} onChange={(e) => setIqamaNationalShortAddress(e.target.value)} placeholder="National Short Address" /></div>
                     
                     <div className="col-span-1 sm:col-span-2 mt-4 pt-4 border-t border-gray-200">
@@ -706,9 +892,23 @@ export default function EditUmrahVisaBookingPage() {
                       <div className="flex-1"><Input value={p.fullName || ''} onChange={(e) => updatePassenger(idx, 'fullName', e.target.value)} placeholder="Full Name" className="font-bold mb-2" />{p.isLeadPassenger && (<Badge className="bg-yellow-100 text-yellow-800 border-0 text-xs font-semibold mb-2">Lead Passenger</Badge>)}</div>
                       {p.id && p.id.startsWith('new-') && (<Button type="button" variant="ghost" size="sm" onClick={() => removePassenger(idx)} className="text-primary hover:text-destructive"><X className="h-4 w-4" /></Button>)}
                     </div>
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <div><label className="text-xs text-gray-600 mb-1 block">Passport Number</label><Input value={p.passportNumber || ''} onChange={(e) => updatePassenger(idx, 'passportNumber', e.target.value)} placeholder="Passport Number" /></div>
                       <div><label className="text-xs text-gray-600 mb-1 block">Nationality</label><Input value={p.nationality || ''} onChange={(e) => updatePassenger(idx, 'nationality', e.target.value)} placeholder="Nationality" /></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><label className="text-xs text-gray-600 mb-1 block">Date of Birth</label><Input type="text" placeholder="DD/MM/YY" value={p.dateOfBirth} onChange={(e) => updatePassenger(idx, 'dateOfBirth', e.target.value)} /></div>
+                      <div><label className="text-xs text-gray-600 mb-1 block">Passport Expiry</label><Input type="text" placeholder="DD/MM/YY" value={p.passportExpiry} onChange={(e) => updatePassenger(idx, 'passportExpiry', e.target.value)} /></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs text-gray-600 mb-1 block">Gender</label>
+                        <Select value={p.gender || 'male'} onValueChange={(val) => updatePassenger(idx, 'gender', val)}>
+                          <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                          <SelectContent><SelectItem value="male">Male</SelectItem><SelectItem value="female">Female</SelectItem></SelectContent>
+                        </Select>
+                      </div>
+                      <div><label className="text-xs text-gray-600 mb-1 block">Phone Number</label><Input value={p.phoneNumber || ''} onChange={(e) => updatePassenger(idx, 'phoneNumber', e.target.value)} placeholder="Phone Number" /></div>
                     </div>
                   </div>
                 ))}

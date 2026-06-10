@@ -20,7 +20,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { RouteType } from '@/types';
+import type { RouteType } from '@/types';
 import { cn, formatCurrency } from '@/lib/utils';
 
 interface QuickVoucherFormProps {
@@ -1391,3 +1391,4 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
     </div>
   );
 }
+export default QuickVoucherForm;

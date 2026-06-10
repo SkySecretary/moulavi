@@ -50,7 +50,49 @@ export default function ViewUmrahVisaDialog({ bookingId, open, onOpenChange }: V
       setLoading(true);
       const response = await umrahVisaAPI.getBookingById(bookingId);
       // Backend returns the booking object directly
-      setBooking(response.data);
+      const b = response.data;
+      
+      // Flatten travel details for easier display
+      const mainTravel = b.travelDetails?.find((t: any) => !t.isAlternate);
+      if (mainTravel) {
+        b.flightNumber = mainTravel.arrivalFlightNumber;
+        b.arrivalDate = mainTravel.arrivalDateTime;
+        b.departureDate = mainTravel.departureDateTime;
+        b.arrivalAirport = mainTravel.arrivalAirport?.name || mainTravel.arrivalAirport?.code;
+        b.flightBrn = mainTravel.brn;
+      }
+
+      // Flatten hotel details
+      if (b.accommodationType === 'hotel' && b.hotelBookings) {
+        const makkahHotel = b.hotelBookings.find((h: any) => h.city?.name?.toLowerCase().includes('makkah') || h.city?.name?.toLowerCase().includes('mecca'));
+        const madinaHotel = b.hotelBookings.find((h: any) => h.city?.name?.toLowerCase().includes('madinah') || h.city?.name?.toLowerCase().includes('medina'));
+        
+        if (makkahHotel) {
+          b.makkahCheckIn = makkahHotel.checkInDate;
+          b.makkahCheckOut = makkahHotel.checkOutDate;
+          b.makkahBrn = Array.isArray(makkahHotel.brn) ? makkahHotel.brn.join(', ') : makkahHotel.brn;
+        }
+        if (madinaHotel) {
+          b.madinaCheckIn = madinaHotel.checkInDate;
+          b.madinaCheckOut = madinaHotel.checkOutDate;
+          b.madinaBrn = Array.isArray(madinaHotel.brn) ? madinaHotel.brn.join(', ') : madinaHotel.brn;
+        }
+      }
+
+      // Flatten iqama details
+      if (b.accommodationType === 'iqama' && b.sponsorIqamaDetails) {
+        const mainIqama = b.sponsorIqamaDetails.find((i: any) => !i.isAlternate);
+        if (mainIqama) {
+          b.iqamaNumber = mainIqama.iqamaNumber;
+          b.iqamaName = mainIqama.iqamaSponserName;
+          b.iqamaDob = mainIqama.sponserDob;
+          b.iqamaMobile = mainIqama.sponserMobileNumber;
+          b.makkahBrn = mainIqama.makkahBrn;
+          b.madinaBrn = mainIqama.madinahBrn;
+        }
+      }
+      
+      setBooking(b);
     } catch (error: any) {
       console.error('Error loading booking details:', error);
       toast.error(error?.response?.data?.error || 'Failed to load booking details');
@@ -81,11 +123,16 @@ export default function ViewUmrahVisaDialog({ bookingId, open, onOpenChange }: V
 
   const formatDate = (date: string | null | undefined) => {
     if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    try {
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return 'N/A';
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = String(d.getFullYear()).substring(2);
+      return `${day}/${month}/${year}`;
+    } catch {
+      return 'N/A';
+    }
   };
 
   return (
@@ -141,6 +188,10 @@ export default function ViewUmrahVisaDialog({ bookingId, open, onOpenChange }: V
                 <div>
                   <p className="text-xs sm:text-sm text-gray-500">Group Name</p>
                   <p className="font-medium text-xs sm:text-sm">{booking.groupName || 'Not Assigned'}</p>
+                </div>
+                <div>
+                  <p className="text-xs sm:text-sm text-gray-500">BRN</p>
+                  <p className="font-medium text-xs sm:text-sm">{booking.brn || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-xs sm:text-sm text-gray-500">Booking Mode</p>
@@ -246,6 +297,12 @@ export default function ViewUmrahVisaDialog({ bookingId, open, onOpenChange }: V
                     {formatDate(booking.departureDate)}
                   </p>
                 </div>
+                {booking.flightBrn && (
+                  <div className="sm:col-span-2">
+                    <p className="text-xs sm:text-sm text-gray-500">Travel BRN</p>
+                    <p className="font-medium text-xs sm:text-sm">{booking.flightBrn}</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -321,6 +378,18 @@ export default function ViewUmrahVisaDialog({ bookingId, open, onOpenChange }: V
                       <p className="text-xs sm:text-sm text-gray-500">Madina Check-Out</p>
                       <p className="font-medium text-xs sm:text-sm">{formatDate(booking.madinaCheckOut)}</p>
                     </div>
+                    {booking.makkahBrn && (
+                      <div className="sm:col-span-2">
+                        <p className="text-xs sm:text-sm text-gray-500">Makkah Hotel BRN</p>
+                        <p className="font-medium text-xs sm:text-sm">{booking.makkahBrn}</p>
+                      </div>
+                    )}
+                    {booking.madinaBrn && (
+                      <div className="sm:col-span-2">
+                        <p className="text-xs sm:text-sm text-gray-500">Madina Hotel BRN</p>
+                        <p className="font-medium text-xs sm:text-sm">{booking.madinaBrn}</p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -340,6 +409,18 @@ export default function ViewUmrahVisaDialog({ bookingId, open, onOpenChange }: V
                       <p className="text-xs sm:text-sm text-gray-500">Iqama Mobile</p>
                       <p className="font-medium text-xs sm:text-sm">{booking.iqamaMobile || 'N/A'}</p>
                     </div>
+                    {booking.makkahBrn && (
+                      <div>
+                        <p className="text-xs sm:text-sm text-gray-500">Makkah BRN</p>
+                        <p className="font-medium text-xs sm:text-sm">{booking.makkahBrn}</p>
+                      </div>
+                    )}
+                    {booking.madinaBrn && (
+                      <div>
+                        <p className="text-xs sm:text-sm text-gray-500">Madina BRN</p>
+                        <p className="font-medium text-xs sm:text-sm">{booking.madinaBrn}</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>

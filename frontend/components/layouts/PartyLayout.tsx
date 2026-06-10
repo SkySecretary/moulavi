@@ -38,8 +38,14 @@ export const PartyLayout: React.FC<PartyLayoutProps> = ({
 
   React.useEffect(() => {
     setMounted(true);
-    setUser(getUser());
-  }, []);
+    const currentUser = getUser();
+    setUser(currentUser);
+    
+    // Enforce email verification for party users
+    if (currentUser && currentUser.role === 'party' && !currentUser.emailVerified) {
+      router.push('/verify-email');
+    }
+  }, [router]);
 
   const handleLogout = async () => {
     try {

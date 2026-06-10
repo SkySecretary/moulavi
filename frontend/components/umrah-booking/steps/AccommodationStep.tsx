@@ -11,6 +11,7 @@ import { HotelBookingTable } from '../components/HotelBookingTable';
 import { HotelCoverageIndicator } from '../components/HotelCoverageIndicator';
 import { ValidationMessage } from '../shared';
 import { cn } from '@/lib/utils';
+import { toDisplayDate, fromDisplayDate } from '@/lib/umrah/validation';
 import {
   InputOTP,
   InputOTPGroup,
@@ -264,8 +265,9 @@ export const AccommodationStep: React.FC<AccommodationStepProps> = ({
               <Label htmlFor="iqamaDob" className="text-[10px] font-bold text-primary/60 uppercase ml-1">Date of Birth</Label>
               <Input
                 id="iqamaDob"
-                type="date"
-                value={data.iqamaDetails?.iqamaDob || ''}
+                type="text"
+                placeholder="DD/MM/YY"
+                value={toDisplayDate(data.iqamaDetails?.iqamaDob || '')}
                 onChange={(e) => onChange({ iqamaDetails: { ...data.iqamaDetails, iqamaDob: e.target.value } })}
                 disabled={disabled}
                 className="h-10 bg-white border-gray-100 rounded-lg font-bold text-primary focus:ring-secondary/20 text-xs shadow-sm"
@@ -279,7 +281,17 @@ export const AccommodationStep: React.FC<AccommodationStepProps> = ({
                 type="tel"
                 placeholder="+966"
                 value={data.iqamaDetails?.iqamaMobile || ''}
-                onChange={(e) => onChange({ iqamaDetails: { ...data.iqamaDetails, iqamaMobile: e.target.value } })}
+                onChange={(e) => {
+                  let val = e.target.value;
+                  // If user starts typing and doesn't have +966, prepend it
+                  if (val && !val.startsWith('+966')) {
+                    // Remove leading 0 if they type 05...
+                    if (val.startsWith('0')) val = val.substring(1);
+                    // Prepend +966
+                    if (!val.startsWith('+')) val = '+966' + val;
+                  }
+                  onChange({ iqamaDetails: { ...data.iqamaDetails, iqamaMobile: val } });
+                }}
                 disabled={disabled}
                 className="h-10 bg-white border-gray-100 rounded-lg font-bold text-primary focus:ring-secondary/20 text-xs shadow-sm"
               />

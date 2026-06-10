@@ -3,6 +3,7 @@ export interface User {
   name: string;
   email: string;
   role: 'admin' | 'staff' | 'party';
+  emailVerified?: boolean;
 }
 
 export const getUser = (): User | null => {

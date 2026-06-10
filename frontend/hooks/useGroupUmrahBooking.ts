@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { partyAPI } from '@/lib/api';
 import { API_ENDPOINTS } from '@/lib/umrah/constants';
 import { BookingState, MasterData, Step1Data, Step2Data, Step3Data, Step4Data, Step5Data } from '@/lib/umrah/types';
+import { fromDisplayDate } from '@/lib/umrah/validation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -102,14 +103,19 @@ export const useGroupUmrahBooking = () => {
         party = response.data.party;
         setPartyId(providedPartyId);
       } else {
-        // Get party from authenticated user (for party role)
-        const response = await partyAPI.getMyParty();
-        party = response.data.party;
+        // Only attempt to get party from current user if they are a party user
+        const { getUser } = await import('@/lib/auth');
+        const user = getUser();
         
-        if (party) {
-          setPartyId(party.id);
-        } else {
-          toast.error('Party information not found');
+        if (user?.role === 'party') {
+          const response = await partyAPI.getMyParty();
+          party = response.data.party;
+          
+          if (party) {
+            setPartyId(party.id);
+          } else {
+            toast.error('Party information not found');
+          }
         }
       }
 
@@ -210,13 +216,25 @@ export const useGroupUmrahBooking = () => {
   const submitStep2 = async () => {
     setIsLoading(true);
     try {
+      // Convert dates to ISO for backend
+      const step2ISO = {
+        ...bookingState.step2Data,
+        arrivalDate: fromDisplayDate(bookingState.step2Data.arrivalDate),
+        departureDate: fromDisplayDate(bookingState.step2Data.departureDate),
+        hotelBookings: bookingState.step2Data.hotelBookings?.map(hb => ({
+          ...hb,
+          checkInDate: fromDisplayDate(hb.checkInDate),
+          checkOutDate: fromDisplayDate(hb.checkOutDate),
+        })),
+      };
+
       const response = await fetch(`${API_URL}/umrah-visa/group/step2`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
         },
-        body: JSON.stringify(bookingState.step2Data),
+        body: JSON.stringify(step2ISO),
       });
 
       const data = await response.json();
@@ -304,13 +322,28 @@ export const useGroupUmrahBooking = () => {
 
     setIsLoading(true);
     try {
+      // Convert dates to ISO for backend
+      const step2ISO = {
+        ...bookingState.step2Data,
+        arrivalDate: fromDisplayDate(bookingState.step2Data.arrivalDate),
+        departureDate: fromDisplayDate(bookingState.step2Data.departureDate),
+        hotelBookings: bookingState.step2Data.hotelBookings?.map(hb => ({
+          ...hb,
+          checkInDate: fromDisplayDate(hb.checkInDate),
+          checkOutDate: fromDisplayDate(hb.checkOutDate),
+        })),
+      };
+
       // Step 3 is transport selection, Step 4 is movements
       // Backend expects: step3 = movements, step4 = transport
       // So we need to swap them for backend compatibility
       const step3PayloadForBackend = {
-        // Movements from step4Data
-        movements: bookingState.step4Data.movements || [],
-        hotelBookings: bookingState.step2Data.hotelBookings || [],
+        // Movements from step4Data (convert dates to ISO)
+        movements: (bookingState.step4Data.movements || []).map(m => ({
+          ...m,
+          date: fromDisplayDate(m.date || ''),
+        })),
+        hotelBookings: step2ISO.hotelBookings || [],
       };
       
       const step4PayloadForBackend = {
@@ -339,7 +372,7 @@ export const useGroupUmrahBooking = () => {
       // Add JSON data as string
       formData.append('partyId', partyId);
       formData.append('step1', JSON.stringify(bookingState.step1Data));
-      formData.append('step2', JSON.stringify(bookingState.step2Data));
+      formData.append('step2', JSON.stringify(step2ISO));
       formData.append('step3', JSON.stringify(step3PayloadForBackend));
       formData.append('step4', JSON.stringify(step4PayloadForBackend));
 

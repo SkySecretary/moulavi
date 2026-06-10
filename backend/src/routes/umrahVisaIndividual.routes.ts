@@ -405,6 +405,7 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
           departureDateTime,
           departureAirportId: step2Data.departureAirportId,
           departureFlightNumber: step2Data.departureFlightNumber,
+          brn: step2Data.brn || null,
         },
       });
 
@@ -761,6 +762,7 @@ router.patch('/:bookingId/travel-details', authenticate, async (req, res) => {
       departureDate,
       departureTime,
       departureFlightNumber,
+      brn,
     } = req.body || {};
 
     // Combine date and time into datetime before storing
@@ -794,6 +796,7 @@ router.patch('/:bookingId/travel-details', authenticate, async (req, res) => {
         arrivalFlightNumber: arrivalFlightNumber ?? existing?.arrivalFlightNumber,
         departureDateTime: departureDateTime ?? existing?.departureDateTime,
         departureFlightNumber: departureFlightNumber ?? existing?.departureFlightNumber,
+        brn: brn !== undefined ? brn : existing?.brn,
         arrivalAirportId: req.body?.arrivalAirportId ?? existing?.arrivalAirportId,
         departureAirportId: req.body?.departureAirportId ?? existing?.departureAirportId,
       },
@@ -804,6 +807,7 @@ router.patch('/:bookingId/travel-details', authenticate, async (req, res) => {
         arrivalFlightNumber: arrivalFlightNumber ?? '',
         departureDateTime: departureDateTime ?? new Date(),
         departureFlightNumber: departureFlightNumber ?? '',
+        brn: brn || null,
         arrivalAirportId: req.body?.arrivalAirportId,
         departureAirportId: req.body?.departureAirportId,
       },
@@ -900,6 +904,7 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
             data: {
               checkInDate: h.checkInDate ? new Date(h.checkInDate) : undefined,
               checkOutDate: h.checkOutDate ? new Date(h.checkOutDate) : undefined,
+              brn: h.brn ?? undefined,
             },
           });
         }
@@ -928,14 +933,43 @@ router.patch('/:bookingId/passengers', authenticate, async (req, res) => {
     const { passengers } = req.body || {};
     if (Array.isArray(passengers)) {
       for (const p of passengers) {
-        if (!p?.id) continue;
-        await prisma.umrahPassenger.update({
-          where: { id: p.id },
-          data: {
-            fullName: p.fullName ?? undefined,
-            // Optional additional fields as needed
-          },
-        });
+        // Safe date conversion helper
+        const parseDate = (d: any) => {
+          if (!d) return null;
+          const date = new Date(d);
+          return isNaN(date.getTime()) ? null : date;
+        };
+
+        if (p.id && !p.id.startsWith('new-')) {
+          // Update existing passenger
+          await prisma.umrahPassenger.update({
+            where: { id: p.id },
+            data: {
+              fullName: p.fullName,
+              passportNumber: p.passportNumber || null,
+              nationality: p.nationality || null,
+              passportExpiry: parseDate(p.passportExpiry),
+              dateOfBirth: parseDate(p.dateOfBirth),
+              gender: p.gender || null,
+              phoneNumber: p.phoneNumber || null,
+            },
+          });
+        } else {
+          // Create new passenger
+          await prisma.umrahPassenger.create({
+            data: {
+              bookingId,
+              fullName: p.fullName || 'New Passenger',
+              passportNumber: p.passportNumber || null,
+              nationality: p.nationality || null,
+              passportExpiry: parseDate(p.passportExpiry),
+              dateOfBirth: parseDate(p.dateOfBirth),
+              gender: p.gender || 'male',
+              phoneNumber: p.phoneNumber || null,
+              isLeadPassenger: p.isLeadPassenger || false,
+            },
+          });
+        }
       }
     }
 

@@ -30,7 +30,12 @@ export const notFoundHandler = (
   res: Response,
   next: NextFunction
 ) => {
-  res.status(404).json({ error: 'Route not found' });
+  console.log(`[404] Route not found: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ 
+    error: 'Route not found',
+    method: req.method,
+    url: req.originalUrl
+  });
 };
 
 export const asyncHandler = (fn: Function) => {

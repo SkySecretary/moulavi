@@ -53,7 +53,7 @@ export default function ViewUmrahVisaBookingPage() {
   const formatDate = (date?: string | Date) => {
     if (!date) return 'N/A';
     try {
-      return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+      return new Date(date).toLocaleDateString('en-US', { timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric' });
     } catch {
       return 'N/A';
     }
@@ -64,8 +64,8 @@ export default function ViewUmrahVisaBookingPage() {
     try {
       const dt = new Date(dateTime);
       return {
-        date: dt.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
-        time: dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        date: dt.toLocaleDateString('en-US', { timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric' }),
+        time: dt.toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' }),
       };
     } catch {
       return { date: 'N/A', time: 'N/A' };

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Hotel, Plus, Search } from 'lucide-react';
 import { HotelBooking, Location, Hotel as HotelType } from '@/lib/umrah/types';
 import { QuickAddHotelDialog } from './QuickAddHotelDialog';
+import { toDisplayDate, fromDisplayDate } from '@/lib/umrah/validation';
 
 interface HotelBookingTableProps {
   hotelBookings: HotelBooking[];
@@ -243,21 +244,22 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                 </td>
                 <td className="border border-gray-200 p-3">
                   <Input
-                    type="date"
-                    value={booking.checkInDate}
-                    min={arrivalDate}
-                    max={departureDate}
+                    type="text"
+                    placeholder="DD/MM/YY"
+                    value={toDisplayDate(booking.checkInDate)}
                     onChange={(e) => {
                       const selectedDate = e.target.value;
                       onUpdateBooking(index, 'checkInDate', selectedDate);
-                      const durationValue = durationInputs[index] ?? (duration > 0 ? duration.toString() : '');
+                      const durationValue = durationInputs[index] ?? (booking.checkInDate && booking.checkOutDate ? Math.ceil((new Date(fromDisplayDate(booking.checkOutDate)).getTime() - new Date(fromDisplayDate(booking.checkInDate)).getTime()) / (1000 * 60 * 60 * 24)).toString() : '');
                       const durationNum = parseInt(durationValue, 10);
-                      if (!isNaN(durationNum) && durationNum > 0 && selectedDate) {
-                        const checkIn = new Date(selectedDate);
-                        const checkOut = new Date(checkIn);
-                        checkOut.setDate(checkOut.getDate() + durationNum);
-                        const checkOutStr = checkOut.toISOString().split('T')[0];
-                        onUpdateBooking(index, 'checkOutDate', checkOutStr);
+                      if (!isNaN(durationNum) && durationNum > 0 && selectedDate && selectedDate.split('/').length === 3) {
+                        const checkIn = new Date(fromDisplayDate(selectedDate));
+                        if (!isNaN(checkIn.getTime())) {
+                          const checkOut = new Date(checkIn);
+                          checkOut.setDate(checkOut.getDate() + durationNum);
+                          const checkOutStr = toDisplayDate(checkOut.toISOString().split('T')[0]);
+                          onUpdateBooking(index, 'checkOutDate', checkOutStr);
+                        }
                       }
                     }}
                     className="w-full h-12 text-base"
@@ -269,17 +271,19 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                     type="number"
                     min="1"
                     placeholder="Days"
-                    value={durationInputs[index] ?? (booking.checkInDate && booking.checkOutDate ? Math.ceil((new Date(booking.checkOutDate).getTime() - new Date(booking.checkInDate).getTime()) / (1000 * 60 * 60 * 24)).toString() : '')}
+                    value={durationInputs[index] ?? (booking.checkInDate && booking.checkOutDate ? Math.ceil((new Date(fromDisplayDate(booking.checkOutDate)).getTime() - new Date(fromDisplayDate(booking.checkInDate)).getTime()) / (1000 * 60 * 60 * 24)).toString() : '')}
                     onChange={(e) => {
                       const inputValue = e.target.value;
                       setDurationInputs(prev => ({ ...prev, [index]: inputValue }));
                       const durationNum = parseInt(inputValue, 10);
-                      if (!isNaN(durationNum) && durationNum > 0 && booking.checkInDate) {
-                        const checkIn = new Date(booking.checkInDate);
-                        const checkOut = new Date(checkIn);
-                        checkOut.setDate(checkOut.getDate() + durationNum);
-                        const checkOutStr = checkOut.toISOString().split('T')[0];
-                        onUpdateBooking(index, 'checkOutDate', checkOutStr);
+                      if (!isNaN(durationNum) && durationNum > 0 && booking.checkInDate && booking.checkInDate.split('/').length === 3) {
+                        const checkIn = new Date(fromDisplayDate(booking.checkInDate));
+                        if (!isNaN(checkIn.getTime())) {
+                          const checkOut = new Date(checkIn);
+                          checkOut.setDate(checkOut.getDate() + durationNum);
+                          const checkOutStr = toDisplayDate(checkOut.toISOString().split('T')[0]);
+                          onUpdateBooking(index, 'checkOutDate', checkOutStr);
+                        }
                       }
                     }}
                     className="w-full h-12 text-base"
@@ -288,9 +292,9 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                 </td>
                 <td className="border border-gray-200 p-3">
                   <Input
-                    type="date"
-                    value={booking.checkOutDate}
-                    min={booking.checkInDate || arrivalDate}
+                    type="text"
+                    placeholder="DD/MM/YY"
+                    value={toDisplayDate(booking.checkOutDate)}
                     onChange={(e) => onUpdateBooking(index, 'checkOutDate', e.target.value)}
                     className="w-full h-12 text-base"
                     disabled={disabled}
@@ -368,11 +372,11 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                 <div className="grid grid-cols-2 gap-2">
                    <div className="space-y-1">
                       <Label className="text-xs">Check-in</Label>
-                      <Input type="date" value={booking.checkInDate} onChange={(e) => onUpdateBooking(index, 'checkInDate', e.target.value)} />
+                      <Input type="text" placeholder="DD/MM/YY" value={toDisplayDate(booking.checkInDate)} onChange={(e) => onUpdateBooking(index, 'checkInDate', e.target.value)} />
                    </div>
                    <div className="space-y-1">
                       <Label className="text-xs">Check-out</Label>
-                      <Input type="date" value={booking.checkOutDate} onChange={(e) => onUpdateBooking(index, 'checkOutDate', e.target.value)} />
+                      <Input type="text" placeholder="DD/MM/YY" value={toDisplayDate(booking.checkOutDate)} onChange={(e) => onUpdateBooking(index, 'checkOutDate', e.target.value)} />
                    </div>
                 </div>
                 <div className="space-y-1">

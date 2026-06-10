@@ -30,65 +30,92 @@ export default function TripInfoPage() {
   const router = useRouter();
   const user = getUser();
   const [bookingList, setBookingList] = useState<UmrahVisaBooking[]>([]);
-  const [filteredData, setFilteredData] = useState<UmrahVisaBooking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [arrivalDateFrom, setArrivalDateFrom] = useState('');
+  const [arrivalDateTo, setArrivalDateTo] = useState('');
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
   const [activeTab, setActiveTab] = useState<'iqama' | 'hotel'>('iqama');
   const [editingIqama, setEditingIqama] = useState<Record<string, {
-    hotelName: string;
-    brn: string;
+    makkahHotelName: string;
+    makkahBrn: string;
+    madinahHotelName: string;
+    madinahBrn: string;
   }>>({});
+
+  // ...
 
   useEffect(() => {
     if (!user || !hasRole(['admin', 'staff'])) {
       router.push('/');
       return;
     }
-    fetchBookings();
-  }, []);
+    fetchBookings(pagination.page);
+  }, [pagination.page, searchQuery, arrivalDateFrom, arrivalDateTo, activeTab]);
 
-  useEffect(() => {
-    filterData();
-  }, [searchQuery, bookingList, activeTab]);
-
-  const fetchBookings = async () => {
+  const fetchBookings = async (page = 1) => {
   try {
     setIsLoading(true);
-    const response = await umrahVisaAPI.getBookings({ limit: 1000 });
+    const response = await umrahVisaAPI.getBookings({ 
+      limit: 10,
+      page: page,
+      search: searchQuery,
+      arrivalDateFrom: arrivalDateFrom,
+      arrivalDateTo: arrivalDateTo,
+      accommodationType: activeTab,
+      status: ['group_assigned', 'voucher', 'bill']
+    });
     const data = response.data;
 
     const bookingsData = data.bookings
-      .filter((booking: any) => 
-        booking.status === 'group_assigned' || 
-        booking.status === 'voucher' || 
-        booking.status === 'bill'
-      )
-      .map((booking: any) => ({
-        ...booking,
-        // Map hotel details from sponsorIqamaDetails for Iqama bookings (using Makkah fields as primary)
-        hotelName: booking.accommodationType === 'iqama' && booking.sponsorIqamaDetails?.[0]?.makkahHotelName || null,
-        brn: booking.accommodationType === 'iqama' && booking.sponsorIqamaDetails?.[0]?.makkahBrn || null,
-      }));
+      .map((booking: any) => {
+        const iqama = booking.sponsorIqamaDetails?.[0];
+        return {
+          ...booking,
+          // Map hotel details from sponsorIqamaDetails for Iqama bookings
+          makkahHotelName: booking.accommodationType === 'iqama' && iqama?.makkahHotelName || null,
+          makkahBrn: booking.accommodationType === 'iqama' && iqama?.makkahBrn || null,
+          madinahHotelName: booking.accommodationType === 'iqama' && iqama?.madinahHotelName || null,
+          madinahBrn: booking.accommodationType === 'iqama' && iqama?.madinahBrn || null,
+        };
+      });
 
     // Initialize editing state for Iqama bookings
     const iqamaEditing: Record<string, any> = {};
     bookingsData.forEach((booking: any) => {
       if (booking.accommodationType === 'iqama') {
+        const iqama = booking.sponsorIqamaDetails?.[0];
         iqamaEditing[booking.id] = {
-          hotelName: booking.hotelName || '',
-          brn: booking.brn || '',
+          makkahHotelName: iqama?.makkahHotelName || '',
+          makkahBrn: iqama?.makkahBrn || '',
+          madinahHotelName: iqama?.madinahHotelName || '',
+          madinahBrn: iqama?.madinahBrn || '',
         };
       }
     });
     setEditingIqama(iqamaEditing);
 
     setBookingList(bookingsData);
+    setPagination(data.pagination);
   } catch (error) {
     console.error('Error fetching bookings:', error);
     toast.error('Failed to load bookings');
   } finally {
     setIsLoading(false);
   }
+  };
+
+  const handleFilterChange = (key: string, value: string) => {
+    if (key === 'search') setSearchQuery(value);
+    else if (key === 'dateFrom') setArrivalDateFrom(value);
+    else if (key === 'dateTo') setArrivalDateTo(value);
+    
+    setPagination(prev => ({ ...prev, page: 1 }));
   };
 
   const handleUpdateIqamaHotel = async (bookingId: string) => {
@@ -98,8 +125,10 @@ export default function TripInfoPage() {
     try {
       toast.info('Updating hotel details...');
       await umrahVisaAPI.updateAccommodation(bookingId, {
-        makkahHotelName: data.hotelName,
-        makkahBrn: data.brn,
+        makkahHotelName: data.makkahHotelName,
+        makkahBrn: data.makkahBrn,
+        madinahHotelName: data.madinahHotelName,
+        madinahBrn: data.madinahBrn,
       });
       toast.success('Hotel details updated successfully');
       fetchBookings();
@@ -108,54 +137,50 @@ export default function TripInfoPage() {
     }
   };
 
-  const filterData = () => {
-    let filtered = bookingList;
-
-    if (activeTab === 'iqama') {
-      filtered = filtered.filter(booking => booking.accommodationType === 'iqama');
-    } else if (activeTab === 'hotel') {
-      filtered = filtered.filter(booking => booking.accommodationType === 'hotel');
-    }
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(booking =>
-        booking.party?.partyName?.toLowerCase().includes(query) ||
-        booking.groupNumber?.toLowerCase().includes(query) ||
-        booking.groupName?.toLowerCase().includes(query) ||
-        booking.sponsorIqamaDetails?.some((id: any) => id.iqamaNumber?.toLowerCase().includes(query))
-      );
-    }
-
-    setFilteredData(filtered);
-  };
-
   const totalIqamaPassengers = useMemo(() => {
     if (activeTab !== 'iqama') return 0;
-    return filteredData.reduce((sum, booking) => {
+    return bookingList.reduce((sum, booking) => {
       return sum + (booking.passengerCount || 0);
     }, 0);
-  }, [filteredData, activeTab]);
+  }, [bookingList, activeTab]);
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'N/A';
+      return date.toLocaleDateString('en-US', {
+        timeZone: 'UTC',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      return 'N/A';
+    }
   };
 
   const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    }) + ' ' + date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'N/A';
+      const d = date.toLocaleDateString('en-US', {
+        timeZone: 'UTC',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+      const t = date.toLocaleTimeString('en-US', {
+        timeZone: 'UTC',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+      return `${d} ${t}`;
+    } catch {
+      return 'N/A';
+    }
   };
 
   const copyToClipboard = async (text: string, label?: string) => {
@@ -223,8 +248,10 @@ export default function TripInfoPage() {
     const formatDateShort = (dateStr: string | undefined) => {
       if (!dateStr) return 'N/A';
       return new Date(dateStr).toLocaleDateString('en-US', {
+        timeZone: 'UTC',
         day: '2-digit',
         month: 'short',
+        year: 'numeric',
       });
     };
 
@@ -255,9 +282,9 @@ export default function TripInfoPage() {
       if (mainIqama) {
         makkahHotelName = mainIqama.makkahHotelName || 'N/A';
         makkahBrn = brnToString(mainIqama.makkahBrn);
-        // Simplified: only one hotel
-        makkahCheckIn = 'N/A'; 
-        makkahCheckOut = 'N/A';
+        
+        madinahHotelName = mainIqama.madinahHotelName || 'N/A';
+        madinahBrn = brnToString(mainIqama.madinahBrn);
 
         // Additional Iqama info for copy text
         iqamaInfo = `💳 *Iqama Number:* ${mainIqama.iqamaNumber || 'N/A'}\n`;
@@ -277,7 +304,7 @@ export default function TripInfoPage() {
     }
 
     if (makkahHotelName !== 'N/A') {
-      text += `🏨 *Hotel Name:* ${makkahHotelName}\n`;
+      text += `🏨 *Makkah Hotel:* ${makkahHotelName}\n`;
       text += `📄 *Agreement No.:* ${makkahBrn}\n`;
       if (booking.accommodationType === 'hotel') {
         text += `📅 *Check-in:* ${makkahCheckIn}\n`;
@@ -289,8 +316,11 @@ export default function TripInfoPage() {
     if (madinahHotelName !== 'N/A') {
       text += `🏨 *Madinah Hotel:* ${madinahHotelName}\n`;
       text += `📄 *Agreement No.:* ${madinahBrn}\n`;
-      text += `📅 *Check-in:* ${madinahCheckIn}\n`;
-      text += `📅 *Check-out:* ${madinahCheckOut}\n\n`;
+      if (booking.accommodationType === 'hotel') {
+        text += `📅 *Check-in:* ${madinahCheckIn}\n`;
+        text += `📅 *Check-out:* ${madinahCheckOut}\n`;
+      }
+      text += `\n`;
     }
 
     text += `🛫 *Arrival Flight:* ${mainTravel?.arrivalFlightNumber || 'N/A'}\n`;
@@ -387,7 +417,7 @@ export default function TripInfoPage() {
             <CardHeader>
               <CardTitle>Trip Information</CardTitle>
               <CardDescription>
-                Showing {filteredData.length} of {bookingList.length} bookings
+                Showing {bookingList.length} of {pagination.total} bookings
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -402,7 +432,7 @@ export default function TripInfoPage() {
                         </div>
                         <div>
                           <p className="text-sm font-medium text-gray-600">Total Passengers (BEDS)</p>
-                          <p className="text-2xl font-bold text-gray-900">{totalIqamaPassengers}</p>
+                          <p className="text-2xl font-bold text-gray-900">{pagination.totalPassengers || 0}</p>
                         </div>
                       </div>
                     </div>
@@ -434,14 +464,28 @@ export default function TripInfoPage() {
                 </button>
               </div>
 
-              {/* Search Bar */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              {/* Search and Filters */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                  <Input
+                    placeholder="Search by party, group, iqama..."
+                    value={searchQuery}
+                    onChange={(e) => handleFilterChange('search', e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
                 <Input
-                  placeholder="Search by party name, group number, iqama..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  type="date"
+                  placeholder="Arrival Date From"
+                  value={arrivalDateFrom}
+                  onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
+                />
+                <Input
+                  type="date"
+                  placeholder="Arrival Date To"
+                  value={arrivalDateTo}
+                  onChange={(e) => handleFilterChange('dateTo', e.target.value)}
                 />
               </div>
 
@@ -469,16 +513,16 @@ export default function TripInfoPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredData.length === 0 ? (
+                    {bookingList.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={activeTab === 'iqama' ? 8 : 9} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                           {searchQuery 
                             ? 'No trips found matching your search' 
                             : 'No trip information available'}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredData.map((booking) => {
+                      bookingList.map((booking) => {
                         const iqamaDetails = booking.sponsorIqamaDetails?.find(id => !id.isAlternate);
                         return (
                           <TableRow key={booking.id} className="group">
@@ -814,26 +858,49 @@ export default function TripInfoPage() {
 
                                   {/* New Editable Hotel/BRN Fields */}
                                   <div className="space-y-2">
-                                    <div className="space-y-1">
-                                      <label className="text-[10px] font-semibold text-purple-700">Hotel Name & BRN</label>
-                                      <Input
-                                        placeholder="Hotel Name"
-                                        value={editingIqama[booking.id!]?.hotelName || ''}
-                                        onChange={(e) => setEditingIqama({
-                                          ...editingIqama,
-                                          [booking.id!]: { ...editingIqama[booking.id!], hotelName: e.target.value }
-                                        })}
-                                        className="h-7 text-[10px] px-2"
-                                      />
-                                      <Input
-                                        placeholder="BRN"
-                                        value={editingIqama[booking.id!]?.brn || ''}
-                                        onChange={(e) => setEditingIqama({
-                                          ...editingIqama,
-                                          [booking.id!]: { ...editingIqama[booking.id!], brn: e.target.value }
-                                        })}
-                                        className="h-7 text-[10px] px-2"
-                                      />
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="space-y-1">
+                                        <label className="text-[10px] font-semibold text-purple-700">Hotel 1 (Makkah)</label>
+                                        <Input
+                                          placeholder="Makkah Hotel"
+                                          value={editingIqama[booking.id!]?.makkahHotelName || ''}
+                                          onChange={(e) => setEditingIqama({
+                                            ...editingIqama,
+                                            [booking.id!]: { ...editingIqama[booking.id!], makkahHotelName: e.target.value }
+                                          })}
+                                          className="h-7 text-[10px] px-2"
+                                        />
+                                        <Input
+                                          placeholder="BRN 1"
+                                          value={editingIqama[booking.id!]?.makkahBrn || ''}
+                                          onChange={(e) => setEditingIqama({
+                                            ...editingIqama,
+                                            [booking.id!]: { ...editingIqama[booking.id!], makkahBrn: e.target.value }
+                                          })}
+                                          className="h-7 text-[10px] px-2"
+                                        />
+                                      </div>
+                                      <div className="space-y-1">
+                                        <label className="text-[10px] font-semibold text-purple-700">Hotel 2 (Madinah)</label>
+                                        <Input
+                                          placeholder="Madinah Hotel"
+                                          value={editingIqama[booking.id!]?.madinahHotelName || ''}
+                                          onChange={(e) => setEditingIqama({
+                                            ...editingIqama,
+                                            [booking.id!]: { ...editingIqama[booking.id!], madinahHotelName: e.target.value }
+                                          })}
+                                          className="h-7 text-[10px] px-2"
+                                        />
+                                        <Input
+                                          placeholder="BRN 2"
+                                          value={editingIqama[booking.id!]?.madinahBrn || ''}
+                                          onChange={(e) => setEditingIqama({
+                                            ...editingIqama,
+                                            [booking.id!]: { ...editingIqama[booking.id!], madinahBrn: e.target.value }
+                                          })}
+                                          className="h-7 text-[10px] px-2"
+                                        />
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
@@ -1070,6 +1137,41 @@ export default function TripInfoPage() {
                     )}
                   </TableBody>
                 </Table>
+              </div>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between mt-6">
+                <p className="text-sm text-gray-500">
+                  Showing {pagination.total > 0 ? ((pagination.page - 1) * (pagination.limit || 10)) + 1 : 0} to{' '}
+                  {Math.min(pagination.page * (pagination.limit || 10), pagination.total)} of{' '}
+                  {pagination.total} results
+                </p>
+                
+                {pagination.totalPages > 1 && (
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                      disabled={pagination.page === 1}
+                    >
+                      Previous
+                    </Button>
+                    
+                    <span className="text-sm text-gray-500">
+                      Page {pagination.page} of {pagination.totalPages}
+                    </span>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                      disabled={pagination.page === pagination.totalPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

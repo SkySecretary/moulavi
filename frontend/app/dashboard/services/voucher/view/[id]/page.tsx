@@ -44,7 +44,7 @@ export default function ViewVoucherPage() {
   const formatDate = (date?: string | Date) => {
     if (!date) return 'N/A';
     try {
-      return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+      return new Date(date).toLocaleDateString('en-US', { timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric' });
     } catch {
       return 'N/A';
     }

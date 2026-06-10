@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Mail, ShieldCheck, Loader2, ArrowLeft } from 'lucide-react';
-import { getUser, setUser } from '@/lib/auth';
+import { getUser, setUser, removeUser } from '@/lib/auth';
 
 export default function VerifyEmailPage() {
   const router = useRouter();
@@ -102,36 +102,36 @@ export default function VerifyEmailPage() {
 
         <Card className="border-0 shadow-2xl rounded-[2rem] bg-white overflow-hidden">
           <CardHeader className="pt-10 pb-2 px-10 text-center">
-            <CardTitle className="text-3xl font-black text-emerald-900 tracking-tighter uppercase italic">
-              Verify Your Email
+            <CardTitle className="text-3xl font-black text-emerald-900 tracking-tighter uppercase italic text-center">
+              Email Not Verified
             </CardTitle>
-            <CardDescription className="font-bold text-xs uppercase tracking-widest text-emerald-700/60 mt-2">
-              Verification required for protocol access
+            <CardDescription className="font-bold text-xs uppercase tracking-widest text-emerald-700/60 mt-2 text-center">
+              Protocol Verification Required
             </CardDescription>
           </CardHeader>
 
           <CardContent className="p-10 space-y-6">
-            <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 flex items-center gap-4">
-              <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                <ShieldCheck className="h-5 w-5 text-emerald-600" />
+            <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 flex items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
+                <ShieldCheck className="h-5 w-5 text-amber-600" />
               </div>
               <div>
-                <p className="text-[10px] font-black text-emerald-900/40 uppercase tracking-widest">Logged in as</p>
-                <p className="font-bold text-emerald-900 truncate">{user.email}</p>
+                <p className="text-[10px] font-black text-amber-900/40 uppercase tracking-widest">Status</p>
+                <p className="font-bold text-amber-900 truncate">Verification Required to Continue</p>
               </div>
             </div>
 
             {!isCodeSent ? (
               <div className="space-y-4">
                 <p className="text-sm text-gray-500 leading-relaxed text-center">
-                  To secure your account and activate your gateway access, we need to verify your email address.
+                  Your email address is not yet verified. Please continue to verify your account to access the agency portal.
                 </p>
                 <Button 
                   onClick={handleSendCode}
                   disabled={isSending}
                   className="w-full h-14 bg-emerald-900 hover:bg-emerald-800 text-white font-black uppercase tracking-[0.2em] rounded-2xl"
                 >
-                  {isSending ? <Loader2 className="h-5 w-5 animate-spin" /> : "Send Verification Code"}
+                  {isSending ? <Loader2 className="h-5 w-5 animate-spin" /> : "Continue to Verify"}
                 </Button>
               </div>
             ) : (
@@ -170,7 +170,7 @@ export default function VerifyEmailPage() {
             
             <button 
               onClick={() => {
-                localStorage.clear();
+                removeUser();
                 router.push('/login');
               }}
               className="w-full flex items-center justify-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-red-500 transition-colors pt-4 border-t border-gray-50"

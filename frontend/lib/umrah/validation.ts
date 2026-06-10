@@ -17,12 +17,12 @@ export const formatFlightNumber = (value: string): string => {
     if (allChars.length <= 2) return allChars;
     // First 2 chars, then dash, then up to 4 more chars
     const firstPart = allChars.substring(0, 2);
-    const secondPart = allChars.substring(2, 6); // Max 4 chars
+    const secondPart = allChars.substring(2, 7); // Max 5 chars
     return secondPart.length > 0 ? `${firstPart}-${secondPart}` : `${firstPart}-`;
   } else {
     // Dash found, format both parts
     const firstPart = parts[0].substring(0, 2).replace(/[^A-Z0-9]/g, '');
-    const secondPart = parts.slice(1).join('').substring(0, 4).replace(/[^A-Z0-9]/g, '');
+    const secondPart = parts.slice(1).join('').substring(0, 5).replace(/[^A-Z0-9]/g, '');
     
     if (firstPart.length === 0) return '';
     if (firstPart.length < 2) return firstPart + (secondPart.length > 0 ? '-' + secondPart : '-');
@@ -30,11 +30,51 @@ export const formatFlightNumber = (value: string): string => {
   }
 };
 
+// Strict dd/mm/yy validation regex
+export const DATE_FORMAT_REGEX = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{2}$/;
+
+/**
+ * Validates a date string specifically in DD/MM/YY format
+ */
+export const isValidStrictDate = (dateStr: string): boolean => {
+  if (!dateStr) return false;
+  return DATE_FORMAT_REGEX.test(dateStr);
+};
+
+/**
+ * Converts YYYY-MM-DD to DD/MM/YY
+ */
+export const toDisplayDate = (isoDate: string): string => {
+  if (!isoDate) return '';
+  if (DATE_FORMAT_REGEX.test(isoDate)) return isoDate; // Already in display format
+  
+  const parts = isoDate.split('-');
+  if (parts.length !== 3) return isoDate;
+  
+  const [year, month, day] = parts;
+  return `${day}/${month}/${year.substring(2)}`;
+};
+
+/**
+ * Converts DD/MM/YY to YYYY-MM-DD
+ */
+export const fromDisplayDate = (displayDate: string): string => {
+  if (!displayDate) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(displayDate)) return displayDate; // Already in ISO format
+  
+  const parts = displayDate.split('/');
+  if (parts.length !== 3) return displayDate;
+  
+  const [day, month, year] = parts;
+  const fullYear = year.length === 2 ? `20${year}` : year;
+  return `${fullYear}-${month}-${day}`;
+};
+
 export const calculateDuration = (arrival: string, departure: string) => {
   if (!arrival || !departure) return { days: 0, error: '' };
 
-  const arrivalDate = new Date(arrival);
-  const departureDate = new Date(departure);
+  const arrivalDate = new Date(fromDisplayDate(arrival));
+  const departureDate = new Date(fromDisplayDate(departure));
   
   if (departureDate <= arrivalDate) {
     return { days: 0, error: 'Departure date must be after arrival date' };
@@ -58,8 +98,8 @@ export const calculateHotelCoverage = (arrivalDate: string, departureDate: strin
     return { totalCovered: 0, uncoveredDates: [], remainingDays: 0, totalBookedDays: 0 };
   }
 
-  const arrival = new Date(arrivalDate);
-  const departure = new Date(departureDate);
+  const arrival = new Date(fromDisplayDate(arrivalDate));
+  const departure = new Date(fromDisplayDate(departureDate));
   const allDates: string[] = [];
   
   const currentDate = new Date(arrival);
@@ -73,8 +113,8 @@ export const calculateHotelCoverage = (arrivalDate: string, departureDate: strin
   
   hotelBookings.forEach(booking => {
     if (booking.checkInDate && booking.checkOutDate) {
-      const checkIn = new Date(booking.checkInDate);
-      const checkOut = new Date(booking.checkOutDate);
+      const checkIn = new Date(fromDisplayDate(booking.checkInDate));
+      const checkOut = new Date(fromDisplayDate(booking.checkOutDate));
       const current = new Date(checkIn);
       
       // Calculate total booked days for this hotel
@@ -119,8 +159,16 @@ export const validateStep2 = (data: Step2Data, airports: any[], step1Data?: Step
     return 'Please fill in all required arrival details';
   }
 
+  if (!isValidStrictDate(data.arrivalDate)) {
+    return 'Arrival date must be in DD/MM/YY format';
+  }
+
   if (!data.departureDate || !data.departureTime || !data.departureAirportId || !data.departureFlightNumber) {
     return 'Please fill in all required departure details';
+  }
+
+  if (!isValidStrictDate(data.departureDate)) {
+    return 'Departure date must be in DD/MM/YY format';
   }
 
   // Passenger count is required in Step 2 for both individual and group bookings
@@ -129,11 +177,11 @@ export const validateStep2 = (data: Step2Data, airports: any[], step1Data?: Step
   }
 
   if (!FLIGHT_NUMBER_REGEX.test(data.arrivalFlightNumber)) {
-    return 'Arrival flight number must be in format: XX-XXXX (2 alphanumeric, dash, 1-4 alphanumeric)';
+    return 'Arrival flight number must be in format: XX-XXXXX (2 alphanumeric, dash, 1-5 alphanumeric)';
   }
 
   if (!FLIGHT_NUMBER_REGEX.test(data.departureFlightNumber)) {
-    return 'Departure flight number must be in format: XX-XXXX (2 alphanumeric, dash, 1-4 alphanumeric)';
+    return 'Departure flight number must be in format: XX-XXXXX (2 alphanumeric, dash, 1-5 alphanumeric)';
   }
 
   const durationResult = calculateDuration(data.arrivalDate, data.departureDate);
@@ -143,8 +191,8 @@ export const validateStep2 = (data: Step2Data, airports: any[], step1Data?: Step
 
   // Validate against Umrah visa master dates
   if (umrahVisaMaster) {
-    const arrivalDate = new Date(data.arrivalDate);
-    const departureDate = new Date(data.departureDate);
+    const arrivalDate = new Date(fromDisplayDate(data.arrivalDate));
+    const departureDate = new Date(fromDisplayDate(data.departureDate));
     const lastArrivalDate = new Date(umrahVisaMaster.lastArrivalDate);
     const lastDepartureDate = new Date(umrahVisaMaster.lastDepartureDate);
 
@@ -159,16 +207,16 @@ export const validateStep2 = (data: Step2Data, airports: any[], step1Data?: Step
 
   // Hotel bookings validation for group bookings (hotels moved to Step 2)
   if (data.hotelBookings && data.hotelBookings.length > 0) {
-    const arrival = new Date(data.arrivalDate);
-    const departure = new Date(data.departureDate);
+    const arrival = new Date(fromDisplayDate(data.arrivalDate));
+    const departure = new Date(fromDisplayDate(data.departureDate));
     
     for (const booking of data.hotelBookings) {
       if (!booking.cityId || !booking.hotelId || !booking.checkInDate || !booking.checkOutDate) {
         return 'Please fill in all hotel booking details';
       }
       
-      const checkIn = new Date(booking.checkInDate);
-      const checkOut = new Date(booking.checkOutDate);
+      const checkIn = new Date(fromDisplayDate(booking.checkInDate));
+      const checkOut = new Date(fromDisplayDate(booking.checkOutDate));
       
       // Check-out must be after check-in
       if (checkOut <= checkIn) {
@@ -279,10 +327,10 @@ export const validateStep3 = (
         if (!booking.cityId || !booking.hotelId || !booking.checkInDate || !booking.checkOutDate) {
           return 'Please fill in all hotel booking details';
         }
-        
-        const checkIn = new Date(booking.checkInDate);
-        const checkOut = new Date(booking.checkOutDate);
-        
+
+        const checkIn = new Date(fromDisplayDate(booking.checkInDate));
+        const checkOut = new Date(fromDisplayDate(booking.checkOutDate));
+
         if (checkOut <= checkIn) {
           return 'Check-out date must be after check-in date';
         }
@@ -295,7 +343,7 @@ export const validateStep3 = (
       if (data.ziyarah && data.ziyarah.length) {
         for (const z of data.ziyarah) {
           if (!z.date) continue;
-          const d = new Date(z.date + 'T00:00:00');
+          const d = new Date(fromDisplayDate(z.date) + 'T00:00:00');
           // 5 = Friday when using getUTCDay with date-only baseline
           if (d.getUTCDay() === 5) {
             return `${z.city} Ziyarah cannot be scheduled on Friday. Please adjust the date.`;
@@ -305,192 +353,192 @@ export const validateStep3 = (
           }
         }
       }
-    }
-  }
+      }
+      }
 
-  return null;
-};
+      return null;
+      };
 
-export const validateStep4 = (
-  data: Step4Data, 
-  arrivalDate?: string,
-  departureDate?: string,
-  ziyarathCounts?: { [date: string]: number },
-  step2Data?: { passengerCount?: number; arrivalAirportId?: string },
-  locationMasters?: any[]
-): string | null => {
-  // Step 4: Movement Details (for group bookings) or Transport Selection (for individual)
-  // Check if this is a group booking (has movements)
-  const isGroupBooking = data.movements !== undefined;
+      export const validateStep4 = (
+      data: Step4Data, 
+      arrivalDate?: string,
+      departureDate?: string,
+      ziyarathCounts?: { [date: string]: number },
+      step2Data?: { passengerCount?: number; arrivalAirportId?: string },
+      locationMasters?: any[]
+      ): string | null => {
+      // Step 4: Movement Details (for group bookings) or Transport Selection (for individual)
+      // Check if this is a group booking (has movements)
+      const isGroupBooking = data.movements !== undefined;
 
-  if (isGroupBooking) {
-    // Validate unified movements array
-    if (!data.movements || data.movements.length === 0) {
+      if (isGroupBooking) {
+      // Validate unified movements array
+      if (!data.movements || data.movements.length === 0) {
       return 'Please add movements. Select transport routes in Step 3 to auto-generate, or add manually.';
-  }
+      }
 
-    // Validate each movement
-    for (const movement of data.movements) {
+      // Validate each movement
+      for (const movement of data.movements) {
       if (!movement.fromLocationId || !movement.toLocationId) {
-        return 'Please fill in from and to locations for all movements';
+      return 'Please fill in from and to locations for all movements';
       }
       if (!movement.date) {
-        return 'Date is required for all movements';
+      return 'Date is required for all movements';
       }
       if (!movement.time) {
-        return 'Time is required for all movements';
+      return 'Time is required for all movements';
       }
 
-      const moveDate = new Date(movement.date);
+      const moveDate = new Date(fromDisplayDate(movement.date));
       const isFriday = moveDate.getUTCDay() === 5;
       const hours = parseInt(movement.time.split(':')[0], 10);
       const isZiyarath = (movement as any).type === 'ziyarath' || (movement as any).tripType === 'ziyarath';
 
       if (isFriday && isZiyarath && hours < 14) {
-        return `Ziyarah on Friday (${movement.date}) must start from 14:00 (2 PM) onwards.`;
+      return `Ziyarah on Friday (${movement.date}) must start from 14:00 (2 PM) onwards.`;
       }
 
       if (locationMasters) {
-        const fromLocation = locationMasters.find((lm: any) => lm.id === movement.fromLocationId);
-        const toLocation = locationMasters.find((lm: any) => lm.id === movement.toLocationId);
+      const fromLocation = locationMasters.find((lm: any) => lm.id === movement.fromLocationId);
+      const toLocation = locationMasters.find((lm: any) => lm.id === movement.toLocationId);
 
-        const currentCity = (fromLocation?.city || fromLocation?.cityMaster?.name || '').toLowerCase().trim();
-        const nextCity = (toLocation?.city || toLocation?.cityMaster?.name || '').toLowerCase().trim();
+      const currentCity = (fromLocation?.city || fromLocation?.cityMaster?.name || '').toLowerCase().trim();
+      const nextCity = (toLocation?.city || toLocation?.cityMaster?.name || '').toLowerCase().trim();
 
-        if ((currentCity === 'makkah' || currentCity === 'mecca') && 
-            (nextCity === 'madinah' || nextCity === 'madina' || nextCity === 'medina') && 
-            hours < 14) {
-          return `Movement from Makkah to Madinah (${movement.date}) must start from 14:00 (2 PM) onwards.`;
-        }
+      if ((currentCity === 'makkah' || currentCity === 'mecca') && 
+          (nextCity === 'madinah' || nextCity === 'madina' || nextCity === 'medina') && 
+          hours < 14) {
+        return `Movement from Makkah to Madinah (${movement.date}) must start from 14:00 (2 PM) onwards.`;
       }
-    }
+      }
+      }
 
-    // Validate ziyarath counts if counts are provided
-    if (ziyarathCounts) {
+      // Validate ziyarath counts if counts are provided
+      if (ziyarathCounts) {
       const ziyarathMovements = data.movements.filter(m => m.type === 'ziyarath' && m.date);
       for (const movement of ziyarathMovements) {
-        const date = movement.date!;
-        const count = ziyarathCounts[date] || 0;
-        if (count >= 10) {
-          return `Date ${date} has reached the maximum limit of 10 ziyaraths. Please choose another date.`;
-        }
+      const date = movement.date!;
+      const count = ziyarathCounts[date] || 0;
+      if (count >= 10) {
+        return `Date ${date} has reached the maximum limit of 10 ziyaraths. Please choose another date.`;
       }
-    }
+      }
+      }
 
-    return null; // Group booking validation complete
-  }
-  
-  // For individual bookings: Step 4 is Transport Selection
-  if (!data.selectedTransports && !data.selectedTransport) {
-    return 'Please select at least one transport vehicle';
-  }
+      return null; // Group booking validation complete
+      }
 
-  if (data.selectedTransports && data.selectedTransports.length > 0) {
-    let totalCapacity = 0;
-    for (const transport of data.selectedTransports) {
+      // For individual bookings: Step 4 is Transport Selection
+      if (!data.selectedTransports && !data.selectedTransport) {
+      return 'Please select at least one transport vehicle';
+      }
+
+      if (data.selectedTransports && data.selectedTransports.length > 0) {
+      let totalCapacity = 0;
+      for (const transport of data.selectedTransports) {
       if (!transport.routeId || !transport.transportId || !transport.vehicleTypeId) {
-        return 'Please complete all transport selections';
+      return 'Please complete all transport selections';
       }
       if (transport.quantity && transport.quantity < 1) {
-        return 'Transport quantity must be at least 1';
+      return 'Transport quantity must be at least 1';
       }
       if ((transport as any).paxCapacity) {
-        totalCapacity += ((transport as any).paxCapacity * transport.quantity);
+      totalCapacity += ((transport as any).paxCapacity * transport.quantity);
       }
-    }
-    
-    const paxCount = step2Data?.passengerCount || 0;
-    if (totalCapacity > 0 && paxCount > 0 && totalCapacity < paxCount) {
+      }
+
+      const paxCount = step2Data?.passengerCount || 0;
+      if (totalCapacity > 0 && paxCount > 0 && totalCapacity < paxCount) {
       return `Total selected vehicle capacity (${totalCapacity} pax) is less than the number of passengers (${paxCount} pax). Please add more vehicles.`;
-    }
-  } else if (data.selectedTransport) {
-    if (!data.selectedTransport.routeId || !data.selectedTransport.transportId || !data.selectedTransport.vehicleTypeId) {
+      }
+      } else if (data.selectedTransport) {
+      if (!data.selectedTransport.routeId || !data.selectedTransport.transportId || !data.selectedTransport.vehicleTypeId) {
       return 'Please complete transport selection';
-    }
-  }
-  
-  return null;
-};
+      }
+      }
 
-// For group bookings: Step 5 is documents
-export const validateStep5 = (data: Step5Data, step1Data: Step1Data, step3Data: Step3Data, isGroupVisa: boolean = false): string | null => {
-  // For group bookings: Either ZIP file OR multiple documents are required
-  const zipFile = data.panCardZipFile;
-  const multipleDocs = data.documents;
-  
-  if (!zipFile && (!multipleDocs || multipleDocs.length === 0)) {
-    return 'Please upload required documentation (ZIP file or multiple images/PDFs)';
-  }
+      return null;
+      };
 
-  // Validate ZIP file if provided
-  if (zipFile) {
-    const isValidZip = zipFile.type === 'application/zip' || zipFile.name.toLowerCase().endsWith('.zip');
-    if (!isValidZip) {
+      // For group bookings: Step 5 is documents
+      export const validateStep5 = (data: Step5Data, step1Data: Step1Data, step3Data: Step3Data, isGroupVisa: boolean = false): string | null => {
+      // For group bookings: Either ZIP file OR multiple documents are required
+      const zipFile = data.panCardZipFile;
+      const multipleDocs = data.documents;
+
+      if (!zipFile && (!multipleDocs || multipleDocs.length === 0)) {
+      return 'Please upload required documentation (ZIP file or multiple images/PDFs)';
+      }
+
+      // Validate ZIP file if provided
+      if (zipFile) {
+      const isValidZip = zipFile.type === 'application/zip' || zipFile.name.toLowerCase().endsWith('.zip');
+      if (!isValidZip) {
       return 'Please upload a valid ZIP file (.zip)';
-    }
+      }
 
-    // Validate ZIP file size (max 50MB)
-    const maxSize = 50 * 1024 * 1024; // 50MB
-    if (zipFile.size > maxSize) {
+      // Validate ZIP file size (max 50MB)
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      if (zipFile.size > maxSize) {
       return 'ZIP file size exceeds 50MB limit. Please compress your files.';
-    }
-  }
+      }
+      }
 
-  // Individual file size validation is already handled in the component for multipleDocs
-  
-  return null; // All validations passed
-};
+      // Individual file size validation is already handled in the component for multipleDocs
 
-// For individual bookings: Step 5 is movement details
-export const validateStep5Movements = (
-  data: Step5Data, 
-  step1Data: Step1Data, 
-  step2Data: Step2Data,
-  step3Data: Step3Data, 
-  step4Data: Step4Data,
-  locationMasters: any[]
-): string | null => {
-  // Validate movements array
-  if (!data.movements || data.movements.length === 0) {
-    return 'Please add movements. Select transport routes in Step 4 to auto-generate, or add manually.';
-  }
+      return null; // All validations passed
+      };
 
-  // Validate each movement
-  for (const movement of data.movements) {
-    if (!movement.fromLocationId || !movement.toLocationId) {
+      // For individual bookings: Step 5 is movement details
+      export const validateStep5Movements = (
+      data: Step5Data, 
+      step1Data: Step1Data, 
+      step2Data: Step2Data,
+      step3Data: Step3Data, 
+      step4Data: Step4Data,
+      locationMasters: any[]
+      ): string | null => {
+      // Validate movements array
+      if (!data.movements || data.movements.length === 0) {
+      return 'Please add movements. Select transport routes in Step 4 to auto-generate, or add manually.';
+      }
+
+      // Validate each movement
+      for (const movement of data.movements) {
+      if (!movement.fromLocationId || !movement.toLocationId) {
       return 'Please fill in from and to locations for all movements';
-    }
-    if (!movement.date) {
+      }
+      if (!movement.date) {
       return 'Date is required for all movements';
-    }
-    if (!movement.time) {
+      }
+      if (!movement.time) {
       return 'Time is required for all movements';
-    }
-    
-    const moveDate = new Date(movement.date);
-    const isFriday = moveDate.getUTCDay() === 5;
-    const hours = parseInt(movement.time.split(':')[0], 10);
-    const isZiyarath = (movement as any).type === 'ziyarath' || (movement as any).tripType === 'ziyarath';
-    
-    if (isFriday && isZiyarath && hours < 14) {
+      }
+
+      const moveDate = new Date(fromDisplayDate(movement.date));
+      const isFriday = moveDate.getUTCDay() === 5;
+      const hours = parseInt(movement.time.split(':')[0], 10);
+      const isZiyarath = (movement as any).type === 'ziyarath' || (movement as any).tripType === 'ziyarath';
+
+      if (isFriday && isZiyarath && hours < 14) {
       return `Ziyarah on Friday (${movement.date}) must start from 14:00 (2 PM) onwards.`;
-    }
-    
-    const fromLocation = locationMasters.find((lm: any) => lm.id === movement.fromLocationId);
-    const toLocation = locationMasters.find((lm: any) => lm.id === movement.toLocationId);
-    
-    const currentCity = (fromLocation?.city || fromLocation?.cityMaster?.name || '').toLowerCase().trim();
-    const nextCity = (toLocation?.city || toLocation?.cityMaster?.name || '').toLowerCase().trim();
-    
-    if ((currentCity === 'makkah' || currentCity === 'mecca') && 
-        (nextCity === 'madinah' || nextCity === 'madina' || nextCity === 'medina') && 
-        hours < 14) {
+      }
+
+      const fromLocation = locationMasters.find((lm: any) => lm.id === movement.fromLocationId);
+      const toLocation = locationMasters.find((lm: any) => lm.id === movement.toLocationId);
+
+      const currentCity = (fromLocation?.city || fromLocation?.cityMaster?.name || '').toLowerCase().trim();
+      const nextCity = (toLocation?.city || toLocation?.cityMaster?.name || '').toLowerCase().trim();
+
+      if ((currentCity === 'makkah' || currentCity === 'mecca') && 
+      (nextCity === 'madinah' || nextCity === 'madina' || nextCity === 'medina') && 
+      hours < 14) {
       return `Movement from Makkah to Madinah (${movement.date}) must start from 14:00 (2 PM) onwards.`;
-    }
-  }
-  
-  return null; // All validations passed
-};
+      }
+      }
+
+      return null; // All validations passed
+      };
 
 // For individual bookings: Step 6 is documents
 export const validateStep6 = (data: Step6Data & { documents?: File[] }, step1Data: Step1Data, step3Data: Step3Data, isGroupVisa: boolean = false): string | null => {

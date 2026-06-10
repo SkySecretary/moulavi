@@ -31,20 +31,32 @@ export default function VoucherPage() {
   const [filteredData, setFilteredData] = useState<UmrahVisaBooking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [arrivalDateFrom, setArrivalDateFrom] = useState('');
+  const [arrivalDateTo, setArrivalDateTo] = useState('');
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<UmrahVisaBooking | null>(null);
 
-  const fetchBookings = async () => {
+  const fetchBookings = async (page = 1) => {
     try {
       setIsLoading(true);
-      const response = await umrahVisaAPI.getBookings({ limit: 1000 });
+      const response = await umrahVisaAPI.getBookings({ 
+        limit: 10,
+        page: page,
+        search: searchQuery,
+        arrivalDateFrom: arrivalDateFrom,
+        arrivalDateTo: arrivalDateTo,
+        status: 'voucher'
+      });
       const data = response.data;
       
-      const bookingsData = data.bookings
-        .filter((booking: any) => booking.status === 'voucher')
-        .map((booking: any) => booking);
-
-      setBookingList(bookingsData);
+      setBookingList(data.bookings || []);
+      setPagination(data.pagination);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Failed to load data');
@@ -53,45 +65,35 @@ export default function VoucherPage() {
     }
   };
 
-  const filterData = () => {
-    let filtered = bookingList.filter(booking => 
-      booking.status === 'voucher' || booking.status === 'bill'
-    );
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(booking =>
-        booking.party?.partyName?.toLowerCase().includes(query) ||
-        booking.groupNumber?.toLowerCase().includes(query) ||
-        booking.groupName?.toLowerCase().includes(query)
-      );
-    }
-
-    setFilteredData(filtered);
-  };
-
   useEffect(() => {
     if (user && hasRole(['admin', 'staff'])) {
-      fetchBookings();
+      fetchBookings(pagination.page);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [pagination.page, searchQuery, arrivalDateFrom, arrivalDateTo]);
 
-  useEffect(() => {
-    filterData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, bookingList]);
+  const handleFilterChange = () => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+  };
 
   if (!user || !hasRole(['admin', 'staff'])) {
     return null;
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'N/A';
+      return date.toLocaleDateString('en-US', {
+        timeZone: 'UTC',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      return 'N/A';
+    }
   };
 
   const handleGenerateVoucherClick = (booking: UmrahVisaBooking) => {
@@ -131,9 +133,13 @@ export default function VoucherPage() {
               <CardDescription>Showing {filteredData.length} of {bookingList.length} bookings</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                <Input placeholder="Search by party name, group number..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                  <Input placeholder="Search by party, group..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); handleFilterChange(); }} className="pl-10" />
+                </div>
+                <Input type="date" value={arrivalDateFrom} onChange={(e) => { setArrivalDateFrom(e.target.value); handleFilterChange(); }} placeholder="Arrival From" />
+                <Input type="date" value={arrivalDateTo} onChange={(e) => { setArrivalDateTo(e.target.value); handleFilterChange(); }} placeholder="Arrival To" />
               </div>
 
               <div className="rounded-md border overflow-x-auto">
@@ -152,14 +158,14 @@ export default function VoucherPage() {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">Loading...</TableCell>
+                        <TableCell colSpan={7} className="text-center py-8">Loading...</TableCell>
                       </TableRow>
-                    ) : filteredData.length === 0 ? (
+                    ) : bookingList.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">No bookings found</TableCell>
+                        <TableCell colSpan={7} className="text-center py-8 text-gray-500">No bookings found</TableCell>
                       </TableRow>
                     ) : (
-                      filteredData.map((booking) => (
+                      bookingList.map((booking) => (
                         <TableRow key={booking.id}>
                           <TableCell>
                             <Badge variant={booking.visaType === 'group_visa' ? 'default' : 'secondary'} className="text-xs">
@@ -204,6 +210,26 @@ export default function VoucherPage() {
                     )}
                   </TableBody>
                 </Table>
+              </div>
+
+              <div className="flex items-center justify-between mt-6">
+                <p className="text-sm text-gray-500">
+                  Showing {pagination.total > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} to{' '}
+                  {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
+                  {pagination.total} results
+                </p>
+                
+                {pagination.totalPages > 1 && (
+                  <div className="flex items-center space-x-2">
+                    <Button variant="outline" size="sm" onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))} disabled={pagination.page === 1}>
+                      Previous
+                    </Button>
+                    <span className="text-sm text-gray-500">Page {pagination.page} of {pagination.totalPages}</span>
+                    <Button variant="outline" size="sm" onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))} disabled={pagination.page === pagination.totalPages}>
+                      Next
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -5,9 +5,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { umrahVisaAPI } from '@/lib/api';
+import { umrahVisaAPI, partyAPI } from '@/lib/api';
 import { toast } from 'sonner';
-import { Hash, Users, Loader2 } from 'lucide-react';
+import { Hash, Users, Loader2, Building } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface AddGroupNumberDialogProps {
   booking: any;
@@ -24,14 +25,33 @@ export default function AddGroupNumberDialog({
 }: AddGroupNumberDialogProps) {
   const [groupNumber, setGroupNumber] = useState('');
   const [groupName, setGroupName] = useState('');
+  const [brn, setBrn] = useState('');
+  const [umrahVisaProviderId, setUmrahVisaProviderId] = useState('');
+  const [umrahCompanies, setUmrahCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (booking && open) {
       setGroupNumber(booking.groupNumber || '');
       setGroupName(booking.groupName || '');
+      setBrn(booking.brn || '');
+      setUmrahVisaProviderId(booking.umrahVisaProviderId || '');
+      loadUmrahCompanies();
     }
   }, [booking, open]);
+
+  const loadUmrahCompanies = async () => {
+    try {
+      const response = await partyAPI.getAll({ 
+        is_supplier: 'true', 
+        supplier_service_type: 'umra_visa_service',
+        limit: '1000' 
+      });
+      setUmrahCompanies(response.data?.parties || response.data || []);
+    } catch (error) {
+      console.error('Error loading umrah companies:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,8 +68,14 @@ export default function AddGroupNumberDialog({
     
     try {
       setLoading(true);
-      await umrahVisaAPI.updateGroupNumber(booking.id, groupNumber.trim(), groupName.trim());
-      toast.success('Group number updated successfully');
+      await umrahVisaAPI.updateGroupNumber(
+        booking.id, 
+        groupNumber.trim(), 
+        groupName.trim(), 
+        brn.trim(),
+        umrahVisaProviderId
+      );
+      toast.success('Booking info updated successfully');
       onSuccess();
       onOpenChange(false);
     } catch (error: any) {
@@ -103,6 +129,45 @@ export default function AddGroupNumberDialog({
                 disabled={loading}
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="brn">
+                <div className="flex items-center">
+                  <Hash className="h-4 w-4 mr-1" />
+                  BRN
+                </div>
+              </Label>
+              <Input
+                id="brn"
+                value={brn}
+                onChange={(e) => setBrn(e.target.value)}
+                placeholder="Enter BRN"
+                disabled={loading}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="umrahCompany">
+                <div className="flex items-center">
+                  <Building className="h-4 w-4 mr-1" />
+                  Umrah Company
+                </div>
+              </Label>
+              <Select 
+                value={umrahVisaProviderId} 
+                onValueChange={setUmrahVisaProviderId}
+                disabled={loading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Umrah Company" />
+                </SelectTrigger>
+                <SelectContent>
+                  {umrahCompanies.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.partyName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             
             {booking && (

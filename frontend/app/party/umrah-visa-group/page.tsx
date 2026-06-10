@@ -21,6 +21,7 @@ import { TransportVehicleSelectionStep } from '@/components/umrah-booking/steps/
 import { GroupDocumentsStep } from '@/components/umrah-booking/steps/GroupDocumentsStep';
 import { validateStep1, validateStep2, validateStep3, validateStep4, validateStep5 } from '@/lib/umrah/validation';
 import { umrahVisaAPI } from '@/lib/api';
+import { DisclaimerDialog } from '@/components/umrah-booking/shared/DisclaimerDialog';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
@@ -28,6 +29,7 @@ export default function GroupUmrahVisaPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [isClient, setIsClient] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(true);
 
   // Use our custom hooks
   const {
@@ -273,6 +275,10 @@ export default function GroupUmrahVisaPage() {
       subtitle="Complete your group application steps below"
     >
       <div className="p-4 lg:p-6 max-w-[1100px] mx-auto pb-24">
+        <DisclaimerDialog 
+          open={showDisclaimer} 
+          onConfirm={() => setShowDisclaimer(false)} 
+        />
         <div className="w-full">
           {/* Step Progress - Compact UI */}
           <StepProgress

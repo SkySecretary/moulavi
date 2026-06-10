@@ -8,7 +8,20 @@ const router = Router();
 // GET /api/umrah-visa/bookings - Get all bookings with pagination and filters
 router.get('/bookings', authenticate, async (req, res) => {
   try {
-    const { page = '1', limit = '10', status, partyId, search } = req.query;
+    const { 
+      page = '1', 
+      limit = '10', 
+      status, 
+      partyId, 
+      search,
+      arrivalDateFrom,
+      arrivalDateTo,
+      bookingMode,
+      accommodationType,
+      visaType,
+      sortBy = 'createdAt',
+      sortOrder = 'desc'
+    } = req.query;
     const pageNum = parseInt(page as string);
     const limitNum = parseInt(limit as string);
     const skip = (pageNum - 1) * limitNum;
@@ -20,7 +33,6 @@ router.get('/bookings', authenticate, async (req, res) => {
     
     // If user is a party, automatically filter by their partyId
     if (user && user.role === 'party') {
-      // Find the party associated with this user
       const userParty = await prisma.party.findUnique({
         where: { userId: user.id },
         select: { id: true }
@@ -29,48 +41,54 @@ router.get('/bookings', authenticate, async (req, res) => {
       if (userParty) {
         where.partyId = userParty.id;
       } else {
-        // If no party found for this user, return empty results
         return res.json({
           bookings: [],
-          pagination: {
-            page: pageNum,
-            limit: limitNum,
-            total: 0,
-            totalPages: 0,
-          },
+          pagination: { page: pageNum, limit: limitNum, total: 0, totalPages: 0, totalPassengers: 0 },
         });
       }
-    }
-    // If admin/staff and partyId is provided, filter by that partyId
-    else if (partyId) {
+    } else if (partyId) {
       where.partyId = partyId;
     }
     
     if (status && status !== 'all') {
-      // Handle both string and array values for status
-      if (Array.isArray(status)) {
-        // If status is an array, use Prisma's 'in' operator
-        where.status = { in: status };
-      } else {
-        // If status is a single string, use it directly
-        where.status = status;
-      }
+      if (Array.isArray(status)) where.status = { in: status };
+      else where.status = status;
     }
 
-    // Search by group number
-    if (search && typeof search === 'string' && search.trim() !== '') {
-      where.groupNumber = {
-        contains: search.trim(),
+    if (bookingMode) where.bookingMode = bookingMode;
+    if (accommodationType) where.accommodationType = accommodationType;
+    if (visaType) where.visaType = visaType;
 
+    // Search by group number, reference, or name
+    if (search && typeof search === 'string' && search.trim() !== '') {
+      const query = search.trim();
+      where.OR = [
+        { groupNumber: { contains: query } },
+        { bookingReference: { contains: query } },
+        { groupName: { contains: query } },
+        { party: { partyName: { contains: query } } },
+      ];
+    }
+
+    // Date Filters (Arrival Date)
+    if (arrivalDateFrom || arrivalDateTo) {
+      where.travelDetails = {
+        some: {
+          isAlternate: false,
+          arrivalDateTime: {
+            ...(arrivalDateFrom ? { gte: new Date(arrivalDateFrom as string) } : {}),
+            ...(arrivalDateTo ? { lte: new Date(arrivalDateTo as string) } : {}),
+          }
+        }
       };
     }
 
-    const [bookings, total] = await Promise.all([
+    const [bookings, total, totalPassengers] = await Promise.all([
       prisma.umrahVisaBooking.findMany({
         where,
         skip,
         take: limitNum,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { [sortBy as string]: sortOrder },
         include: {
           party: {
             select: {
@@ -93,23 +111,7 @@ router.get('/bookings', authenticate, async (req, res) => {
               city: true,
             },
           },
-          sponsorIqamaDetails: {
-            select: {
-              id: true,
-              iqamaNumber: true,
-              iqamaSponserName: true,
-              sponserDob: true,
-              sponserMobileNumber: true,
-              sponserNationalShortAddress: true,
-              makkahHotelName: true,
-              makkahBrn: true,
-              madinahHotelName: true,
-              madinahBrn: true,
-              confirmationImagePath: true,
-              confirmationUploadedAt: true,
-              isAlternate: true,
-            },
-          },
+          sponsorIqamaDetails: true,
           umrahVisaProvider: {
             select: {
               id: true,
@@ -138,6 +140,12 @@ router.get('/bookings', authenticate, async (req, res) => {
         },
       }),
       prisma.umrahVisaBooking.count({ where }),
+      prisma.umrahVisaBooking.aggregate({
+        where,
+        _sum: {
+          passengerCount: true
+        }
+      })
     ]);
 
     res.json({
@@ -147,11 +155,77 @@ router.get('/bookings', authenticate, async (req, res) => {
         limit: limitNum,
         total,
         totalPages: Math.ceil(total / limitNum),
+        totalPassengers: totalPassengers._sum.passengerCount || 0
       },
     });
   } catch (error) {
     console.error('Error fetching bookings:', error);
     res.status(500).json({ error: 'Failed to fetch bookings' });
+  }
+});
+
+// GET /api/umrah-visa/stats - Get booking statistics
+router.get('/stats', authenticate, async (req, res) => {
+  try {
+    const { arrivalDateFrom, arrivalDateTo, partyId } = req.query;
+    const user = (req as any).user;
+
+    const where: any = {};
+    
+    // User role filtering
+    if (user && user.role === 'party') {
+      const userParty = await prisma.party.findUnique({
+        where: { userId: user.id },
+        select: { id: true }
+      });
+      if (userParty) where.partyId = userParty.id;
+      else return res.json({ stats: { total: 0, pending: 0, documents_downloaded: 0, group_assigned: 0, voucher: 0, bill: 0, booking_success: 0, cancelled: 0, totalPassengers: 0 } });
+    } else if (partyId) {
+      where.partyId = partyId;
+    }
+
+    // Date Filters
+    if (arrivalDateFrom || arrivalDateTo) {
+      where.travelDetails = {
+        some: {
+          isAlternate: false,
+          arrivalDateTime: {
+            ...(arrivalDateFrom ? { gte: new Date(arrivalDateFrom as string) } : {}),
+            ...(arrivalDateTo ? { lte: new Date(arrivalDateTo as string) } : {}),
+          }
+        }
+      };
+    }
+
+    const statuses = ['pending', 'documents_downloaded', 'group_assigned', 'voucher', 'bill', 'booking_success', 'cancelled'];
+    
+    const [statusCounts, totalPassengers] = await Promise.all([
+      Promise.all(statuses.map(status => 
+        prisma.umrahVisaBooking.count({
+          where: { ...where, status: status as any }
+        })
+      )),
+      prisma.umrahVisaBooking.aggregate({
+        where,
+        _sum: {
+          passengerCount: true
+        }
+      })
+    ]);
+
+    const stats: any = {
+      total: statusCounts.reduce((a, b) => a + b, 0),
+      totalPassengers: totalPassengers._sum.passengerCount || 0
+    };
+
+    statuses.forEach((status, index) => {
+      stats[status] = statusCounts[index];
+    });
+
+    res.json({ stats });
+  } catch (error) {
+    console.error('Error fetching booking stats:', error);
+    res.status(500).json({ error: 'Failed to fetch booking stats' });
   }
 });
 

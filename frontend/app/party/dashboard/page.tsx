@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getUser, hasRole } from '@/lib/auth';
@@ -59,6 +60,8 @@ export default function PartyDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -92,6 +95,8 @@ export default function PartyDashboardPage() {
         limit: String(pagination.limit),
         search: searchTerm || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
+        arrivalDateFrom: dateFrom || undefined,
+        arrivalDateTo: dateTo || undefined,
       };
       
       const response = await umrahVisaAPI.getBookings(params);
@@ -109,16 +114,17 @@ export default function PartyDashboardPage() {
       // Calculate stats from total count
       const total = paginationData.total || 0;
       
-      // Get stats from a separate call for accuracy
+      // Get stats from a separate call for accuracy (passing date filters)
       try {
-        const statsResponse = await umrahVisaAPI.getBookings({ page: 1, limit: 1000 });
-        const allBookings = statsResponse.data.bookings || [];
+        const statsRes = await umrahVisaAPI.getStats({
+          arrivalDateFrom: dateFrom || undefined,
+          arrivalDateTo: dateTo || undefined,
+        });
+        const s = statsRes.data.stats;
         setStats({
-          total: allBookings.length,
-          pending: allBookings.filter((b: UmrahVisaBooking) => 
-            ['pending', 'documents_downloaded', 'group_assigned', 'voucher', 'bill'].includes(b.status)
-          ).length,
-          completed: allBookings.filter((b: UmrahVisaBooking) => b.status === 'booking_success').length,
+          total: s.total,
+          pending: s.pending + s.documents_downloaded + s.group_assigned + s.voucher + s.bill,
+          completed: s.booking_success,
         });
       } catch {
         // If stats fail, use total from pagination
@@ -148,7 +154,7 @@ export default function PartyDashboardPage() {
     if (!mounted || !user || !hasRole('party')) return;
     loadBookings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted, user, pagination.page, pagination.limit, searchTerm, statusFilter]);
+  }, [mounted, user, pagination.page, pagination.limit, searchTerm, statusFilter, dateFrom, dateTo]);
 
   const getStatusBadge = (status: string) => {
     if (!status) {
@@ -337,39 +343,73 @@ export default function PartyDashboardPage() {
         {/* All Applications */}
         <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-50 bg-white">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-              <div>
-                <h2 className="text-xl font-bold text-secondary">Recent Applications</h2>
-                <p className="text-sm text-gray-500">Track and manage your pilgrim groups</p>
-              </div>
-              
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    type="text"
-                    placeholder="Search group..."
-                    value={searchTerm}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    className="pl-10 w-full sm:w-64 border-gray-200 focus:border-primary focus:ring-primary/20"
-                  />
+            <div className="flex flex-col space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-secondary">Recent Applications</h2>
+                  <p className="text-sm text-gray-500">Track and manage your pilgrim groups</p>
                 </div>
                 
-                <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-                  <SelectTrigger className="w-full sm:w-[180px] border-gray-200">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="documents_downloaded">Docs Received</SelectItem>
-                    <SelectItem value="group_assigned">Group Assigned</SelectItem>
-                    <SelectItem value="voucher">Voucher</SelectItem>
-                    <SelectItem value="bill">Invoice</SelectItem>
-                    <SelectItem value="booking_success">Success</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      type="text"
+                      placeholder="Search group..."
+                      value={searchTerm}
+                      onChange={(e) => handleSearchChange(e.target.value)}
+                      className="pl-10 w-full sm:w-64 border-gray-200 focus:border-primary focus:ring-primary/20"
+                    />
+                  </div>
+                  
+                  <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+                    <SelectTrigger className="w-full sm:w-[180px] border-gray-200">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="documents_downloaded">Docs Received</SelectItem>
+                      <SelectItem value="group_assigned">Group Assigned</SelectItem>
+                      <SelectItem value="voucher">Voucher</SelectItem>
+                      <SelectItem value="bill">Invoice</SelectItem>
+                      <SelectItem value="booking_success">Success</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Date Filters */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-gray-50">
+                <div className="flex items-center gap-2">
+                  <Label className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Arrival From:</Label>
+                  <Input 
+                    type="date" 
+                    value={dateFrom} 
+                    onChange={(e) => { setDateFrom(e.target.value); setPagination(p => ({...p, page: 1})); }} 
+                    className="h-9 border-gray-100 bg-gray-50/30 text-xs font-bold" 
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Arrival To:</Label>
+                  <Input 
+                    type="date" 
+                    value={dateTo} 
+                    onChange={(e) => { setDateTo(e.target.value); setPagination(p => ({...p, page: 1})); }} 
+                    className="h-9 border-gray-100 bg-gray-50/30 text-xs font-bold" 
+                  />
+                </div>
+                {(dateFrom || dateTo) && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => { setDateFrom(''); setDateTo(''); setPagination(p => ({...p, page: 1})); }}
+                    className="text-[10px] font-black text-primary uppercase h-9"
+                  >
+                    <X className="h-3 w-3 mr-1" /> Clear Dates
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -461,12 +501,12 @@ export default function PartyDashboardPage() {
                 </div>
                 
                 {/* Pagination */}
-                {pagination.totalPages > 1 && (
-                  <div className="p-6 bg-gray-50/30 border-t border-gray-50 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      Showing {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
-                    </div>
-                    
+                <div className="p-6 bg-gray-50/30 border-t border-gray-50 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                    Showing {pagination.total > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} - {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
+                  </div>
+                  
+                  {pagination.totalPages > 1 && (
                     <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
@@ -490,8 +530,8 @@ export default function PartyDashboardPage() {
                         <ChevronRight className="h-4 w-4" />
                       </Button>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </>
             )}
           </div>

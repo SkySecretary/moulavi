@@ -1,66 +1,46 @@
-# Moulavi ERP Production Deployment Script (New Domain)
+# Moulavi ERP Production Deployment (Robust Versioning)
 # URL: https://umra.moulavi.in
 # Server: 64.227.158.41
 
-## 1. Sync Frontend Build
-# Run this from your local project root:
-# rsync -avz --exclude "node_modules" frontend/.next root@64.227.158.41:/var/www/umrasystem/frontend/
-# rsync -avz frontend/public root@64.227.158.41:/var/www/umrasystem/frontend/
-# rsync -avz backend root@64.227.158.41:/var/www/umrasystem/
+## 🚀 Recommended Deployment Workflow
 
-## 2. Server Side Configuration (Run as root on server)
+We now use a **Releases & Symlink** mechanism for safe deployments. This allows for instant rollbacks and zero-downtime updates.
 
-# A. Apache Configuration
-cat <<EOF > /etc/apache2/sites-available/umra.moulavi.in.conf
-<VirtualHost *:80>
-    ServerName umra.moulavi.in
-    ServerAlias www.umra.moulavi.in
-    Redirect permanent / https://umra.moulavi.in/
-</VirtualHost>
-EOF
+### 1. Local Build (Mandatory)
+Always build locally to prevent the server from running out of memory:
+```bash
+# Build Frontend
+cd frontend && npm install && npm run build
 
-a2ensite umra.moulavi.in.conf
-systemctl reload apache2
+# Build Backend
+cd ../backend && npm install && npm run build
+```
 
-# B. SSL Configuration (Certbot)
-# certbot --apache -d umra.moulavi.in -d www.umra.moulavi.in
+### 2. Execute Deployment Script
+Run the provided `deploy.sh` from the project root. This script handles directory preparation, code upload, schema updates, and atomic switching.
 
-# C. Nginx Configuration
-cat <<EOF > /etc/nginx/sites-available/umra.moulavi.in
-server {
-    listen 81;
-    server_name umra.moulavi.in;
-    client_max_body_size 500M;
+```bash
+./deploy.sh
+```
 
-    location / {
-        proxy_pass http://localhost:3001;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_cache_bypass \$http_upgrade;
-    }
+**Note:** You will be prompted for the root password for the server `64.227.158.41` multiple times during the process (or once if using SSH keys).
 
-    location /api {
-        proxy_pass http://localhost:5001;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_cache_bypass \$http_upgrade;
-    }
+### 3. Verification
+Once completed, verify the status of the services on the server:
+```bash
+ssh root@64.227.158.41 "pm2 status"
+```
 
-    location /uploads {
-        proxy_pass http://localhost:5001/uploads;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-    }
-}
-EOF
+## 🔄 Rollback Strategy
+If a deployment fails or introduces a bug, you can instantly rollback by pointing the `current` symlink to the previous release:
 
-ln -s /etc/nginx/sites-available/umra.moulavi.in /etc/nginx/sites-enabled/
-nginx -t && systemctl reload nginx
+```bash
+ssh root@64.227.158.41
+cd /var/www/umrasystem
+ls -la releases/ # Find the previous timestamp
+ln -sfn releases/PREVIOUS_TIMESTAMP current
+pm2 restart all
+```
 
-## 3. Application Restart
-# pm2 restart umrasystem-frontend
-# pm2 restart umrasystem-backend
+---
+*Updated: June 10, 2026*

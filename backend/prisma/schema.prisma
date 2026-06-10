@@ -104,6 +104,7 @@ model UmrahVisaBooking {
   hasMultipleGroup          Boolean                    @default(false) @map("has_multiple_group")
   multipleGroupDetails      Json?                      @map("multiple_group_details")
   bookingReference          String?                    @unique @map("booking_reference")
+  brn                       String?                    @map("brn")
   statusHistory             BookingStatusHistory[]
   documents                 Document[]
   hotelBookings             UmrahHotelBooking[]
@@ -141,6 +142,10 @@ model UmrahPassenger {
   exitDate         DateTime?           @map("exit_date")
   visaNumber       String?             @map("visa_number")
   mofaNumber       String?             @map("mofa_number")
+  gender           Gender?             @map("gender")
+  dateOfBirth      DateTime?           @map("date_of_birth")
+  passportExpiry   DateTime?           @map("passport_expiry")
+  phoneNumber      String?             @map("phone_number")
   createdAt        DateTime            @default(now()) @map("created_at")
   updatedAt        DateTime            @default(now()) @updatedAt @map("updated_at")
   deletedAt        DateTime?           @map("deleted_at")
@@ -413,6 +418,7 @@ model UmrahTravelDetails {
   departureDateTime     DateTime         @map("departure_datetime")
   departureAirportId    String           @map("departure_airport_id")
   departureFlightNumber String           @map("departure_flight_number")
+  brn                   String?          @map("brn")
   createdAt             DateTime         @default(now()) @map("created_at")
   updatedAt             DateTime         @default(now()) @updatedAt @map("updated_at")
   arrivalAirport        LocationMaster   @relation("ArrivalAirport", fields: [arrivalAirportId], references: [id])

@@ -1984,4 +1984,88 @@ router.delete('/movement-details/:id', authenticate, async (req, res) => {
   }
 });
 
+// PATCH /api/umrah-visa/booking/:id/group-number - Update group number, name and BRN
+router.patch('/booking/:id/group-number', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { groupNumber, groupName, brn, umrahVisaProviderId } = req.body;
+    const user = (req as any).user;
+
+    const booking = await prisma.umrahVisaBooking.update({
+      where: { id },
+      data: {
+        groupNumber,
+        groupName,
+        brn,
+        umrahVisaProviderId: umrahVisaProviderId || undefined,
+        lastUpdatedBy: user.id,
+      },
+    });
+
+    res.json({ success: true, booking });
+  } catch (error) {
+    console.error('Error updating group number:', error);
+    res.status(500).json({ error: 'Failed to update group number' });
+  }
+});
+
+// PATCH /api/umrah-visa/booking/:id/status - Update booking status
+router.patch('/booking/:id/status', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, notes } = req.body;
+    const user = (req as any).user;
+
+    const oldBooking = await prisma.umrahVisaBooking.findUnique({
+      where: { id },
+      select: { status: true },
+    });
+
+    const booking = await prisma.umrahVisaBooking.update({
+      where: { id },
+      data: {
+        status,
+        lastUpdatedBy: user.id,
+      },
+    });
+
+    // Create status history
+    await prisma.bookingStatusHistory.create({
+      data: {
+        bookingId: id,
+        oldStatus: oldBooking?.status || null,
+        newStatus: status,
+        changedBy: user.id,
+        reason: notes || 'Status updated during edit',
+      },
+    });
+
+    res.json({ success: true, booking });
+  } catch (error) {
+    console.error('Error updating status:', error);
+    res.status(500).json({ error: 'Failed to update status' });
+  }
+});
+
+// DELETE /api/umrah-visa/booking/:id - Delete a booking
+router.delete('/booking/:id', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Soft delete
+    await prisma.umrahVisaBooking.update({
+      where: { id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting booking:', error);
+    res.status(500).json({ error: 'Failed to delete booking' });
+  }
+});
+
 export default router;

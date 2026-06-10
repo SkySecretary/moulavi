@@ -21,11 +21,13 @@ import { TransportVehicleSelectionStep } from '@/components/umrah-booking/steps/
 import { MovementDetailsStep } from '@/components/umrah-booking/steps/MovementDetailsStep';
 import { DocumentsStep } from '@/components/umrah-booking/steps/DocumentsStep';
 import { validateStep1, validateStep2, validateStep3, validateStep4, validateStep5Movements, validateStep6 } from '@/lib/umrah/validation';
+import { DisclaimerDialog } from '@/components/umrah-booking/shared/DisclaimerDialog';
 
 export default function UmrahVisaNewPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [isClient, setIsClient] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(true);
 
   // Use our custom hooks
   const {
@@ -274,6 +276,10 @@ export default function UmrahVisaNewPage() {
       subtitle="Complete your application steps below"
     >
       <div className="p-4 lg:p-6 max-w-[1100px] mx-auto pb-24">
+        <DisclaimerDialog 
+          open={showDisclaimer} 
+          onConfirm={() => setShowDisclaimer(false)} 
+        />
         <div className="w-full">
           {/* Step Progress - Compact UI */}
           <StepProgress

@@ -3,11 +3,11 @@
 export const BOOKING_LIMITS = {
   MAX_TRAVEL_DAYS: 80,
   MAX_PASSENGERS_IQAMA: 5,
-  FLIGHT_NUMBER_MAX_LENGTH: 7,
+  FLIGHT_NUMBER_MAX_LENGTH: 8,
 } as const;
 
-// Flight number format: 2 alphanumeric characters, dash, 1-4 alphanumeric characters (e.g., C1-132A, SC-123, 22-SCV)
-export const FLIGHT_NUMBER_REGEX = /^[A-Z0-9]{2}-[A-Z0-9]{1,4}$/;
+// Flight number format: 2 alphanumeric characters, dash, 1-5 alphanumeric characters (e.g., C1-132A, SC-1234, 22-SCV)
+export const FLIGHT_NUMBER_REGEX = /^[A-Z0-9]{2}-[A-Z0-9]{1,5}$/;
 
 export const BOOKING_MODES = {
   GROUP_NUMBER: 'group_number',

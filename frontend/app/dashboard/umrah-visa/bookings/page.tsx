@@ -35,11 +35,18 @@ export default function UmrahVisaPage() {
   const router = useRouter();
   const user = getUser();
   const [bookings, setBookings] = useState<any[]>([]);
-  const [filteredData, setFilteredData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedVisaType, setSelectedVisaType] = useState<string>('all');
+  const [arrivalDateFrom, setArrivalDateFrom] = useState('');
+  const [arrivalDateTo, setArrivalDateTo] = useState('');
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
   
   // Dialog states
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -50,18 +57,34 @@ export default function UmrahVisaPage() {
   }
 
   useEffect(() => {
-    fetchBookings();
-  }, []);
+    fetchBookings(pagination.page);
+  }, [pagination.page, searchQuery, selectedStatus, selectedVisaType, arrivalDateFrom, arrivalDateTo]);
 
-  useEffect(() => {
-    filterData();
-  }, [searchQuery, selectedStatus, selectedVisaType, bookings]);
-
-  const fetchBookings = async () => {
+  const fetchBookings = async (page = 1) => {
     try {
       setIsLoading(true);
-      const response = await umrahVisaAPI.getBookings();
-      setBookings(response.data.bookings || []);
+      const params: any = {
+        page: page.toString(),
+        limit: '10',
+        search: searchQuery,
+        status: selectedStatus === 'all' ? undefined : selectedStatus,
+        visaType: selectedVisaType === 'all' ? undefined : selectedVisaType,
+        arrivalDateFrom,
+        arrivalDateTo,
+      };
+      
+      const response = await umrahVisaAPI.getBookings(params);
+      const flattenedBookings = (response.data.bookings || []).map((b: any) => {
+        const mainTravel = b.travelDetails?.find((t: any) => !t.isAlternate);
+        if (mainTravel) {
+          b.arrivalDate = mainTravel.arrivalDateTime;
+          b.departureDate = mainTravel.departureDateTime;
+          b.arrivalFlightNumber = mainTravel.arrivalFlightNumber;
+        }
+        return b;
+      });
+      setBookings(flattenedBookings);
+      setPagination(response.data.pagination);
     } catch (error) {
       console.error('Error fetching bookings:', error);
       toast.error('Failed to load bookings');
@@ -70,39 +93,30 @@ export default function UmrahVisaPage() {
     }
   };
 
-  const filterData = () => {
-    let filtered = bookings;
-
-    // Filter by status
-    if (selectedStatus !== 'all') {
-      filtered = filtered.filter(booking => booking.status === selectedStatus);
-    }
-
-    // Filter by visa type
-    if (selectedVisaType !== 'all') {
-      filtered = filtered.filter(booking => booking.visaType === selectedVisaType);
-    }
-
-    // Filter by search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(booking =>
-        booking.party?.partyName?.toLowerCase().includes(query) ||
-        booking.party?.email?.toLowerCase().includes(query) ||
-        booking.groupNumber?.toLowerCase().includes(query) ||
-        booking.groupName?.toLowerCase().includes(query)
-      );
-    }
-
-    setFilteredData(filtered);
+  const handleFilterChange = (key: string, value: string) => {
+    if (key === 'status') setSelectedStatus(value);
+    else if (key === 'visaType') setSelectedVisaType(value);
+    else if (key === 'search') setSearchQuery(value);
+    else if (key === 'dateFrom') setArrivalDateFrom(value);
+    else if (key === 'dateTo') setArrivalDateTo(value);
+    
+    setPagination(prev => ({ ...prev, page: 1 }));
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'N/A';
+      return date.toLocaleDateString('en-US', {
+        timeZone: 'UTC',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      return 'N/A';
+    }
   };
 
   const getStatusCounts = () => {
@@ -197,54 +211,64 @@ export default function UmrahVisaPage() {
           <div className="p-4 lg:p-8">
           <Card>
               <CardContent className="space-y-4">
-                {/* Search Bar and Visa Type Filter */}
-                <div className="flex gap-4 items-center mt-4">
-                  <div className="relative flex-1">
+                {/* Search Bar and Filters */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+                  <div className="relative md:col-span-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                     <Input
-                      placeholder="Search by party name, email, group number..."
+                      placeholder="Search bookings..."
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(e) => handleFilterChange('search', e.target.value)}
                       className="pl-10"
                     />
                   </div>
-                  <div className="w-48">
-                    <Select value={selectedVisaType} onValueChange={setSelectedVisaType}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Filter by Visa Type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Visa Types ({getVisaTypeCounts().all})</SelectItem>
-                        <SelectItem value="individual_visa">Individual Visa ({getVisaTypeCounts().individual_visa})</SelectItem>
-                        <SelectItem value="group_visa">Group Visa ({getVisaTypeCounts().group_visa})</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Select value={selectedVisaType} onValueChange={(val) => handleFilterChange('visaType', val)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Visa Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Visa Types</SelectItem>
+                      <SelectItem value="individual_visa">Individual Visa</SelectItem>
+                      <SelectItem value="group_visa">Group Visa</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="date"
+                    value={arrivalDateFrom}
+                    onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
+                    placeholder="Arrival From"
+                  />
+                  <Input
+                    type="date"
+                    value={arrivalDateTo}
+                    onChange={(e) => handleFilterChange('dateTo', e.target.value)}
+                    placeholder="Arrival To"
+                  />
                 </div>
 
                 {/* Booking Count */}
                 <div className="text-sm text-gray-600">
-                  Showing {filteredData.length} of {bookings.length} bookings
+                  Showing {bookings.length} of {pagination.total} bookings
                 </div>
 
                 {/* Status Filter Tabs */}
                 <div className="flex flex-wrap gap-2 pb-4 border-b">
-                            <Button
+                  <Button
                     variant={selectedStatus === 'all' ? 'default' : 'outline'}
-                              size="sm"
-                    onClick={() => setSelectedStatus('all')}
+                    size="sm"
+                    onClick={() => handleFilterChange('status', 'all')}
                   >
-                    All ({statusCounts.all})
-                            </Button>
+                    All
+                  </Button>
                   {Object.entries(UMRAH_VISA_STATUS_CONFIG).map(([status, config]) => (
-                            <Button
+                    <Button
                       key={status}
                       variant={selectedStatus === status ? 'default' : 'outline'}
-                              size="sm"
-                      onClick={() => setSelectedStatus(status)}
-                            >
-                      {UMRAH_VISA_STATUS_CONFIG[status as keyof typeof UMRAH_VISA_STATUS_CONFIG]?.label || status} ({statusCounts[status as keyof typeof statusCounts]})
-                            </Button>
+                      size="sm"
+                      onClick={() => handleFilterChange('status', status)}
+                    >
+                      {config.label}
+                    </Button>
                   ))}
                 </div>
                           
@@ -266,14 +290,14 @@ export default function UmrahVisaPage() {
                     <TableBody>
                       {isLoading ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8">Loading...</TableCell>
+                          <TableCell colSpan={8} className="text-center py-8">Loading...</TableCell>
                         </TableRow>
-                      ) : filteredData.length === 0 ? (
+                      ) : bookings.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-gray-500">No bookings found</TableCell>
+                          <TableCell colSpan={8} className="text-center py-8 text-gray-500">No bookings found</TableCell>
                         </TableRow>
                       ) : (
-                        filteredData.map((booking) => (
+                        bookings.map((booking) => (
                           <TableRow key={booking.id}>
                             <TableCell>
                               <Badge className={`${VISA_TYPE_CONFIG[booking.visaType as keyof typeof VISA_TYPE_CONFIG]?.color || 'bg-gray-100'} text-xs`}>
@@ -302,9 +326,14 @@ export default function UmrahVisaPage() {
                             </TableCell>
                             <TableCell>
                               <div className="text-xs space-y-1">
-                                <div>Arrival: {formatDate(booking.createdAt)}</div>
-                                <div>Departure: {formatDate(booking.updatedAt)}</div>
-                            </div>
+                                <div className="font-bold text-secondary">
+                                  {booking.arrivalFlightNumber || 'N/A'}
+                                </div>
+                                <div className="flex flex-col text-gray-500">
+                                  <span>Arr: {booking.arrivalDate ? formatDate(booking.arrivalDate) : 'N/A'}</span>
+                                  <span>Dep: {booking.departureDate ? formatDate(booking.departureDate) : 'N/A'}</span>
+                                </div>
+                              </div>
                             </TableCell>
                             <TableCell>
                               <Badge className={`${UMRAH_VISA_STATUS_CONFIG[booking.status as keyof typeof UMRAH_VISA_STATUS_CONFIG]?.color || 'bg-gray-100'} text-xs`}>
@@ -346,6 +375,41 @@ export default function UmrahVisaPage() {
               )}
                     </TableBody>
                   </Table>
+                </div>
+
+                {/* Pagination */}
+                <div className="flex items-center justify-between mt-6">
+                  <p className="text-sm text-gray-500">
+                    Showing {pagination.total > 0 ? ((pagination.page - 1) * 10) + 1 : 0} to{' '}
+                    {Math.min(pagination.page * 10, pagination.total)} of{' '}
+                    {pagination.total} results
+                  </p>
+                  
+                  {pagination.totalPages > 1 && (
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                        disabled={pagination.page === 1}
+                      >
+                        Previous
+                      </Button>
+                      
+                      <span className="text-sm text-gray-500">
+                        Page {pagination.page} of {pagination.totalPages}
+                      </span>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                        disabled={pagination.page === pagination.totalPages}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
                 </div>
             </CardContent>
           </Card>

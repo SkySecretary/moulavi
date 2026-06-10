@@ -10,8 +10,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getUser, hasRole } from '@/lib/auth';
 import { PartyLayout } from '@/components/layouts/PartyLayout';
-import { UploadCloud, File, X } from 'lucide-react';
+import { UploadCloud, File, X, Hash } from 'lucide-react';
 import { umrahVisaAPI } from '@/lib/api';
+import { DisclaimerDialog } from '@/components/umrah-booking/shared/DisclaimerDialog';
 
 interface UmrahVisaBooking {
   id: string;
@@ -28,6 +29,7 @@ export default function AddToExistingBookingPage() {
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(true);
   const [bookings, setBookings] = useState<UmrahVisaBooking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [formData, setFormData] = useState({
@@ -173,6 +175,10 @@ export default function AddToExistingBookingPage() {
         subtitle="Add a new group to an existing booking"
       >
         <div className="p-4 sm:p-6">
+        <DisclaimerDialog 
+          open={showDisclaimer} 
+          onConfirm={() => setShowDisclaimer(false)} 
+        />
         <Card>
           <CardHeader className="p-4 lg:p-6">
             <CardTitle className="text-lg lg:text-xl">Add Group to Existing Booking</CardTitle>

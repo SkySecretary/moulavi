@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { partyAPI } from '@/lib/api';
 import { API_ENDPOINTS } from '@/lib/umrah/constants';
 import { BookingState, MasterData, Step1Data, Step2Data, Step3Data, Step4Data, Step5Data, Step6Data } from '@/lib/umrah/types';
+import { fromDisplayDate } from '@/lib/umrah/validation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -100,14 +101,19 @@ export const useUmrahBooking = () => {
         party = response.data.party;
         setPartyId(providedPartyId);
       } else {
-        // Get party from authenticated user (for party role)
-        const response = await partyAPI.getMyParty();
-        party = response.data.party;
+        // Only attempt to get party from current user if they are a party user
+        const { getUser } = await import('@/lib/auth');
+        const user = getUser();
         
-        if (party) {
-          setPartyId(party.id);
-        } else {
-          toast.error('Party information not found');
+        if (user?.role === 'party') {
+          const response = await partyAPI.getMyParty();
+          party = response.data.party;
+          
+          if (party) {
+            setPartyId(party.id);
+          } else {
+            toast.error('Party information not found');
+          }
         }
       }
 
@@ -240,8 +246,29 @@ export const useUmrahBooking = () => {
         // Add JSON data as string
         formData.append('partyId', partyId);
         formData.append('step1', JSON.stringify(bookingState.step1Data));
-        formData.append('step2', JSON.stringify(bookingState.step2Data));
-        formData.append('step3', JSON.stringify(bookingState.step3Data));
+        
+        // Convert dates to ISO for backend
+        const step2ISO = {
+          ...bookingState.step2Data,
+          arrivalDate: fromDisplayDate(bookingState.step2Data.arrivalDate),
+          departureDate: fromDisplayDate(bookingState.step2Data.departureDate),
+        };
+        formData.append('step2', JSON.stringify(step2ISO));
+        
+        const step3ISO = {
+          ...bookingState.step3Data,
+          hotelBookings: bookingState.step3Data.hotelBookings?.map(hb => ({
+            ...hb,
+            checkInDate: fromDisplayDate(hb.checkInDate),
+            checkOutDate: fromDisplayDate(hb.checkOutDate),
+          })),
+          iqamaDetails: bookingState.step3Data.iqamaDetails ? {
+            ...bookingState.step3Data.iqamaDetails,
+            iqamaDob: fromDisplayDate(bookingState.step3Data.iqamaDetails.iqamaDob),
+          } : undefined,
+        };
+        formData.append('step3', JSON.stringify(step3ISO));
+        
         formData.append('step4', JSON.stringify({
           selectedTransport: bookingState.step4Data.selectedTransport,
           selectedTransports: bookingState.step4Data.selectedTransports,
@@ -250,8 +277,12 @@ export const useUmrahBooking = () => {
         const hasTransport = bookingState.step4Data.selectedTransport || 
                              (bookingState.step4Data.selectedTransports && bookingState.step4Data.selectedTransports.length > 0);
         if (hasTransport && bookingState.step5Data.movements && bookingState.step5Data.movements.length > 0) {
+          const movementsISO = bookingState.step5Data.movements.map(m => ({
+            ...m,
+            date: fromDisplayDate(m.date || ''),
+          }));
           formData.append('step5', JSON.stringify({
-            movements: bookingState.step5Data.movements,
+            movements: movementsISO,
           }));
         }
 

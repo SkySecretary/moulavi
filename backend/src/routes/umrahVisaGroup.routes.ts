@@ -360,6 +360,7 @@ router.post('/group/create-booking', authenticate, uploadGroup.fields([
           departureDateTime,
           departureAirportId: step2Data.departureAirportId,
           departureFlightNumber: step2Data.departureFlightNumber,
+          brn: step2Data.brn || null,
         },
       });
 
