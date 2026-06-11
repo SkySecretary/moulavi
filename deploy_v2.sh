@@ -56,8 +56,8 @@ ssh -o ControlMaster=auto -o ControlPath=/tmp/ssh-%r@%h:%p $SERVER_USER@$SERVER_
     # Backend Setup
     cd $RELEASE_PATH/backend
     npm install --production --silent
-    npx prisma generate
-    npx prisma db push --accept-data-loss
+    ./node_modules/.bin/prisma generate
+    ./node_modules/.bin/prisma db push --accept-data-loss
 
     # Frontend Setup
     cd $RELEASE_PATH/frontend
