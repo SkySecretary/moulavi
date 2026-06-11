@@ -55,7 +55,7 @@ ssh -o ControlMaster=auto -o ControlPath=/tmp/ssh-%r@%h:%p $SERVER_USER@$SERVER_
 
     # Backend Setup
     cd $RELEASE_PATH/backend
-    npm install --production --silent
+    PUPPETEER_SKIP_DOWNLOAD=true npm install --production --silent
     if [ -f "./node_modules/.bin/prisma" ]; then
         ./node_modules/.bin/prisma generate
         ./node_modules/.bin/prisma db push --accept-data-loss
