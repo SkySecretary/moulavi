@@ -1085,7 +1085,7 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
                   voucherId: voucherRecord.id,
                   sr: movement.sr || index + 1,
                   route: routeNumbers[index] || null, // Use generated route number
-                  date: new Date(movement.date),
+                  date: movement.date ? (isNaN(new Date(movement.date).getTime()) ? new Date() : new Date(movement.date)) : new Date(),
                   time: movement.time || '',
                   from: movement.from || '',
                   fromLocation: movement.fromLocation || '',
@@ -1126,8 +1126,8 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
                   number: hotel.number || 0,
                   location: hotel.location || '',
                   hotelName: hotel.hotelName || '',
-                  checkIn: new Date(hotel.checkIn),
-                  checkOut: new Date(hotel.checkOut),
+                  checkIn: hotel.checkIn ? (isNaN(new Date(hotel.checkIn).getTime()) ? new Date() : new Date(hotel.checkIn)) : new Date(),
+                  checkOut: hotel.checkOut ? (isNaN(new Date(hotel.checkOut).getTime()) ? new Date() : new Date(hotel.checkOut)) : new Date(),
                   days: hotel.days || 0,
                   brn: brnValue,
                     },
@@ -1152,7 +1152,7 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
                   type: String(flight.type || 'AA').substring(0, 2),
                   carrier: String(flight.carrier || '').substring(0, 10),
                   number: String(flight.number || '').substring(0, 20),
-                  date: new Date(flight.date),
+                  date: flight.date ? (isNaN(new Date(flight.date).getTime()) ? new Date() : new Date(flight.date)) : new Date(),
                   // Store airport in 'from' for AA, in 'to' for AD (for PDF display)
                   from: flight.type === 'AA' ? String(airport).substring(0, 10) : 'JED',
                   to: flight.type === 'AD' ? String(airport).substring(0, 10) : 'JED',
@@ -1403,10 +1403,7 @@ router.post('/generate-pdf', authenticate, async (req, res) => {
     const pdfBuffer = await generateVoucherPDF(voucherData);
 
     // Set response headers
-    const referencePart = voucherData.bookingReference ? `_${voucherData.bookingReference}` : '';
-    const fileName = `Voucher_${voucherData.voucherNumber}${referencePart}_${voucherData.guestName
-      .replace(/\s+/g, '_')
-      .slice(0, 20)}.pdf`;
+    const fileName = `${voucherData.voucherNumber.replace(/^UB-/, '')}.pdf`;
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
@@ -1554,7 +1551,7 @@ router.get('/:bookingId/generate-booking-pdf', authenticate, async (req, res) =>
     // Generate PDF
     const pdfBuffer = await generateVoucherPDF(pdfData);
 
-    const fileName = `Booking_${booking.bookingReference || booking.id.slice(0, 8)}_${pdfData.guestName.replace(/\s+/g, '_')}.pdf`;
+    const fileName = `${(booking.bookingReference || booking.id.slice(0, 8)).replace(/^UB-/, '')}.pdf`;
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);

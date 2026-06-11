@@ -629,13 +629,16 @@ router.post(
       // Create movements with dynamically generated route numbers
       if (movementDetails && Array.isArray(movementDetails)) {
         await Promise.all(
-          movementDetails.map((movement: any, index: number) =>
-            tx.voucherMovement.create({
+          movementDetails.map((movement: any, index: number) => {
+            const moveDate = movement.date ? new Date(movement.date) : new Date();
+            const validMoveDate = isNaN(moveDate.getTime()) ? new Date() : moveDate;
+
+            return tx.voucherMovement.create({
               data: {
                 voucherId: newVoucher.id,
                 sr: movement.sr || index + 1,
                 route: routeNumbers[index] || null, // Use generated route number
-                date: new Date(movement.date),
+                date: validMoveDate,
                 time: movement.time || '',
                 from: movement.from || '',
                 fromLocation: movement.fromLocation || '',
@@ -650,8 +653,8 @@ router.post(
                 price: movement.price ? parseFloat(movement.price) : null,
                 vehicleType: movement.vehicleType || null,
               },
-            })
-          )
+            });
+          })
         );
       }
 
@@ -669,14 +672,19 @@ router.post(
               }
             }
             
+            const inDate = hotel.checkIn ? new Date(hotel.checkIn) : new Date();
+            const outDate = hotel.checkOut ? new Date(hotel.checkOut) : new Date();
+            const validInDate = isNaN(inDate.getTime()) ? new Date() : inDate;
+            const validOutDate = isNaN(outDate.getTime()) ? new Date() : outDate;
+
             return tx.voucherHotel.create({
               data: {
                 voucherId: newVoucher.id,
                 number: hotel.number || 0,
                 location: hotel.location || '',
                 hotelName: hotel.hotelName || '',
-                checkIn: new Date(hotel.checkIn),
-                checkOut: new Date(hotel.checkOut),
+                checkIn: validInDate,
+                checkOut: validOutDate,
                 days: hotel.days || 0,
                 brn: brnValue,
               },
@@ -695,13 +703,16 @@ router.post(
               ? (flight.arrivalAirport || flight.from || '')
               : (flight.departureAirport || flight.to || '');
             
+            const flightDate = flight.date ? new Date(flight.date) : new Date();
+            const validFlightDate = isNaN(flightDate.getTime()) ? new Date() : flightDate;
+
             return tx.voucherFlight.create({
               data: {
                 voucherId: newVoucher.id,
                 type: String(flight.type || 'AA').substring(0, 2),
                 carrier: String(flight.carrier || '').substring(0, 10),
                 number: String(flight.number || '').substring(0, 20),
-                date: new Date(flight.date),
+                date: validFlightDate,
                 // Store airport in 'from' for AA, in 'to' for AD (for PDF display)
                 from: flight.type === 'AA' ? String(airport).substring(0, 10) : 'JED',
                 to: flight.type === 'AD' ? String(airport).substring(0, 10) : 'JED',
@@ -766,13 +777,16 @@ router.put(
         await tx.voucherMovement.deleteMany({ where: { voucherId: id } });
         // Create new movements
         await Promise.all(
-          movementDetails.map((movement: any) =>
-            tx.voucherMovement.create({
+          movementDetails.map((movement: any) => {
+            const moveDate = movement.date ? new Date(movement.date) : new Date();
+            const validMoveDate = isNaN(moveDate.getTime()) ? new Date() : moveDate;
+            
+            return tx.voucherMovement.create({
               data: {
                 voucherId: id,
                 sr: movement.sr || 0,
                 route: movement.route || null,
-                date: new Date(movement.date),
+                date: validMoveDate,
                 time: movement.time || '',
                 from: movement.from || '',
                 fromLocation: movement.fromLocation || '',
@@ -787,8 +801,8 @@ router.put(
                 price: movement.price ? parseFloat(movement.price) : null,
                 vehicleType: movement.vehicleType || null,
               },
-            })
-          )
+            });
+          })
         );
       }
 
@@ -809,14 +823,19 @@ router.put(
               }
             }
             
+            const inDate = hotel.checkIn ? new Date(hotel.checkIn) : new Date();
+            const outDate = hotel.checkOut ? new Date(hotel.checkOut) : new Date();
+            const validInDate = isNaN(inDate.getTime()) ? new Date() : inDate;
+            const validOutDate = isNaN(outDate.getTime()) ? new Date() : outDate;
+
             return tx.voucherHotel.create({
               data: {
                 voucherId: id,
                 number: hotel.number || 0,
                 location: hotel.location || '',
                 hotelName: hotel.hotelName || '',
-                checkIn: new Date(hotel.checkIn),
-                checkOut: new Date(hotel.checkOut),
+                checkIn: validInDate,
+                checkOut: validOutDate,
                 days: hotel.days || 0,
                 brn: brnValue,
               },
@@ -831,21 +850,24 @@ router.put(
         await tx.voucherFlight.deleteMany({ where: { voucherId: id } });
         // Create new flights
         await Promise.all(
-          flightDetails.map((flight: any) =>
-            tx.voucherFlight.create({
+          flightDetails.map((flight: any) => {
+            const flightDate = flight.date ? new Date(flight.date) : new Date();
+            const validFlightDate = isNaN(flightDate.getTime()) ? new Date() : flightDate;
+
+            return tx.voucherFlight.create({
               data: {
                 voucherId: id,
                 type: String(flight.type || 'AA').substring(0, 2),
                 carrier: String(flight.carrier || '').substring(0, 10),
                 number: String(flight.number || '').substring(0, 20),
-                date: new Date(flight.date),
+                date: validFlightDate,
                 from: String(flight.from || '').substring(0, 10),
                 to: String(flight.to || '').substring(0, 10),
                 etd: flight.etd ? String(flight.etd).substring(0, 10) : null,
                 eta: flight.eta ? String(flight.eta).substring(0, 10) : null,
               },
-            })
-          )
+            });
+          })
         );
       }
 

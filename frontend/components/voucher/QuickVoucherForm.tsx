@@ -306,15 +306,22 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
   };
 
   const calculateZiyarathDate = (checkInDate: string): string => {
-    const isoDate = fromDisplayDate(checkInDate);
-    const parts = isoDate.split('-');
-    const base = new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])));
-    base.setUTCDate(base.getUTCDate() + 2);
-    // Skip Friday (day 5) -> move to Saturday (day 6)
-    if (base.getUTCDay() === 5) {
-      base.setUTCDate(base.getUTCDate() + 1);
+    try {
+      const isoDate = fromDisplayDate(checkInDate);
+      if (!isoDate || !isoDate.includes('-')) return '';
+      const parts = isoDate.split('-');
+      const base = new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])));
+      if (isNaN(base.getTime())) return '';
+      
+      base.setUTCDate(base.getUTCDate() + 2);
+      // Skip Friday (day 5) -> move to Saturday (day 6)
+      if (base.getUTCDay() === 5) {
+        base.setUTCDate(base.getUTCDate() + 1);
+      }
+      return base.toISOString().split('T')[0];
+    } catch {
+      return '';
     }
-    return base.toISOString().split('T')[0];
   };
 
   const calculateMovementTime = (
@@ -391,8 +398,38 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
         : [];
 
       hotels = hotelCities.map((city: any, idx: number) => {
-        const arrivalParts = fromDisplayDate(arrivalDate).split('-');
+        const arrivalISO = fromDisplayDate(arrivalDate);
+        if (!arrivalISO || !arrivalISO.includes('-')) {
+           return {
+            number: idx + 1,
+            cityId: city.id,
+            cityName: city.name,
+            locationId: '',
+            location: city.name,
+            hotelName: '',
+            checkIn: '',
+            checkOut: '',
+            days: 0,
+          };
+        }
+        
+        const arrivalParts = arrivalISO.split('-');
         const checkInDate = new Date(Date.UTC(parseInt(arrivalParts[0]), parseInt(arrivalParts[1]) - 1, parseInt(arrivalParts[2])));
+        
+        if (isNaN(checkInDate.getTime())) {
+          return {
+            number: idx + 1,
+            cityId: city.id,
+            cityName: city.name,
+            locationId: '',
+            location: city.name,
+            hotelName: '',
+            checkIn: '',
+            checkOut: '',
+            days: 0,
+          };
+        }
+
         checkInDate.setUTCDate(checkInDate.getUTCDate() + (idx * daysPerCity));
         const checkOutDate = new Date(checkInDate.getTime());
         checkOutDate.setUTCDate(checkOutDate.getUTCDate() + daysPerCity);
@@ -404,8 +441,8 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
           locationId: '',
           location: city.name,
           hotelName: '',
-          checkIn: extractDateFromISO(checkInDate.toISOString()),
-          checkOut: extractDateFromISO(checkOutDate.toISOString()),
+          checkIn: checkInDate.toISOString().split('T')[0],
+          checkOut: checkOutDate.toISOString().split('T')[0],
           days: daysPerCity,
         };
       });
@@ -651,6 +688,11 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
   const handleSubmit = async () => {
     if (!formData.guestName || !formData.paxCount) {
       toast.error('Guest name and passenger count are required');
+      return;
+    }
+
+    if (formData.transportOptions.length === 0) {
+      toast.error('At least one transportation option must be selected');
       return;
     }
 
@@ -1386,7 +1428,11 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
               )}
 
               <div className="pt-4 space-y-2">
-                <Button className="w-full h-10 rounded-xl bg-primary text-white font-bold uppercase tracking-wider text-[10px] shadow-lg shadow-primary/20 transition-all active:scale-95" onClick={handleSubmit} disabled={submitting}>
+                <Button 
+                  className="w-full h-10 rounded-xl bg-primary text-white font-bold uppercase tracking-wider text-[10px] shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50 disabled:grayscale" 
+                  onClick={handleSubmit} 
+                  disabled={submitting || formData.transportOptions.length === 0}
+                >
                   {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <><CheckCircle2 className="h-3.5 w-3.5 mr-2" /> Finalize</>}
                 </Button>
                 <Button variant="ghost" className="w-full h-9 rounded-xl text-muted-foreground font-bold uppercase text-[9px] hover:bg-destructive/5 hover:text-destructive" onClick={() => onSuccess()}>Cancel</Button>

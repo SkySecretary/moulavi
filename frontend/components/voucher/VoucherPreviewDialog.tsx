@@ -648,10 +648,7 @@ export function VoucherPreviewDialog({
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        const refPart = pdfData.bookingReference ? `_${pdfData.bookingReference}` : '';
-        link.download = `Voucher_${pdfData.voucherNumber}${refPart}_${pdfData.guestName
-          .replace(/\s+/g, '_')
-          .slice(0, 20)}.pdf`;
+        link.download = `${pdfData.voucherNumber.replace(/^UB-/, '')}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -1447,8 +1444,18 @@ export function VoucherPreviewDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={submitting}>
-            {submitting ? 'Generating...' : 'Generate Voucher'}
+          <Button 
+            onClick={handleSubmit} 
+            disabled={submitting || voucherData.transportOptions.length === 0}
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              'Generate Voucher'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

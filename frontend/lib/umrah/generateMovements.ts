@@ -3,6 +3,7 @@
 
 import { Movement, HotelBooking, Step3Data, Step4Data } from './types';
 import { TransportRouteMaster } from '@/types';
+import { fromDisplayDate } from './validation';
 
 interface GenerateMovementsParams {
   hotelBookings: HotelBooking[];
@@ -22,7 +23,9 @@ interface GenerateMovementsParams {
 function calculateZiyarathDate(checkInDate: string): string {
   try {
     if (!checkInDate) return '';
-    const base = new Date(checkInDate);
+    // checkInDate might be DD/MM/YY, convert to ISO first
+    const isoDate = fromDisplayDate(checkInDate);
+    const base = new Date(isoDate);
     if (isNaN(base.getTime())) return '';
     base.setDate(base.getDate() + 2);
     // Friday (day 5) -> Saturday (day 6)
@@ -69,7 +72,9 @@ function subtractHoursFromDateTime(
 ): { date: string; time: string } {
   try {
     const [hours, minutes] = (time || '00:00').split(':').map(Number);
-    const dateTime = new Date(date);
+    // date might be DD/MM/YY
+    const isoDate = fromDisplayDate(date);
+    const dateTime = new Date(isoDate);
     if (isNaN(dateTime.getTime())) return { date, time };
     
     dateTime.setHours(hours, minutes, 0, 0);
@@ -250,8 +255,12 @@ export function generateMovementsFromHotels({
 
   // Sort by date/time chronologically
   return movements.sort((a, b) => {
-    const dateA = new Date(`${a.date} ${a.time}`);
-    const dateB = new Date(`${b.date} ${b.time}`);
+    const isoDateA = fromDisplayDate(a.date || '');
+    const isoDateB = fromDisplayDate(b.date || '');
+    const dateA = new Date(`${isoDateA}T${a.time || '00:00'}:00.000Z`);
+    const dateB = new Date(`${isoDateB}T${b.time || '00:00'}:00.000Z`);
+    
+    if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) return 0;
     return dateA.getTime() - dateB.getTime();
   });
 }
@@ -335,7 +344,8 @@ export function generateMovementsFromRoutes({
       const currentHotel = hotelBookings[i];
       const nextHotel = hotelBookings[i + 1];
       
-      let moveDate = new Date(nextHotel.checkInDate);
+      const isoMoveDate = fromDisplayDate(nextHotel.checkInDate);
+      let moveDate = new Date(isoMoveDate);
       let time = '12:00';
 
       const currentCity = getCityName(currentHotel.hotelId, locationMasters)?.toLowerCase().trim();
@@ -352,7 +362,7 @@ export function generateMovementsFromRoutes({
         moveDate.setDate(moveDate.getDate() + 1); // Skip to Saturday
       }
 
-      const formattedDate = !isNaN(moveDate.getTime()) ? moveDate.toISOString().split('T')[0] : '';
+      const formattedDate = !isNaN(moveDate.getTime()) ? moveDate.toISOString().split('T')[0] : (isoMoveDate || nextHotel.checkInDate);
 
       movements.push({
         id: `movement-${i + 2}`,
@@ -425,8 +435,12 @@ export function generateMovementsFromRoutes({
   
   // Sort by date/time chronologically
   return movements.sort((a, b) => {
-    const dateA = new Date(`${a.date} ${a.time}`);
-    const dateB = new Date(`${b.date} ${b.time}`);
+    const isoDateA = fromDisplayDate(a.date || '');
+    const isoDateB = fromDisplayDate(b.date || '');
+    const dateA = new Date(`${isoDateA}T${a.time || '00:00'}:00.000Z`);
+    const dateB = new Date(`${isoDateB}T${b.time || '00:00'}:00.000Z`);
+    
+    if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) return 0;
     return dateA.getTime() - dateB.getTime();
   });
 }

@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { partyAPI } from '@/lib/api';
+import { getUser } from '@/lib/auth';
 import { API_ENDPOINTS } from '@/lib/umrah/constants';
 import { BookingState, MasterData, Step1Data, Step2Data, Step3Data, Step4Data, Step5Data, Step6Data } from '@/lib/umrah/types';
-import { fromDisplayDate } from '@/lib/umrah/validation';
+import { fromDisplayDate, toDisplayDate, extractDateFromISO } from '@/lib/umrah/validation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -102,7 +103,6 @@ export const useUmrahBooking = () => {
         setPartyId(providedPartyId);
       } else {
         // Only attempt to get party from current user if they are a party user
-        const { getUser } = await import('@/lib/auth');
         const user = getUser();
         
         if (user?.role === 'party') {

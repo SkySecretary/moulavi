@@ -113,7 +113,13 @@ export const fromDisplayDate = (displayDate: string): string => {
  */
 export const extractTimeFromISO = (isoString: string | Date | null | undefined): string => {
   if (!isoString) return '';
-  const str = typeof isoString === 'string' ? isoString : isoString.toISOString();
+  let str: string;
+  if (isoString instanceof Date) {
+    if (isNaN(isoString.getTime())) return '';
+    str = isoString.toISOString();
+  } else {
+    str = isoString;
+  }
   // Expecting YYYY-MM-DDTHH:mm:ss.sssZ or similar
   const timePart = str.split('T')[1];
   if (!timePart) return '';
@@ -125,7 +131,13 @@ export const extractTimeFromISO = (isoString: string | Date | null | undefined):
  */
 export const extractDateFromISO = (isoString: string | Date | null | undefined): string => {
   if (!isoString) return '';
-  const str = typeof isoString === 'string' ? isoString : isoString.toISOString();
+  let str: string;
+  if (isoString instanceof Date) {
+    if (isNaN(isoString.getTime())) return '';
+    str = isoString.toISOString();
+  } else {
+    str = isoString;
+  }
   return str.split('T')[0];
 };
 
@@ -146,6 +158,10 @@ export const calculateDuration = (arrival: string, departure: string) => {
   const arrivalDate = new Date(fromDisplayDate(arrival));
   const departureDate = new Date(fromDisplayDate(departure));
   
+  if (isNaN(arrivalDate.getTime()) || isNaN(departureDate.getTime())) {
+    return { days: 0, error: '' };
+  }
+
   if (departureDate <= arrivalDate) {
     return { days: 0, error: 'Departure date must be after arrival date' };
   }
@@ -170,11 +186,18 @@ export const calculateHotelCoverage = (arrivalDate: string, departureDate: strin
 
   const arrival = new Date(fromDisplayDate(arrivalDate));
   const departure = new Date(fromDisplayDate(departureDate));
+  
+  if (isNaN(arrival.getTime()) || isNaN(departure.getTime())) {
+    return { totalCovered: 0, uncoveredDates: [], remainingDays: 0, totalBookedDays: 0 };
+  }
+
   const allDates: string[] = [];
   
   const currentDate = new Date(arrival);
   while (currentDate < departure) {
-    allDates.push(currentDate.toISOString().split('T')[0]);
+    if (!isNaN(currentDate.getTime())) {
+      allDates.push(currentDate.toISOString().split('T')[0]);
+    }
     currentDate.setDate(currentDate.getDate() + 1);
   }
 
@@ -185,13 +208,18 @@ export const calculateHotelCoverage = (arrivalDate: string, departureDate: strin
     if (booking.checkInDate && booking.checkOutDate) {
       const checkIn = new Date(fromDisplayDate(booking.checkInDate));
       const checkOut = new Date(fromDisplayDate(booking.checkOutDate));
+      
+      if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) return;
+
       const current = new Date(checkIn);
       
       // Calculate total booked days for this hotel
       let hotelDays = 0;
       while (current < checkOut) {
-        const dateStr = current.toISOString().split('T')[0];
-        coveredDates.add(dateStr);
+        if (!isNaN(current.getTime())) {
+          const dateStr = current.toISOString().split('T')[0];
+          coveredDates.add(dateStr);
+        }
         hotelDays++;
         current.setDate(current.getDate() + 1);
       }
@@ -266,11 +294,11 @@ export const validateStep2 = (data: Step2Data, airports: any[], step1Data?: Step
     const lastArrivalDate = new Date(umrahVisaMaster.lastArrivalDate);
     const lastDepartureDate = new Date(umrahVisaMaster.lastDepartureDate);
 
-    if (arrivalDate > lastArrivalDate) {
+    if (!isNaN(arrivalDate.getTime()) && !isNaN(lastArrivalDate.getTime()) && arrivalDate > lastArrivalDate) {
       return `Final Date of Umra Visa Arrival is ${umrahVisaMaster.lastArrivalDate}`;
     }
 
-    if (departureDate > lastDepartureDate) {
+    if (!isNaN(departureDate.getTime()) && !isNaN(lastDepartureDate.getTime()) && departureDate > lastDepartureDate) {
       return `Final Date of Umra Visa Departure is ${umrahVisaMaster.lastDepartureDate}`;
     }
   }
@@ -288,18 +316,22 @@ export const validateStep2 = (data: Step2Data, airports: any[], step1Data?: Step
       const checkIn = new Date(fromDisplayDate(booking.checkInDate));
       const checkOut = new Date(fromDisplayDate(booking.checkOutDate));
       
+      if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
+        return 'Invalid hotel check-in or check-out date';
+      }
+      
       // Check-out must be after check-in
       if (checkOut <= checkIn) {
         return 'Check-out date must be after check-in date';
       }
       
       // Check-in must not be before arrival date
-      if (checkIn < arrival) {
+      if (!isNaN(arrival.getTime()) && checkIn < arrival) {
         return `Hotel check-in date (${booking.checkInDate}) cannot be before arrival date (${data.arrivalDate})`;
       }
       
       // Check-out must not be after departure date
-      if (checkOut > departure) {
+      if (!isNaN(departure.getTime()) && checkOut > departure) {
         return `Hotel check-out date (${booking.checkOutDate}) cannot be after departure date (${data.departureDate})`;
       }
     }
@@ -401,6 +433,10 @@ export const validateStep3 = (
         const checkIn = new Date(fromDisplayDate(booking.checkInDate));
         const checkOut = new Date(fromDisplayDate(booking.checkOutDate));
 
+        if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
+          return 'Invalid hotel check-in or check-out date';
+        }
+
         if (checkOut <= checkIn) {
           return 'Check-out date must be after check-in date';
         }
@@ -414,6 +450,8 @@ export const validateStep3 = (
         for (const z of data.ziyarah) {
           if (!z.date) continue;
           const d = new Date(fromDisplayDate(z.date) + 'T00:00:00');
+          if (isNaN(d.getTime())) continue;
+          
           // 5 = Friday when using getUTCDay with date-only baseline
           if (d.getUTCDay() === 5) {
             return `${z.city} Ziyarah cannot be scheduled on Friday. Please adjust the date.`;
@@ -460,6 +498,10 @@ export const validateStep3 = (
       }
 
       const moveDate = new Date(fromDisplayDate(movement.date));
+      if (isNaN(moveDate.getTime())) {
+        return `Invalid date format for movement: ${movement.date}`;
+      }
+      
       const isFriday = moveDate.getUTCDay() === 5;
       const hours = parseInt(movement.time.split(':')[0], 10);
       const isZiyarath = (movement as any).type === 'ziyarath' || (movement as any).tripType === 'ziyarath';
@@ -586,6 +628,10 @@ export const validateStep3 = (
       }
 
       const moveDate = new Date(fromDisplayDate(movement.date));
+      if (isNaN(moveDate.getTime())) {
+        return `Invalid date format for movement: ${movement.date}`;
+      }
+      
       const isFriday = moveDate.getUTCDay() === 5;
       const hours = parseInt(movement.time.split(':')[0], 10);
       const isZiyarath = (movement as any).type === 'ziyarath' || (movement as any).tripType === 'ziyarath';
