@@ -120,30 +120,19 @@ function CreateIndividualContent() {
     }
   };
 
-  const isJeddahOrMadinahAirport = (): boolean => {
-    if (!bookingState.step2Data.arrivalAirportId || !masterData.locationMasters) return false;
-    const arrivalAirport = masterData.locationMasters.find(lm => lm.id === bookingState.step2Data.arrivalAirportId && lm.locationType === 'AIRPORT');
-    if (!arrivalAirport) return false;
-    const cityName = (arrivalAirport.cityMaster?.name || arrivalAirport.city || '').toLowerCase().trim();
-    return ['jeddah', 'madinah', 'madina', 'medina'].includes(cityName);
-  };
-
   const nextStep = async () => {
     if (!selectedPartyId) { toast.error('Please select a party first'); return; }
     const validationError = validateCurrentStep();
     if (validationError) { toast.error(validationError); return; }
     const success = await submitStep(bookingState.currentStep);
-    if (success && bookingState.currentStep === 3 && !isJeddahOrMadinahAirport()) { setCurrentStep(6); return; }
     if (success && bookingState.currentStep === 6) router.push('/dashboard/umrah-visa/bookings');
   };
 
   const prevStep = () => {
-    if (bookingState.currentStep === 6 && !isJeddahOrMadinahAirport()) { setCurrentStep(3); return; }
     setCurrentStep(Math.max(bookingState.currentStep - 1, 1));
   };
 
   const goToStep = (stepId: number) => {
-    if ((stepId === 4 || stepId === 5) && !isJeddahOrMadinahAirport()) { setCurrentStep(6); return; }
     if (stepId <= bookingState.currentStep || bookingState.completedSteps.includes(stepId)) setCurrentStep(stepId);
   };
 

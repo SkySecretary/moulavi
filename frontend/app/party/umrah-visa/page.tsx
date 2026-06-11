@@ -105,42 +105,15 @@ export default function UmrahVisaNewPage() {
 
     const success = await submitStep(bookingState.currentStep);
     
-    // Special handling for step 3: Skip steps 4 and 5 if arrival airport is not Jeddah/Madinah
-    if (success && bookingState.currentStep === 3 && !isJeddahOrMadinahAirport()) {
-      // Skip steps 4 and 5, go directly to step 6
-      setCurrentStep(6);
-      return;
-    }
-    
     if (success && bookingState.currentStep === 6) {
       router.push('/party/dashboard');
     }
   };
 
-  // Helper: Check if arrival airport is Jeddah or Madinah
-  const isJeddahOrMadinahAirport = (): boolean => {
-    if (!bookingState.step2Data.arrivalAirportId || !masterData.locationMasters) {
-      return false;
-    }
-    const arrivalAirport = masterData.locationMasters.find(
-      (lm) => lm.id === bookingState.step2Data.arrivalAirportId && lm.locationType === 'AIRPORT'
-    );
-    if (!arrivalAirport) return false;
-    
-    const cityName = arrivalAirport.cityMaster?.name || arrivalAirport.city || '';
-    const normalizedCity = cityName.toLowerCase().trim();
-    return normalizedCity === 'jeddah' || normalizedCity === 'madinah' || normalizedCity === 'madina' || normalizedCity === 'medina';
-  };
-
   const prevStep = () => {
     // Special handling for step 6:
-    // - If arrival airport is not Jeddah/Madinah, go to step 3
     // - If no transport is selected, go to step 3 (not step 5)
     if (bookingState.currentStep === 6) {
-      if (!isJeddahOrMadinahAirport()) {
-        setCurrentStep(3);
-        return;
-      }
       // Check if transport is selected
       const hasTransport = bookingState.step4Data.selectedTransport || 
                            (bookingState.step4Data.selectedTransports && bookingState.step4Data.selectedTransports.length > 0);
@@ -153,14 +126,6 @@ export default function UmrahVisaNewPage() {
   };
 
   const goToStep = (stepId: number) => {
-    // Prevent going to steps 4 or 5 if arrival airport is not Jeddah/Madinah
-    if ((stepId === 4 || stepId === 5) && !isJeddahOrMadinahAirport()) {
-      // If trying to go to step 4 or 5 but airport is not Jeddah/Madinah, go to step 6 instead
-      if (stepId === 4 || stepId === 5) {
-        setCurrentStep(6);
-        return;
-      }
-    }
     if (stepId <= bookingState.currentStep || bookingState.completedSteps.includes(stepId)) {
       setCurrentStep(stepId);
     }

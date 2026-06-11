@@ -195,21 +195,8 @@ export const useUmrahBooking = () => {
           const data = await response.json();
           
           if (response.ok) {
-            // Special handling for step 3: Check if arrival airport is Jeddah or Madinah
-            // If not, skip steps 4 and 5, go directly to step 6 (documents)
             let nextStep = stepNumber + 1;
-            if (stepNumber === 3) {
-              // Check if arrival airport is Jeddah or Madinah
-              const arrivalAirportId = bookingState.step2Data.arrivalAirportId;
-              const requiresTransport = arrivalAirportId && 
-                (arrivalAirportId.toLowerCase().includes('jeddah') || 
-                 arrivalAirportId.toLowerCase().includes('madinah') ||
-                 arrivalAirportId.toLowerCase().includes('medina'));
-              
-              // For now, we'll check this in the page component where we have access to locationMasters
-              // Here we'll just proceed normally, the page component will handle the skip logic
-              nextStep = 4;
-            } else if (stepNumber === 4) {
+            if (stepNumber === 4) {
               // Special handling for step 4: Check if transport is selected
               // If no transport selected, skip to step 6 (documents)
               // If transport selected, go to step 5 (movements)
