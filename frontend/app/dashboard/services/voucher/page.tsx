@@ -17,6 +17,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DatePicker } from '@/components/ui/date-picker';
+import { fromDisplayDate, extractDateFromISO, toDisplayDate } from '@/lib/umrah/validation';
 import {
   Search,
   Plus,
@@ -263,7 +265,7 @@ export default function VoucherServicePage() {
         voucherNumber: voucher.voucherNumber,
         bookingReference: voucher.bookingReference || '',
         reservationNumber: voucher.voucherNumber,
-        reservationDate: voucher.reservationDate ? (typeof voucher.reservationDate === 'string' ? voucher.reservationDate.split('T')[0] : new Date(voucher.reservationDate).toISOString().split('T')[0]) : '',
+        reservationDate: voucher.reservationDate ? extractDateFromISO(voucher.reservationDate) : '',
         guestName: voucher.guestName || '',
         guestMobile: voucher.guestMobile || '',
         groupCode: voucher.groupCode || '',
@@ -275,15 +277,15 @@ export default function VoucherServicePage() {
           number: hs.number || 0,
           location: hs.location || '',
           hotelName: hs.hotelName || '',
-          checkIn: hs.checkIn ? (typeof hs.checkIn === 'string' ? hs.checkIn.split('T')[0] : new Date(hs.checkIn).toISOString().split('T')[0]) : '',
-          checkOut: hs.checkOut ? (typeof hs.checkOut === 'string' ? hs.checkOut.split('T')[0] : new Date(hs.checkOut).toISOString().split('T')[0]) : '',
+          checkIn: hs.checkIn ? extractDateFromISO(hs.checkIn) : '',
+          checkOut: hs.checkOut ? extractDateFromISO(hs.checkOut) : '',
           days: hs.days || 0,
           brn: hs.brn ? (hs.brn.includes(',') ? hs.brn.split(',').map((s: string) => s.trim()) : [hs.brn]) : [],
         })),
         movementDetails: (voucher.movementDetails || []).map((md: any) => ({
           sr: md.sr || 0,
           route: md.route || '',
-          date: md.date ? (typeof md.date === 'string' ? md.date.split('T')[0] : new Date(md.date).toISOString().split('T')[0]) : '',
+          date: md.date ? extractDateFromISO(md.date) : '',
           time: md.time || '',
           from: md.from || '',
           fromLocation: md.fromLocation || '',
@@ -295,7 +297,7 @@ export default function VoucherServicePage() {
           type: fd.type || 'AA',
           carrier: fd.carrier || '',
           number: fd.number || '',
-          date: fd.date ? (typeof fd.date === 'string' ? fd.date.split('T')[0] : new Date(fd.date).toISOString().split('T')[0]) : '',
+          date: fd.date ? extractDateFromISO(fd.date) : '',
           from: fd.from || '',
           to: fd.to || '',
           etd: fd.etd || '',
@@ -391,11 +393,11 @@ export default function VoucherServicePage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="flex items-center gap-2">
                           <Label className="text-xs whitespace-nowrap">From:</Label>
-                          <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-8 text-xs" />
+                          <DatePicker value={dateFrom} onChange={(val) => setDateFrom(fromDisplayDate(val))} className="h-8" />
                         </div>
                         <div className="flex items-center gap-2">
                           <Label className="text-xs whitespace-nowrap">To:</Label>
-                          <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-8 text-xs" />
+                          <DatePicker value={dateTo} onChange={(val) => setDateTo(fromDisplayDate(val))} className="h-8" />
                         </div>
                       </div>
                     </div>
@@ -409,20 +411,24 @@ export default function VoucherServicePage() {
                             <TableHead className="h-12 text-[10px] font-black text-gray-400 uppercase tracking-widest">Group Code</TableHead>
                             <TableHead className="h-12 text-[10px] font-black text-gray-400 uppercase tracking-widest">Guest Contact</TableHead>
                             <TableHead className="h-12 text-[10px] font-black text-gray-400 uppercase tracking-widest">Capacity</TableHead>
+                            <TableHead className="h-12 text-[10px] font-black text-gray-400 uppercase tracking-widest">Umrah Co.</TableHead>
+                            <TableHead className="h-12 text-[10px] font-black text-gray-400 uppercase tracking-widest">Transport Co.</TableHead>
                             <TableHead className="h-12 text-[10px] font-black text-gray-400 uppercase tracking-widest">Generator</TableHead>
                             <TableHead className="h-12 text-[10px] font-black text-gray-400 uppercase tracking-widest">Created Date</TableHead>
                             <TableHead className="text-right px-6">Action</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {loadingVouchers ? [...Array(5)].map((_, i) => <TableRow key={i}><TableCell colSpan={7} className="px-6"><Skeleton className="h-10 w-full" /></TableCell></TableRow>) : 
-                           vouchers.length === 0 ? <TableRow><TableCell colSpan={7} className="text-center py-16 text-gray-400 font-medium tracking-tight">No voucher records matching your query</TableCell></TableRow> :
+                          {loadingVouchers ? [...Array(5)].map((_, i) => <TableRow key={i}><TableCell colSpan={9} className="px-6"><Skeleton className="h-10 w-full" /></TableCell></TableRow>) : 
+                           vouchers.length === 0 ? <TableRow><TableCell colSpan={9} className="text-center py-16 text-gray-400 font-medium tracking-tight">No voucher records matching your query</TableCell></TableRow> :
                            vouchers.map(v => (
                             <TableRow key={v.id} className="hover:bg-gray-50/50 transition-colors border-gray-50">
                               <TableCell className="px-6 font-black text-primary text-sm">{v.voucherNumber}</TableCell>
                               <TableCell className="text-xs font-bold text-secondary uppercase">{v.groupCode || '—'}</TableCell>
                               <TableCell><div><p className="font-bold text-sm text-gray-900">{v.guestName}</p><p className="text-[10px] text-gray-400 font-medium">{v.guestMobile}</p></div></TableCell>
                               <TableCell><Badge variant="outline" className="font-black bg-blue-50/50 border-blue-100 text-blue-700">{v.paxCount} PAX</Badge></TableCell>
+                              <TableCell className="text-[10px] font-bold text-gray-600 uppercase">{v.umrahCompany?.partyName || '—'}</TableCell>
+                              <TableCell className="text-[10px] font-bold text-gray-600 uppercase">{v.transportCompany?.partyName || '—'}</TableCell>
                               <TableCell className="text-xs font-medium text-gray-600">{v.generatedByUser?.name || 'System'}</TableCell>
                               <TableCell className="text-xs text-gray-400 font-medium">{new Date(v.createdAt).toLocaleDateString('en-US', { timeZone: 'UTC' })}</TableCell>
                               <TableCell className="text-right px-6"><div className="flex items-center justify-end gap-1"><Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 rounded-lg" onClick={() => router.push(`/dashboard/services/voucher/view/${v.id}`)}><Eye className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600 rounded-lg" onClick={() => downloadVoucherPDF(v.id)} disabled={downloadingVoucherId === v.id}>{downloadingVoucherId === v.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}</Button></div></TableCell>

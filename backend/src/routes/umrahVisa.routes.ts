@@ -1015,6 +1015,9 @@ router.patch('/:bookingId/alternate-info', authenticate, async (req, res) => {
       iqamaDetails
     } = req.body;
 
+    console.log(`[DEBUG] Updating alternate info for booking ${bookingId}`);
+    console.log(`[DEBUG] travelDetails: ${JSON.stringify(travelDetails)}`);
+
     const results = await prisma.$transaction(async (tx) => {
       // 1. Update Alternate Travel Details
       let updatedTravel = null;

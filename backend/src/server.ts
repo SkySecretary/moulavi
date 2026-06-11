@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { prisma } from './lib/prisma';
 import authRoutes from './routes/auth.routes';
 import partyRoutes from './routes/party.routes';
 import partyContactRoutes from './routes/partyContact.routes';

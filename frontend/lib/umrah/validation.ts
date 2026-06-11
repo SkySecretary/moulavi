@@ -30,44 +30,114 @@ export const formatFlightNumber = (value: string): string => {
   }
 };
 
-// Strict dd/mm/yy validation regex
-export const DATE_FORMAT_REGEX = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{2}$/;
+// Strict dd/mm/yy or dd/mm/yyyy validation regex
+export const DATE_FORMAT_REGEX = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/(\d{2}|\d{4})$/;
 
 /**
- * Validates a date string specifically in DD/MM/YY format
+ * Validates a date string specifically in DD/MM/YY or YYYY-MM-DD format
  */
 export const isValidStrictDate = (dateStr: string): boolean => {
   if (!dateStr) return false;
-  return DATE_FORMAT_REGEX.test(dateStr);
+  return DATE_FORMAT_REGEX.test(dateStr) || /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
 };
 
 /**
- * Converts YYYY-MM-DD to DD/MM/YY
+ * Converts YYYY-MM-DD to DD/MM/YYYY
  */
 export const toDisplayDate = (isoDate: string): string => {
   if (!isoDate) return '';
-  if (DATE_FORMAT_REGEX.test(isoDate)) return isoDate; // Already in display format
+  // Check if it's already in DD/MM/YYYY format
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(isoDate)) return isoDate;
+  // If it's in DD/MM/YY format, we should probably keep it but it's better to convert to YYYY
+  if (DATE_FORMAT_REGEX.test(isoDate)) {
+    const parts = isoDate.split('/');
+    if (parts.length === 3 && parts[2].length === 2) {
+      const year = parseInt(parts[2], 10);
+      const fullYear = year > 50 ? `19${parts[2]}` : `20${parts[2]}`;
+      return `${parts[0]}/${parts[1]}/${fullYear}`;
+    }
+    return isoDate;
+  }
   
-  const parts = isoDate.split('-');
-  if (parts.length !== 3) return isoDate;
+  // Extract just the date part if it's a full ISO string
+  const datePart = isoDate.split('T')[0];
+  const parts = datePart.split('-');
   
-  const [year, month, day] = parts;
-  return `${day}/${month}/${year.substring(2)}`;
+  if (parts.length === 3) {
+    const [year, month, day] = parts;
+    // Ensure 2-digit components
+    const d = day.padStart(2, '0');
+    const m = month.padStart(2, '0');
+    const y = year.length === 2 ? (parseInt(year) > 50 ? `19${year}` : `20${year}`) : year;
+    return `${d}/${m}/${y}`;
+  }
+
+  // Fallback for other formats
+  const date = new Date(isoDate);
+  if (isNaN(date.getTime())) return isoDate;
+  
+  const d = String(date.getUTCDate()).padStart(2, '0');
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const y = String(date.getUTCFullYear());
+  return `${d}/${m}/${y}`;
 };
 
 /**
- * Converts DD/MM/YY to YYYY-MM-DD
+ * Converts DD/MM/YY or DD/MM/YYYY to YYYY-MM-DD
  */
 export const fromDisplayDate = (displayDate: string): string => {
   if (!displayDate) return '';
-  if (/^\d{4}-\d{2}-\d{2}$/.test(displayDate)) return displayDate; // Already in ISO format
+  if (/^\d{4}-\d{2}-\d{2}/.test(displayDate)) return displayDate.split('T')[0]; // Already in ISO format
   
-  const parts = displayDate.split('/');
+  // Handle both / and - separators
+  const parts = displayDate.includes('/') ? displayDate.split('/') : displayDate.split('-');
   if (parts.length !== 3) return displayDate;
   
   const [day, month, year] = parts;
-  const fullYear = year.length === 2 ? `20${year}` : year;
-  return `${fullYear}-${month}-${day}`;
+  if (!day || !month || !year) return displayDate;
+
+  // Pivot at 50 for 2-digit years
+  let fullYear = year;
+  if (year.length === 2) {
+    fullYear = parseInt(year, 10) > 50 ? `19${year}` : `20${year}`;
+  }
+  
+  const fullMonth = month.padStart(2, '0');
+  const fullDay = day.padStart(2, '0');
+  
+  return `${fullYear}-${fullMonth}-${fullDay}`;
+};
+
+/**
+ * Safely extracts HH:mm from an ISO date string without timezone conversion
+ */
+export const extractTimeFromISO = (isoString: string | Date | null | undefined): string => {
+  if (!isoString) return '';
+  const str = typeof isoString === 'string' ? isoString : isoString.toISOString();
+  // Expecting YYYY-MM-DDTHH:mm:ss.sssZ or similar
+  const timePart = str.split('T')[1];
+  if (!timePart) return '';
+  return timePart.substring(0, 5); // HH:mm
+};
+
+/**
+ * Safely extracts YYYY-MM-DD from an ISO date string without timezone conversion
+ */
+export const extractDateFromISO = (isoString: string | Date | null | undefined): string => {
+  if (!isoString) return '';
+  const str = typeof isoString === 'string' ? isoString : isoString.toISOString();
+  return str.split('T')[0];
+};
+
+/**
+ * Combines date and time into an ISO string without local timezone shifts
+ */
+export const combineDateAndTime = (dateStr: string, timeStr: string): string => {
+  if (!dateStr) return '';
+  // Ensure date is in YYYY-MM-DD
+  const isoDate = fromDisplayDate(dateStr);
+  const isoTime = timeStr || '00:00';
+  return `${isoDate}T${isoTime}:00.000Z`;
 };
 
 export const calculateDuration = (arrival: string, departure: string) => {

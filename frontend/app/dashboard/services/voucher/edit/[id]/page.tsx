@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Calendar, Plane, Users, Building, MapPin, Mail, ArrowLeft, Clock, Route, Ticket, Truck, Plus, X } from 'lucide-react';
 import { TimePicker } from '@/components/ui/time-picker';
+import { extractDateFromISO } from '@/lib/umrah/validation';
 
 export default function EditVoucherPage() {
   const router = useRouter();
@@ -53,7 +54,7 @@ export default function EditVoucherPage() {
       setGuestMobile(v.guestMobile || '');
       setGroupCode(v.groupCode || '');
       setPaxCount(v.paxCount || 0);
-      setReservationDate(v.reservationDate ? new Date(v.reservationDate).toISOString().split('T')[0] : '');
+      setReservationDate(v.reservationDate ? extractDateFromISO(v.reservationDate) : '');
       setHotelSchedules(Array.isArray(v.hotelSchedules) ? v.hotelSchedules : []);
       setMovementDetails(Array.isArray(v.movementDetails) ? v.movementDetails : []);
       setFlightDetails(Array.isArray(v.flightDetails) ? v.flightDetails : []);

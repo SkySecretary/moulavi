@@ -332,6 +332,12 @@ export interface Voucher {
   generatedByUser?: {
     name: string;
   };
+  umrahCompany?: {
+    partyName: string;
+  };
+  transportCompany?: {
+    partyName: string;
+  };
 }
 
 export interface Movement {

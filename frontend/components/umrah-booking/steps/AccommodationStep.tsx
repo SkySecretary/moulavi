@@ -12,6 +12,7 @@ import { HotelCoverageIndicator } from '../components/HotelCoverageIndicator';
 import { ValidationMessage } from '../shared';
 import { cn } from '@/lib/utils';
 import { toDisplayDate, fromDisplayDate } from '@/lib/umrah/validation';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   InputOTP,
   InputOTPGroup,
@@ -263,14 +264,10 @@ export const AccommodationStep: React.FC<AccommodationStepProps> = ({
 
             <div className="space-y-1.5">
               <Label htmlFor="iqamaDob" className="text-[10px] font-bold text-primary/60 uppercase ml-1">Date of Birth</Label>
-              <Input
-                id="iqamaDob"
-                type="text"
-                placeholder="DD/MM/YY"
-                value={toDisplayDate(data.iqamaDetails?.iqamaDob || '')}
-                onChange={(e) => onChange({ iqamaDetails: { ...data.iqamaDetails, iqamaDob: e.target.value } })}
+              <DatePicker
+                value={data.iqamaDetails?.iqamaDob || ''}
+                onChange={(val) => onChange({ iqamaDetails: { ...data.iqamaDetails, iqamaDob: val } })}
                 disabled={disabled}
-                className="h-10 bg-white border-gray-100 rounded-lg font-bold text-primary focus:ring-secondary/20 text-xs shadow-sm"
               />
             </div>
 

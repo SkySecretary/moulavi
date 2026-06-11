@@ -33,9 +33,12 @@ import {
   Shield,
   Award,
   TrendingUp,
-  Activity
+  Activity,
+  Download,
+  Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 interface UmrahVisaBooking {
   id: string;
@@ -58,6 +61,7 @@ export default function PartyDashboardPage() {
   const [user, setUser] = useState<any>(null);
   const [bookings, setBookings] = useState<UmrahVisaBooking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
@@ -199,6 +203,35 @@ export default function PartyDashboardPage() {
   const handleStatusFilterChange = (value: string) => {
     setStatusFilter(value);
     setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
+  const handleDownloadBookingPDF = async (booking: any) => {
+    if (!booking.id) return;
+    
+    try {
+      setDownloadingId(booking.id);
+      const response = await umrahVisaAPI.generateBookingPDF(booking.id);
+      
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const fileName = `Booking_${booking.bookingReference || booking.id.slice(0, 8)}_${(booking.groupName || 'NoName').replace(/\s+/g, '_')}.pdf`;
+      link.download = fileName;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Booking PDF downloaded successfully');
+    } catch (error: any) {
+      console.error('Error downloading booking PDF:', error);
+      toast.error('Failed to download booking PDF');
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
 
@@ -485,6 +518,19 @@ export default function PartyDashboardPage() {
                         </div>
                         
                         <div className="flex items-center gap-2">
+                          <Button
+                            onClick={() => handleDownloadBookingPDF(booking)}
+                            size="sm"
+                            variant="outline"
+                            disabled={downloadingId === booking.id}
+                            className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200 h-9 px-3"
+                          >
+                            {downloadingId === booking.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Download className="h-4 w-4" />
+                            )}
+                          </Button>
                           <Button
                             onClick={() => handleViewBooking(booking.id)}
                             size="sm"

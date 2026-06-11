@@ -14,6 +14,7 @@ import { MovementDetailsStep } from '../steps/MovementDetailsStep';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Airport, Location, Hotel as HotelType } from '@/lib/umrah/types';
+import { toDisplayDate, fromDisplayDate, extractDateFromISO, extractTimeFromISO, combineDateAndTime } from '@/lib/umrah/validation';
 
 interface ManageAlternateInfoDialogProps {
   isOpen: boolean;
@@ -128,22 +129,21 @@ export const ManageAlternateInfoDialog: React.FC<ManageAlternateInfoDialogProps>
     const altMovements = booking?.movementDetails?.filter((m: any) => m.isAlternate) || [];
 
     if (altTravel) {
-      const arrival = new Date(altTravel.arrivalDateTime);
-      const departure = new Date(altTravel.departureDateTime);
       setTravelData({
-        arrivalDate: arrival.toISOString().split('T')[0],
-        arrivalTime: arrival.toTimeString().slice(0, 5),
+        arrivalDate: toDisplayDate(extractDateFromISO(altTravel.arrivalDateTime)),
+        arrivalTime: extractTimeFromISO(altTravel.arrivalDateTime),
         arrivalFlightNumber: altTravel.arrivalFlightNumber || '',
         arrivalAirportId: altTravel.arrivalAirportId || '',
-        departureDate: departure.toISOString().split('T')[0],
-        departureTime: departure.toTimeString().slice(0, 5),
+        departureDate: toDisplayDate(extractDateFromISO(altTravel.departureDateTime)),
+        departureTime: extractTimeFromISO(altTravel.departureDateTime),
         departureFlightNumber: altTravel.departureFlightNumber || '',
         departureAirportId: altTravel.departureAirportId || '',
       });
     } else {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toDisplayDate(extractDateFromISO(new Date().toISOString()));
       setTravelData({
         arrivalDate: today,
+
         arrivalTime: '12:00',
         arrivalFlightNumber: '',
         arrivalAirportId: '',
@@ -160,8 +160,8 @@ export const ManageAlternateInfoDialog: React.FC<ManageAlternateInfoDialogProps>
         id: h.id,
         cityId: h.cityId,
         hotelId: h.hotelId,
-        checkInDate: h.checkInDate.split('T')[0],
-        checkOutDate: h.checkOutDate.split('T')[0],
+        checkInDate: toDisplayDate(extractDateFromISO(h.checkInDate)),
+        checkOutDate: toDisplayDate(extractDateFromISO(h.checkOutDate)),
         brn: h.brn || [],
       })),
       iqamaDetails: (() => {
@@ -170,40 +170,46 @@ export const ManageAlternateInfoDialog: React.FC<ManageAlternateInfoDialogProps>
           return {
             iqamaNumber: altIqama.iqamaNumber || '',
             iqamaName: altIqama.iqamaSponserName || '',
-            iqamaDob: altIqama.sponserDob ? altIqama.sponserDob.split('T')[0] : '',
+            iqamaDob: altIqama.sponserDob ? toDisplayDate(extractDateFromISO(altIqama.sponserDob)) : '',
             iqamaMobile: altIqama.sponserMobileNumber || '',
             iqamaNationalShortAddress: altIqama.sponserNationalShortAddress || '',
           };
         }
         return {};
-      })(), 
-    });
+      })(),
+      });
 
-    setTransportBookings(altTransports.map((t: any) => ({
+      setTransportBookings(altTransports.map((t: any) => ({
       id: t.id,
       transportId: t.transportMasterId, // Map to transportId for the step component
       transportMasterId: t.transportMasterId,
       travelDateTime: t.travelDateTime,
       quantity: 1, // Individual records in DB represent quantity 1
-    })));
+      })));
 
-    setMovementDetails(altMovements.map((m: any) => ({
+      setMovementDetails(altMovements.map((m: any) => ({
       id: m.id,
       travelDateTime: m.travelDateTime,
       fromLocationId: m.fromLocationId,
       toLocationId: m.toLocationId,
-      date: m.travelDateTime ? m.travelDateTime.split('T')[0] : '',
-      time: m.travelDateTime ? new Date(m.travelDateTime).toTimeString().slice(0, 5) : '12:00',
+      date: m.travelDateTime ? toDisplayDate(extractDateFromISO(m.travelDateTime)) : '',
+      time: m.travelDateTime ? extractTimeFromISO(m.travelDateTime) : '12:00',
       type: 'transport',
-    })));
+      })));
+
   };
 
   const handleSave = async () => {
     try {
+      if (!travelData.arrivalDate || !travelData.departureDate) {
+        toast.error('Arrival and departure dates are required');
+        return;
+      }
+
       setIsSaving(true);
-      
-      const arrivalDateTime = new Date(`${travelData.arrivalDate}T${travelData.arrivalTime}:00`).toISOString();
-      const departureDateTime = new Date(`${travelData.departureDate}T${travelData.departureTime}:00`).toISOString();
+
+      const arrivalDateTime = combineDateAndTime(travelData.arrivalDate, travelData.arrivalTime);
+      const departureDateTime = combineDateAndTime(travelData.departureDate, travelData.departureTime);
 
       // Expand transport bookings based on quantity
       const expandedTransports: any[] = [];
@@ -226,13 +232,14 @@ export const ManageAlternateInfoDialog: React.FC<ManageAlternateInfoDialogProps>
           departureAirportId: travelData.departureAirportId,
           departureFlightNumber: travelData.departureFlightNumber,
         },
-        hotelBookings: accommodationData.accommodationType === 'hotel' 
+        hotelBookings: accommodationData.accommodationType === 'hotel'
           ? accommodationData.hotelBookings.map((h: any) => ({
+              isAlternate: true,
               cityId: h.cityId,
               hotelId: h.hotelId,
-              checkInDate: new Date(h.checkInDate).toISOString(),
-              checkOutDate: new Date(h.checkOutDate).toISOString(),
-              brn: h.brn,
+              checkInDate: combineDateAndTime(h.checkInDate, '12:00'),
+              checkOutDate: combineDateAndTime(h.checkOutDate, '12:00'),
+              brn: h.brn || [],
             }))
           : [],
         transportBookings: expandedTransports,
@@ -241,25 +248,27 @@ export const ManageAlternateInfoDialog: React.FC<ManageAlternateInfoDialogProps>
           .map(m => {
             let travelDateTime = m.travelDateTime;
             if (m.date && m.time) {
-              try {
-                travelDateTime = new Date(`${m.date}T${m.time}:00`).toISOString();
-              } catch (e) {
-                travelDateTime = new Date().toISOString();
-              }
+              travelDateTime = combineDateAndTime(m.date, m.time);
             }
             
             const fromLoc = masterData.locationMasters.find((l: any) => l.id === m.fromLocationId);
             const toLoc = masterData.locationMasters.find((l: any) => l.id === m.toLocationId);
 
             return {
-              travelDateTime: travelDateTime || new Date().toISOString(),
+              travelDateTime: travelDateTime || arrivalDateTime,
               fromCityId: fromLoc?.cityId || '',
               fromLocationId: m.fromLocationId,
               toCityId: toLoc?.cityId || '',
               toLocationId: m.toLocationId,
             };
           }),
-        iqamaDetails: accommodationData.accommodationType === 'iqama' ? accommodationData.iqamaDetails : null,
+        iqamaDetails: accommodationData.accommodationType === 'iqama' 
+          ? {
+              ...accommodationData.iqamaDetails,
+              sponserDob: accommodationData.iqamaDetails.iqamaDob ? fromDisplayDate(accommodationData.iqamaDetails.iqamaDob) : undefined,
+              iqamaSponserName: accommodationData.iqamaDetails.iqamaName, // Map iqamaName to backend field
+            } 
+          : null,
       };
 
       if (payload.movementDetails.length > 0 && payload.movementDetails.some(m => !m.fromCityId || !m.toCityId)) {

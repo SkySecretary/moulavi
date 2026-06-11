@@ -23,12 +23,16 @@ import {
   Trash2,
   PlusCircle,
   Users,
-  UserPlus
+  UserPlus,
+  Download,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
 import { umrahVisaAPI } from '@/lib/api';
 import { UMRAH_VISA_STATUS_CONFIG, VISA_TYPE_CONFIG } from '@/lib/constants';
+import { DatePicker } from '@/components/ui/date-picker';
+import { fromDisplayDate } from '@/lib/umrah/validation';
 import ViewUmrahVisaDialog from '@/components/ViewUmrahVisaDialog';
 
 export default function UmrahVisaPage() {
@@ -36,6 +40,7 @@ export default function UmrahVisaPage() {
   const user = getUser();
   const [bookings, setBookings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedVisaType, setSelectedVisaType] = useState<string>('all');
@@ -155,6 +160,35 @@ export default function UmrahVisaPage() {
     }
   };
 
+  const handleDownloadBookingPDF = async (booking: any) => {
+    if (!booking.id) return;
+    
+    try {
+      setDownloadingId(booking.id);
+      const response = await umrahVisaAPI.generateBookingPDF(booking.id);
+      
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const fileName = `Booking_${booking.bookingReference || booking.id.slice(0, 8)}_${(booking.groupName || 'NoName').replace(/\s+/g, '_')}.pdf`;
+      link.download = fileName;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Booking PDF downloaded successfully');
+    } catch (error: any) {
+      console.error('Error downloading booking PDF:', error);
+      toast.error('Failed to download booking PDF');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
 
   const statusCounts = getStatusCounts();
 
@@ -232,16 +266,14 @@ export default function UmrahVisaPage() {
                       <SelectItem value="group_visa">Group Visa</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Input
-                    type="date"
+                  <DatePicker
                     value={arrivalDateFrom}
-                    onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
+                    onChange={(val) => handleFilterChange('dateFrom', fromDisplayDate(val))}
                     placeholder="Arrival From"
                   />
-                  <Input
-                    type="date"
+                  <DatePicker
                     value={arrivalDateTo}
-                    onChange={(e) => handleFilterChange('dateTo', e.target.value)}
+                    onChange={(val) => handleFilterChange('dateTo', fromDisplayDate(val))}
                     placeholder="Arrival To"
                   />
                 </div>
@@ -350,6 +382,19 @@ export default function UmrahVisaPage() {
                                 >
                                   <Eye className="h-3 w-3" />
                                   View
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDownloadBookingPDF(booking)}
+                                  disabled={downloadingId === booking.id}
+                                  className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200"
+                                >
+                                  {downloadingId === booking.id ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Download className="h-3 w-3" />
+                                  )}
                                 </Button>
                                 <Button
                                   size="sm"

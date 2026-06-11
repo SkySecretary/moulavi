@@ -25,6 +25,8 @@ import { getUser, hasRole } from '@/lib/auth';
 import { UmrahVisaBooking, UmrahVisaStatus } from '@/types';
 import { umrahVisaAPI, uploadAPI } from '@/lib/api';
 import { UMRAH_VISA_STATUS_CONFIG } from '@/lib/constants';
+import { DatePicker } from '@/components/ui/date-picker';
+import { fromDisplayDate } from '@/lib/umrah/validation';
 
 export default function TripInfoPage() {
   const router = useRouter();
@@ -475,18 +477,17 @@ export default function TripInfoPage() {
                     className="pl-10"
                   />
                 </div>
-                <Input
-                  type="date"
+                <DatePicker
                   placeholder="Arrival Date From"
                   value={arrivalDateFrom}
-                  onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
+                  onChange={(val) => handleFilterChange('dateFrom', fromDisplayDate(val))}
                 />
-                <Input
-                  type="date"
+                <DatePicker
                   placeholder="Arrival Date To"
                   value={arrivalDateTo}
-                  onChange={(e) => handleFilterChange('dateTo', e.target.value)}
+                  onChange={(val) => handleFilterChange('dateTo', fromDisplayDate(val))}
                 />
+
               </div>
 
               {/* Table */}

@@ -7,6 +7,7 @@ import {
   prisma,
   validateDateRange,
   validateUmrahVisaDates,
+  parseSafeDate,
   step2Schema,
   groupStep1Schema,
   groupStep3Schema,
@@ -68,11 +69,16 @@ router.post('/group/step2', authenticate, async (req, res) => {
     const validatedData = step2Schema.parse(req.body);
 
     // Validate date range (80 days max) - convert strings to Date objects
-    const arrivalDateObj = new Date(validatedData.arrivalDate);
-    const departureDateObj = new Date(validatedData.departureDate);
-    if (!validateDateRange(arrivalDateObj, departureDateObj)) {
-      return res.status(400).json({ error: 'Travel duration cannot exceed 80 days' });
+    const arrivalDateObj = parseSafeDate(validatedData.arrivalDate);
+    const departureDateObj = parseSafeDate(validatedData.departureDate);
+    const dateRangeValidation = validateDateRange(arrivalDateObj, departureDateObj);
+    if (!dateRangeValidation.valid) {
+      return res.status(400).json({ error: dateRangeValidation.error });
     }
+
+    // Since we know they are valid dates now, cast for the next functions
+    const validArrivalDate = arrivalDateObj!;
+    const validDepartureDate = departureDateObj!;
 
     // Validate against Umrah visa master dates
     const master = await prisma.umrahVisaMaster.findFirst({
@@ -82,8 +88,8 @@ router.post('/group/step2', authenticate, async (req, res) => {
     
     if (master) {
       const dateValidation = validateUmrahVisaDates(
-        arrivalDateObj,
-        departureDateObj,
+        validArrivalDate,
+        validDepartureDate,
         {
           lastArrivalDate: master.lastArrivalDate,
           lastDepartureDate: master.lastDepartureDate,
@@ -167,8 +173,8 @@ router.post('/group/create-booking', authenticate, uploadGroup.fields([
       if (step2Data.hotelBookings && Array.isArray(step2Data.hotelBookings)) {
         step2Data.hotelBookings = step2Data.hotelBookings.map((hotel: any) => ({
           ...hotel,
-          checkInDate: hotel.checkInDate ? new Date(hotel.checkInDate) : hotel.checkInDate,
-          checkOutDate: hotel.checkOutDate ? new Date(hotel.checkOutDate) : hotel.checkOutDate,
+          checkInDate: parseSafeDate(hotel.checkInDate),
+          checkOutDate: parseSafeDate(hotel.checkOutDate),
         }));
       }
       
@@ -179,7 +185,7 @@ router.post('/group/create-booking', authenticate, uploadGroup.fields([
       if (step3Data.ziyaraths && Array.isArray(step3Data.ziyaraths)) {
         step3Data.ziyaraths = step3Data.ziyaraths.map((ziyarath: any) => ({
           ...ziyarath,
-          date: ziyarath.date ? new Date(ziyarath.date) : ziyarath.date,
+          date: parseSafeDate(ziyarath.date),
         }));
       }
     } else {
@@ -198,11 +204,16 @@ router.post('/group/create-booking', authenticate, uploadGroup.fields([
     }
 
     // Validate date range - convert strings to Date objects
-    const arrivalDateObj = new Date(step2Data.arrivalDate);
-    const departureDateObj = new Date(step2Data.departureDate);
-    if (!validateDateRange(arrivalDateObj, departureDateObj)) {
-      return res.status(400).json({ error: 'Travel duration cannot exceed 80 days' });
+    const arrivalDateObj = parseSafeDate(step2Data.arrivalDate);
+    const departureDateObj = parseSafeDate(step2Data.departureDate);
+    const dateRangeValidation = validateDateRange(arrivalDateObj, departureDateObj);
+    if (!dateRangeValidation.valid) {
+      return res.status(400).json({ error: dateRangeValidation.error });
     }
+
+    // Since we know they are valid dates now, cast for the next functions
+    const validArrivalDate = arrivalDateObj!;
+    const validDepartureDate = departureDateObj!;
 
     // Validate passenger count (now from step2Data to match individual bookings)
     const passengerCount = step2Data.passengerCount;

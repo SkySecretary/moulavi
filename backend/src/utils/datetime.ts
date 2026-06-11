@@ -4,10 +4,7 @@
  */
 
 /**
- * Combines a date string (YYYY-MM-DD) and time string (HH:mm) into a single Date object
- * @param dateString - Date in YYYY-MM-DD format
- * @param timeString - Time in HH:mm format
- * @returns Combined Date object, or undefined if either input is invalid
+ * Combines a date string (YYYY-MM-DD) and time string (HH:mm) into a single Date object in UTC
  */
 export function combineDateTime(
   dateString: string | Date | null | undefined,
@@ -17,55 +14,52 @@ export function combineDateTime(
     return undefined;
   }
 
-  // Handle date
-  let date: Date;
+  let year: number, month: number, day: number;
+
   if (dateString instanceof Date) {
-    date = new Date(dateString);
+    year = dateString.getUTCFullYear();
+    month = dateString.getUTCMonth();
+    day = dateString.getUTCDate();
   } else {
-    date = new Date(dateString);
+    // Try to parse YYYY-MM-DD
+    const matchISO = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (matchISO) {
+      year = parseInt(matchISO[1], 10);
+      month = parseInt(matchISO[2], 10) - 1;
+      day = parseInt(matchISO[3], 10);
+    } else {
+      // Try parsing as regular date string
+      const dt = new Date(dateString);
+      if (isNaN(dt.getTime())) return undefined;
+      // If it's a date string like "2026-06-11", new Date() might treat it as UTC already,
+      // but let's be safe and extract what we need.
+      year = dt.getUTCFullYear();
+      month = dt.getUTCMonth();
+      day = dt.getUTCDate();
+    }
   }
 
-  if (isNaN(date.getTime())) {
-    return undefined;
-  }
-
-  // Handle time
   let hours = 0;
   let minutes = 0;
 
   if (timeString instanceof Date) {
-    hours = timeString.getHours();
-    minutes = timeString.getMinutes();
-  } else if (typeof timeString === 'string' && timeString.includes(':')) {
-    const [h, m] = timeString.split(':');
-    hours = parseInt(h, 10);
-    minutes = parseInt(m, 10);
-    
-    if (isNaN(hours) || isNaN(minutes)) {
-      return undefined;
-    }
-  } else {
-    // Try to parse as ISO string
-    const timeDate = new Date(timeString);
-    if (!isNaN(timeDate.getTime())) {
-      hours = timeDate.getHours();
-      minutes = timeDate.getMinutes();
-    } else {
-      return undefined;
+    hours = timeString.getUTCHours();
+    minutes = timeString.getUTCMinutes();
+  } else if (typeof timeString === 'string') {
+    const timeMatch = timeString.match(/(\d{1,2}):(\d{1,2})/);
+    if (timeMatch) {
+      hours = parseInt(timeMatch[1], 10);
+      minutes = parseInt(timeMatch[2], 10);
     }
   }
 
-  // Combine date and time
-  const combined = new Date(date);
-  combined.setHours(hours, minutes, 0, 0);
-  
-  return combined;
+  // Create combined date using UTC components
+  const combined = new Date(Date.UTC(year, month, day, hours, minutes, 0, 0));
+  return isNaN(combined.getTime()) ? undefined : combined;
 }
 
 /**
- * Splits a Date object into date string (YYYY-MM-DD) and time string (HH:mm)
- * @param dateTime - Date object to split
- * @returns Object with date and time strings, or undefined if input is invalid
+ * Splits a Date object into date string (YYYY-MM-DD) and time string (HH:mm) in UTC
  */
 export function splitDateTime(
   dateTime: Date | string | null | undefined
@@ -80,11 +74,11 @@ export function splitDateTime(
     return undefined;
   }
 
-  const year = date.getFullYear();
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const year = date.getUTCFullYear();
+  const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+  const day = date.getUTCDate().toString().padStart(2, '0');
+  const hours = date.getUTCHours().toString().padStart(2, '0');
+  const minutes = date.getUTCMinutes().toString().padStart(2, '0');
 
   return {
     date: `${year}-${month}-${day}`,
@@ -93,9 +87,7 @@ export function splitDateTime(
 }
 
 /**
- * Formats a Date object to time string (HH:mm)
- * @param dateTime - Date object
- * @returns Time string in HH:mm format, or empty string if invalid
+ * Formats a Date object to time string (HH:mm) in UTC
  */
 export function formatTime(dateTime: Date | string | null | undefined): string {
   if (!dateTime) return '';
@@ -103,16 +95,14 @@ export function formatTime(dateTime: Date | string | null | undefined): string {
   const date = typeof dateTime === 'string' ? new Date(dateTime) : dateTime;
   if (isNaN(date.getTime())) return '';
   
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const hours = date.getUTCHours().toString().padStart(2, '0');
+  const minutes = date.getUTCMinutes().toString().padStart(2, '0');
   
   return `${hours}:${minutes}`;
 }
 
 /**
- * Formats a Date object to date string (YYYY-MM-DD)
- * @param dateTime - Date object
- * @returns Date string in YYYY-MM-DD format, or empty string if invalid
+ * Formats a Date object to date string (YYYY-MM-DD) in UTC
  */
 export function formatDate(dateTime: Date | string | null | undefined): string {
   if (!dateTime) return '';
@@ -120,9 +110,9 @@ export function formatDate(dateTime: Date | string | null | undefined): string {
   const date = typeof dateTime === 'string' ? new Date(dateTime) : dateTime;
   if (isNaN(date.getTime())) return '';
   
-  const year = date.getFullYear();
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
+  const year = date.getUTCFullYear();
+  const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+  const day = date.getUTCDate().toString().padStart(2, '0');
   
   return `${year}-${month}-${day}`;
 }

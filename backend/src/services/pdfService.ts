@@ -7,9 +7,9 @@ function formatDate(dateString: string): string {
   try {
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return 'N/A';
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
+    const day = date.getUTCDate().toString().padStart(2, '0');
+    const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+    const year = date.getUTCFullYear();
     return `${day}-${month}-${year}`;
   } catch {
     return 'N/A';
@@ -22,10 +22,10 @@ function formatDateYY(dateString: string): string {
   try {
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return 'N/A';
-    const day = date.getDate().toString().padStart(2, '0');
+    const day = date.getUTCDate().toString().padStart(2, '0');
     const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-    const month = monthNames[date.getMonth()];
-    const year = date.getFullYear().toString().slice(-2);
+    const month = monthNames[date.getUTCMonth()];
+    const year = date.getUTCFullYear().toString().slice(-2);
     return `${day}-${month}-${year}`;
   } catch {
     return 'N/A';
@@ -90,12 +90,13 @@ function getImageAsBase64(filePath: string | undefined): string | null {
 }
 
 // Generate HTML template for voucher based EXACTLY on voucher.html with specific refinements
-function generateVoucherHTML(data: VoucherPdfData): string {
+function generateVoucherHTML(data: VoucherPdfData & { isBookingVoucher?: boolean }): string {
   const umrahCompanyName = data.umrahCompany?.partyName || 'UMRA SERVICES';
   const agentName = data.agentParty?.partyName || 'N/A';
   const transportName = data.transportCompany?.partyName || 'N/A';
   const staticOpNumber = '+966 53 863 4100';
   const logoBase64 = getImageAsBase64(data.umrahCompany?.logoPath);
+  const isBooking = !!data.isBookingVoucher;
 
   // Aggregate BRNs
   const brnsList = data.hotelSchedules
@@ -139,7 +140,7 @@ function generateVoucherHTML(data: VoucherPdfData): string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transportation Voucher - ${data.voucherNumber}</title>
+    <title>${isBooking ? 'Booking Voucher' : 'Transportation Voucher'} - ${data.voucherNumber}</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -528,16 +529,18 @@ function generateVoucherHTML(data: VoucherPdfData): string {
         <div class="center-title">
             <h1 class="main-title">${umrahCompanyName}</h1>
             <div class="sub-title">Professional Transportation Services</div>
+            ${!isBooking ? `
             <div class="op-number-box">
                 ${icons.phone} &nbsp; OPERATION NUMBER: ${staticOpNumber}
             </div>
             <div class="transportation-text">Transportation: ${transportName}</div>
+            ` : ''}
         </div>
 
         <div class="right-badges">
             <div class="powered-by">POWERED BY ${icons.chevronRight}${icons.chevronRight} NuSync</div>
-            <div class="official-voucher">OFFICIAL<br>VOUCHER</div>
-            <div class="ref-number">REF: ${data.voucherNumber}</div>
+            <div class="official-voucher">${isBooking ? 'BOOKING<br>VOUCHER' : 'OFFICIAL<br>VOUCHER'}</div>
+            <div class="ref-number">${isBooking ? 'BOOKING NO' : 'REF'}: ${data.voucherNumber}</div>
         </div>
     </div>
 
@@ -713,10 +716,12 @@ function generateVoucherHTML(data: VoucherPdfData): string {
 
     <!-- Footer -->
     <div class="footer">
+        ${!isBooking ? `
         <div class="op-number-box">
             ${icons.phone} &nbsp; OPERATION NUMBER: ${staticOpNumber}
         </div>
         <div class="transportation-text">Transportation: ${transportName}</div>
+        ` : ''}
     </div>
 
 </div>
@@ -727,7 +732,7 @@ function generateVoucherHTML(data: VoucherPdfData): string {
 }
 
 // Generate PDF from HTML using Puppeteer
-export async function generateVoucherPDF(data: VoucherPdfData): Promise<Buffer> {
+export async function generateVoucherPDF(data: VoucherPdfData & { isBookingVoucher?: boolean }): Promise<Buffer> {
   const startTime = Date.now();
   const logPrefix = '[PDF-VOUCHER]';
   let browser;

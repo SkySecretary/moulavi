@@ -8,6 +8,7 @@ import { Movement, LocationMaster } from '@/lib/umrah/types';
 import { umrahVisaAPI } from '@/lib/api';
 import { TimePicker } from '@/components/ui/time-picker';
 import { toDisplayDate, fromDisplayDate } from '@/lib/umrah/validation';
+import { DatePicker } from '@/components/ui/date-picker';
 
 interface MovementsTableProps {
   movements: Movement[];
@@ -204,17 +205,15 @@ export const MovementsTable: React.FC<MovementsTableProps> = ({
                 </span>
               </td>
               <td className="p-2">
-                <Input
-                  type="text"
-                  placeholder="DD/MM/YY"
-                  value={toDisplayDate(movement.date || '')}
-                  onChange={(e) => onUpdateMovement(index, 'date', e.target.value)}
+                <DatePicker
+                  value={movement.date || ''}
+                  onChange={(val) => onUpdateMovement(index, 'date', val)}
                   disabled={disabled}
-                  className={`h-8 text-[10px] font-bold text-slate-900 border-gray-200 bg-white ${
-                    movement.type === 'ziyarath' && movement.date && movement.date.split('/').length === 3
+                  className={
+                    movement.type === 'ziyarath' && movement.date
                       ? getZiyarathDateColorClass(fromDisplayDate(movement.date))
                       : ''
-                  }`}
+                  }
                 />
               </td>
               <td className="p-2">

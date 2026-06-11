@@ -6,6 +6,8 @@ import multerS3 from 'multer-s3';
 import path from 'path';
 import fs from 'fs';
 import { combineDateTime } from '../../utils/datetime';
+import { parseDateDDMMYYYY, parseSafeDate } from '../../utils/dateParser';
+export { parseSafeDate };
 import { s3Client, S3_CONFIG, generateS3Key, generateUniqueFileName, isS3Configured } from '../../config/s3';
 
 // Export Prisma client instance (shared across all route files)
@@ -135,10 +137,34 @@ export const uploadGroup = multer({
 export const upload = uploadIndividual;
 
 // Helper function to validate date range (80 days max)
-export const validateDateRange = (arrivalDate: Date, departureDate: Date) => {
-  const diffTime = Math.abs(departureDate.getTime() - arrivalDate.getTime());
+export const validateDateRange = (arrivalDate: Date | null, departureDate: Date | null): { valid: boolean; error?: string; days?: number } => {
+  if (!arrivalDate || isNaN(arrivalDate.getTime())) {
+    return { valid: false, error: 'Invalid arrival date format' };
+  }
+  if (!departureDate || isNaN(departureDate.getTime())) {
+    return { valid: false, error: 'Invalid departure date format' };
+  }
+  
+  // Use UTC to calculate difference to avoid timezone issues
+  const start = Date.UTC(arrivalDate.getUTCFullYear(), arrivalDate.getUTCMonth(), arrivalDate.getUTCDate());
+  const end = Date.UTC(departureDate.getUTCFullYear(), departureDate.getUTCMonth(), departureDate.getUTCDate());
+  
+  if (end < start) {
+    return { valid: false, error: 'Departure date cannot be before arrival date' };
+  }
+  
+  const diffTime = end - start;
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays <= 80;
+  
+  if (diffDays > 80) {
+    return { 
+      valid: false, 
+      error: `Travel duration (${diffDays} days) cannot exceed 80 days`,
+      days: diffDays
+    };
+  }
+  
+  return { valid: true, days: diffDays };
 };
 
 // Helper function to validate Umrah visa dates against master dates

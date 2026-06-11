@@ -149,10 +149,30 @@ export const useUmrahBooking = () => {
             payload = { partyId, ...bookingState.step1Data };
             break;
           case 2:
-            payload = bookingState.step2Data;
+            payload = {
+              ...bookingState.step2Data,
+              arrivalDate: fromDisplayDate(bookingState.step2Data.arrivalDate),
+              departureDate: fromDisplayDate(bookingState.step2Data.departureDate),
+              hotelBookings: bookingState.step2Data.hotelBookings?.map(h => ({
+                ...h,
+                checkInDate: fromDisplayDate(h.checkInDate),
+                checkOutDate: fromDisplayDate(h.checkOutDate),
+              }))
+            };
             break;
           case 3:
-            payload = bookingState.step3Data;
+            payload = {
+              ...bookingState.step3Data,
+              iqamaDetails: bookingState.step3Data.iqamaDetails ? {
+                ...bookingState.step3Data.iqamaDetails,
+                iqamaDob: fromDisplayDate(bookingState.step3Data.iqamaDetails.iqamaDob || ''),
+              } : undefined,
+              hotelBookings: bookingState.step3Data.hotelBookings?.map(h => ({
+                ...h,
+                checkInDate: fromDisplayDate(h.checkInDate),
+                checkOutDate: fromDisplayDate(h.checkOutDate),
+              }))
+            };
             break;
           case 4:
             payload = {
@@ -207,7 +227,13 @@ export const useUmrahBooking = () => {
             toast.success(`Step ${stepNumber} validated successfully`);
             return true;
           } else {
-            toast.error(data.error || `Failed to validate step ${stepNumber}`);
+            if (data.details && Array.isArray(data.details)) {
+              data.details.forEach((err: any) => {
+                toast.error(err.message || 'Validation error');
+              });
+            } else {
+              toast.error(data.error || `Failed to validate step ${stepNumber}`);
+            }
             return false;
           }
         }
@@ -307,7 +333,13 @@ export const useUmrahBooking = () => {
           toast.success('Booking completed successfully!');
           return true;
         } else {
-          toast.error(data.error || 'Failed to create booking');
+          if (data.details && Array.isArray(data.details)) {
+            data.details.forEach((err: any) => {
+              toast.error(err.message || 'Validation error');
+            });
+          } else {
+            toast.error(data.error || 'Failed to create booking');
+          }
           return false;
         }
       }

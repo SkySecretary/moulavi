@@ -1,6 +1,7 @@
 // Enhanced validation utilities for Umrah visa bookings
 
 import { VALIDATION_RULES, getRouteById, getTransportById, getTransportPrice } from '../config/umrahConfig';
+import { parseSafeDate } from './dateParser';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -34,22 +35,26 @@ export function validateUmrahBooking(data: any): ValidationResult {
   if (!data.arrivalDate || !data.departureDate) {
     errors.push('Arrival and departure dates are required');
   } else {
-    const arrival = new Date(data.arrivalDate);
-    const departure = new Date(data.departureDate);
+    const arrival = parseSafeDate(data.arrivalDate);
+    const departure = parseSafeDate(data.departureDate);
     
-    if (arrival >= departure) {
-      errors.push('Departure date must be after arrival date');
-    }
-    
-    const diffTime = departure.getTime() - arrival.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays > VALIDATION_RULES.MAX_TRAVEL_DAYS) {
-      errors.push(`Travel duration cannot exceed ${VALIDATION_RULES.MAX_TRAVEL_DAYS} days`);
-    }
-    
-    if (diffDays < 1) {
-      errors.push('Travel duration must be at least 1 day');
+    if (!arrival || !departure) {
+      errors.push('Invalid date format for arrival or departure');
+    } else {
+      if (arrival >= departure) {
+        errors.push('Departure date must be after arrival date');
+      }
+      
+      const diffTime = departure.getTime() - arrival.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays > VALIDATION_RULES.MAX_TRAVEL_DAYS) {
+        errors.push(`Travel duration cannot exceed ${VALIDATION_RULES.MAX_TRAVEL_DAYS} days`);
+      }
+      
+      if (diffDays < 1) {
+        errors.push('Travel duration must be at least 1 day');
+      }
     }
   }
 
@@ -160,28 +165,36 @@ export function validateUmrahBooking(data: any): ValidationResult {
       
       // Validate passport expiry
       if (passenger.passportExpiry) {
-        const expiry = new Date(passenger.passportExpiry);
-        const today = new Date();
-        const sixMonthsFromNow = new Date();
-        sixMonthsFromNow.setMonth(today.getMonth() + 6);
-        
-        if (expiry <= sixMonthsFromNow) {
-          warnings.push(`Passenger ${index + 1}: Passport expires within 6 months`);
+        const expiry = parseSafeDate(passenger.passportExpiry);
+        if (expiry) {
+          const today = new Date();
+          const sixMonthsFromNow = new Date();
+          sixMonthsFromNow.setMonth(today.getMonth() + 6);
+          
+          if (expiry <= sixMonthsFromNow) {
+            warnings.push(`Passenger ${index + 1}: Passport expires within 6 months`);
+          }
         }
       }
       
       // Validate age
       if (passenger.dateOfBirth) {
-        const birthDate = new Date(passenger.dateOfBirth);
-        const today = new Date();
-        const age = today.getFullYear() - birthDate.getFullYear();
-        
-        if (age < 0) {
-          errors.push(`Passenger ${index + 1}: Invalid date of birth`);
-        } else if (age < 2) {
-          warnings.push(`Passenger ${index + 1}: Infant passenger (under 2 years)`);
-        } else if (age > 80) {
-          warnings.push(`Passenger ${index + 1}: Senior passenger (over 80 years)`);
+        const birthDate = parseSafeDate(passenger.dateOfBirth);
+        if (birthDate) {
+          const today = new Date();
+          let age = today.getFullYear() - birthDate.getFullYear();
+          const m = today.getMonth() - birthDate.getMonth();
+          if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+          }
+          
+          if (age < 0) {
+            errors.push(`Passenger ${index + 1}: Invalid date of birth`);
+          } else if (age < 2) {
+            warnings.push(`Passenger ${index + 1}: Infant passenger (under 2 years)`);
+          } else if (age > 80) {
+            warnings.push(`Passenger ${index + 1}: Senior passenger (over 80 years)`);
+          }
         }
       }
     });
@@ -189,15 +202,20 @@ export function validateUmrahBooking(data: any): ValidationResult {
 
   // Business logic validations
   if (data.arrivalDate && data.departureDate) {
-    const arrival = new Date(data.arrivalDate);
-    const today = new Date();
-    const thirtyDaysFromNow = new Date();
-    thirtyDaysFromNow.setDate(today.getDate() + 30);
-    
-    if (arrival < today) {
-      warnings.push('Arrival date is in the past');
-    } else if (arrival > thirtyDaysFromNow) {
-      warnings.push('Arrival date is more than 30 days in the future');
+    const arrival = parseSafeDate(data.arrivalDate);
+    if (arrival) {
+      const today = new Date();
+      // Set to beginning of today
+      today.setHours(0, 0, 0, 0);
+      
+      const thirtyDaysFromNow = new Date(today);
+      thirtyDaysFromNow.setDate(today.getDate() + 30);
+      
+      if (arrival < today) {
+        warnings.push('Arrival date is in the past');
+      } else if (arrival > thirtyDaysFromNow) {
+        warnings.push('Arrival date is more than 30 days in the future');
+      }
     }
   }
 
@@ -241,13 +259,15 @@ export function validatePassenger(passenger: any, index: number): ValidationResu
 
   // Validate passport expiry
   if (passenger.passportExpiry) {
-    const expiry = new Date(passenger.passportExpiry);
-    const today = new Date();
-    const sixMonthsFromNow = new Date();
-    sixMonthsFromNow.setMonth(today.getMonth() + 6);
-    
-    if (expiry <= sixMonthsFromNow) {
-      warnings.push(`Passenger ${index + 1}: Passport expires within 6 months`);
+    const expiry = parseSafeDate(passenger.passportExpiry);
+    if (expiry) {
+      const today = new Date();
+      const sixMonthsFromNow = new Date();
+      sixMonthsFromNow.setMonth(today.getMonth() + 6);
+      
+      if (expiry <= sixMonthsFromNow) {
+        warnings.push(`Passenger ${index + 1}: Passport expires within 6 months`);
+      }
     }
   }
 

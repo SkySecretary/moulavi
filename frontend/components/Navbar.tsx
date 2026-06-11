@@ -53,20 +53,30 @@ export default function Navbar() {
     }
   };
 
-  const mainTabs = [
+  const isAdminOrStaff = user?.role === 'admin' || user?.role === 'staff';
+  const isParty = user?.role === 'party';
+
+  const mainTabs = isAdminOrStaff ? [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Voucher Management', path: '/dashboard/services/voucher', icon: Ticket },
     { name: 'Bookings', path: '/dashboard/umrah-visa/bookings', icon: FileText },
     { name: 'Trips', path: '/dashboard/umrah-visa/trip-info', icon: MapPin },
+  ] : [
+    { name: 'Dashboard', path: '/party/dashboard', icon: LayoutDashboard },
+    { name: 'New Individual', path: '/party/umrah-visa', icon: User },
+    { name: 'New Group', path: '/party/umrah-visa-group', icon: Users },
   ];
 
-  const appItems = [
+  const appItems = isAdminOrStaff ? [
     { name: 'Assign Group', path: '/dashboard/umrah-visa/assign-group', icon: Users },
     { name: 'Vouchers (Umrah)', path: '/dashboard/umrah-visa/voucher', icon: Award },
     { name: 'Invoices', path: '/dashboard/umrah-visa/invoice', icon: FileText },
+  ] : [
+    { name: 'Add to Existing', path: '/party/add-to-existing-booking', icon: PlusCircle },
+    { name: 'My Profile', path: '/party/settings', icon: Settings },
   ];
 
-  const isActive = (path: string) => pathname === path || (path !== '/dashboard' && pathname.startsWith(path));
+  const isActive = (path: string) => pathname === path || (path !== '/dashboard' && path !== '/party/dashboard' && pathname.startsWith(path));
 
   return (
     <nav className="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm backdrop-blur-md bg-white/80">
@@ -76,7 +86,7 @@ export default function Navbar() {
           <div className="flex items-center space-x-8">
             <div 
               className="flex items-center cursor-pointer group"
-              onClick={() => router.push('/dashboard')}
+              onClick={() => router.push(isAdminOrStaff ? '/dashboard' : '/party/dashboard')}
             >
               <div className="h-9 w-9 bg-secondary rounded-lg flex items-center justify-center mr-2 group-hover:scale-105 transition-transform shadow-md">
                 <span className="text-white font-black text-xl">M</span>
@@ -149,10 +159,10 @@ export default function Navbar() {
             <NotificationDropdown />
             
             <button
-              onClick={() => router.push('/dashboard/settings')}
+              onClick={() => router.push(isAdminOrStaff ? '/dashboard/settings' : '/party/settings')}
               className={cn(
                 "p-2 rounded-full transition-colors",
-                pathname === '/dashboard/settings' ? "bg-primary/10 text-primary" : "text-gray-500 hover:bg-gray-100"
+                (pathname === '/dashboard/settings' || pathname === '/party/settings') ? "bg-primary/10 text-primary" : "text-gray-500 hover:bg-gray-100"
               )}
               title="Settings"
             >
@@ -223,7 +233,7 @@ export default function Navbar() {
                       <Button 
                         variant="outline" 
                         className="w-full justify-start rounded-xl font-bold h-12"
-                        onClick={() => router.push('/dashboard/settings')}
+                        onClick={() => router.push(isAdminOrStaff ? '/dashboard/settings' : '/party/settings')}
                       >
                         <Settings className="h-5 w-5 mr-3 text-primary" />
                         Settings

@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
 import { umrahVisaMasterAPI } from '@/lib/api';
 import { Calendar, Save, Loader2 } from 'lucide-react';
+import { DatePicker } from '@/components/ui/date-picker';
+import { fromDisplayDate, toDisplayDate } from '@/lib/umrah/validation';
 
 interface UmrahVisaMaster {
   id: string;
@@ -45,8 +47,8 @@ export default function UmrahVisaMasterPage() {
         if (masterData) {
           setMaster(masterData);
           setFormData({
-            lastArrivalDate: masterData.lastArrivalDate,
-            lastDepartureDate: masterData.lastDepartureDate,
+            lastArrivalDate: toDisplayDate(masterData.lastArrivalDate),
+            lastDepartureDate: toDisplayDate(masterData.lastDepartureDate),
           });
         }
       } catch (error: any) {
@@ -69,8 +71,8 @@ export default function UmrahVisaMasterPage() {
     }
 
     // Validate dates
-    const arrivalDate = new Date(formData.lastArrivalDate);
-    const departureDate = new Date(formData.lastDepartureDate);
+    const arrivalDate = new Date(fromDisplayDate(formData.lastArrivalDate));
+    const departureDate = new Date(fromDisplayDate(formData.lastDepartureDate));
 
     if (isNaN(arrivalDate.getTime()) || isNaN(departureDate.getTime())) {
       toast.error('Invalid date format');
@@ -80,8 +82,8 @@ export default function UmrahVisaMasterPage() {
     try {
       setSaving(true);
       const response = await umrahVisaMasterAPI.updateDates({
-        lastArrivalDate: formData.lastArrivalDate,
-        lastDepartureDate: formData.lastDepartureDate,
+        lastArrivalDate: fromDisplayDate(formData.lastArrivalDate),
+        lastDepartureDate: fromDisplayDate(formData.lastDepartureDate),
       });
       
       // Update local state with the response
@@ -142,14 +144,11 @@ export default function UmrahVisaMasterPage() {
                   <Label htmlFor="lastArrivalDate">
                     Last Allowed Arrival Date *
                   </Label>
-                  <Input
-                    id="lastArrivalDate"
-                    type="date"
+                  <DatePicker
                     value={formData.lastArrivalDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, lastArrivalDate: e.target.value })
+                    onChange={(v) =>
+                      setFormData({ ...formData, lastArrivalDate: v })
                     }
-                    required
                     disabled={saving}
                   />
                   <p className="text-xs text-gray-500">
@@ -161,14 +160,11 @@ export default function UmrahVisaMasterPage() {
                   <Label htmlFor="lastDepartureDate">
                     Last Allowed Departure Date *
                   </Label>
-                  <Input
-                    id="lastDepartureDate"
-                    type="date"
+                  <DatePicker
                     value={formData.lastDepartureDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, lastDepartureDate: e.target.value })
+                    onChange={(v) =>
+                      setFormData({ ...formData, lastDepartureDate: v })
                     }
-                    required
                     disabled={saving}
                   />
                   <p className="text-xs text-gray-500">
@@ -179,8 +175,8 @@ export default function UmrahVisaMasterPage() {
                 {master && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <p className="text-sm text-blue-800">
-                      <strong>Current Settings:</strong> Arrival limit: {master.lastArrivalDate}, 
-                      Departure limit: {master.lastDepartureDate}
+                      <strong>Current Settings:</strong> Arrival limit: {toDisplayDate(master.lastArrivalDate)}, 
+                      Departure limit: {toDisplayDate(master.lastDepartureDate)}
                     </p>
                   </div>
                 )}

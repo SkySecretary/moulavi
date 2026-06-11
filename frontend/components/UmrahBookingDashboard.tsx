@@ -26,11 +26,14 @@ import {
   Plane,
   Hotel,
   Home,
-  Activity
+  Activity,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { umrahVisaAPI } from '@/lib/api';
 import { UmrahVisaBooking } from '@/types';
+import { DatePicker } from '@/components/ui/date-picker';
+import { fromDisplayDate } from '@/lib/umrah/validation';
 
 interface UmrahBookingDashboardProps {
   userRole: 'admin' | 'staff' | 'party';
@@ -84,8 +87,8 @@ export default function UmrahBookingDashboard({
         if (mainTravel) {
           b.flightNumber = mainTravel.arrivalFlightNumber;
           b.flightBrn = mainTravel.brn;
-          b.arrivalDate = mainTravel.arrivalDateTime ? new Date(mainTravel.arrivalDateTime).toLocaleDateString() : 'N/A';
-          b.departureDate = mainTravel.departureDateTime ? new Date(mainTravel.departureDateTime).toLocaleDateString() : 'N/A';
+          b.arrivalDate = mainTravel.arrivalDateTime ? toDisplayDate(extractDateFromISO(mainTravel.arrivalDateTime)) : 'N/A';
+          b.departureDate = mainTravel.departureDateTime ? toDisplayDate(extractDateFromISO(mainTravel.departureDateTime)) : 'N/A';
         }
         return b;
       });
@@ -152,6 +155,35 @@ export default function UmrahBookingDashboard({
       loadStats();
     } catch (error: any) {
       toast.error('Failed to delete booking');
+    }
+  };
+
+  const handleDownloadBookingPDF = async (booking: UmrahVisaBooking) => {
+    if (!booking.id) return;
+    
+    try {
+      setDownloadingId(booking.id);
+      const response = await umrahVisaAPI.generateBookingPDF(booking.id);
+      
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const fileName = `Booking_${booking.bookingReference || booking.id.slice(0, 8)}_${(booking.groupName || 'NoName').replace(/\s+/g, '_')}.pdf`;
+      link.download = fileName;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Booking PDF downloaded successfully');
+    } catch (error: any) {
+      console.error('Error downloading booking PDF:', error);
+      toast.error('Failed to download booking PDF');
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -329,17 +361,15 @@ export default function UmrahBookingDashboard({
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-            <Input
-              type="date"
+            <DatePicker
               placeholder="Arrival Date From"
               value={filters.arrivalDateFrom}
-              onChange={(e) => handleFilterChange('arrivalDateFrom', e.target.value)}
+              onChange={(val) => handleFilterChange('arrivalDateFrom', fromDisplayDate(val))}
             />
-            <Input
-              type="date"
+            <DatePicker
               placeholder="Arrival Date To"
               value={filters.arrivalDateTo}
-              onChange={(e) => handleFilterChange('arrivalDateTo', e.target.value)}
+              onChange={(val) => handleFilterChange('arrivalDateTo', fromDisplayDate(val))}
             />
             <Select value={filters.sortBy} onValueChange={(value) => handleFilterChange('sortBy', value)}>
               <SelectTrigger>
@@ -440,6 +470,20 @@ export default function UmrahBookingDashboard({
                       onClick={() => onViewBooking?.(booking)}
                     >
                       <Eye className="h-4 w-4" />
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownloadBookingPDF(booking)}
+                      disabled={downloadingId === booking.id}
+                      className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200"
+                    >
+                      {downloadingId === booking.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
                     </Button>
                     
                     {userRole !== 'party' && (

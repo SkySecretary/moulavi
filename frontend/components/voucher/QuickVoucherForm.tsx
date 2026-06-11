@@ -22,6 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import type { RouteType } from '@/types';
 import { cn, formatCurrency } from '@/lib/utils';
+import { DatePicker } from '@/components/ui/date-picker';
+import { fromDisplayDate, toDisplayDate, extractDateFromISO, extractTimeFromISO, combineDateAndTime } from '@/lib/umrah/validation';
 
 interface QuickVoucherFormProps {
   onSuccess: () => void;
@@ -97,7 +99,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
   const [loadingTransports, setLoadingTransports] = useState(false);
   
   const [formData, setFormData] = useState({
-    reservationDate: new Date().toISOString().split('T')[0],
+    reservationDate: toDisplayDate(extractDateFromISO(new Date().toISOString())),
     guestName: '',
     guestMobile: '',
     groupCode: '',
@@ -304,11 +306,13 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
   };
 
   const calculateZiyarathDate = (checkInDate: string): string => {
-    const base = new Date(checkInDate);
-    base.setDate(base.getDate() + 2);
+    const isoDate = fromDisplayDate(checkInDate);
+    const parts = isoDate.split('-');
+    const base = new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])));
+    base.setUTCDate(base.getUTCDate() + 2);
     // Skip Friday (day 5) -> move to Saturday (day 6)
     if (base.getUTCDay() === 5) {
-      base.setDate(base.getDate() + 1);
+      base.setUTCDate(base.getUTCDate() + 1);
     }
     return base.toISOString().split('T')[0];
   };
@@ -387,10 +391,11 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
         : [];
 
       hotels = hotelCities.map((city: any, idx: number) => {
-        const checkInDate = new Date(arrivalDate);
-        checkInDate.setDate(checkInDate.getDate() + (idx * daysPerCity));
-        const checkOutDate = new Date(checkInDate);
-        checkOutDate.setDate(checkOutDate.getDate() + daysPerCity);
+        const arrivalParts = fromDisplayDate(arrivalDate).split('-');
+        const checkInDate = new Date(Date.UTC(parseInt(arrivalParts[0]), parseInt(arrivalParts[1]) - 1, parseInt(arrivalParts[2])));
+        checkInDate.setUTCDate(checkInDate.getUTCDate() + (idx * daysPerCity));
+        const checkOutDate = new Date(checkInDate.getTime());
+        checkOutDate.setUTCDate(checkOutDate.getUTCDate() + daysPerCity);
 
         return {
           number: idx + 1,
@@ -399,8 +404,8 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
           locationId: '',
           location: city.name,
           hotelName: '',
-          checkIn: checkInDate.toISOString().split('T')[0],
-          checkOut: checkOutDate.toISOString().split('T')[0],
+          checkIn: extractDateFromISO(checkInDate.toISOString()),
+          checkOut: extractDateFromISO(checkOutDate.toISOString()),
           days: daysPerCity,
         };
       });
@@ -656,20 +661,20 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
         guestMobile: formData.guestMobile,
         groupCode: formData.groupCode,
         paxCount: formData.paxCount,
-        reservationDate: formData.reservationDate,
+        reservationDate: fromDisplayDate(formData.reservationDate),
         hotelSchedules: formData.hotelSchedules.map((hs, idx) => ({
           number: idx + 1,
           location: hs.cityName || hs.location || '', // City name (CityMaster)
           hotelName: hs.hotelName || '', // Hotel name (LocationMaster)
-          checkIn: hs.checkIn,
-          checkOut: hs.checkOut,
-          days: calculateDays(hs.checkIn, hs.checkOut),
+          checkIn: fromDisplayDate(hs.checkIn),
+          checkOut: fromDisplayDate(hs.checkOut),
+          days: calculateDays(fromDisplayDate(hs.checkIn), fromDisplayDate(hs.checkOut)),
           brn: hs.brn || null,
         })),
         movementDetails: formData.movementDetails.map(m => ({
           sr: m.sr,
           route: null, // Backend will generate route numbers dynamically
-          date: m.date,
+          date: fromDisplayDate(m.date),
           time: m.time,
           from: m.from || '',
           fromLocation: m.fromLocation || '',
@@ -698,7 +703,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
           
           return {
             type: f.type,
-            date: f.date,
+            date: fromDisplayDate(f.date),
             carrier: f.carrier,
             number: f.number,
             // For AA: from is arrival airport name, to is JED; For AD: from is JED, to is departure airport name
@@ -720,10 +725,13 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
       
       // Reset form
       setFormData({
-        reservationDate: new Date().toISOString().split('T')[0],
+        reservationDate: toDisplayDate(new Date().toISOString().split('T')[0]),
         guestName: '',
         guestMobile: '',
         groupCode: '',
+        partyId: '',
+        umrahCompanyId: '',
+        transportCompanyId: '',
         paxCount: 1,
         hotelSchedules: [],
         movementDetails: [],
@@ -1069,11 +1077,10 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
                 <div className="space-y-1">
                   <Label className="text-[11px] font-bold text-muted-foreground ml-0.5 uppercase tracking-wider">Reservation Date</Label>
-                  <Input 
-                    type="date" 
+                  <DatePicker 
                     value={formData.reservationDate} 
-                    onChange={(e) => setFormData({...formData, reservationDate: e.target.value})}
-                    className="h-11 rounded-md border-gray-200 text-sm focus:ring-secondary/20"
+                    onChange={(v) => setFormData({...formData, reservationDate: v})}
+                    className="h-11"
                   />
                 </div>
                 <div className="space-y-1 lg:col-span-2">
@@ -1189,7 +1196,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
                               </Select>
                             </div>
                           </TableCell>
-                          <TableCell><Input type="date" value={flight.date} onChange={(e) => updateFlightDetail(idx, 'date', e.target.value)} className="h-7 rounded border-gray-100 text-[9px]" /></TableCell>
+                          <TableCell><DatePicker value={flight.date} onChange={(v) => updateFlightDetail(idx, 'date', v)} className="h-7" /></TableCell>
                           <TableCell>
                             <Input 
                               type="time" 
@@ -1249,8 +1256,8 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              <Input type="date" value={hotel.checkIn} onChange={(e) => updateHotelSchedule(idx, 'checkIn', e.target.value)} className="h-7 rounded border-gray-100 text-[8px] px-1" />
-                              <Input type="date" value={hotel.checkOut} onChange={(e) => updateHotelSchedule(idx, 'checkOut', e.target.value)} className="h-7 rounded border-gray-100 text-[8px] px-1" />
+                              <DatePicker value={hotel.checkIn} onChange={(v) => updateHotelSchedule(idx, 'checkIn', v)} className="h-7" />
+                              <DatePicker value={hotel.checkOut} onChange={(v) => updateHotelSchedule(idx, 'checkOut', v)} className="h-7" />
                             </div>
                           </TableCell>
                           <TableCell><Input placeholder="BRN" value={hotel.brn} onChange={(e) => updateHotelSchedule(idx, 'brn', e.target.value)} className="h-7 rounded border-gray-100 text-[9px]" /></TableCell>

@@ -7,6 +7,7 @@ import { Hotel, Plus, Search } from 'lucide-react';
 import { HotelBooking, Location, Hotel as HotelType } from '@/lib/umrah/types';
 import { QuickAddHotelDialog } from './QuickAddHotelDialog';
 import { toDisplayDate, fromDisplayDate } from '@/lib/umrah/validation';
+import { DatePicker } from '@/components/ui/date-picker';
 
 interface HotelBookingTableProps {
   hotelBookings: HotelBooking[];
@@ -66,10 +67,17 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
   React.useEffect(() => {
     const inputs: { [key: number]: string } = {};
     hotelBookings.forEach((booking, index) => {
-      const checkIn = booking.checkInDate ? new Date(booking.checkInDate) : null;
-      const checkOut = booking.checkOutDate ? new Date(booking.checkOutDate) : null;
-      if (checkIn && checkOut) {
-        const duration = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+      if (booking.checkInDate && booking.checkOutDate) {
+        // Ensure we parse correctly regardless of format
+        const inISO = fromDisplayDate(booking.checkInDate);
+        const outISO = fromDisplayDate(booking.checkOutDate);
+        const inParts = inISO.split('-').map(Number);
+        const outParts = outISO.split('-').map(Number);
+        
+        const inDate = Date.UTC(inParts[0], inParts[1] - 1, inParts[2]);
+        const outDate = Date.UTC(outParts[0], outParts[1] - 1, outParts[2]);
+        
+        const duration = Math.ceil((outDate - inDate) / (1000 * 60 * 60 * 24));
         inputs[index] = duration > 0 ? duration.toString() : '';
       } else if (!durationInputs[index]) {
         inputs[index] = '';
@@ -243,16 +251,14 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                   </div>
                 </td>
                 <td className="border border-gray-200 p-3">
-                  <Input
-                    type="text"
-                    placeholder="DD/MM/YY"
-                    value={toDisplayDate(booking.checkInDate)}
-                    onChange={(e) => {
-                      const selectedDate = e.target.value;
+                  <DatePicker
+                    value={booking.checkInDate}
+                    onChange={(val) => {
+                      const selectedDate = val;
                       onUpdateBooking(index, 'checkInDate', selectedDate);
                       const durationValue = durationInputs[index] ?? (booking.checkInDate && booking.checkOutDate ? Math.ceil((new Date(fromDisplayDate(booking.checkOutDate)).getTime() - new Date(fromDisplayDate(booking.checkInDate)).getTime()) / (1000 * 60 * 60 * 24)).toString() : '');
                       const durationNum = parseInt(durationValue, 10);
-                      if (!isNaN(durationNum) && durationNum > 0 && selectedDate && selectedDate.split('/').length === 3) {
+                      if (!isNaN(durationNum) && durationNum > 0 && selectedDate) {
                         const checkIn = new Date(fromDisplayDate(selectedDate));
                         if (!isNaN(checkIn.getTime())) {
                           const checkOut = new Date(checkIn);
@@ -262,7 +268,6 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                         }
                       }
                     }}
-                    className="w-full h-12 text-base"
                     disabled={disabled}
                   />
                 </td>
@@ -291,12 +296,9 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                   />
                 </td>
                 <td className="border border-gray-200 p-3">
-                  <Input
-                    type="text"
-                    placeholder="DD/MM/YY"
-                    value={toDisplayDate(booking.checkOutDate)}
-                    onChange={(e) => onUpdateBooking(index, 'checkOutDate', e.target.value)}
-                    className="w-full h-12 text-base"
+                  <DatePicker
+                    value={booking.checkOutDate}
+                    onChange={(val) => onUpdateBooking(index, 'checkOutDate', val)}
                     disabled={disabled}
                   />
                 </td>
@@ -372,11 +374,11 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                 <div className="grid grid-cols-2 gap-2">
                    <div className="space-y-1">
                       <Label className="text-xs">Check-in</Label>
-                      <Input type="text" placeholder="DD/MM/YY" value={toDisplayDate(booking.checkInDate)} onChange={(e) => onUpdateBooking(index, 'checkInDate', e.target.value)} />
+                      <DatePicker value={booking.checkInDate} onChange={(val) => onUpdateBooking(index, 'checkInDate', val)} />
                    </div>
                    <div className="space-y-1">
                       <Label className="text-xs">Check-out</Label>
-                      <Input type="text" placeholder="DD/MM/YY" value={toDisplayDate(booking.checkOutDate)} onChange={(e) => onUpdateBooking(index, 'checkOutDate', e.target.value)} />
+                      <DatePicker value={booking.checkOutDate} onChange={(val) => onUpdateBooking(index, 'checkOutDate', val)} />
                    </div>
                 </div>
                 <div className="space-y-1">

@@ -1298,7 +1298,7 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
       movementDetails: fullVoucher.movements.map((m) => ({
         sr: m.sr,
         route: m.route || '',
-        date: m.date.toISOString(),
+        date: formatDate(m.date),
         time: m.time,
         from: m.from,
         fromLocation: m.fromLocation,
@@ -1320,7 +1320,7 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
         type: f.type,
         carrier: f.carrier,
         number: f.number,
-        date: f.date.toISOString(),
+        date: formatDate(f.date),
         from: f.from,
         to: f.to,
         arrivalAirport: f.type === 'AA' ? f.from : undefined,
@@ -1417,6 +1417,139 @@ router.post('/generate-pdf', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Error generating PDF:', error);
     res.status(500).json({ error: 'Failed to generate PDF' });
+  }
+});
+
+// GET /api/umrah-visa/:bookingId/generate-booking-pdf - Generate PDF for a booking
+router.get('/:bookingId/generate-booking-pdf', authenticate, async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const user = (req as any).user;
+
+    // Fetch booking with all related data
+    const booking = await prisma.umrahVisaBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        party: true,
+        umrahVisaProvider: true,
+        passengers: {
+          where: { isLeadPassenger: true, isDeleted: false },
+          take: 1
+        },
+        travelDetails: {
+          where: { isAlternate: false },
+          include: {
+            arrivalAirport: true,
+            departureAirport: true
+          }
+        },
+        hotelBookings: {
+          where: { isAlternate: false },
+          include: {
+            hotel: true,
+            city: true
+          }
+        },
+        movementDetails: {
+          where: { isAlternate: false },
+          include: {
+            fromCity: true,
+            fromLocation: true,
+            toCity: true,
+            toLocation: true
+          }
+        }
+      }
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const leadPassenger = booking.passengers[0];
+    const travel = booking.travelDetails[0];
+
+    // Map to VoucherPdfData
+    const pdfData: VoucherPdfData & { isBookingVoucher?: boolean } = {
+      isBookingVoucher: true,
+      voucherNumber: booking.bookingReference || booking.id.slice(0, 8),
+      reservationDate: booking.createdAt.toISOString(),
+      guestName: leadPassenger?.fullName || 'N/A',
+      guestMobile: leadPassenger?.phoneNumber || 'N/A',
+      groupCode: booking.groupNumber || 'N/A',
+      groupName: booking.groupName || undefined,
+      paxCount: booking.passengerCount,
+      umrahCompany: booking.umrahVisaProvider ? {
+        partyName: booking.umrahVisaProvider.partyName,
+        address: booking.umrahVisaProvider.address || undefined,
+        contactNumber: booking.umrahVisaProvider.contactNumber || undefined,
+        whatsappNumber: booking.umrahVisaProvider.whatsappNumber || undefined,
+        email: booking.umrahVisaProvider.email || undefined,
+        logoPath: booking.umrahVisaProvider.logoPath || undefined,
+      } : null,
+      agentParty: {
+        partyName: booking.party.partyName
+      },
+      transportCompany: null,
+      hotelSchedules: booking.hotelBookings.map((h, i) => ({
+        number: i + 1,
+        location: h.city.name,
+        hotelName: h.hotel.name,
+        days: Math.ceil((new Date(h.checkOutDate).getTime() - new Date(h.checkInDate).getTime()) / (1000 * 60 * 60 * 24)),
+        checkIn: h.checkInDate.toISOString(),
+        checkOut: h.checkOutDate.toISOString(),
+        brn: h.brn ? (Array.isArray(h.brn) ? h.brn as string[] : [h.brn as string]) : undefined
+      })),
+      movementDetails: booking.movementDetails.map((m, i) => ({
+        sr: i + 1,
+        route: 'Auto',
+        date: formatDate(m.travelDateTime),
+        time: formatTime(m.travelDateTime),
+        from: m.fromCity.name,
+        fromLocation: m.fromLocation.name,
+        to: m.toCity.name,
+        toLocation: m.toLocation.name,
+        viaBdr: m.viabadrOverride
+      })),
+      flightDetails: travel ? [
+        {
+          type: 'AA',
+          date: formatDate(travel.arrivalDateTime),
+          carrier: travel.arrivalFlightNumber.match(/^[A-Z]+/)?.[0] || '',
+          number: travel.arrivalFlightNumber.match(/\d+/)?.[0] || travel.arrivalFlightNumber,
+          from: travel.arrivalAirport.city,
+          to: travel.arrivalAirport.name,
+          arrivalAirport: travel.arrivalAirport.name,
+          etd: formatTime(travel.arrivalDateTime),
+          eta: formatTime(travel.arrivalDateTime),
+        },
+        {
+          type: 'AD',
+          date: formatDate(travel.departureDateTime),
+          carrier: travel.departureFlightNumber.match(/^[A-Z]+/)?.[0] || '',
+          number: travel.departureFlightNumber.match(/\d+/)?.[0] || travel.departureFlightNumber,
+          from: travel.departureAirport.name,
+          to: travel.departureAirport.city,
+          departureAirport: travel.departureAirport.name,
+          etd: formatTime(travel.departureDateTime),
+          eta: formatTime(travel.departureDateTime),
+        }
+      ] : []
+    };
+
+    // Generate PDF
+    const pdfBuffer = await generateVoucherPDF(pdfData);
+
+    const fileName = `Booking_${booking.bookingReference || booking.id.slice(0, 8)}_${pdfData.guestName.replace(/\s+/g, '_')}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Length', pdfBuffer.length.toString());
+
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Error generating booking PDF:', error);
+    res.status(500).json({ error: 'Failed to generate booking PDF' });
   }
 });
 
@@ -1794,11 +1927,11 @@ router.patch('/:bookingId/movement-details', authenticate, async (req, res) => {
 
     // Update or create movements
     for (const movement of movementDetails) {
-      const timeToUse = movement.time && movement.time.trim() !== '' ? movement.time : '12:00';
       if (!movement.date) {
         continue; // Skip invalid movements
       }
 
+      const timeToUse = movement.time && movement.time.trim() !== '' ? movement.time : '12:00';
       const travelDateTime = combineDateTime(movement.date, timeToUse);
       if (!travelDateTime) {
         continue; // Skip invalid date/time

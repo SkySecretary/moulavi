@@ -7,6 +7,7 @@ import {
   prisma,
   validateDateRange,
   validateUmrahVisaDates,
+  parseSafeDate,
   step2Schema,
   step3Schema,
   step4Schema,
@@ -85,11 +86,16 @@ router.post('/step2', authenticate, async (req, res) => {
     const validatedData = step2Schema.parse(req.body);
 
     // Validate date range (80 days max) - convert strings to Date objects
-    const arrivalDateObj = new Date(validatedData.arrivalDate);
-    const departureDateObj = new Date(validatedData.departureDate);
-    if (!validateDateRange(arrivalDateObj, departureDateObj)) {
-      return res.status(400).json({ error: 'Travel duration cannot exceed 80 days' });
+    const arrivalDateObj = parseSafeDate(validatedData.arrivalDate);
+    const departureDateObj = parseSafeDate(validatedData.departureDate);
+    const dateRangeValidation = validateDateRange(arrivalDateObj, departureDateObj);
+    if (!dateRangeValidation.valid) {
+      return res.status(400).json({ error: dateRangeValidation.error });
     }
+
+    // Since we know they are valid dates now, cast for the next functions
+    const validArrivalDate = arrivalDateObj!;
+    const validDepartureDate = departureDateObj!;
 
     // Validate against Umrah visa master dates
     const master = await prisma.umrahVisaMaster.findFirst({
@@ -99,8 +105,8 @@ router.post('/step2', authenticate, async (req, res) => {
     
     if (master) {
       const dateValidation = validateUmrahVisaDates(
-        arrivalDateObj,
-        departureDateObj,
+        validArrivalDate,
+        validDepartureDate,
         {
           lastArrivalDate: master.lastArrivalDate,
           lastDepartureDate: master.lastDepartureDate,
@@ -221,8 +227,8 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
       if (step3Data.hotelBookings && Array.isArray(step3Data.hotelBookings)) {
         step3Data.hotelBookings = step3Data.hotelBookings.map((hotel: any) => ({
           ...hotel,
-          checkInDate: hotel.checkInDate ? new Date(hotel.checkInDate) : hotel.checkInDate,
-          checkOutDate: hotel.checkOutDate ? new Date(hotel.checkOutDate) : hotel.checkOutDate,
+          checkInDate: parseSafeDate(hotel.checkInDate),
+          checkOutDate: parseSafeDate(hotel.checkOutDate),
         }));
       }
     } else {
@@ -241,11 +247,16 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
     }
 
     // Additional validations - convert date strings to Date objects for validation
-    const arrivalDateObj = new Date(step2Data.arrivalDate);
-    const departureDateObj = new Date(step2Data.departureDate);
-    if (!validateDateRange(arrivalDateObj, departureDateObj)) {
-      return res.status(400).json({ error: 'Travel duration cannot exceed 80 days' });
+    const arrivalDateObj = parseSafeDate(step2Data.arrivalDate);
+    const departureDateObj = parseSafeDate(step2Data.departureDate);
+    const dateRangeValidation = validateDateRange(arrivalDateObj, departureDateObj);
+    if (!dateRangeValidation.valid) {
+      return res.status(400).json({ error: dateRangeValidation.error });
     }
+
+    // Since we know they are valid dates now, cast for the next functions
+    const validArrivalDate = arrivalDateObj!;
+    const validDepartureDate = departureDateObj!;
 
     // Validate passenger count (from step2Data)
     const passengerCount = step2Data.passengerCount;
@@ -765,14 +776,20 @@ router.patch('/:bookingId/travel-details', authenticate, async (req, res) => {
       brn,
     } = req.body || {};
 
+    console.log(`[DEBUG] Updating travel details for booking ${bookingId}`);
+    console.log(`[DEBUG] Incoming: arrivalDate=${arrivalDate}, arrivalTime=${arrivalTime}, departureDate=${departureDate}, departureTime=${departureTime}`);
+
     // Combine date and time into datetime before storing
-    const arrivalDateTime = arrivalDate && arrivalTime
-      ? combineDateTime(arrivalDate, arrivalTime)
+    // If date is provided but time is not, default to 12:00
+    const arrivalDateTime = arrivalDate
+      ? combineDateTime(arrivalDate, arrivalTime || '12:00')
       : undefined;
     
-    const departureDateTime = departureDate && departureTime
-      ? combineDateTime(departureDate, departureTime)
+    const departureDateTime = departureDate
+      ? combineDateTime(departureDate, departureTime || '12:00')
       : undefined;
+
+    console.log(`[DEBUG] Result: arrivalDateTime=${arrivalDateTime?.toISOString()}, departureDateTime=${departureDateTime?.toISOString()}`);
 
     // Get existing travel details to preserve values if not provided
     const existing = await prisma.umrahTravelDetails.findUnique({
@@ -847,7 +864,18 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
       hotelBookings 
     } = req.body || {};
 
-    // Get booking to check accommodation type
+    console.log(`[DEBUG] Updating accommodation for booking ${bookingId}`);
+    console.log(`[DEBUG] Type: ${accommodationType}`);
+
+    // Update accommodation type in booking table if provided
+    if (accommodationType) {
+      await prisma.umrahVisaBooking.update({
+        where: { id: bookingId },
+        data: { accommodationType },
+      });
+    }
+
+    // Get current booking state
     const booking = await prisma.umrahVisaBooking.findUnique({
       where: { id: bookingId },
       select: { accommodationType: true },
@@ -902,8 +930,8 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
           await prisma.umrahHotelBooking.update({
             where: { id: h.id },
             data: {
-              checkInDate: h.checkInDate ? new Date(h.checkInDate) : undefined,
-              checkOutDate: h.checkOutDate ? new Date(h.checkOutDate) : undefined,
+              checkInDate: parseSafeDate(h.checkInDate) || undefined,
+              checkOutDate: parseSafeDate(h.checkOutDate) || undefined,
               brn: h.brn ?? undefined,
             },
           });

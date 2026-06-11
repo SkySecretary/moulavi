@@ -8,6 +8,7 @@ import { Airport, Step2Data } from '@/lib/umrah/types';
 import { formatFlightNumber, toDisplayDate, fromDisplayDate } from '@/lib/umrah/validation';
 import { cn } from '@/lib/utils';
 import { TimePicker } from '@/components/ui/time-picker';
+import { DatePicker } from '@/components/ui/date-picker';
 
 interface TravelDetailsFormProps {
   data: Step2Data;
@@ -116,13 +117,10 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                 />
               </td>
               <td className="px-6 py-4">
-                <Input
-                  type="text"
-                  placeholder="DD/MM/YY"
-                  value={toDisplayDate(data.arrivalDate)}
-                  onChange={(e) => handleDateChange('arrivalDate', e.target.value)}
+                <DatePicker
+                  value={data.arrivalDate}
+                  onChange={(val) => handleDateChange('arrivalDate', val)}
                   disabled={disabled}
-                  className="h-12 border-gray-100 rounded-lg font-semibold text-primary focus:ring-secondary/20 bg-gray-50/30 text-base"
                 />
               </td>
               <td className="px-6 py-4">
@@ -186,13 +184,10 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                 />
               </td>
               <td className="px-6 py-4">
-                <Input
-                  type="text"
-                  placeholder="DD/MM/YY"
-                  value={toDisplayDate(data.departureDate)}
-                  onChange={(e) => handleDateChange('departureDate', e.target.value)}
+                <DatePicker
+                  value={data.departureDate}
+                  onChange={(val) => handleDateChange('departureDate', val)}
                   disabled={disabled}
-                  className="h-12 border-gray-100 rounded-lg font-semibold text-primary focus:ring-secondary/20 bg-gray-50/30 text-base"
                 />
               </td>
               <td className="px-6 py-4">
@@ -220,13 +215,10 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Timeline</Label>
-                <Input 
-                  type="text" 
-                  placeholder="DD/MM/YY"
-                  value={toDisplayDate(data.arrivalDate)} 
-                  onChange={(e) => handleDateChange('arrivalDate', e.target.value)} 
-                  disabled={disabled} 
-                  className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs" 
+                <DatePicker
+                  value={data.arrivalDate}
+                  onChange={(val) => handleDateChange('arrivalDate', val)}
+                  disabled={disabled}
                 />
               </div>
               <div className="space-y-1.5">
@@ -258,13 +250,10 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Timeline</Label>
-                <Input 
-                  type="text" 
-                  placeholder="DD/MM/YY"
-                  value={toDisplayDate(data.departureDate)} 
-                  onChange={(e) => handleDateChange('departureDate', e.target.value)} 
-                  disabled={disabled} 
-                  className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs" 
+                <DatePicker
+                  value={data.departureDate}
+                  onChange={(val) => handleDateChange('departureDate', val)}
+                  disabled={disabled}
                 />
               </div>
               <div className="space-y-1.5">
