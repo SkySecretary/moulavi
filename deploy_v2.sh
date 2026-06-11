@@ -56,8 +56,14 @@ ssh -o ControlMaster=auto -o ControlPath=/tmp/ssh-%r@%h:%p $SERVER_USER@$SERVER_
     # Backend Setup
     cd $RELEASE_PATH/backend
     npm install --production --silent
-    npx prisma generate
-    npx prisma db push --accept-data-loss
+    if [ -f "./node_modules/.bin/prisma" ]; then
+        ./node_modules/.bin/prisma generate
+        ./node_modules/.bin/prisma db push --accept-data-loss
+    else
+        echo "❌ Local prisma binary not found! Falling back to npx prisma@6..."
+        npx prisma@6 generate
+        npx prisma@6 db push --accept-data-loss
+    fi
 
     # Frontend Setup
     cd $RELEASE_PATH/frontend
