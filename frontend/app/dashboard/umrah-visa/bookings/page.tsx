@@ -39,6 +39,7 @@ export default function UmrahVisaPage() {
   const router = useRouter();
   const user = getUser();
   const [bookings, setBookings] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -90,6 +91,7 @@ export default function UmrahVisaPage() {
       });
       setBookings(flattenedBookings);
       setPagination(response.data.pagination);
+      setStats(response.data.stats);
     } catch (error) {
       console.error('Error fetching bookings:', error);
       toast.error('Failed to load bookings');
@@ -290,7 +292,7 @@ export default function UmrahVisaPage() {
                     size="sm"
                     onClick={() => handleFilterChange('status', 'all')}
                   >
-                    All
+                    All {stats ? `(${stats.total})` : ''}
                   </Button>
                   {Object.entries(UMRAH_VISA_STATUS_CONFIG).map(([status, config]) => (
                     <Button
@@ -299,7 +301,7 @@ export default function UmrahVisaPage() {
                       size="sm"
                       onClick={() => handleFilterChange('status', status)}
                     >
-                      {config.label}
+                      {config.label} {stats && stats[status] !== undefined ? `(${stats[status]})` : ''}
                     </Button>
                   ))}
                 </div>

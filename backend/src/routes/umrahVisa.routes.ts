@@ -83,7 +83,11 @@ router.get('/bookings', authenticate, async (req, res) => {
       };
     }
 
-    const [bookings, total, totalPassengers] = await Promise.all([
+    // Create a separate where clause for stats that doesn't include the status filter
+    const statsWhere = { ...where };
+    delete statsWhere.status;
+
+    const [bookings, total, totalPassengers, statusCounts] = await Promise.all([
       prisma.umrahVisaBooking.findMany({
         where,
         skip,
@@ -145,8 +149,23 @@ router.get('/bookings', authenticate, async (req, res) => {
         _sum: {
           passengerCount: true
         }
-      })
+      }),
+      // Get global counts for filters (ignoring the 'status' filter but keeping others)
+      Promise.all(['pending', 'documents_downloaded', 'group_assigned', 'voucher', 'bill', 'booking_success', 'cancelled'].map(s => 
+        prisma.umrahVisaBooking.count({
+          where: { ...statsWhere, status: s as any }
+        })
+      ))
     ]);
+
+    const stats: any = {
+      total: await prisma.umrahVisaBooking.count({ where: statsWhere }),
+      totalPassengers: totalPassengers._sum.passengerCount || 0
+    };
+    
+    ['pending', 'documents_downloaded', 'group_assigned', 'voucher', 'bill', 'booking_success', 'cancelled'].forEach((s, i) => {
+      stats[s] = statusCounts[i];
+    });
 
     res.json({
       bookings,
@@ -157,6 +176,7 @@ router.get('/bookings', authenticate, async (req, res) => {
         totalPages: Math.ceil(total / limitNum),
         totalPassengers: totalPassengers._sum.passengerCount || 0
       },
+      stats
     });
   } catch (error) {
     console.error('Error fetching bookings:', error);

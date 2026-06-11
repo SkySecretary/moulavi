@@ -1533,7 +1533,7 @@ router.get('/:bookingId/generate-booking-pdf', authenticate, async (req, res) =>
           number: travel.arrivalFlightNumber?.match(/\d+/)?.[0] || travel.arrivalFlightNumber || '',
           from: travel.arrivalAirport?.city || '',
           to: travel.arrivalAirport?.name || '',
-          arrivalAirport: travel.arrivalAirport?.name || '',
+          arrivalAirport: travel.arrivalAirport?.code || travel.arrivalAirport?.name || '',
           etd: travel.arrivalDateTime ? travel.arrivalDateTime.toISOString() : '',
           eta: travel.arrivalDateTime ? travel.arrivalDateTime.toISOString() : '',
         },
@@ -1544,7 +1544,7 @@ router.get('/:bookingId/generate-booking-pdf', authenticate, async (req, res) =>
           number: travel.departureFlightNumber?.match(/\d+/)?.[0] || travel.departureFlightNumber || '',
           from: travel.departureAirport?.name || '',
           to: travel.departureAirport?.city || '',
-          departureAirport: travel.departureAirport?.name || '',
+          departureAirport: travel.departureAirport?.code || travel.departureAirport?.name || '',
           etd: travel.departureDateTime ? travel.departureDateTime.toISOString() : '',
           eta: travel.departureDateTime ? travel.departureDateTime.toISOString() : '',
         }

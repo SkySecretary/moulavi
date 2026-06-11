@@ -57,6 +57,7 @@ const completeBookingSchema = z.object({
 router.post('/step1', authenticate, async (req, res) => {
   try {
     const { partyId, ...step1Data } = req.body;
+    const user = (req as any).user;
     
     if (!partyId) {
       return res.status(400).json({ error: 'Party ID is required' });
@@ -64,6 +65,32 @@ router.post('/step1', authenticate, async (req, res) => {
 
     // Validate only step1 data (without partyId)
     const validatedData = step1Schema.parse(step1Data);
+
+    // Check if group number is unique system-wide
+    if (validatedData.bookingMode === 'group_number' && validatedData.groupNumber) {
+      const existingBooking = await prisma.umrahVisaBooking.findFirst({
+        where: { 
+          groupNumber: validatedData.groupNumber,
+          isDeleted: false
+        },
+        include: {
+          party: {
+            select: { partyName: true }
+          }
+        }
+      });
+
+      if (existingBooking) {
+        let errorMessage = 'Group number already exists.';
+        if (user && user.role === 'admin') {
+          errorMessage += ` Used by: ${existingBooking.party.partyName}`;
+        }
+        return res.status(400).json({ 
+          error: errorMessage,
+          code: 'GROUP_EXISTS'
+        });
+      }
+    }
 
     // Only validate - no database writes
     // Data will be saved only when all steps are completed in create-booking endpoint
@@ -244,6 +271,32 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
     // Validate required fields
     if (!partyId) {
       return res.status(400).json({ error: 'Party ID is required' });
+    }
+
+    // Check if group number is unique system-wide (if provided)
+    if (step1Data.bookingMode === 'group_number' && step1Data.groupNumber) {
+      const existingBooking = await prisma.umrahVisaBooking.findFirst({
+        where: { 
+          groupNumber: step1Data.groupNumber,
+          isDeleted: false
+        },
+        include: {
+          party: {
+            select: { partyName: true }
+          }
+        }
+      });
+
+      if (existingBooking) {
+        let errorMessage = 'Group number already exists.';
+        if (user && user.role === 'admin') {
+          errorMessage += ` Used by: ${existingBooking.party.partyName}`;
+        }
+        return res.status(400).json({ 
+          error: errorMessage,
+          code: 'GROUP_EXISTS'
+        });
+      }
     }
 
     // Additional validations - convert date strings to Date objects for validation

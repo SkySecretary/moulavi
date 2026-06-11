@@ -122,20 +122,28 @@ export const JourneyFlowSummary: React.FC<JourneyFlowSummaryProps> = ({
                     {item.locationName}
                   </span>
                 )}
-                {item.date && (
-                  <span className="text-xs font-medium text-blue-600">
-                    {new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                    {item.time && (
-                      <span className="ml-1">
-                        {new Date(`2000-01-01T${item.time}`).toLocaleTimeString('en-GB', { 
-                          hour: '2-digit', 
-                          minute: '2-digit',
-                          hour12: true 
-                        })}
-                      </span>
-                    )}
-                  </span>
-                )}
+                {item.date && (() => {
+                  const d = new Date(item.date);
+                  if (isNaN(d.getTime())) return null;
+                  return (
+                    <span className="text-xs font-medium text-blue-600">
+                      {d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                      {item.time && (() => {
+                        const t = new Date(`2000-01-01T${item.time}`);
+                        if (isNaN(t.getTime())) return null;
+                        return (
+                          <span className="ml-1">
+                            {t.toLocaleTimeString('en-GB', { 
+                              hour: '2-digit', 
+                              minute: '2-digit',
+                              hour12: true 
+                            })}
+                          </span>
+                        );
+                      })()}
+                    </span>
+                  );
+                })()}
               </div>
               
               {/* Ziyarath info badge (if available for this city) */}
@@ -143,18 +151,28 @@ export const JourneyFlowSummary: React.FC<JourneyFlowSummaryProps> = ({
                 <div className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 ml-2">
                   <span className="text-xs text-green-700 font-medium">Ziyarath:</span>
                   <span className="text-xs text-green-700">{item.ziyarathInfo.name}</span>
-                  <span className="text-xs text-green-600">
-                    {new Date(item.ziyarathInfo.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                    {item.ziyarathInfo.time && (
-                      <span className="ml-1">
-                        {new Date(`2000-01-01T${item.ziyarathInfo.time}`).toLocaleTimeString('en-GB', { 
-                          hour: '2-digit', 
-                          minute: '2-digit',
-                          hour12: true 
-                        })}
+                  {(() => {
+                    const d = new Date(item.ziyarathInfo.date);
+                    if (isNaN(d.getTime())) return null;
+                    return (
+                      <span className="text-xs text-green-600">
+                        {d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                        {item.ziyarathInfo.time && (() => {
+                          const t = new Date(`2000-01-01T${item.ziyarathInfo.time}`);
+                          if (isNaN(t.getTime())) return null;
+                          return (
+                            <span className="ml-1">
+                              {t.toLocaleTimeString('en-GB', { 
+                                hour: '2-digit', 
+                                minute: '2-digit',
+                                hour12: true 
+                              })}
+                            </span>
+                          );
+                        })()}
                       </span>
-                    )}
-                  </span>
+                    );
+                  })()}
                 </div>
               )}
             </div>

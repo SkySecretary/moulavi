@@ -20,13 +20,19 @@ interface GenerateMovementsParams {
  * Calculate ziyarath date: checkInDate + 2 days, skip Fridays
  */
 function calculateZiyarathDate(checkInDate: string): string {
-  const base = new Date(checkInDate);
-  base.setDate(base.getDate() + 2);
-  // Friday (day 5) -> Saturday (day 6)
-  if (base.getUTCDay() === 5) {
-    base.setDate(base.getDate() + 1);
+  try {
+    if (!checkInDate) return '';
+    const base = new Date(checkInDate);
+    if (isNaN(base.getTime())) return '';
+    base.setDate(base.getDate() + 2);
+    // Friday (day 5) -> Saturday (day 6)
+    if (base.getUTCDay() === 5) {
+      base.setDate(base.getDate() + 1);
+    }
+    return base.toISOString().split('T')[0];
+  } catch {
+    return '';
   }
-  return base.toISOString().split('T')[0];
 }
 
 /**
@@ -61,17 +67,25 @@ function subtractHoursFromDateTime(
   time: string,
   hoursToSubtract: number
 ): { date: string; time: string } {
-  const [hours, minutes] = time.split(':').map(Number);
-  const dateTime = new Date(date);
-  dateTime.setHours(hours, minutes, 0, 0);
-  
-  // Subtract hours
-  dateTime.setHours(dateTime.getHours() - hoursToSubtract);
-  
-  const newDate = dateTime.toISOString().split('T')[0];
-  const newTime = `${String(dateTime.getHours()).padStart(2, '0')}:${String(dateTime.getMinutes()).padStart(2, '0')}`;
-  
-  return { date: newDate, time: newTime };
+  try {
+    const [hours, minutes] = (time || '00:00').split(':').map(Number);
+    const dateTime = new Date(date);
+    if (isNaN(dateTime.getTime())) return { date, time };
+    
+    dateTime.setHours(hours, minutes, 0, 0);
+    
+    // Subtract hours
+    dateTime.setHours(dateTime.getHours() - hoursToSubtract);
+    
+    if (isNaN(dateTime.getTime())) return { date, time };
+    
+    const newDate = dateTime.toISOString().split('T')[0];
+    const newTime = `${String(dateTime.getHours()).padStart(2, '0')}:${String(dateTime.getMinutes()).padStart(2, '0')}`;
+    
+    return { date: newDate, time: newTime };
+  } catch {
+    return { date, time };
+  }
 }
 
 /**
@@ -338,12 +352,14 @@ export function generateMovementsFromRoutes({
         moveDate.setDate(moveDate.getDate() + 1); // Skip to Saturday
       }
 
+      const formattedDate = !isNaN(moveDate.getTime()) ? moveDate.toISOString().split('T')[0] : '';
+
       movements.push({
         id: `movement-${i + 2}`,
         type: 'transport',
         fromLocationId: currentHotel.hotelId,
         toLocationId: nextHotel.hotelId,
-        date: moveDate.toISOString().split('T')[0],
+        date: formattedDate,
         time: time,
       });
     }

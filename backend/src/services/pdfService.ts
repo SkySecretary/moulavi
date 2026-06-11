@@ -72,12 +72,24 @@ function formatTime(timeInput: any): string {
 
 // Helper to extract 3-letter airport code
 function extractAirportCode(str: string | undefined): string {
-  if (!str) return 'JED';
+  if (!str) return 'N/A';
+  
+  // If it's already a 3-letter code (or looks like one)
+  if (str.length === 3 && /^[A-Z]{3}$/i.test(str)) {
+    return str.toUpperCase();
+  }
+
   const match = str.match(/\(([A-Z]{3})\)/i) || str.match(/\b([A-Z]{3})\b/);
   if (match) return match[1].toUpperCase();
-  if (str.toLowerCase().includes('madinah') || str.toLowerCase().includes('medina')) return 'MED';
-  if (str.toLowerCase().includes('makkah') || str.toLowerCase().includes('mecca')) return 'JED';
-  return 'JED';
+  
+  const lowerStr = str.toLowerCase();
+  if (lowerStr.includes('madinah') || lowerStr.includes('medina') || lowerStr.includes('med')) return 'MED';
+  if (lowerStr.includes('jeddah') || lowerStr.includes('jed')) return 'JED';
+  if (lowerStr.includes('riyadh') || lowerStr.includes('ruh')) return 'RUH';
+  if (lowerStr.includes('dammam') || lowerStr.includes('dmm')) return 'DMM';
+  
+  // If no code found, just return the first 3 chars or the string itself if short
+  return str.length <= 5 ? str.toUpperCase() : str.substring(0, 3).toUpperCase();
 }
 
 // Helper to get image as base64

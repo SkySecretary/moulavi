@@ -263,8 +263,10 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                         if (!isNaN(checkIn.getTime())) {
                           const checkOut = new Date(checkIn);
                           checkOut.setDate(checkOut.getDate() + durationNum);
-                          const checkOutStr = toDisplayDate(checkOut.toISOString().split('T')[0]);
-                          onUpdateBooking(index, 'checkOutDate', checkOutStr);
+                          if (!isNaN(checkOut.getTime())) {
+                            const checkOutStr = toDisplayDate(checkOut.toISOString().split('T')[0]);
+                            onUpdateBooking(index, 'checkOutDate', checkOutStr);
+                          }
                         }
                       }
                     }}
@@ -286,8 +288,10 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                         if (!isNaN(checkIn.getTime())) {
                           const checkOut = new Date(checkIn);
                           checkOut.setDate(checkOut.getDate() + durationNum);
-                          const checkOutStr = toDisplayDate(checkOut.toISOString().split('T')[0]);
-                          onUpdateBooking(index, 'checkOutDate', checkOutStr);
+                          if (!isNaN(checkOut.getTime())) {
+                            const checkOutStr = toDisplayDate(checkOut.toISOString().split('T')[0]);
+                            onUpdateBooking(index, 'checkOutDate', checkOutStr);
+                          }
                         }
                       }
                     }}

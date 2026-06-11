@@ -7,7 +7,9 @@ import { HotelBooking } from '@/lib/umrah/types';
 // Helper function to add days to a date string (yyyy-MM-dd)
 const addDaysToDate = (dateString: string, days: number): string => {
   try {
+    if (!dateString) return '';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
     date.setDate(date.getDate() + days);
     return date.toISOString().split('T')[0];
   } catch {
