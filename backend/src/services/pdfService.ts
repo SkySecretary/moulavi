@@ -221,6 +221,7 @@ function generateVoucherHTML(data: VoucherPdfData & { isBookingVoucher?: boolean
         .center-title {
             width: 55%;
             text-align: center;
+            padding-top: 10px;
         }
 
         .main-title {
@@ -230,26 +231,6 @@ function generateVoucherHTML(data: VoucherPdfData & { isBookingVoucher?: boolean
             line-height: 1.2;
             margin: 0 0 10px 0;
             text-transform: uppercase;
-        }
-
-        .sub-title {
-            color: var(--primary-gold);
-            font-size: 14px;
-            font-weight: 600;
-            font-style: italic;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 15px;
-        }
-
-        .sub-title::before, .sub-title::after {
-            content: "";
-            display: inline-block;
-            width: 40px;
-            height: 1px;
-            background-color: var(--primary-gold);
-            margin: 0 10px;
         }
 
         .op-number-box {
@@ -266,7 +247,7 @@ function generateVoucherHTML(data: VoucherPdfData & { isBookingVoucher?: boolean
             justify-content: center;
             gap: 10px;
             width: fit-content;
-            margin: 0 auto 5px auto;
+            margin: 15px auto 5px auto;
         }
 
         .transportation-text {
@@ -456,6 +437,8 @@ function generateVoucherHTML(data: VoucherPdfData & { isBookingVoucher?: boolean
         .accom-text { display: flex; flex-direction: column; gap: 3px; }
         .accom-name { font-size: 12px; font-weight: 700; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
         .accom-dates { font-size: 12px; color: var(--text-gray); }
+        .iqama-info { font-size: 12px; font-weight: 600; color: var(--text-dark); }
+        .iqama-label { color: var(--primary-purple); font-weight: 700; font-size: 10px; margin-right: 5px; text-transform: uppercase; }
 
         /* --- Itinerary Table --- */
         .itinerary-section {
@@ -553,7 +536,6 @@ function generateVoucherHTML(data: VoucherPdfData & { isBookingVoucher?: boolean
 
         <div class="center-title">
             <h1 class="main-title">${umrahCompanyName}</h1>
-            <div class="sub-title">Professional Transportation Services</div>
             ${!isBooking ? `
             <div class="op-number-box">
                 ${icons.phone} &nbsp; OPERATION NUMBER: ${staticOpNumber}
@@ -659,11 +641,21 @@ function generateVoucherHTML(data: VoucherPdfData & { isBookingVoucher?: boolean
             </div>
         </div>
 
-        <!-- Accommodation -->
+        <!-- Accommodation / Iqama -->
         <div class="col">
-            <div class="col-tab accom-tab">${icons.bed} &nbsp; ACCOMMODATION</div>
+            <div class="col-tab accom-tab">${icons.bed} &nbsp; ${data.iqamaDetails ? 'HOST DETAILS' : 'ACCOMMODATION'}</div>
             <div class="accom-content">
-                ${data.hotelSchedules.map(h => `
+                ${data.iqamaDetails ? `
+                <div class="accom-item">
+                    <div class="accom-icon">${icons.user}</div>
+                    <div class="accom-text">
+                        <span class="accom-name">${data.iqamaDetails.name || 'N/A'}</span>
+                        <div class="iqama-info"><span class="iqama-label">IQAMA:</span> ${data.iqamaDetails.number || 'N/A'}</div>
+                        <div class="iqama-info"><span class="iqama-label">ADDR:</span> ${data.iqamaDetails.address || 'N/A'}</div>
+                        <div class="iqama-info"><span class="iqama-label">DOB:</span> ${formatDateYY(data.iqamaDetails.dob)}</div>
+                    </div>
+                </div>
+                ` : data.hotelSchedules.map(h => `
                 <div class="accom-item">
                     <div class="accom-icon">${icons.hotel}</div>
                     <div class="accom-text">

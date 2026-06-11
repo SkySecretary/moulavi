@@ -10,6 +10,12 @@ export interface VoucherPdfData {
   groupName?: string;
   paxCount: number;
   vehicleType?: string; // Type of vehicle for the trip
+  iqamaDetails?: {
+    name: string;
+    number: string;
+    address: string;
+    dob: string;
+  } | null;
   umrahCompany?: {
     partyName: string;
     address?: string;

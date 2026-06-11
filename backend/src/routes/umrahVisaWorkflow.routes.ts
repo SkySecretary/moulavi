@@ -1474,6 +1474,7 @@ router.get('/:bookingId/generate-booking-pdf', authenticate, async (req, res) =>
 
     const leadPassenger = booking.passengers[0];
     const travel = booking.travelDetails[0];
+    const iqama = booking.sponsorIqamaDetails?.find((i: any) => !i.isAlternate);
 
     // Map to VoucherPdfData
     const pdfData: VoucherPdfData & { isBookingVoucher?: boolean } = {
@@ -1485,6 +1486,12 @@ router.get('/:bookingId/generate-booking-pdf', authenticate, async (req, res) =>
       groupCode: booking.groupNumber || 'N/A',
       groupName: booking.groupName || undefined,
       paxCount: booking.passengerCount,
+      iqamaDetails: booking.accommodationType === 'iqama' && iqama ? {
+        name: iqama.iqamaSponserName || 'N/A',
+        number: iqama.iqamaNumber || 'N/A',
+        address: iqama.sponserNationalShortAddress || 'N/A',
+        dob: iqama.sponserDob ? iqama.sponserDob.toISOString() : ''
+      } : null,
       umrahCompany: booking.umrahVisaProvider ? {
         partyName: booking.umrahVisaProvider.partyName,
         address: booking.umrahVisaProvider.address || undefined,
