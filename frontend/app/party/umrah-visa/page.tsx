@@ -275,7 +275,7 @@ export default function UmrahVisaNewPage() {
       title="Umrah Visa" 
       subtitle="Complete your application steps below"
     >
-      <div className="p-4 lg:p-6 max-w-[1100px] mx-auto pb-24">
+      <div className="p-4 lg:p-6 max-w-[1400px] mx-auto pb-24">
         <DisclaimerDialog 
           open={showDisclaimer} 
           onConfirm={() => setShowDisclaimer(false)} 

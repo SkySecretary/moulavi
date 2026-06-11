@@ -60,7 +60,7 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
               <th className="px-6 py-3 text-left text-[8px] font-black text-primary/40 uppercase tracking-[0.2em]">
                 Entry/Exit Hub
               </th>
-              <th className="px-6 py-3 text-left text-[8px] font-black text-primary/40 uppercase tracking-[0.2em] w-[150px]">
+              <th className="px-6 py-3 text-left text-[8px] font-black text-primary/40 uppercase tracking-[0.2em] w-[220px]">
                 Carrier
               </th>
               <th className="px-6 py-3 text-left text-[8px] font-black text-primary/40 uppercase tracking-[0.2em] w-[150px]">
@@ -112,8 +112,8 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                     onChange({ arrivalFlightNumber: formatted });
                   }}
                   disabled={disabled}
-                  maxLength={8}
-                  className="h-12 border-gray-100 rounded-lg font-bold text-secondary focus:ring-secondary/20 bg-gray-50/30 text-center tracking-widest text-base"
+                  maxLength={12}
+                  className="h-12 border-gray-100 rounded-lg font-bold text-secondary focus:ring-secondary/20 bg-gray-50/30 text-center tracking-widest text-sm"
                 />
               </td>
               <td className="px-6 py-4">
@@ -179,8 +179,8 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                     onChange({ departureFlightNumber: formatted });
                   }}
                   disabled={disabled}
-                  maxLength={8}
-                  className="h-12 border-gray-100 rounded-lg font-bold text-secondary focus:ring-secondary/20 bg-gray-50/30 text-center tracking-widest text-base"
+                  maxLength={12}
+                  className="h-12 border-gray-100 rounded-lg font-bold text-secondary focus:ring-secondary/20 bg-gray-50/30 text-center tracking-widest text-sm"
                 />
               </td>
               <td className="px-6 py-4">

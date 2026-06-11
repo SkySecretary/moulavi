@@ -173,7 +173,7 @@ function CreateGroupContent() {
         )}
       </header>
 
-      <div className="p-4 lg:p-6 max-w-[1100px] mx-auto w-full flex-1 pb-24 overflow-auto">
+      <div className="p-4 lg:p-6 max-w-[1400px] mx-auto w-full flex-1 pb-24 overflow-auto">
         {!selectedPartyId ? (
           <div className="max-w-xl mx-auto mt-8">
             <Card className="border-0 shadow-2xl shadow-primary/5 rounded-[2rem] overflow-hidden">
