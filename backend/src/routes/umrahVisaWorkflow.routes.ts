@@ -1432,6 +1432,7 @@ router.get('/:bookingId/generate-booking-pdf', authenticate, async (req, res) =>
       include: {
         party: true,
         umrahVisaProvider: true,
+        sponsorIqamaDetails: true,
         passengers: {
           where: { isLeadPassenger: true, isDeleted: false },
           take: 1
