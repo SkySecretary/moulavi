@@ -84,7 +84,8 @@ ssh $SERVER_USER@$SERVER_IP << EOF
     # Install dependencies and update schema
     echo "📦 Installing backend dependencies..."
     cd $RELEASE_PATH/backend
-    npm install --production --ignore-scripts --silent
+    npm pkg delete scripts.postinstall
+    npm install --production --silent
     npx prisma@6 generate
     
     echo "🗄️  Updating database schema (adding new fields)..."
