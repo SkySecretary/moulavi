@@ -2,10 +2,10 @@ import puppeteer from 'puppeteer';
 import { VoucherPdfData } from '../types/voucher';
 
 // Helper function to format date (DD-MM-YYYY)
-function formatDate(dateString: string): string {
-  if (!dateString) return 'N/A';
+function formatDate(dateInput: any): string {
+  if (!dateInput) return 'N/A';
   try {
-    const date = new Date(dateString);
+    const date = new Date(dateInput);
     if (isNaN(date.getTime())) return 'N/A';
     const day = date.getUTCDate().toString().padStart(2, '0');
     const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
@@ -17,10 +17,10 @@ function formatDate(dateString: string): string {
 }
 
 // Helper function to format date (DD-MMM-YY)
-function formatDateYY(dateString: string): string {
-  if (!dateString) return 'N/A';
+function formatDateYY(dateInput: any): string {
+  if (!dateInput) return 'N/A';
   try {
-    const date = new Date(dateString);
+    const date = new Date(dateInput);
     if (isNaN(date.getTime())) return 'N/A';
     const day = date.getUTCDate().toString().padStart(2, '0');
     const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -33,14 +33,29 @@ function formatDateYY(dateString: string): string {
 }
 
 // Helper function to format time (HH:MM)
-function formatTime(timeString: string): string {
-  if (!timeString) return 'N/A';
+function formatTime(timeInput: any): string {
+  if (!timeInput) return 'N/A';
+  
+  // If it's a Date object or numeric timestamp, use UTC methods
+  const date = new Date(timeInput);
+  if (!isNaN(date.getTime())) {
+    const hours = date.getUTCHours().toString().padStart(2, '0');
+    const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+
+  // Fallback for strings
+  const timeString = String(timeInput);
   if (timeString.includes('T')) {
     const timePart = timeString.split('T')[1];
     return timePart ? timePart.slice(0, 5) : 'N/A';
   }
   if (timeString.includes(':')) {
-    return timeString.slice(0, 5);
+    // Check if it's HH:mm:ss or similar
+    const match = timeString.match(/(\d{1,2}):(\d{1,2})/);
+    if (match) {
+      return `${match[1].padStart(2, '0')}:${match[2].padStart(2, '0')}`;
+    }
   }
   return 'N/A';
 }
