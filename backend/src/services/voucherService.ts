@@ -41,7 +41,7 @@ export async function generateVoucherNumber(): Promise<string> {
 }
 
 /**
- * Format time from DateTime to HH:MM string
+ * Format time from DateTime to HH:MM string (UTC)
  */
 export function formatTime(dateTime: Date | string | null | undefined): string {
   if (!dateTime) return '';
@@ -49,13 +49,13 @@ export function formatTime(dateTime: Date | string | null | undefined): string {
   const date = typeof dateTime === 'string' ? new Date(dateTime) : dateTime;
   if (isNaN(date.getTime())) return '';
   
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const hours = date.getUTCHours().toString().padStart(2, '0');
+  const minutes = date.getUTCMinutes().toString().padStart(2, '0');
   return `${hours}:${minutes}`;
 }
 
 /**
- * Format date to DD-MM-YYYY
+ * Format date to DD-MM-YYYY (UTC)
  */
 export function formatDate(date: Date | string | null | undefined): string {
   if (!date) return '';
@@ -63,9 +63,9 @@ export function formatDate(date: Date | string | null | undefined): string {
   const d = typeof date === 'string' ? new Date(date) : date;
   if (isNaN(d.getTime())) return '';
   
-  const day = d.getDate().toString().padStart(2, '0');
-  const month = (d.getMonth() + 1).toString().padStart(2, '0');
-  const year = d.getFullYear();
+  const day = d.getUTCDate().toString().padStart(2, '0');
+  const month = (d.getUTCMonth() + 1).toString().padStart(2, '0');
+  const year = d.getUTCFullYear();
   return `${day}-${month}-${year}`;
 }
 

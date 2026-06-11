@@ -1298,7 +1298,7 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
       movementDetails: fullVoucher.movements.map((m) => ({
         sr: m.sr,
         route: m.route || '',
-        date: formatDate(m.date),
+        date: m.date.toISOString(),
         time: m.time,
         from: m.from,
         fromLocation: m.fromLocation,
@@ -1320,7 +1320,7 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
         type: f.type,
         carrier: f.carrier,
         number: f.number,
-        date: formatDate(f.date),
+        date: f.date.toISOString(),
         from: f.from,
         to: f.to,
         arrivalAirport: f.type === 'AA' ? f.from : undefined,
@@ -1448,6 +1448,9 @@ router.get('/:bookingId/generate-booking-pdf', authenticate, async (req, res) =>
           include: {
             hotel: true,
             city: true
+          },
+          orderBy: {
+            checkInDate: 'asc'
           }
         },
         movementDetails: {
@@ -1457,6 +1460,9 @@ router.get('/:bookingId/generate-booking-pdf', authenticate, async (req, res) =>
             fromLocation: true,
             toCity: true,
             toLocation: true
+          },
+          orderBy: {
+            travelDateTime: 'asc'
           }
         }
       }
@@ -1503,36 +1509,36 @@ router.get('/:bookingId/generate-booking-pdf', authenticate, async (req, res) =>
       movementDetails: booking.movementDetails.map((m, i) => ({
         sr: i + 1,
         route: 'Auto',
-        date: formatDate(m.travelDateTime),
-        time: formatTime(m.travelDateTime),
-        from: m.fromCity.name,
-        fromLocation: m.fromLocation.name,
-        to: m.toCity.name,
-        toLocation: m.toLocation.name,
+        date: m.travelDateTime ? m.travelDateTime.toISOString() : '',
+        time: m.travelDateTime ? m.travelDateTime.toISOString() : '',
+        from: m.fromCity?.name || 'N/A',
+        fromLocation: m.fromLocation?.name || '',
+        to: m.toCity?.name || 'N/A',
+        toLocation: m.toLocation?.name || '',
         viaBdr: m.viabadrOverride
       })),
       flightDetails: travel ? [
         {
           type: 'AA',
-          date: formatDate(travel.arrivalDateTime),
-          carrier: travel.arrivalFlightNumber.match(/^[A-Z]+/)?.[0] || '',
-          number: travel.arrivalFlightNumber.match(/\d+/)?.[0] || travel.arrivalFlightNumber,
-          from: travel.arrivalAirport.city,
-          to: travel.arrivalAirport.name,
-          arrivalAirport: travel.arrivalAirport.name,
-          etd: formatTime(travel.arrivalDateTime),
-          eta: formatTime(travel.arrivalDateTime),
+          date: travel.arrivalDateTime ? travel.arrivalDateTime.toISOString() : '',
+          carrier: travel.arrivalFlightNumber?.match(/^[A-Z]+/)?.[0] || '',
+          number: travel.arrivalFlightNumber?.match(/\d+/)?.[0] || travel.arrivalFlightNumber || '',
+          from: travel.arrivalAirport?.city || '',
+          to: travel.arrivalAirport?.name || '',
+          arrivalAirport: travel.arrivalAirport?.name || '',
+          etd: travel.arrivalDateTime ? travel.arrivalDateTime.toISOString() : '',
+          eta: travel.arrivalDateTime ? travel.arrivalDateTime.toISOString() : '',
         },
         {
           type: 'AD',
-          date: formatDate(travel.departureDateTime),
-          carrier: travel.departureFlightNumber.match(/^[A-Z]+/)?.[0] || '',
-          number: travel.departureFlightNumber.match(/\d+/)?.[0] || travel.departureFlightNumber,
-          from: travel.departureAirport.name,
-          to: travel.departureAirport.city,
-          departureAirport: travel.departureAirport.name,
-          etd: formatTime(travel.departureDateTime),
-          eta: formatTime(travel.departureDateTime),
+          date: travel.departureDateTime ? travel.departureDateTime.toISOString() : '',
+          carrier: travel.departureFlightNumber?.match(/^[A-Z]+/)?.[0] || '',
+          number: travel.departureFlightNumber?.match(/\d+/)?.[0] || travel.departureFlightNumber || '',
+          from: travel.departureAirport?.name || '',
+          to: travel.departureAirport?.city || '',
+          departureAirport: travel.departureAirport?.name || '',
+          etd: travel.departureDateTime ? travel.departureDateTime.toISOString() : '',
+          eta: travel.departureDateTime ? travel.departureDateTime.toISOString() : '',
         }
       ] : []
     };

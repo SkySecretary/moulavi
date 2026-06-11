@@ -1,42 +1,65 @@
 import puppeteer from 'puppeteer';
 import { VoucherPdfData } from '../types/voucher';
 
+// Helper to safely parse date strings or objects
+function parseSafeDate(dateInput: any): Date | null {
+  if (!dateInput) return null;
+  if (dateInput instanceof Date) return dateInput;
+  
+  const dateStr = String(dateInput);
+  
+  // Handle DD-MM-YYYY format
+  const ddmmyyyyMatch = dateStr.match(/^(\d{2})-(\d{2})-(\d{4})/);
+  if (ddmmyyyyMatch) {
+    const [_, day, month, year] = ddmmyyyyMatch;
+    return new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day)));
+  }
+  
+  // Skip if it looks like just a time (HH:mm)
+  if (dateStr.match(/^\d{1,2}:\d{2}$/)) {
+    return null;
+  }
+  
+  const date = new Date(dateInput);
+  return isNaN(date.getTime()) ? null : date;
+}
+
 // Helper function to format date (DD-MM-YYYY)
 function formatDate(dateInput: any): string {
-  if (!dateInput) return 'N/A';
-  try {
-    const date = new Date(dateInput);
-    if (isNaN(date.getTime())) return 'N/A';
-    const day = date.getUTCDate().toString().padStart(2, '0');
-    const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
-    const year = date.getUTCFullYear();
-    return `${day}-${month}-${year}`;
-  } catch {
-    return 'N/A';
-  }
+  const date = parseSafeDate(dateInput);
+  if (!date) return 'N/A';
+  
+  const day = date.getUTCDate().toString().padStart(2, '0');
+  const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+  const year = date.getUTCFullYear();
+  return `${day}-${month}-${year}`;
 }
 
 // Helper function to format date (DD-MMM-YY)
 function formatDateYY(dateInput: any): string {
-  if (!dateInput) return 'N/A';
-  try {
-    const date = new Date(dateInput);
-    if (isNaN(date.getTime())) return 'N/A';
-    const day = date.getUTCDate().toString().padStart(2, '0');
-    const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-    const month = monthNames[date.getUTCMonth()];
-    const year = date.getUTCFullYear().toString().slice(-2);
-    return `${day}-${month}-${year}`;
-  } catch {
-    return 'N/A';
-  }
+  const date = parseSafeDate(dateInput);
+  if (!date) return 'N/A';
+  
+  const day = date.getUTCDate().toString().padStart(2, '0');
+  const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const month = monthNames[date.getUTCMonth()];
+  const year = date.getUTCFullYear().toString().slice(-2);
+  return `${day}-${month}-${year}`;
 }
 
 // Helper function to format time (HH:MM)
 function formatTime(timeInput: any): string {
   if (!timeInput) return 'N/A';
   
-  // If it's a Date object or numeric timestamp, use UTC methods
+  const timeString = String(timeInput);
+
+  // If it's already HH:mm or HH:mm:ss, just clean it and return
+  const hmmmMatch = timeString.match(/^(\d{1,2}):(\d{2})/);
+  if (hmmmMatch && !timeString.includes('T') && isNaN(Number(timeInput))) {
+    return `${hmmmMatch[1].padStart(2, '0')}:${hmmmMatch[2].padStart(2, '0')}`;
+  }
+  
+  // If it's a Date object, ISO string, or numeric timestamp, use UTC methods
   const date = new Date(timeInput);
   if (!isNaN(date.getTime())) {
     const hours = date.getUTCHours().toString().padStart(2, '0');
@@ -44,19 +67,6 @@ function formatTime(timeInput: any): string {
     return `${hours}:${minutes}`;
   }
 
-  // Fallback for strings
-  const timeString = String(timeInput);
-  if (timeString.includes('T')) {
-    const timePart = timeString.split('T')[1];
-    return timePart ? timePart.slice(0, 5) : 'N/A';
-  }
-  if (timeString.includes(':')) {
-    // Check if it's HH:mm:ss or similar
-    const match = timeString.match(/(\d{1,2}):(\d{1,2})/);
-    if (match) {
-      return `${match[1].padStart(2, '0')}:${match[2].padStart(2, '0')}`;
-    }
-  }
   return 'N/A';
 }
 
