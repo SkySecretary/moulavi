@@ -85,10 +85,10 @@ ssh $SERVER_USER@$SERVER_IP << EOF
     echo "📦 Installing backend dependencies..."
     cd $RELEASE_PATH/backend
     npm install --production --silent
-    npx prisma generate
+    npx prisma@6 generate
     
     echo "🗄️  Updating database schema (adding new fields)..."
-    npx prisma db push --accept-data-loss
+    npx prisma@6 db push --accept-data-loss
 
     echo "📦 Installing frontend dependencies..."
     cd $RELEASE_PATH/frontend
