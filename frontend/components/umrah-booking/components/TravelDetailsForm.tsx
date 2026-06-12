@@ -237,6 +237,20 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Flight Number</Label>
+              <Input
+                placeholder="SV-XXXX"
+                value={data.arrivalFlightNumber}
+                onChange={(e) => {
+                  const formatted = formatFlightNumber(e.target.value);
+                  onChange({ arrivalFlightNumber: formatted });
+                }}
+                disabled={disabled}
+                maxLength={12}
+                className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs"
+              />
+            </div>
           </CardContent>
         </Card>
 
@@ -271,6 +285,20 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                   {airports.map(a => <SelectItem key={a.id} value={a.id} className="text-sm font-medium">{a.airportCode} - {a.airportName}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Flight Number</Label>
+              <Input
+                placeholder="SV-XXXX"
+                value={data.departureFlightNumber}
+                onChange={(e) => {
+                  const formatted = formatFlightNumber(e.target.value);
+                  onChange({ departureFlightNumber: formatted });
+                }}
+                disabled={disabled}
+                maxLength={12}
+                className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs"
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Travel BRN</Label>

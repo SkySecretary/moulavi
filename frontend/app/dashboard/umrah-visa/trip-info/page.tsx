@@ -306,7 +306,7 @@ export default function TripInfoPage() {
     }
 
     if (makkahHotelName !== 'N/A') {
-      text += `🏨 *Makkah Hotel:* ${makkahHotelName}\n`;
+      text += `🏨 *Hotel 1:* ${makkahHotelName}\n`;
       text += `📄 *Agreement No.:* ${makkahBrn}\n`;
       if (booking.accommodationType === 'hotel') {
         text += `📅 *Check-in:* ${makkahCheckIn}\n`;
@@ -316,7 +316,7 @@ export default function TripInfoPage() {
     }
 
     if (madinahHotelName !== 'N/A') {
-      text += `🏨 *Madinah Hotel:* ${madinahHotelName}\n`;
+      text += `🏨 *Hotel 2:* ${madinahHotelName}\n`;
       text += `📄 *Agreement No.:* ${madinahBrn}\n`;
       if (booking.accommodationType === 'hotel') {
         text += `📅 *Check-in:* ${madinahCheckIn}\n`;
@@ -861,9 +861,9 @@ export default function TripInfoPage() {
                                   <div className="space-y-2">
                                     <div className="grid grid-cols-2 gap-2">
                                       <div className="space-y-1">
-                                        <label className="text-[10px] font-semibold text-purple-700">Hotel 1 (Makkah)</label>
+                                        <label className="text-[10px] font-semibold text-purple-700">Hotel 1</label>
                                         <Input
-                                          placeholder="Makkah Hotel"
+                                          placeholder="Hotel 1"
                                           value={editingIqama[booking.id!]?.makkahHotelName || ''}
                                           onChange={(e) => setEditingIqama({
                                             ...editingIqama,
@@ -882,9 +882,9 @@ export default function TripInfoPage() {
                                         />
                                       </div>
                                       <div className="space-y-1">
-                                        <label className="text-[10px] font-semibold text-purple-700">Hotel 2 (Madinah)</label>
+                                        <label className="text-[10px] font-semibold text-purple-700">Hotel 2</label>
                                         <Input
-                                          placeholder="Madinah Hotel"
+                                          placeholder="Hotel 2"
                                           value={editingIqama[booking.id!]?.madinahHotelName || ''}
                                           onChange={(e) => setEditingIqama({
                                             ...editingIqama,
