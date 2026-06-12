@@ -855,6 +855,12 @@ export default function TripInfoPage() {
                                     <div className="flex justify-between">
                                       <span>Holder:</span> <span className="font-medium text-gray-700">{iqamaDetails?.iqamaSponserName || 'N/A'}</span>
                                     </div>
+                                    <div className="flex justify-between">
+                                      <span>DOB:</span> <span className="font-medium text-gray-700">{iqamaDetails?.sponserDob ? formatDate(iqamaDetails.sponserDob) : 'N/A'}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Address:</span> <span className="font-medium text-gray-700">{iqamaDetails?.sponserNationalShortAddress || 'N/A'}</span>
+                                    </div>
                                   </div>
 
                                   {/* New Editable Hotel/BRN Fields */}
