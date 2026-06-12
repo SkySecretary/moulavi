@@ -112,7 +112,7 @@ export default function DailyOverviewPage() {
               <Clock className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-xl lg:text-2xl font-bold text-gray-900 tracking-tight">Daily Operations</h1>
+              <h1 className="text-xl lg:text-2xl font-bold text-gray-900 tracking-tight">Tafweej</h1>
               <p className="text-xs lg:text-sm text-gray-500 mt-0.5 font-medium">Operative overview for {getTargetDateLabel()}</p>
             </div>
           </div>
