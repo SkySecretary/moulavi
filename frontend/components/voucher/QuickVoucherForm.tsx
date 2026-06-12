@@ -23,6 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { RouteType } from '@/types';
 import { cn, formatCurrency } from '@/lib/utils';
 import { DatePicker } from '@/components/ui/date-picker';
+import { TimePicker } from '@/components/ui/time-picker';
 import { fromDisplayDate, toDisplayDate, extractDateFromISO, extractTimeFromISO, combineDateAndTime } from '@/lib/umrah/validation';
 
 interface QuickVoucherFormProps {
@@ -290,7 +291,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
 
   // Time calculation helpers
   const subtractHours = (timeString: string, hours: number): string => {
-    if (!timeString) return '12:00';
+    if (!timeString) return '20:30';
     const [h, m] = timeString.split(':').map(Number);
     let totalMinutes = h * 60 + m;
     totalMinutes -= hours * 60;
@@ -329,7 +330,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
     toLocation: string,
     departureFlightTime?: string
   ): string => {
-    if (!departureFlightTime) return '12:00';
+    if (!departureFlightTime) return '20:30';
     
     const fromCityLower = fromCity.toLowerCase().trim();
     const toLocationLower = toLocation.toLowerCase().trim();
@@ -354,7 +355,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
       return subtractHours(departureFlightTime, 12);
     }
     
-    return '12:00';
+    return '20:30';
   };
 
 
@@ -458,7 +459,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
             sr: movementIndex + 1,
             route: '',
             date: arrivalDate,
-            time: arrivalFlightData?.etd ? subtractHours(arrivalFlightData.etd, 1) : '12:00',
+            time: arrivalFlightData?.etd ? subtractHours(arrivalFlightData.etd, 1) : '20:30',
             fromCityId: arrivalAirport.cityId,
             from: arrivalAirport.city || '',
             fromLocationId: arrivalAirport.id,
@@ -515,7 +516,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
               sr: movementIndex + 1,
               route: '',
               date: movementDate,
-              time: '12:00',
+              time: '20:30',
               fromCityId: currentHotel.cityId,
               from: currentHotel.cityName,
               fromLocationId: '',
@@ -535,7 +536,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
       if (departureAirportId && hotels.length > 0) {
         const departureAirport = airports.find(a => a.id === departureAirportId);
         const lastHotel = hotels[hotels.length - 1];
-        const departureTime = departureFlightData?.etd || '12:00';
+        const departureTime = departureFlightData?.etd || '20:30';
         
         if (departureAirport && lastHotel.cityId && lastHotel.cityName) {
           movements.push({
@@ -569,7 +570,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
             sr: movementIndex + 1,
             route: '',
             date: arrivalDate,
-            time: arrivalFlightData?.etd ? subtractHours(arrivalFlightData.etd, 1) : '12:00',
+            time: arrivalFlightData?.etd ? subtractHours(arrivalFlightData.etd, 1) : '20:30',
             fromCityId: arrivalAirport.cityId,
             from: arrivalAirport.city || '',
             fromLocationId: arrivalAirport.id,
@@ -595,7 +596,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
             sr: movementIndex + 1,
             route: '',
             date: arrivalDate,
-            time: '12:00',
+            time: '20:30',
             fromCityId: sourceCity.id,
             from: sourceCity.name,
             fromLocationId: sourceCityCenter.id,
@@ -615,7 +616,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
       if (sourceCity && departureAirportId) {
         const sourceCityCenter = getCityCenterForCity(sourceCity.name);
         const departureAirport = airports.find(a => a.id === departureAirportId);
-        const departureTime = departureFlightData?.etd || '12:00';
+        const departureTime = departureFlightData?.etd || '20:30';
         
         if (sourceCityCenter && departureAirport) {
           movements.push({
@@ -740,12 +741,12 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
           
           if (f.type === 'AA' && f.fromLocationId) {
             const airport = airports.find(a => a.id === f.fromLocationId);
-            arrivalAirport = airport?.name || airport?.code || f.from || '';
+            arrivalAirport = airport?.code || airport?.name || f.from || '';
           }
           
           if (f.type === 'AD' && f.toLocationId) {
             const airport = airports.find(a => a.id === f.toLocationId);
-            departureAirport = airport?.name || airport?.code || f.to || '';
+            departureAirport = airport?.code || airport?.name || f.to || '';
           }
           
           return {
@@ -1211,7 +1212,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
                         <TableHead className="text-[9px] font-bold uppercase py-0">Carrier & No</TableHead>
                         <TableHead className="text-[9px] font-bold uppercase py-0">Route</TableHead>
                         <TableHead className="text-[9px] font-bold uppercase py-0 w-[110px]">Date</TableHead>
-                        <TableHead className="text-[9px] font-bold uppercase py-0 w-[80px]">Time</TableHead>
+                        <TableHead className="text-[9px] font-bold uppercase py-0 w-[80px]">Time (24h)</TableHead>
                         <TableHead className="w-[40px] py-0"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1245,11 +1246,10 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
                           </TableCell>
                           <TableCell><DatePicker value={flight.date} onChange={(v) => updateFlightDetail(idx, 'date', v)} className="h-7" /></TableCell>
                           <TableCell>
-                            <Input 
-                              type="time" 
+                            <TimePicker 
                               value={flight.type === 'AA' ? (flight.eta || '') : (flight.etd || '')} 
-                              onChange={(e) => updateFlightDetail(idx, flight.type === 'AA' ? 'eta' : 'etd', e.target.value)} 
-                              className="h-7 rounded border-gray-100 text-[9px]" 
+                              onChange={(v) => updateFlightDetail(idx, flight.type === 'AA' ? 'eta' : 'etd', v)} 
+                              className="h-7 min-w-[80px]" 
                             />
                           </TableCell>
                           <TableCell className="px-2 text-right"><Button variant="ghost" size="icon" onClick={() => removeFlightDetail(idx)} className="h-6 w-6 text-muted-foreground hover:text-destructive"><Trash2 className="h-3 w-3" /></Button></TableCell>

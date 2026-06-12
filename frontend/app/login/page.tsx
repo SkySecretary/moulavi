@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,14 +9,16 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Globe, Lock, User, Loader2, ChevronRight } from 'lucide-react';
+import { Globe, Lock, User, Loader2, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { authAPI } from '@/lib/api';
 import { setUser } from '@/lib/auth';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(1, 'Password is required'),
+  rememberMe: z.boolean().optional(),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -24,14 +26,31 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function Home() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      rememberMe: false,
+    }
   });
+
+  const rememberMeValue = watch('rememberMe');
+
+  // Load remembered email on mount
+  useEffect(() => {
+    const rememberedEmail = localStorage.getItem('rememberedEmail');
+    if (rememberedEmail) {
+      setValue('email', rememberedEmail);
+      setValue('rememberMe', true);
+    }
+  }, [setValue]);
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
@@ -39,6 +58,13 @@ export default function Home() {
     try {
       const response = await authAPI.login(data.email, data.password);
       const { user, accessToken, refreshToken } = response.data;
+
+      // Handle remember me
+      if (data.rememberMe) {
+        localStorage.setItem('rememberedEmail', data.email);
+      } else {
+        localStorage.removeItem('rememberedEmail');
+      }
 
       // Store tokens and user info
       localStorage.setItem('accessToken', accessToken);
@@ -88,7 +114,7 @@ export default function Home() {
               <Globe className="h-8 w-8" />
             </div>
             <h1 className="text-4xl font-black tracking-tighter uppercase italic">
-              Moulavi<span className="text-secondary">ERP</span>
+              NuSync
             </h1>
           </div>
           
@@ -124,7 +150,7 @@ export default function Home() {
           <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-white">
             <Globe className="h-5 w-5" />
           </div>
-          <h1 className="text-2xl font-black text-primary uppercase tracking-tighter">Moulavi<span className="text-secondary">ERP</span></h1>
+          <h1 className="text-2xl font-black text-primary uppercase tracking-tighter">NuSync</h1>
         </div>
 
         <div className="w-full max-w-[400px] space-y-8">
@@ -137,12 +163,12 @@ export default function Home() {
             <CardContent className="p-8 lg:p-10">
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-[10px] font-black text-primary/40 uppercase tracking-widest ml-1">Protocol Email</Label>
+                  <Label htmlFor="email" className="text-[10px] font-black text-primary/40 uppercase tracking-widest ml-1">Username</Label>
                   <div className="relative">
                     <Input
                       id="email"
                       type="email"
-                      placeholder="admin@moulavi.com"
+                      placeholder="username"
                       {...register('email')}
                       disabled={isLoading}
                       className="h-12 bg-gray-50 border-gray-100 rounded-xl font-bold text-primary focus:ring-secondary/20 pl-10 transition-all shadow-inner"
@@ -162,17 +188,38 @@ export default function Home() {
                   <div className="relative">
                     <Input
                       id="password"
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
                       {...register('password')}
                       disabled={isLoading}
-                      className="h-12 bg-gray-50 border-gray-100 rounded-xl font-bold text-primary focus:ring-secondary/20 pl-10 pr-10 transition-all shadow-inner"
+                      className="h-12 bg-gray-50 border-gray-100 rounded-xl font-bold text-primary focus:ring-secondary/20 pl-10 pr-12 transition-all shadow-inner"
                     />
                     <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/20" />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-primary/20 hover:text-primary/40 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
                   {errors.password && (
                     <p className="text-[10px] font-bold text-destructive mt-1 ml-1 uppercase">{errors.password.message}</p>
                   )}
+                </div>
+
+                <div className="flex items-center space-x-2 ml-1">
+                  <Checkbox 
+                    id="rememberMe" 
+                    onCheckedChange={(checked) => setValue('rememberMe', checked as boolean)}
+                    checked={rememberMeValue}
+                  />
+                  <Label 
+                    htmlFor="rememberMe" 
+                    className="text-[10px] font-bold text-primary/60 uppercase cursor-pointer"
+                  >
+                    Remember me
+                  </Label>
                 </div>
 
                 <Button 

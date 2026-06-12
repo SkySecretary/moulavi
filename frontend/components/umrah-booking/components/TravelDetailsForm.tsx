@@ -67,7 +67,7 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                 Timeline
               </th>
               <th className="px-6 py-3 text-left text-[8px] font-black text-primary/40 uppercase tracking-[0.2em] w-[120px]">
-                Time
+                Time (24h)
               </th>
               <th className="px-6 py-3 text-left text-[8px] font-black text-primary/40 uppercase tracking-[0.2em] w-[150px]">
                 Travel BRN
@@ -222,7 +222,7 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Time</Label>
+                <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Time (24h)</Label>
                 <TimePicker value={data.arrivalTime || ''} onChange={(value) => onChange({ arrivalTime: value })} disabled={disabled} className="h-10" />
               </div>
             </div>
@@ -271,7 +271,7 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Time</Label>
+                <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Time (24h)</Label>
                 <TimePicker value={data.departureTime || ''} onChange={(value) => onChange({ departureTime: value })} disabled={disabled} className="h-10" />
               </div>
             </div>

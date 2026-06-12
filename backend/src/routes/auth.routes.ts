@@ -312,7 +312,7 @@ router.post(
         case 'custom':
         default:
           console.log('[TEST-WHATSAPP] Testing custom message...');
-          const testMessage = message || '🧪 Test message from Moulavi ERP system\n\nThis is a test to verify WhatsApp messaging is working correctly.\n\nTimestamp: ' + new Date().toISOString();
+          const testMessage = message || '🧪 Test message from NuSync system\n\nThis is a test to verify WhatsApp messaging is working correctly.\n\nTimestamp: ' + new Date().toISOString();
           await whatsappService.sendCustomWhatsApp(phoneNumber, testMessage);
           result = 'Custom WhatsApp message sent successfully';
           break;

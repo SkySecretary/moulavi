@@ -171,7 +171,7 @@ export const MovementsTable: React.FC<MovementsTableProps> = ({
               Date
             </th>
             <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">
-              Time
+              Time (24h)
             </th>
             <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">
               From

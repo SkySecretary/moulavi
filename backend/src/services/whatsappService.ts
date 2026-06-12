@@ -35,7 +35,7 @@ const WHATSAPP_TEMPLATES = {
 
 Dear ${name},
 
-Welcome to Moulavi ERP! Your account has been successfully created.
+Welcome to NuSync! Your account has been successfully created.
 
 📧 *Email:* ${email}
 🔑 *Password:* ${password}
@@ -47,7 +47,7 @@ Welcome to Moulavi ERP! Your account has been successfully created.
 📞 *Support:* Info@moulavi.com
 📱 *Phone:* +91-XXX-XXX-XXXX
 
-Thank you for choosing Moulavi ERP!
+Thank you for choosing NuSync!
   `.trim(),
 
   serviceConfirmation: (name: string, serviceType: string, bookingId: string) => `
@@ -73,7 +73,7 @@ Your ${serviceType} service request has been successfully submitted!
 📧 Email: Info@moulavi.com
 📱 Phone: +91-XXX-XXX-XXXX
 
-Thank you for choosing Moulavi ERP!
+Thank you for choosing NuSync!
   `.trim(),
 
   iqamaConfirmation: (name: string) => `

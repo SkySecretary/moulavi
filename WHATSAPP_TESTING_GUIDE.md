@@ -35,7 +35,7 @@ curl -X POST https://your-domain.com/api/auth/test-whatsapp \
   -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
   -d '{
     "phoneNumber": "919876543210",
-    "message": "Test message from Moulavi ERP"
+    "message": "Test message from NuSync"
   }'
 ```
 
@@ -48,7 +48,7 @@ curl -X POST https://your-domain.com/api/auth/test-whatsapp \
 ```json
 {
   "phoneNumber": "919876543210",
-  "message": "Test message from Moulavi ERP"
+  "message": "Test message from NuSync"
 }
 ```
 

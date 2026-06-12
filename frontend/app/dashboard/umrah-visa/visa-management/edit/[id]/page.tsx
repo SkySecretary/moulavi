@@ -150,7 +150,7 @@ export default function EditUmrahVisaBookingPage() {
         const isZiyarath = md.toLocation?.locationType === 'ZIYARAT';
         
         let dateStr = '';
-        let timeStr = '12:00';
+        let timeStr = '20:30';
         
         if (md.travelDateTime) {
           dateStr = toDisplayDate(extractDateFromISO(md.travelDateTime));
@@ -292,8 +292,8 @@ export default function EditUmrahVisaBookingPage() {
           .filter(h => h.id && !h.id.startsWith('new-'))
           .map(h => ({
             id: h.id,
-            checkInDate: combineDateAndTime(h.checkInDate, '12:00'),
-            checkOutDate: combineDateAndTime(h.checkOutDate, '12:00'),
+            checkInDate: combineDateAndTime(h.checkInDate, '20:30'),
+            checkOutDate: combineDateAndTime(h.checkOutDate, '20:30'),
             brn: h.brn,
           }));
 
@@ -311,8 +311,8 @@ export default function EditUmrahVisaBookingPage() {
             return {
               cityId: location?.cityMaster?.id || h.cityId,
               hotelId: h.hotelId,
-              checkInDate: combineDateAndTime(h.checkInDate, '12:00'),
-              checkOutDate: combineDateAndTime(h.checkOutDate, '12:00'),
+              checkInDate: combineDateAndTime(h.checkInDate, '20:30'),
+              checkOutDate: combineDateAndTime(h.checkOutDate, '20:30'),
               brn: h.brn,
             };
           })
@@ -382,7 +382,7 @@ export default function EditUmrahVisaBookingPage() {
       fromLocationId: '',
       toLocationId: '',
       date: '',
-      time: '12:00',
+      time: '20:30',
     };
     setMovements(prev => [...prev, newMovement]);
   }, []);
@@ -394,7 +394,7 @@ export default function EditUmrahVisaBookingPage() {
       fromLocationId: movements[index]?.toLocationId || '',
       toLocationId: '',
       date: movements[index]?.date || '',
-      time: movements[index]?.time || '12:00',
+      time: movements[index]?.time || '20:30',
     };
     setMovements(prev => {
       const updated = [...prev];
@@ -723,7 +723,7 @@ export default function EditUmrahVisaBookingPage() {
                                   value={toDisplayDate(extractDateFromISO(t.travelDateTime))} 
                                   onChange={(val) => {
                                     const isoDate = fromDisplayDate(val);
-                                    const currentTime = extractTimeFromISO(t.travelDateTime) || '12:00';
+                                    const currentTime = extractTimeFromISO(t.travelDateTime) || '20:30';
                                     const combined = combineDateAndTime(isoDate, currentTime);
                                     updateTransportBooking(idx, 'travelDateTime', combined);
                                   }} 

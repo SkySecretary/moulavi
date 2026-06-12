@@ -221,7 +221,7 @@ export const MovementDetailsStep: React.FC<MovementDetailsStepProps> = ({
           fromLocationId: arrivalAirportId,
           toLocationId: jeddahCityCenter.id,
           date: arrivalDate,
-          time: arrivalTime || '12:00',
+          time: arrivalTime || '20:30',
         };
 
         const movementsHash = JSON.stringify([defaultMovement].map(m => 
@@ -255,9 +255,9 @@ export const MovementDetailsStep: React.FC<MovementDetailsStepProps> = ({
           arrivalAirportId,
           departureAirportId,
           arrivalDate,
-          arrivalTime: arrivalTime || '12:00',
+          arrivalTime: arrivalTime || '20:30',
           departureDate,
-          departureTime: departureTime || '12:00',
+          departureTime: departureTime || '20:30',
           locationMasters,
           findZiyarathByCity,
           selectedRoutes,
@@ -310,7 +310,7 @@ export const MovementDetailsStep: React.FC<MovementDetailsStepProps> = ({
           fromLocationId: '',
           toLocationId: '',
       date: '',
-      time: '12:00',
+      time: '20:30',
     };
     onChange({ movements: [...movements, newMovement] });
   }, [movements, onChange]);
@@ -344,7 +344,7 @@ export const MovementDetailsStep: React.FC<MovementDetailsStepProps> = ({
         fromLocationId: '',
         toLocationId: '',
         date: '',
-        time: '12:00',
+        time: '20:30',
       };
       const updatedMovements = [...movements];
       updatedMovements.splice(index + 1, 0, newMovement);

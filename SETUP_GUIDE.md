@@ -1,6 +1,6 @@
-# Moulavi ERP - Complete Setup Guide
+# NuSync - Complete Setup Guide
 
-This guide will help you set up the Moulavi ERP system from scratch.
+This guide will help you set up the NuSync system from scratch.
 
 ## Prerequisites Checklist
 
@@ -213,7 +213,7 @@ Before starting, ensure you have:
 
 6. **Open your browser**
    - Navigate to: http://localhost:3000
-   - You should see the Moulavi ERP home page
+   - You should see the NuSync home page
 
 ### 4. First Login & Testing
 
@@ -344,5 +344,5 @@ For issues or questions:
 
 ---
 
-**Congratulations! Your Moulavi ERP system is now running! 🎉**
+**Congratulations! Your NuSync system is now running! 🎉**
 

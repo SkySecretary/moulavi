@@ -181,7 +181,7 @@ const EMAIL_TEMPLATES = {
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Account Credentials - Moulavi ERP</title>
+      <title>Account Credentials - NuSync</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background-color: #f8f9fa; }
@@ -220,7 +220,7 @@ const EMAIL_TEMPLATES = {
     <body>
       <div class="email-container">
         <div class="header">
-          <div class="logo">MOULAVI ERP</div>
+          <div class="logo">NuSync</div>
           <div class="tagline">Professional Business Solutions</div>
         </div>
         
@@ -228,7 +228,7 @@ const EMAIL_TEMPLATES = {
           <div class="greeting">Dear ${name},</div>
           
           <div class="message">
-            Welcome to Moulavi ERP! Your account has been successfully created and is ready for use. 
+            Welcome to NuSync! Your account has been successfully created and is ready for use. 
             Below are your login credentials to access your personalized dashboard.
           </div>
           
@@ -262,14 +262,14 @@ const EMAIL_TEMPLATES = {
         </div>
         
         <div class="footer">
-          <div class="footer-logo">MOULAVI ERP</div>
+          <div class="footer-logo">NuSync</div>
           <div class="footer-text">Professional Business Solutions</div>
           <div class="social-links">
             <a href="#" class="social-link">LinkedIn</a>
             <a href="#" class="social-link">Twitter</a>
             <a href="#" class="social-link">Facebook</a>
           </div>
-          <div class="footer-text">© 2025 Moulavi ERP System. All rights reserved.</div>
+          <div class="footer-text">© 2025 NuSync. All rights reserved.</div>
           <div class="footer-text">This is an automated email. Please do not reply to this message.</div>
         </div>
       </div>
@@ -283,7 +283,7 @@ const EMAIL_TEMPLATES = {
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Service Request Confirmation - Moulavi ERP</title>
+      <title>Service Request Confirmation - NuSync</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background-color: #f8f9fa; }
@@ -322,7 +322,7 @@ const EMAIL_TEMPLATES = {
     <body>
       <div class="email-container">
         <div class="header">
-          <div class="logo">MOULAVI ERP</div>
+          <div class="logo">NuSync</div>
           <div class="tagline">Professional Business Solutions</div>
           <div class="success-icon">✅</div>
         </div>
@@ -331,7 +331,7 @@ const EMAIL_TEMPLATES = {
           <div class="greeting">Dear ${name},</div>
           
           <div class="message">
-            Thank you for choosing Moulavi ERP! Your service request has been successfully submitted and is now being processed by our team.
+            Thank you for choosing NuSync! Your service request has been successfully submitted and is now being processed by our team.
           </div>
           
           <div class="service-details">
@@ -372,14 +372,14 @@ const EMAIL_TEMPLATES = {
         </div>
         
         <div class="footer">
-          <div class="footer-logo">MOULAVI ERP</div>
+          <div class="footer-logo">NuSync</div>
           <div class="footer-text">Professional Business Solutions</div>
           <div class="social-links">
             <a href="#" class="social-link">LinkedIn</a>
             <a href="#" class="social-link">Twitter</a>
             <a href="#" class="social-link">Facebook</a>
           </div>
-          <div class="footer-text">© 2025 Moulavi ERP System. All rights reserved.</div>
+          <div class="footer-text">© 2025 NuSync. All rights reserved.</div>
           <div class="footer-text">This is an automated email. Please do not reply to this message.</div>
         </div>
         </div>
@@ -393,7 +393,7 @@ const EMAIL_TEMPLATES = {
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Iqama Confirmation - Moulavi ERP</title>
+      <title>Iqama Confirmation - NuSync</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background-color: #f8f9fa; }
@@ -423,7 +423,7 @@ const EMAIL_TEMPLATES = {
     <body>
       <div class="email-container">
         <div class="header">
-          <div class="logo">MOULAVI ERP</div>
+          <div class="logo">NuSync</div>
           <div class="tagline">Professional Business Solutions</div>
         </div>
         
@@ -454,9 +454,9 @@ const EMAIL_TEMPLATES = {
         </div>
         
         <div class="footer">
-          <div class="footer-logo">MOULAVI ERP</div>
+          <div class="footer-logo">NuSync</div>
           <div class="footer-text">Professional Business Solutions</div>
-          <div class="footer-text">© 2025 Moulavi ERP System. All rights reserved.</div>
+          <div class="footer-text">© 2025 NuSync. All rights reserved.</div>
           <div class="footer-text">This is an automated email. Please do not reply to this message.</div>
         </div>
       </div>
@@ -580,7 +580,7 @@ export const sendCredentialsEmail = async (
   const mailOptions: nodemailer.SendMailOptions = {
     from: EMAIL_CONFIG.from,
     to,
-    subject: 'Your Moulavi ERP Account Credentials',
+    subject: 'Your NuSync Account Credentials',
     html: EMAIL_TEMPLATES.credentials(name, email, password, EMAIL_CONFIG.frontendUrl),
   };
   
@@ -738,7 +738,7 @@ export const sendBillEmail = async (
             </p>
           </div>
           <div class="footer">
-            <p>This is an automated email from Moulavi ERP System.</p>
+            <p>This is an automated email from NuSync.</p>
           </div>
         </div>
       </body>
@@ -800,7 +800,7 @@ export const sendMovementUpdateEmail = async (
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Movement Update - Moulavi ERP</title>
+      <title>Movement Update - NuSync</title>
     </head>
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
       <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -1107,7 +1107,7 @@ export const sendVoucherGeneratedEmail = async (
         <p>Your transport and accommodation voucher for booking <strong>${voucherNumber}</strong> has been successfully generated.</p>
         <p>Please find the PDF voucher attached to this email.</p>
         <br/>
-        <p>Best regards,<br/><strong>Moulavi Travel Agency</strong></p>
+        <p>Best regards,<br/><strong>NuSync</strong></p>
       </div>
     `,
     attachments: [

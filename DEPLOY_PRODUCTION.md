@@ -1,4 +1,4 @@
-# Moulavi ERP Production Deployment (Robust Versioning)
+# NuSync Production Deployment (Robust Versioning)
 # URL: https://umra.moulavi.in
 # Server: 64.227.158.41
 

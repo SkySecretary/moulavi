@@ -1,6 +1,6 @@
-# Moulavi ERP Backend
+# NuSync Backend
 
-RESTful API backend for the Moulavi ERP system built with Express.js and TypeScript.
+RESTful API backend for the NuSync system built with Express.js and TypeScript.
 
 ## Quick Start
 

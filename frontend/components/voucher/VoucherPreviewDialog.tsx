@@ -32,6 +32,7 @@ import { RouteType } from '@/types';
 import { cn, formatCurrency } from '@/lib/utils';
 import { formatFlightNumber, toDisplayDate, fromDisplayDate } from '@/lib/umrah/validation';
 import { DatePicker } from '@/components/ui/date-picker';
+import { TimePicker } from '@/components/ui/time-picker';
 
 interface VoucherPreviewDialogProps {
   open: boolean;
@@ -919,7 +920,7 @@ export function VoucherPreviewDialog({
                       <TableRow>
                         <TableHead className="w-12">Sr</TableHead>
                         <TableHead className="w-32">Date</TableHead>
-                        <TableHead className="w-24">Time</TableHead>
+                        <TableHead className="w-24">Time (24h)</TableHead>
                         <TableHead className="min-w-[100px]">From City</TableHead>
                         <TableHead className="min-w-[120px]">From Location</TableHead>
                         <TableHead className="min-w-[100px]">To City</TableHead>
@@ -944,10 +945,9 @@ export function VoucherPreviewDialog({
                             />
                           </TableCell>
                           <TableCell>
-                            <Input
-                              type="time"
+                            <TimePicker
                               value={movement.time}
-                              onChange={(e) => handleMovementChange(idx, 'time', e.target.value)}
+                              onChange={(val) => handleMovementChange(idx, 'time', val)}
                               className="w-32"
                             />
                           </TableCell>
@@ -1157,9 +1157,9 @@ export function VoucherPreviewDialog({
                         <TableHead className="w-24 text-[10px] font-bold uppercase py-3">Carrier</TableHead>
                         <TableHead className="w-24 text-[10px] font-bold uppercase py-3">Number</TableHead>
                         <TableHead className="w-28 text-[10px] font-bold uppercase py-3">Airport</TableHead>
-                        <TableHead className="w-20 text-[10px] font-bold uppercase py-3">Dest</TableHead>
-                        <TableHead className="w-28 text-[10px] font-bold uppercase py-3">ETD</TableHead>
-                        <TableHead className="w-28 text-[10px] font-bold uppercase py-3">ETA</TableHead>
+                        <TableHead className="w-20 text-[10px] font-bold uppercase py-3 text-center">Dest</TableHead>
+                        <TableHead className="w-28 text-[10px] font-bold uppercase py-3 text-center">ETD (24h)</TableHead>
+                        <TableHead className="w-28 text-[10px] font-bold uppercase py-3 text-center">ETA (24h)</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1203,7 +1203,7 @@ export function VoucherPreviewDialog({
                                 onValueChange={(value) => {
                                   const selectedAirport = locations.find((loc: any) => loc.id === value && (loc.locationType || '').toUpperCase() === 'AIRPORT');
                                   handleFlightChange(idx, 'arrivalAirportId', value);
-                                  handleFlightChange(idx, 'arrivalAirport', selectedAirport?.name || '');
+                                  handleFlightChange(idx, 'arrivalAirport', selectedAirport?.code || selectedAirport?.name || '');
                                 }}
                               >
                                 <SelectTrigger className="h-8 w-24 text-[10px] font-bold text-slate-900 border-slate-200 bg-white">
@@ -1214,7 +1214,7 @@ export function VoucherPreviewDialog({
                                     .filter((loc: any) => (loc.locationType || '').toUpperCase() === 'AIRPORT')
                                     .map((airport: any) => (
                                       <SelectItem key={airport.id} value={airport.id} className="text-[10px] font-medium">
-                                        {airport.name || airport.code}
+                                        {airport.code || airport.name}
                                       </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -1225,7 +1225,7 @@ export function VoucherPreviewDialog({
                                 onValueChange={(value) => {
                                   const selectedAirport = locations.find((loc: any) => loc.id === value && (loc.locationType || '').toUpperCase() === 'AIRPORT');
                                   handleFlightChange(idx, 'departureAirportId', value);
-                                  handleFlightChange(idx, 'departureAirport', selectedAirport?.name || '');
+                                  handleFlightChange(idx, 'departureAirport', selectedAirport?.code || selectedAirport?.name || '');
                                 }}
                               >
                                 <SelectTrigger className="h-8 w-24 text-[10px] font-bold text-slate-900 border-slate-200 bg-white">
@@ -1236,7 +1236,7 @@ export function VoucherPreviewDialog({
                                     .filter((loc: any) => (loc.locationType || '').toUpperCase() === 'AIRPORT')
                                     .map((airport: any) => (
                                       <SelectItem key={airport.id} value={airport.id} className="text-[10px] font-medium">
-                                        {airport.name || airport.code}
+                                        {airport.code || airport.name}
                                       </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -1247,18 +1247,16 @@ export function VoucherPreviewDialog({
                             <span className="text-[10px] font-bold text-slate-400">JED</span>
                           </TableCell>
                           <TableCell>
-                            <Input
-                              type="time"
+                            <TimePicker
                               value={formatTime(flight.etd)}
-                              onChange={(e) => handleFlightChange(idx, 'etd', e.target.value)}
+                              onChange={(val) => handleFlightChange(idx, 'etd', val)}
                               className="h-8 w-24 text-[10px] font-bold text-slate-900 border-slate-200 bg-white"
                             />
                           </TableCell>
                           <TableCell>
-                            <Input
-                              type="time"
+                            <TimePicker
                               value={formatTime(flight.eta)}
-                              onChange={(e) => handleFlightChange(idx, 'eta', e.target.value)}
+                              onChange={(val) => handleFlightChange(idx, 'eta', val)}
                               className="h-8 w-24 text-[10px] font-bold text-slate-900 border-slate-200 bg-white"
                             />
                           </TableCell>

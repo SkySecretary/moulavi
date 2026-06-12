@@ -9,7 +9,7 @@ const fontSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Moulavi ERP - Umrah Visa Booking System",
+  title: "NuSync - Umrah Visa Booking System",
   description: "Enterprise Resource Planning system for Umrah visa bookings",
 };
 

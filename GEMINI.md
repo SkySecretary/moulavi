@@ -1,6 +1,6 @@
-# Project Context: Moulavi ERP (Umrah Visa Management)
+# Project Context: NuSync (Umrah Visa Management)
 
-This document serves as the foundational reference for the Moulavi ERP project. It captures the system architecture, deployment configuration, and critical operational mandates.
+This document serves as the foundational reference for the NuSync project. It captures the system architecture, deployment configuration, and critical operational mandates.
 
 ## 🚀 Deployment Overview
 - **Domain:** [https://umra.moulavi.in](https://umra.moulavi.in)

@@ -32,31 +32,36 @@ import { getUser, hasRole } from '@/lib/auth';
 import { umrahVisaAPI } from '@/lib/api';
 import { VISA_TYPE_CONFIG } from '@/lib/constants';
 import { toDisplayDate, extractTimeFromISO } from '@/lib/umrah/validation';
+import { cn } from '@/lib/utils';
 
 export default function DailyOverviewPage() {
   const user = getUser();
   const [activeTab, setActiveTab] = useState<'today' | 'tomorrow'>('today');
+  const [filterType, setFilterType] = useState<'all' | 'arrival' | 'departure'>('all');
   const [bookings, setBookings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [arrivalFilter, setArrivalFilter] = useState('');
   const [departureFilter, setDepartureFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
+  const getTargetDate = useCallback(() => {
+    const date = new Date();
+    if (activeTab === 'tomorrow') {
+      date.setDate(date.getDate() + 1);
+    }
+    return date.toISOString().split('T')[0];
+  }, [activeTab]);
+
   const fetchDailyBookings = useCallback(async () => {
     try {
       setIsLoading(true);
-      
-      // Calculate target date
-      const date = new Date();
-      if (activeTab === 'tomorrow') {
-        date.setDate(date.getDate() + 1);
-      }
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = getTargetDate();
 
       const response = await umrahVisaAPI.getDailyOverview({
         date: dateStr,
         arrivalAirportCode: arrivalFilter || undefined,
         departureAirportCode: departureFilter || undefined,
+        type: filterType,
       });
 
       if (response.data?.success) {
@@ -68,7 +73,7 @@ export default function DailyOverviewPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeTab, arrivalFilter, departureFilter]);
+  }, [activeTab, arrivalFilter, departureFilter, filterType, getTargetDate]);
 
   useEffect(() => {
     const currentUser = getUser();
@@ -80,6 +85,11 @@ export default function DailyOverviewPage() {
   if (!user || !hasRole(['admin', 'staff'])) {
     return null;
   }
+
+  const isSameDate = (isoString: string, targetDateStr: string) => {
+    if (!isoString) return false;
+    return isoString.split('T')[0] === targetDateStr;
+  };
 
   const filteredBookings = bookings.filter(b => {
     if (!searchQuery) return true;
@@ -129,14 +139,46 @@ export default function DailyOverviewPage() {
       <div className="flex-1 overflow-auto p-4 lg:p-8 space-y-6">
         <Tabs value={activeTab} onValueChange={(val: any) => setActiveTab(val)} className="w-full">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-            <TabsList className="bg-white border p-1 h-11 w-fit rounded-xl shadow-sm">
-              <TabsTrigger value="today" className="rounded-lg px-6 data-[state=active]:bg-primary data-[state=active]:text-white">
-                Today
-              </TabsTrigger>
-              <TabsTrigger value="tomorrow" className="rounded-lg px-6 data-[state=active]:bg-primary data-[state=active]:text-white">
-                Tomorrow
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <TabsList className="bg-white border p-1 h-11 w-fit rounded-xl shadow-sm">
+                <TabsTrigger value="today" className="rounded-lg px-6 data-[state=active]:bg-primary data-[state=active]:text-white font-bold uppercase text-[10px] tracking-widest">
+                  Today
+                </TabsTrigger>
+                <TabsTrigger value="tomorrow" className="rounded-lg px-6 data-[state=active]:bg-primary data-[state=active]:text-white font-bold uppercase text-[10px] tracking-widest">
+                  Tomorrow
+                </TabsTrigger>
+              </TabsList>
+
+              <div className="bg-white border p-1 h-11 w-fit rounded-xl shadow-sm flex items-center">
+                <button 
+                  onClick={() => setFilterType('all')}
+                  className={cn(
+                    "rounded-lg px-4 h-full text-[10px] font-black uppercase tracking-widest transition-all",
+                    filterType === 'all' ? "bg-slate-900 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  All
+                </button>
+                <button 
+                  onClick={() => setFilterType('arrival')}
+                  className={cn(
+                    "rounded-lg px-4 h-full text-[10px] font-black uppercase tracking-widest transition-all",
+                    filterType === 'arrival' ? "bg-emerald-600 text-white shadow-md" : "text-slate-400 hover:text-emerald-600"
+                  )}
+                >
+                  Arrival
+                </button>
+                <button 
+                  onClick={() => setFilterType('departure')}
+                  className={cn(
+                    "rounded-lg px-4 h-full text-[10px] font-black uppercase tracking-widest transition-all",
+                    filterType === 'departure' ? "bg-blue-600 text-white shadow-md" : "text-slate-400 hover:text-blue-600"
+                  )}
+                >
+                  Departure
+                </button>
+              </div>
+            </div>
 
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative">
@@ -145,7 +187,7 @@ export default function DailyOverviewPage() {
                   placeholder="Search ref, party, group..." 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-10 w-[250px] bg-white border-gray-200 rounded-xl shadow-sm focus:ring-primary/20" 
+                  className="pl-9 h-10 w-[250px] bg-white border-gray-200 rounded-xl shadow-sm focus:ring-primary/20 font-bold text-xs" 
                 />
               </div>
               <div className="flex items-center bg-white border border-gray-200 rounded-xl px-3 py-1 shadow-sm gap-2">
@@ -182,9 +224,9 @@ export default function DailyOverviewPage() {
                       <TableHead className="py-5 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Reference</TableHead>
                       <TableHead className="py-5 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Group Details</TableHead>
                       <TableHead className="py-5 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Party Name</TableHead>
-                      <TableHead className="py-5 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Travel Date</TableHead>
-                      <TableHead className="py-5 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-emerald-50/30">Arrival Hub</TableHead>
-                      <TableHead className="py-5 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-blue-50/30">Departure Hub</TableHead>
+                      <TableHead className="py-5 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Target Date</TableHead>
+                      <TableHead className="py-5 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-emerald-50/30 text-center">Arrival Hub</TableHead>
+                      <TableHead className="py-5 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-blue-50/30 text-center">Departure Hub</TableHead>
                       <TableHead className="py-5 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-purple-50/30">Today's Movement</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -214,7 +256,11 @@ export default function DailyOverviewPage() {
                       filteredBookings.map((booking) => {
                         const travel = booking.travelDetails?.[0];
                         const movement = booking.movementDetails?.[0];
+                        const dateStr = getTargetDate();
                         
+                        const isArrivalToday = travel?.arrivalDateTime && isSameDate(travel.arrivalDateTime, dateStr);
+                        const isDepartureToday = travel?.departureDateTime && isSameDate(travel.departureDateTime, dateStr);
+
                         return (
                           <TableRow key={booking.id} className="hover:bg-gray-50/50 transition-colors border-b border-gray-50 group">
                             <TableCell className="py-5 px-6">
@@ -239,34 +285,48 @@ export default function DailyOverviewPage() {
                             <TableCell className="py-5 px-6">
                               <div className="flex items-center gap-1.5 text-xs font-black text-secondary italic">
                                 <CalendarIcon className="h-3 w-3" />
-                                {travel?.arrivalDateTime ? formatDate(travel.arrivalDateTime) : 'N/A'}
+                                {getTargetDateLabel()}
                               </div>
                             </TableCell>
-                            <TableCell className="py-5 px-6 bg-emerald-50/10">
-                              <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-1.5">
-                                  <Badge variant="outline" className="text-[10px] font-black bg-emerald-50 text-emerald-700 border-emerald-100">
-                                    {travel?.arrivalAirport?.code || '???'}
-                                  </Badge>
-                                  <span className="text-[10px] font-black text-emerald-900">{travel?.arrivalFlightNumber || 'N/A'}</span>
+                            <TableCell className="py-5 px-6 bg-emerald-50/10 text-center">
+                              {isArrivalToday ? (
+                                <div className="flex flex-col items-center gap-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <Badge variant="outline" className="text-[10px] font-black bg-emerald-50 text-emerald-700 border-emerald-100">
+                                      {travel?.arrivalAirport?.code || '???'}
+                                    </Badge>
+                                    <span className="text-[10px] font-black text-emerald-900">{travel?.arrivalFlightNumber || 'N/A'}</span>
+                                  </div>
+                                  <span className="text-[9px] text-emerald-600/70 font-bold uppercase truncate max-w-[120px]">
+                                    {travel?.arrivalAirport?.city || 'N/A'}
+                                  </span>
+                                  <span className="text-[9px] font-black text-emerald-500 italic mt-0.5">
+                                    {extractTimeFromISO(travel?.arrivalDateTime)}
+                                  </span>
                                 </div>
-                                <span className="text-[9px] text-emerald-600/70 font-bold uppercase truncate max-w-[120px]">
-                                  {travel?.arrivalAirport?.city || 'N/A'}
-                                </span>
-                              </div>
+                              ) : (
+                                <span className="text-[9px] text-gray-300 font-bold uppercase">---</span>
+                              )}
                             </TableCell>
-                            <TableCell className="py-5 px-6 bg-blue-50/10">
-                              <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-1.5">
-                                  <Badge variant="outline" className="text-[10px] font-black bg-blue-50 text-blue-700 border-blue-100">
-                                    {travel?.departureAirport?.code || '???'}
-                                  </Badge>
-                                  <span className="text-[10px] font-black text-blue-900">{travel?.departureFlightNumber || 'N/A'}</span>
+                            <TableCell className="py-5 px-6 bg-blue-50/10 text-center">
+                              {isDepartureToday ? (
+                                <div className="flex flex-col items-center gap-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <Badge variant="outline" className="text-[10px] font-black bg-blue-50 text-blue-700 border-blue-100">
+                                      {travel?.departureAirport?.code || '???'}
+                                    </Badge>
+                                    <span className="text-[10px] font-black text-blue-900">{travel?.departureFlightNumber || 'N/A'}</span>
+                                  </div>
+                                  <span className="text-[9px] text-blue-600/70 font-bold uppercase truncate max-w-[120px]">
+                                    {travel?.departureAirport?.city || 'N/A'}
+                                  </span>
+                                  <span className="text-[9px] font-black text-blue-500 italic mt-0.5">
+                                    {extractTimeFromISO(travel?.departureDateTime)}
+                                  </span>
                                 </div>
-                                <span className="text-[9px] text-blue-600/70 font-bold uppercase truncate max-w-[120px]">
-                                  {travel?.departureAirport?.city || 'N/A'}
-                                </span>
-                              </div>
+                              ) : (
+                                <span className="text-[9px] text-gray-300 font-bold uppercase">---</span>
+                              )}
                             </TableCell>
                             <TableCell className="py-5 px-6 bg-purple-50/10">
                               {movement ? (

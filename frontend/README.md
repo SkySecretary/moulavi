@@ -1,6 +1,6 @@
-# Moulavi ERP Frontend
+# NuSync Frontend
 
-Modern, responsive frontend for the Moulavi ERP system built with Next.js 14 and shadcn/ui.
+Modern, responsive frontend for the NuSync system built with Next.js 14 and shadcn/ui.
 
 ## Quick Start
 

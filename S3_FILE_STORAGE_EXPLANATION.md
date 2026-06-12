@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-This document explains all file upload locations, naming conventions, and storage patterns in the Moulavi ERP system.
+This document explains all file upload locations, naming conventions, and storage patterns in the NuSync system.
 
 ---
 

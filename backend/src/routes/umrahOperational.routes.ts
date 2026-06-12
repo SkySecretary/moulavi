@@ -16,7 +16,7 @@ router.get(
   authenticate,
   authorize('admin', 'staff'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { date, arrivalAirportCode, departureAirportCode } = req.query;
+    const { date, arrivalAirportCode, departureAirportCode, type = 'all' } = req.query;
 
     if (!date) {
       return res.status(400).json({ error: 'Date is required' });
@@ -33,42 +33,53 @@ router.get(
     const endOfDay = new Date(targetDate);
     endOfDay.setUTCHours(23, 59, 59, 999);
 
+    const orConditions: any[] = [];
+
+    if (type === 'all' || type === 'arrival') {
+      orConditions.push({
+        travelDetails: {
+          some: {
+            isAlternate: false,
+            arrivalDateTime: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+          },
+        },
+      });
+    }
+
+    if (type === 'all' || type === 'departure') {
+      orConditions.push({
+        travelDetails: {
+          some: {
+            isAlternate: false,
+            departureDateTime: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+          },
+        },
+      });
+    }
+
+    if (type === 'all') {
+      orConditions.push({
+        movementDetails: {
+          some: {
+            isAlternate: false,
+            travelDateTime: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+          },
+        },
+      });
+    }
+
     const where: any = {
       isDeleted: false,
-      OR: [
-        {
-          travelDetails: {
-            some: {
-              isAlternate: false,
-              OR: [
-                {
-                  arrivalDateTime: {
-                    gte: startOfDay,
-                    lte: endOfDay,
-                  },
-                },
-                {
-                  departureDateTime: {
-                    gte: startOfDay,
-                    lte: endOfDay,
-                  },
-                },
-              ],
-            },
-          },
-        },
-        {
-          movementDetails: {
-            some: {
-              isAlternate: false,
-              travelDateTime: {
-                gte: startOfDay,
-                lte: endOfDay,
-              },
-            },
-          },
-        },
-      ],
+      OR: orConditions.length > 0 ? orConditions : undefined,
     };
 
     // Apply airport code filters if provided

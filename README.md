@@ -1,4 +1,4 @@
-# Moulavi ERP — Umrah Visa Management System
+# NuSync — Umrah Visa Management System
 
 Professional ERP system for managing Umrah Visa bookings, transport vouchers, and automated document handling.
 

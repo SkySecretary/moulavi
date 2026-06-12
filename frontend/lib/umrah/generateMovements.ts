@@ -105,7 +105,7 @@ function calculateLastMovementTime(
   departureTime: string
 ): { date: string; time: string } {
   if (!hotelCityName || !airportName) {
-    return { date: departureDate, time: departureTime || '12:00' };
+    return { date: departureDate, time: departureTime || '20:30' };
   }
 
   const cityLower = hotelCityName.toLowerCase().trim();
@@ -138,11 +138,11 @@ function calculateLastMovementTime(
   
   // If no specific rule matches, use departure time as-is
   if (hoursPrior === 0) {
-    return { date: departureDate, time: departureTime || '12:00' };
+    return { date: departureDate, time: departureTime || '20:30' };
   }
   
   // Calculate time and date
-  return subtractHoursFromDateTime(departureDate, departureTime || '12:00', hoursPrior);
+  return subtractHoursFromDateTime(departureDate, departureTime || '20:30', hoursPrior);
 }
 
 /**
@@ -175,7 +175,7 @@ export function generateMovementsFromHotels({
       fromLocationId: arrivalAirportId,
       toLocationId: firstHotel.hotelId,
       date: arrivalDate,
-      time: arrivalTime || '12:00',
+      time: arrivalTime || '20:30',
     });
   }
 
@@ -223,7 +223,7 @@ export function generateMovementsFromHotels({
         fromLocationId: currentHotel.hotelId, // From current hotel, not from ziyarath
         toLocationId: nextHotel.hotelId,
         date: nextHotel.checkInDate,
-        time: '12:00', // Default time
+        time: '20:30', // Default time
       });
     }
   }
@@ -333,7 +333,7 @@ export function generateMovementsFromRoutes({
         fromLocationId: arrivalAirportId,
         toLocationId: firstHotel.hotelId,
         date: arrivalDate,
-        time: arrivalTime || '12:00',
+        time: arrivalTime || '20:30',
       });
     }
   }
@@ -346,7 +346,7 @@ export function generateMovementsFromRoutes({
       
       const isoMoveDate = fromDisplayDate(nextHotel.checkInDate);
       let moveDate = new Date(isoMoveDate);
-      let time = '12:00';
+      let time = '20:30';
 
       const currentCity = getCityName(currentHotel.hotelId, locationMasters)?.toLowerCase().trim();
       const nextCity = getCityName(nextHotel.hotelId, locationMasters)?.toLowerCase().trim();

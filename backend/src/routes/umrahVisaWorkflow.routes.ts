@@ -830,7 +830,7 @@ router.get('/:bookingId/voucher-data', authenticate, async (req, res) => {
             carrier: mainTravel.arrivalFlightNumber?.split('-')[0] || '',
             number: mainTravel.arrivalFlightNumber?.split('-')[1] || '',
             arrivalAirportId: mainTravel.arrivalAirportId,
-            arrivalAirport: mainTravel.arrivalAirport.name || mainTravel.arrivalAirport.code || '',
+            arrivalAirport: mainTravel.arrivalAirport.code || mainTravel.arrivalAirport.name || '',
             etd: '',
             eta: mainTravel.arrivalDateTime ? mainTravel.arrivalDateTime.toISOString() : '',
           },
@@ -840,7 +840,7 @@ router.get('/:bookingId/voucher-data', authenticate, async (req, res) => {
             carrier: mainTravel.departureFlightNumber?.split('-')[0] || '',
             number: mainTravel.departureFlightNumber?.split('-')[1] || '',
             departureAirportId: mainTravel.departureAirportId,
-            departureAirport: mainTravel.departureAirport.name || mainTravel.departureAirport.code || '',
+            departureAirport: mainTravel.departureAirport.code || mainTravel.departureAirport.name || '',
             etd: mainTravel.departureDateTime ? mainTravel.departureDateTime.toISOString() : '',
             eta: '',
           },
@@ -1149,15 +1149,15 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
               return tx.voucherFlight.create({
                     data: {
                   voucherId: voucherRecord.id,
-                  type: String(flight.type || 'AA').substring(0, 2),
-                  carrier: String(flight.carrier || '').substring(0, 10),
-                  number: String(flight.number || '').substring(0, 20),
+                  type: String(flight.type || 'AA').substring(0, 10),
+                  carrier: String(flight.carrier || '').substring(0, 50),
+                  number: String(flight.number || '').substring(0, 50),
                   date: flight.date ? (isNaN(new Date(flight.date).getTime()) ? new Date() : new Date(flight.date)) : new Date(),
                   // Store airport in 'from' for AA, in 'to' for AD (for PDF display)
-                  from: flight.type === 'AA' ? String(airport).substring(0, 10) : 'JED',
-                  to: flight.type === 'AD' ? String(airport).substring(0, 10) : 'JED',
-                  etd: flight.etd ? String(flight.etd).substring(0, 10) : null,
-                  eta: flight.eta ? String(flight.eta).substring(0, 10) : null,
+                  from: flight.type === 'AA' ? String(airport).substring(0, 50) : 'JED',
+                  to: flight.type === 'AD' ? String(airport).substring(0, 50) : 'JED',
+                  etd: flight.etd ? String(flight.etd).substring(0, 20) : null,
+                  eta: flight.eta ? String(flight.eta).substring(0, 20) : null,
                     },
               });
             })

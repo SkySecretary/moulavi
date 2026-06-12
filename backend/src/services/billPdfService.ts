@@ -361,7 +361,7 @@ function generateBillHTML(data: BillPdfData): string {
     <!-- Header -->
     <div class="invoice-header">
       <div class="company-info">
-        <div class="company-name">Moulavi ERP</div>
+        <div class="company-name">NuSync</div>
         <div class="company-details">
           Umrah Visa Services<br>
           Email: Info@moulavi.com<br>

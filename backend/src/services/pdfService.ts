@@ -74,22 +74,26 @@ function formatTime(timeInput: any): string {
 function extractAirportCode(str: string | undefined): string {
   if (!str) return 'N/A';
   
-  // If it's already a 3-letter code (or looks like one)
-  if (str.length === 3 && /^[A-Z]{3}$/i.test(str)) {
-    return str.toUpperCase();
+  // Clean string: trim and uppercase
+  const cleanStr = str.trim().toUpperCase();
+  
+  // If it's already a 3 or 4-letter code (or looks like one)
+  if ((cleanStr.length === 3 || cleanStr.length === 4) && /^[A-Z0-9]+$/i.test(cleanStr)) {
+    return cleanStr;
   }
 
-  const match = str.match(/\(([A-Z]{3})\)/i) || str.match(/\b([A-Z]{3})\b/);
+  // Look for code in parentheses or as a standalone word
+  const match = cleanStr.match(/\(([A-Z0-9]{3,4})\)/i) || cleanStr.match(/\b([A-Z0-9]{3,4})\b/);
   if (match) return match[1].toUpperCase();
   
-  const lowerStr = str.toLowerCase();
+  const lowerStr = cleanStr.toLowerCase();
   if (lowerStr.includes('madinah') || lowerStr.includes('medina') || lowerStr.includes('med')) return 'MED';
   if (lowerStr.includes('jeddah') || lowerStr.includes('jed')) return 'JED';
   if (lowerStr.includes('riyadh') || lowerStr.includes('ruh')) return 'RUH';
   if (lowerStr.includes('dammam') || lowerStr.includes('dmm')) return 'DMM';
   
-  // If no code found, just return the first 3 chars or the string itself if short
-  return str.length <= 5 ? str.toUpperCase() : str.substring(0, 3).toUpperCase();
+  // If no code found, just return the string itself if it's short, or first 3 chars
+  return cleanStr.length <= 5 ? cleanStr : cleanStr.substring(0, 3);
 }
 
 // Helper to get image as base64

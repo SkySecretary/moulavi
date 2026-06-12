@@ -144,11 +144,11 @@ export const ManageAlternateInfoDialog: React.FC<ManageAlternateInfoDialogProps>
       setTravelData({
         arrivalDate: today,
 
-        arrivalTime: '12:00',
+        arrivalTime: '20:30',
         arrivalFlightNumber: '',
         arrivalAirportId: '',
         departureDate: today,
-        departureTime: '12:00',
+        departureTime: '20:30',
         departureFlightNumber: '',
         departureAirportId: '',
       });
@@ -193,7 +193,7 @@ export const ManageAlternateInfoDialog: React.FC<ManageAlternateInfoDialogProps>
       fromLocationId: m.fromLocationId,
       toLocationId: m.toLocationId,
       date: m.travelDateTime ? toDisplayDate(extractDateFromISO(m.travelDateTime)) : '',
-      time: m.travelDateTime ? extractTimeFromISO(m.travelDateTime) : '12:00',
+      time: m.travelDateTime ? extractTimeFromISO(m.travelDateTime) : '20:30',
       type: 'transport',
       })));
 
@@ -237,8 +237,8 @@ export const ManageAlternateInfoDialog: React.FC<ManageAlternateInfoDialogProps>
               isAlternate: true,
               cityId: h.cityId,
               hotelId: h.hotelId,
-              checkInDate: combineDateAndTime(h.checkInDate, '12:00'),
-              checkOutDate: combineDateAndTime(h.checkOutDate, '12:00'),
+              checkInDate: combineDateAndTime(h.checkInDate, '20:30'),
+              checkOutDate: combineDateAndTime(h.checkOutDate, '20:30'),
               brn: h.brn || [],
             }))
           : [],

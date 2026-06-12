@@ -91,9 +91,9 @@ export default function Navbar() {
               onClick={() => router.push(isAdminOrStaff ? '/dashboard' : '/party/dashboard')}
             >
               <div className="h-9 w-9 bg-secondary rounded-lg flex items-center justify-center mr-2 group-hover:scale-105 transition-transform shadow-md">
-                <span className="text-white font-black text-xl">M</span>
+                <span className="text-white font-black text-xl">N</span>
               </div>
-              <h1 className="text-xl font-black text-secondary tracking-tighter hidden md:block">MOULAVI<span className="text-primary">ERP</span></h1>
+              <h1 className="text-xl font-black text-secondary tracking-tighter hidden md:block">NuSync</h1>
             </div>
 
             {/* Desktop Navigation Tabs */}

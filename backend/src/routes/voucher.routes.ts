@@ -709,15 +709,15 @@ router.post(
             return tx.voucherFlight.create({
               data: {
                 voucherId: newVoucher.id,
-                type: String(flight.type || 'AA').substring(0, 2),
-                carrier: String(flight.carrier || '').substring(0, 10),
-                number: String(flight.number || '').substring(0, 20),
+                type: String(flight.type || 'AA').substring(0, 10),
+                carrier: String(flight.carrier || '').substring(0, 50),
+                number: String(flight.number || '').substring(0, 50),
                 date: validFlightDate,
                 // Store airport in 'from' for AA, in 'to' for AD (for PDF display)
-                from: flight.type === 'AA' ? String(airport).substring(0, 10) : 'JED',
-                to: flight.type === 'AD' ? String(airport).substring(0, 10) : 'JED',
-                etd: flight.etd ? String(flight.etd).substring(0, 10) : null,
-                eta: flight.eta ? String(flight.eta).substring(0, 10) : null,
+                from: flight.type === 'AA' ? String(airport).substring(0, 50) : 'JED',
+                to: flight.type === 'AD' ? String(airport).substring(0, 50) : 'JED',
+                etd: flight.etd ? String(flight.etd).substring(0, 20) : null,
+                eta: flight.eta ? String(flight.eta).substring(0, 20) : null,
               },
             });
           })
@@ -857,14 +857,14 @@ router.put(
             return tx.voucherFlight.create({
               data: {
                 voucherId: id,
-                type: String(flight.type || 'AA').substring(0, 2),
-                carrier: String(flight.carrier || '').substring(0, 10),
-                number: String(flight.number || '').substring(0, 20),
+                type: String(flight.type || 'AA').substring(0, 10),
+                carrier: String(flight.carrier || '').substring(0, 50),
+                number: String(flight.number || '').substring(0, 50),
                 date: validFlightDate,
-                from: String(flight.from || '').substring(0, 10),
-                to: String(flight.to || '').substring(0, 10),
-                etd: flight.etd ? String(flight.etd).substring(0, 10) : null,
-                eta: flight.eta ? String(flight.eta).substring(0, 10) : null,
+                from: String(flight.from || '').substring(0, 50),
+                to: String(flight.to || '').substring(0, 50),
+                etd: flight.etd ? String(flight.etd).substring(0, 20) : null,
+                eta: flight.eta ? String(flight.eta).substring(0, 20) : null,
               },
             });
           })

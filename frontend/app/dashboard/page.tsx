@@ -76,7 +76,7 @@ export default function DashboardPage() {
         <div className="relative z-10 max-w-5xl mx-auto">
           <h2 className="text-4xl font-black mb-2 text-primary-foreground tracking-tighter uppercase">Welcome back, {user.name}</h2>
           <p className="text-primary-foreground/80 text-lg mb-8 max-w-2xl font-medium">
-            Moulavi ERP simplifies your Umrah campaign management with Nusuk-style precision.
+            NuSync simplifies your Umrah campaign management with Nusuk-style precision.
           </p>
           <div className="flex flex-wrap gap-4">
             <Button 

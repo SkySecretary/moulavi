@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Moulavi ERP - Robust Deployment Script v2
+# NuSync - Robust Deployment Script v2
 # implements release versioning and symlinking in MINIMAL connections
 
 # --- Configuration ---

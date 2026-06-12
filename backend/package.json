@@ -1,7 +1,7 @@
 {
   "name": "moulavi-erp-backend",
   "version": "1.0.0",
-  "description": "Backend API for Moulavi ERP System",
+  "description": "Backend API for NuSync System",
   "main": "dist/server.js",
   "scripts": {
     "dev": "nodemon src/server.ts",

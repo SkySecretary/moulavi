@@ -1,6 +1,6 @@
-# Contributing to Moulavi ERP
+# Contributing to NuSync
 
-Thank you for your interest in contributing to the Moulavi ERP system! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to the NuSync system! This document provides guidelines and instructions for contributing.
 
 ## Code of Conduct
 
@@ -221,5 +221,5 @@ By contributing, you agree that your contributions will be licensed under the sa
 
 ---
 
-Thank you for contributing to Moulavi ERP! 🎉
+Thank you for contributing to NuSync! 🎉
 

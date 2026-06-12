@@ -496,6 +496,7 @@ export default function TripInfoPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[130px]">Visa Type</TableHead>
+                      <TableHead className="w-[120px]">Booking Ref</TableHead>
                       <TableHead className="w-[200px]">{activeTab === 'hotel' ? 'Party Code/Name' : 'Group Details'}</TableHead>
                       <TableHead className="w-[180px]">Arrival Details</TableHead>
                       <TableHead className="w-[180px]">Departure Details</TableHead>
@@ -516,7 +517,7 @@ export default function TripInfoPage() {
                   <TableBody>
                     {bookingList.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={10} className="text-center py-8 text-gray-500">
                           {searchQuery 
                             ? 'No trips found matching your search' 
                             : 'No trip information available'}
@@ -540,17 +541,29 @@ export default function TripInfoPage() {
                                 )}
                               </div>
                             </TableCell>
+                            {/* Booking Ref */}
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs font-bold text-primary font-mono tracking-tighter">
+                                  {booking.bookingReference || 'N/A'}
+                                </span>
+                                {booking.bookingReference && (
+                                  <button
+                                    onClick={() => copyToClipboard(booking.bookingReference!, 'Booking Ref')}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
+                                    title="Copy reference"
+                                  >
+                                    <Copy className="h-3 w-3 text-gray-500" />
+                                  </button>
+                                )}
+                              </div>
+                            </TableCell>
                             {/* Group Details / Party Code Name */}
                             <TableCell>
                               {activeTab === 'hotel' ? (
                                 <div className="space-y-1">
                                   <div className="font-semibold text-gray-900 flex items-center gap-1">
                                     {booking.party?.partyCode ? `${booking.party.partyCode} - ${booking.party.partyName || 'N/A'}` : booking.party?.partyName || 'N/A'}
-                                    {booking.bookingReference && (
-                                      <Badge variant="outline" className="text-[10px] py-0 border-primary/20 text-primary font-bold">
-                                        {booking.bookingReference}
-                                      </Badge>
-                                    )}
                                     <button
                                       onClick={() => copyToClipboard(
                                         booking.party?.partyCode ? `${booking.party.partyCode} - ${booking.party.partyName || 'N/A'}` : booking.party?.partyName || 'N/A',
@@ -631,11 +644,6 @@ export default function TripInfoPage() {
                                 <div className="space-y-1">
                                   <div className="font-semibold text-gray-900 flex items-center gap-1">
                                     {booking.party?.partyName || 'N/A'}
-                                    {booking.bookingReference && (
-                                      <Badge variant="outline" className="text-[10px] py-0 border-primary/20 text-primary font-bold">
-                                        {booking.bookingReference}
-                                      </Badge>
-                                    )}
                                     <button
                                       onClick={() => copyToClipboard(booking.party?.partyName || '', 'Party Name')}
                                       className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
