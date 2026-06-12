@@ -30,6 +30,7 @@ import pricingMasterRoutes from './routes/pricingMaster.routes';
 import cancellationRoutes from './routes/cancellation.routes';
 import notificationRoutes from './routes/notifications.routes';
 import landingRoutes from './routes/landing.routes';
+import umrahOperationalRoutes from './routes/umrahOperational.routes';
 
 // Load environment variables based on environment
 const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
@@ -135,6 +136,7 @@ app.use('/api/pricing-masters', pricingMasterRoutes);
 app.use('/api/cancellation', cancellationRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/landing', landingRoutes);
+app.use('/api/umrah-visa/operational', umrahOperationalRoutes);
 
 // Error handlers
 app.use(notFoundHandler);

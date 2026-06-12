@@ -58,6 +58,7 @@ export default function Navbar() {
 
   const mainTabs = isAdminOrStaff ? [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'Daily Overview', path: '/dashboard/umrah-visa/daily-overview', icon: Clock },
     { name: 'Voucher Management', path: '/dashboard/services/voucher', icon: Ticket },
     { name: 'Bookings', path: '/dashboard/umrah-visa/bookings', icon: FileText },
     { name: 'Trips', path: '/dashboard/umrah-visa/trip-info', icon: MapPin },
