@@ -71,10 +71,11 @@ export default function DailyOverviewPage() {
   }, [activeTab, arrivalFilter, departureFilter]);
 
   useEffect(() => {
-    if (user && hasRole(['admin', 'staff'])) {
+    const currentUser = getUser();
+    if (currentUser && hasRole(['admin', 'staff'])) {
       fetchDailyBookings();
     }
-  }, [fetchDailyBookings, user]);
+  }, [fetchDailyBookings]);
 
   if (!user || !hasRole(['admin', 'staff'])) {
     return null;
