@@ -64,12 +64,22 @@ export const toDisplayDate = (isoDate: string): string => {
   const parts = datePart.split('-');
   
   if (parts.length === 3) {
-    const [year, month, day] = parts;
-    // Ensure 2-digit components
-    const d = day.padStart(2, '0');
-    const m = month.padStart(2, '0');
-    const y = year.length === 2 ? (parseInt(year) > 50 ? `19${year}` : `20${year}`) : year;
-    return `${d}/${m}/${y}`;
+    // Check if it's YYYY-MM-DD or DD-MM-YYYY
+    if (parts[0].length === 4) {
+      // YYYY-MM-DD
+      const [year, month, day] = parts;
+      const d = day.padStart(2, '0');
+      const m = month.padStart(2, '0');
+      const y = year;
+      return `${d}/${m}/${y}`;
+    } else {
+      // Assume DD-MM-YYYY
+      const [day, month, year] = parts;
+      const d = day.padStart(2, '0');
+      const m = month.padStart(2, '0');
+      const y = year.length === 2 ? (parseInt(year) > 50 ? `19${year}` : `20${year}`) : year;
+      return `${d}/${m}/${y}`;
+    }
   }
 
   // Fallback for other formats

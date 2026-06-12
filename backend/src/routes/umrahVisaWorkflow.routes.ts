@@ -803,8 +803,8 @@ router.get('/:bookingId/voucher-data', authenticate, async (req, res) => {
       movementDetails: (booking.movementDetails || []).map((md: any, idx: number) => ({
         sr: idx + 1,
         route: '', // Empty - will be generated when voucher is created
-        date: formatDate(md.travelDateTime), // DD-MM-YYYY format
-        time: formatTime(md.travelDateTime), // HH:MM format
+        date: md.travelDateTime ? md.travelDateTime.toISOString() : '', 
+        time: md.travelDateTime ? md.travelDateTime.toISOString() : '', 
         from: md.fromCity?.name || '',
           fromCityId: md.fromCityId, // Include city ID
         fromLocation: md.fromLocation?.name || '',
@@ -826,22 +826,22 @@ router.get('/:bookingId/voucher-data', authenticate, async (req, res) => {
         return [
           {
             type: 'AA', // Arrival
-            date: mainTravel.arrivalDateTime ? formatDate(mainTravel.arrivalDateTime) : '',
+            date: mainTravel.arrivalDateTime ? mainTravel.arrivalDateTime.toISOString() : '',
             carrier: mainTravel.arrivalFlightNumber?.split('-')[0] || '',
             number: mainTravel.arrivalFlightNumber?.split('-')[1] || '',
             arrivalAirportId: mainTravel.arrivalAirportId,
             arrivalAirport: mainTravel.arrivalAirport.name || mainTravel.arrivalAirport.code || '',
             etd: '',
-            eta: mainTravel.arrivalDateTime ? formatTime(mainTravel.arrivalDateTime) : '',
+            eta: mainTravel.arrivalDateTime ? mainTravel.arrivalDateTime.toISOString() : '',
           },
           {
             type: 'AD', // Departure
-            date: mainTravel.departureDateTime ? formatDate(mainTravel.departureDateTime) : '',
+            date: mainTravel.departureDateTime ? mainTravel.departureDateTime.toISOString() : '',
             carrier: mainTravel.departureFlightNumber?.split('-')[0] || '',
             number: mainTravel.departureFlightNumber?.split('-')[1] || '',
             departureAirportId: mainTravel.departureAirportId,
             departureAirport: mainTravel.departureAirport.name || mainTravel.departureAirport.code || '',
-            etd: mainTravel.departureDateTime ? formatTime(mainTravel.departureDateTime) : '',
+            etd: mainTravel.departureDateTime ? mainTravel.departureDateTime.toISOString() : '',
             eta: '',
           },
         ];
