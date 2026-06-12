@@ -691,6 +691,11 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
       return;
     }
 
+    if (!formData.transportCompanyId) {
+      toast.error('Please select a Transport Company');
+      return;
+    }
+
     if (formData.transportOptions.length === 0) {
       toast.error('At least one transportation option must be selected');
       return;
@@ -1431,7 +1436,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
                 <Button 
                   className="w-full h-10 rounded-xl bg-primary text-white font-bold uppercase tracking-wider text-[10px] shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50 disabled:grayscale" 
                   onClick={handleSubmit} 
-                  disabled={submitting || formData.transportOptions.length === 0}
+                  disabled={submitting || formData.transportOptions.length === 0 || !formData.transportCompanyId}
                 >
                   {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <><CheckCircle2 className="h-3.5 w-3.5 mr-2" /> Finalize</>}
                 </Button>

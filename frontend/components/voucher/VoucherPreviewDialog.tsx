@@ -573,6 +573,16 @@ export function VoucherPreviewDialog({
   };
 
   const handleSubmit = async () => {
+    if (!selectedTransportCompanyId) {
+      toast.error('Please select a Transport Company');
+      return;
+    }
+
+    if (voucherData.transportOptions.length === 0) {
+      toast.error('At least one transportation option must be selected');
+      return;
+    }
+
     try {
       setSubmitting(true);
       
@@ -1446,7 +1456,7 @@ export function VoucherPreviewDialog({
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={submitting || voucherData.transportOptions.length === 0}
+            disabled={submitting || voucherData.transportOptions.length === 0 || !selectedTransportCompanyId}
           >
             {submitting ? (
               <>
