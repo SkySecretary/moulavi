@@ -827,20 +827,23 @@ router.patch('/:bookingId/travel-details', authenticate, async (req, res) => {
       departureTime,
       departureFlightNumber,
       brn,
+      arrivalDateTime: incomingArrivalDateTime,
+      departureDateTime: incomingDepartureDateTime,
     } = req.body || {};
 
     console.log(`[DEBUG] Updating travel details for booking ${bookingId}`);
-    console.log(`[DEBUG] Incoming: arrivalDate=${arrivalDate}, arrivalTime=${arrivalTime}, departureDate=${departureDate}, departureTime=${departureTime}`);
-
-    // Combine date and time into datetime before storing
-    // If date is provided but time is not, default to 12:00
-    const arrivalDateTime = arrivalDate
-      ? combineDateTime(arrivalDate, arrivalTime || '12:00')
-      : undefined;
     
-    const departureDateTime = departureDate
-      ? combineDateTime(departureDate, departureTime || '12:00')
-      : undefined;
+    // Combine date and time into datetime before storing
+    // Support both separate date/time and direct ISO string
+    let arrivalDateTime = incomingArrivalDateTime ? new Date(incomingArrivalDateTime) : undefined;
+    if (!arrivalDateTime && arrivalDate) {
+      arrivalDateTime = combineDateTime(arrivalDate, arrivalTime || '12:00');
+    }
+    
+    let departureDateTime = incomingDepartureDateTime ? new Date(incomingDepartureDateTime) : undefined;
+    if (!departureDateTime && departureDate) {
+      departureDateTime = combineDateTime(departureDate, departureTime || '12:00');
+    }
 
     console.log(`[DEBUG] Result: arrivalDateTime=${arrivalDateTime?.toISOString()}, departureDateTime=${departureDateTime?.toISOString()}`);
 

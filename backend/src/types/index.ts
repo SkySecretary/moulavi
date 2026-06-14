@@ -40,6 +40,7 @@ export interface AuthRequest extends Request {
     id: string;
     email: string;
     role: UserRole;
+    partyId?: string | null;
   };
 }
 
@@ -101,6 +102,7 @@ export interface JWTPayload {
   id: string;
   email: string;
   role: UserRole;
+  partyId?: string | null;
 }
 
 // User Management Types

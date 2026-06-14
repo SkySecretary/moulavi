@@ -635,7 +635,7 @@ export default function EditUmrahVisaBookingPage() {
                       <label className="text-xs text-gray-600 mb-1 block">Airport</label>
                       <Select value={arrivalAirportId} onValueChange={setArrivalAirportId}>
                         <SelectTrigger><SelectValue placeholder="Select airport" /></SelectTrigger>
-                        <SelectContent>{airports.map(a => (<SelectItem key={a.id} value={a.id}>{a.name || a.airportName}</SelectItem>))}</SelectContent>
+                        <SelectContent>{airports.map(a => (<SelectItem key={a.id} value={a.id}>{a.code} - {a.name || a.airportName} ({a.city})</SelectItem>))}</SelectContent>
                       </Select>
                     </div>
                     <div>
@@ -668,7 +668,7 @@ export default function EditUmrahVisaBookingPage() {
                       <label className="text-xs text-gray-600 mb-1 block">Airport</label>
                       <Select value={departureAirportId} onValueChange={setDepartureAirportId}>
                         <SelectTrigger><SelectValue placeholder="Select airport" /></SelectTrigger>
-                        <SelectContent>{airports.map(a => (<SelectItem key={a.id} value={a.id}>{a.name || a.airportName}</SelectItem>))}</SelectContent>
+                        <SelectContent>{airports.map(a => (<SelectItem key={a.id} value={a.id}>{a.code} - {a.name || a.airportName} ({a.city})</SelectItem>))}</SelectContent>
                       </Select>
                     </div>
                     <div>

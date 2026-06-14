@@ -310,8 +310,7 @@ export default function VoucherServicePage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      const refPart = pdfData.bookingReference ? `_${pdfData.bookingReference}` : '';
-      link.download = `Voucher_${pdfData.voucherNumber}${refPart}_${pdfData.guestName.replace(/\s+/g, '_')}.pdf`;
+      link.download = `voucher_${pdfData.voucherNumber}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -326,7 +325,7 @@ export default function VoucherServicePage() {
   const currentMovements = activeMovementSubTab === 'today' ? todayMovements : tomorrowMovements;
   const currentMoveStats = activeMovementSubTab === 'today' ? todayStats : tomorrowStats;
 
-  if (!user || !hasRole(['admin', 'staff'])) return null;
+  if (!user || !hasRole(['admin', 'staff', 'party'])) return null;
 
   return (
     <div className="flex-1 flex flex-col bg-gray-50/50 min-h-screen">
@@ -375,7 +374,9 @@ export default function VoucherServicePage() {
               <div className="flex items-center gap-4 bg-white p-2 rounded-xl border shadow-sm w-fit">
                 <TabsList className="bg-gray-100 border p-1 h-9 rounded-lg">
                   <TabsTrigger value="all" className="data-[state=active]:bg-white data-[state=active]:text-primary text-xs font-bold px-6 h-7 rounded-md transition-all">All Records</TabsTrigger>
-                  <TabsTrigger value="quick" className="data-[state=active]:bg-white data-[state=active]:text-primary text-xs font-bold px-6 h-7 rounded-md transition-all">Quick Create</TabsTrigger>
+                  {hasRole(['admin', 'staff']) && (
+                    <TabsTrigger value="quick" className="data-[state=active]:bg-white data-[state=active]:text-primary text-xs font-bold px-6 h-7 rounded-md transition-all">Quick Create</TabsTrigger>
+                  )}
                 </TabsList>
               </div>
 
@@ -431,7 +432,19 @@ export default function VoucherServicePage() {
                               <TableCell className="text-[10px] font-bold text-gray-600 uppercase">{v.transportCompany?.partyName || '—'}</TableCell>
                               <TableCell className="text-xs font-medium text-gray-600">{v.generatedByUser?.name || 'System'}</TableCell>
                               <TableCell className="text-xs text-gray-400 font-medium">{new Date(v.createdAt).toLocaleDateString('en-US', { timeZone: 'UTC' })}</TableCell>
-                              <TableCell className="text-right px-6"><div className="flex items-center justify-end gap-1"><Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 rounded-lg" onClick={() => router.push(`/dashboard/services/voucher/view/${v.id}`)}><Eye className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600 rounded-lg" onClick={() => downloadVoucherPDF(v.id)} disabled={downloadingVoucherId === v.id}>{downloadingVoucherId === v.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}</Button></div></TableCell>
+                              <TableCell className="text-right px-6">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 rounded-lg" onClick={() => router.push(`/dashboard/services/voucher/view/${v.id}`)}>
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600 rounded-lg" onClick={() => router.push(`/dashboard/services/voucher/edit/${v.id}`)}>
+                                    <Edit2 className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600 rounded-lg" onClick={() => downloadVoucherPDF(v.id)} disabled={downloadingVoucherId === v.id}>
+                                    {downloadingVoucherId === v.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                                  </Button>
+                                </div>
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>

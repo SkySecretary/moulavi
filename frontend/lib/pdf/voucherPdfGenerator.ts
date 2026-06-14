@@ -491,8 +491,6 @@ export function generateVoucherPDF(data: VoucherPdfData): void {
   );
 
   // ========== SAVE PDF ==========
-  const fileName = `Voucher_${data.voucherNumber}_${data.guestName
-    .replace(/\s+/g, '_')
-    .slice(0, 20)}.pdf`;
+  const fileName = `voucher_${data.voucherNumber}.pdf`;
   doc.save(fileName);
 }

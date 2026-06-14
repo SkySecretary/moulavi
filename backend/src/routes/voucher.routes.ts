@@ -14,14 +14,20 @@ const router = Router();
 router.get(
   '/',
   authenticate,
-  authorize('admin', 'staff'),
+  authorize('admin', 'staff', 'party'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const { page = '1', limit = '10', search = '', dateFrom, dateTo } = req.query;
+    const user = req.user!;
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
     const skip = (pageNum - 1) * limitNum;
 
     const where: any = {};
+
+    // If user is a party, only show their own vouchers
+    if (user.role === 'party') {
+      where.partyId = user.partyId;
+    }
 
     if (search) {
       where.OR = [
@@ -99,17 +105,27 @@ router.get(
 router.get(
   '/stats',
   authenticate,
-  authorize('admin', 'staff'),
+  authorize('admin', 'staff', 'party'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = req.user!;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    const whereVoucher: any = {};
+    const whereMovement: any = {};
+
+    if (user.role === 'party') {
+      whereVoucher.partyId = user.partyId;
+      whereMovement.voucher = { partyId: user.partyId };
+    }
+
     const [totalVouchers, todayMovements, tomorrowMovements] = await Promise.all([
-      prisma.voucher.count(),
+      prisma.voucher.count({ where: whereVoucher }),
       prisma.voucherMovement.count({
         where: {
+          ...whereMovement,
           date: {
             gte: today,
             lt: tomorrow,
@@ -118,6 +134,7 @@ router.get(
       }),
       prisma.voucherMovement.count({
         where: {
+          ...whereMovement,
           date: {
             gte: tomorrow,
             lt: new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000),
@@ -138,8 +155,9 @@ router.get(
 router.get(
   '/movements/today',
   authenticate,
-  authorize('admin', 'staff'),
+  authorize('admin', 'staff', 'party'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = req.user!;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -156,6 +174,10 @@ router.get(
           lt: tomorrow,
         },
     };
+
+    if (user.role === 'party') {
+      where.voucher = { partyId: user.partyId };
+    }
 
     if (from) where.from = from as string;
     if (to) where.to = to as string;
@@ -239,8 +261,9 @@ router.get(
 router.get(
   '/movements/tomorrow',
   authenticate,
-  authorize('admin', 'staff'),
+  authorize('admin', 'staff', 'party'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = req.user!;
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
@@ -258,6 +281,10 @@ router.get(
           lt: dayAfterTomorrow,
         },
     };
+
+    if (user.role === 'party') {
+      where.voucher = { partyId: user.partyId };
+    }
 
     if (from) where.from = from as string;
     if (to) where.to = to as string;
@@ -341,18 +368,23 @@ router.get(
 router.get(
   '/movements/filter-options',
   authenticate,
-  authorize('admin', 'staff'),
+  authorize('admin', 'staff', 'party'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = req.user!;
+    const where: any = { from: { not: '' } };
+    const whereTo: any = { to: { not: '' } };
+    
+    if (user.role === 'party') {
+      where.voucher = { partyId: user.partyId };
+      whereTo.voucher = { partyId: user.partyId };
+    }
+
     const fromOptions = await prisma.voucherMovement.findMany({
       select: {
         from: true,
       },
       distinct: ['from'],
-      where: {
-        from: {
-          not: '',
-        },
-      },
+      where,
       orderBy: {
         from: 'asc',
       },
@@ -363,11 +395,7 @@ router.get(
         to: true,
       },
       distinct: ['to'],
-      where: {
-        to: {
-          not: '',
-        },
-      },
+      where: whereTo,
       orderBy: {
         to: 'asc',
       },
@@ -384,26 +412,33 @@ router.get(
 router.get(
   '/movements/stats/today',
   authenticate,
-  authorize('admin', 'staff'),
+  authorize('admin', 'staff', 'party'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = req.user!;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const movementsData = await prisma.voucherMovement.findMany({
-      where: {
-        date: {
-          gte: today,
-          lt: tomorrow,
-        },
-        from: {
-          not: '',
-        },
-        to: {
-          not: '',
-        },
+    const where: any = {
+      date: {
+        gte: today,
+        lt: tomorrow,
       },
+      from: {
+        not: '',
+      },
+      to: {
+        not: '',
+      },
+    };
+
+    if (user.role === 'party') {
+      where.voucher = { partyId: user.partyId };
+    }
+
+    const movementsData = await prisma.voucherMovement.findMany({
+      where,
       select: {
         from: true,
         to: true,
@@ -433,27 +468,34 @@ router.get(
 router.get(
   '/movements/stats/tomorrow',
   authenticate,
-  authorize('admin', 'staff'),
+  authorize('admin', 'staff', 'party'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = req.user!;
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
     const dayAfterTomorrow = new Date(tomorrow);
     dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
 
-    const movementsData = await prisma.voucherMovement.findMany({
-      where: {
-        date: {
-          gte: tomorrow,
-          lt: dayAfterTomorrow,
-        },
-        from: {
-          not: '',
-        },
-        to: {
-          not: '',
-        },
+    const where: any = {
+      date: {
+        gte: tomorrow,
+        lt: dayAfterTomorrow,
       },
+      from: {
+        not: '',
+      },
+      to: {
+        not: '',
+      },
+    };
+
+    if (user.role === 'party') {
+      where.voucher = { partyId: user.partyId };
+    }
+
+    const movementsData = await prisma.voucherMovement.findMany({
+      where,
       select: {
         from: true,
         to: true,
@@ -483,9 +525,10 @@ router.get(
 router.get(
   '/:id',
   authenticate,
-  authorize('admin', 'staff'),
+  authorize('admin', 'staff', 'party'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
+    const user = req.user!;
 
     const voucher = await prisma.voucher.findUnique({
       where: { id },
@@ -526,6 +569,11 @@ router.get(
 
     if (!voucher) {
       return res.status(404).json({ error: 'Voucher not found' });
+    }
+
+    // Access control for party role
+    if (user.role === 'party' && voucher.partyId !== user.partyId) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     // Transform normalized data to match frontend expectations (for backward compatibility)
@@ -581,6 +629,7 @@ router.post(
   authenticate,
   authorize('admin', 'staff'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
+    // ... rest of create quick voucher
     const user = req.user!;
     const {
       guestName,
@@ -882,9 +931,10 @@ router.put(
 router.put(
   '/:id/movement/:movementIndex',
   authenticate,
-  authorize('admin', 'staff'),
+  authorize('admin', 'staff', 'party'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const { id, movementIndex } = req.params;
+    const user = req.user!;
     const { 
       driverDetails1, 
       driverDetails2, 
@@ -910,6 +960,11 @@ router.put(
 
     if (!voucher) {
       return res.status(404).json({ error: 'Voucher not found' });
+    }
+
+    // Access control for party role
+    if (user.role === 'party' && voucher.partyId !== user.partyId) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     const index = parseInt(movementIndex, 10);

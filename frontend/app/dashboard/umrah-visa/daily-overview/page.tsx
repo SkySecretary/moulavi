@@ -42,6 +42,7 @@ export default function DailyOverviewPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [arrivalFilter, setArrivalFilter] = useState('');
   const [departureFilter, setDepartureFilter] = useState('');
+  const [umraCompanyFilter, setUmraCompanyFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
   const getTargetDate = useCallback(() => {
@@ -61,6 +62,7 @@ export default function DailyOverviewPage() {
         date: dateStr,
         arrivalAirportCode: arrivalFilter || undefined,
         departureAirportCode: departureFilter || undefined,
+        umrahVisaProviderId: undefined, // We'll filter client-side for better UX if we use text search
         type: filterType,
       });
 
@@ -92,14 +94,21 @@ export default function DailyOverviewPage() {
   };
 
   const filteredBookings = bookings.filter(b => {
-    if (!searchQuery) return true;
     const search = searchQuery.toLowerCase();
-    return (
+    const umraSearch = umraCompanyFilter.toLowerCase();
+    
+    const matchesSearch = !searchQuery || (
       (b.bookingReference || '').toLowerCase().includes(search) ||
       (b.groupNumber || '').toLowerCase().includes(search) ||
       (b.groupName || '').toLowerCase().includes(search) ||
       (b.party?.partyName || '').toLowerCase().includes(search)
     );
+
+    const matchesUmraCompany = !umraCompanyFilter || (
+      (b.umrahVisaProvider?.partyName || '').toLowerCase().includes(umraSearch)
+    );
+
+    return matchesSearch && matchesUmraCompany;
   });
 
   const getTargetDateLabel = () => {
@@ -205,8 +214,15 @@ export default function DailyOverviewPage() {
                   onChange={(e) => setDepartureFilter(e.target.value.toUpperCase())}
                   className="border-0 shadow-none h-8 w-20 text-xs font-bold p-0 focus-visible:ring-0" 
                 />
-                {(arrivalFilter || departureFilter) && (
-                  <button onClick={() => { setArrivalFilter(''); setDepartureFilter(''); }} className="hover:text-red-500">
+                <div className="w-px h-4 bg-gray-200" />
+                <Input 
+                  placeholder="Umra Co." 
+                  value={umraCompanyFilter}
+                  onChange={(e) => setUmraCompanyFilter(e.target.value)}
+                  className="border-0 shadow-none h-8 w-24 text-xs font-bold p-0 focus-visible:ring-0" 
+                />
+                {(arrivalFilter || departureFilter || umraCompanyFilter) && (
+                  <button onClick={() => { setArrivalFilter(''); setDepartureFilter(''); setUmraCompanyFilter(''); }} className="hover:text-red-500">
                     <X className="h-3 w-3" />
                   </button>
                 )}
@@ -224,17 +240,18 @@ export default function DailyOverviewPage() {
                       <TableHead className="py-5 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Reference</TableHead>
                       <TableHead className="py-5 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Group Details</TableHead>
                       <TableHead className="py-5 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Party Name</TableHead>
-                      <TableHead className="py-5 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Target Date</TableHead>
+                      <TableHead className="py-5 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Service Provider</TableHead>
+                      <TableHead className="py-5 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Qty</TableHead>
                       <TableHead className="py-5 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-emerald-50/30 text-center">Arrival Hub</TableHead>
                       <TableHead className="py-5 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-blue-50/30 text-center">Departure Hub</TableHead>
-                      <TableHead className="py-5 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-purple-50/30">Today's Movement</TableHead>
+                      <TableHead className="py-5 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-purple-50/30">City Movement</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
                       Array(5).fill(0).map((_, i) => (
                         <TableRow key={i} className="animate-pulse">
-                          {Array(8).fill(0).map((_, j) => (
+                          {Array(9).fill(0).map((_, j) => (
                             <TableCell key={j} className="py-6 px-6">
                               <div className="h-4 bg-gray-100 rounded w-full"></div>
                             </TableCell>
@@ -243,7 +260,7 @@ export default function DailyOverviewPage() {
                       ))
                     ) : filteredBookings.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="py-20 text-center">
+                        <TableCell colSpan={9} className="py-20 text-center">
                           <div className="flex flex-col items-center justify-center space-y-3">
                             <div className="h-16 w-16 bg-gray-50 rounded-full flex items-center justify-center">
                               <Search className="h-8 w-8 text-gray-200" />
@@ -283,10 +300,12 @@ export default function DailyOverviewPage() {
                               <span className="text-xs font-bold text-gray-700">{booking.party?.partyName || 'N/A'}</span>
                             </TableCell>
                             <TableCell className="py-5 px-6">
-                              <div className="flex items-center gap-1.5 text-xs font-black text-secondary italic">
-                                <CalendarIcon className="h-3 w-3" />
-                                {getTargetDateLabel()}
-                              </div>
+                              <span className="text-[10px] font-black text-secondary uppercase truncate max-w-[120px]">
+                                {booking.umrahVisaProvider?.partyName || 'N/A'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-5 px-6 text-center">
+                              <span className="text-xs font-black text-gray-900">{booking.passengerCount || 0}</span>
                             </TableCell>
                             <TableCell className="py-5 px-6 bg-emerald-50/10 text-center">
                               {isArrivalToday ? (

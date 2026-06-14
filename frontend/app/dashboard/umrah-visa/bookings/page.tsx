@@ -174,7 +174,7 @@ export default function UmrahVisaPage() {
       const link = document.createElement('a');
       link.href = url;
       
-      const fileName = `Booking_${booking.bookingReference || booking.id.slice(0, 8)}_${(booking.groupName || 'NoName').replace(/\s+/g, '_')}.pdf`;
+      const fileName = `${booking.bookingReference || booking.id.slice(0, 8)}.pdf`;
       link.download = fileName;
       
       document.body.appendChild(link);
@@ -403,10 +403,27 @@ export default function UmrahVisaPage() {
                                   variant="outline"
                                   onClick={() => router.push(`/dashboard/umrah-visa/visa-management/edit/${booking.id}`)}
                                   className="flex items-center gap-1"
+                                  title="Edit Booking"
                                 >
                                   <Edit className="h-3 w-3" />
                                   Edit
                                 </Button>
+                                {booking.status === 'voucher' && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      // Find the voucher associated with this booking if possible, 
+                                      // or redirect to voucher search with the reference
+                                      router.push(`/dashboard/services/voucher?search=${booking.bookingReference || ''}`);
+                                    }}
+                                    className="flex items-center gap-1 text-secondary border-secondary/20 hover:bg-secondary/5"
+                                    title="Go to Voucher Management"
+                                  >
+                                    <Ticket className="h-3 w-3" />
+                                    Voucher
+                                  </Button>
+                                )}
                             <Button
                                   size="sm"
                               variant="outline"

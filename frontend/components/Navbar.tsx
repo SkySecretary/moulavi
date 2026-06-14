@@ -65,6 +65,7 @@ export default function Navbar() {
     { name: 'Trips', path: '/dashboard/umrah-visa/trip-info', icon: MapPin },
   ] : [
     { name: 'Dashboard', path: '/party/dashboard', icon: LayoutDashboard },
+    { name: 'Vouchers', path: '/dashboard/services/voucher', icon: Ticket },
     { name: 'New Individual', path: '/party/umrah-visa', icon: User },
     { name: 'New Group', path: '/party/umrah-visa-group', icon: Users },
   ];

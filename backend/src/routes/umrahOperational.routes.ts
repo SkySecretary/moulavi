@@ -16,7 +16,7 @@ router.get(
   authenticate,
   authorize('admin', 'staff'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { date, arrivalAirportCode, departureAirportCode, type = 'all' } = req.query;
+    const { date, arrivalAirportCode, departureAirportCode, umrahVisaProviderId, type = 'all' } = req.query;
 
     if (!date) {
       return res.status(400).json({ error: 'Date is required' });
@@ -82,6 +82,10 @@ router.get(
       OR: orConditions.length > 0 ? orConditions : undefined,
     };
 
+    if (umrahVisaProviderId) {
+      where.umrahVisaProviderId = umrahVisaProviderId as string;
+    }
+
     // Apply airport code filters if provided
     if (arrivalAirportCode || departureAirportCode) {
       const travelWhere: any = { isAlternate: false };
@@ -116,6 +120,13 @@ router.get(
             partyName: true,
             partyCode: true,
             email: true,
+          },
+        },
+        umrahVisaProvider: {
+          select: {
+            id: true,
+            partyName: true,
+            partyCode: true,
           },
         },
         travelDetails: {

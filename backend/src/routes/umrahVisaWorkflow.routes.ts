@@ -1403,7 +1403,7 @@ router.post('/generate-pdf', authenticate, async (req, res) => {
     const pdfBuffer = await generateVoucherPDF(voucherData);
 
     // Set response headers
-    const fileName = `${voucherData.voucherNumber.replace(/^UB-/, '')}.pdf`;
+    const fileName = `voucher_${voucherData.voucherNumber}.pdf`;
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
@@ -1551,7 +1551,7 @@ router.get('/:bookingId/generate-booking-pdf', authenticate, async (req, res) =>
     // Generate PDF
     const pdfBuffer = await generateVoucherPDF(pdfData);
 
-    const fileName = `${(booking.bookingReference || booking.id.slice(0, 8)).replace(/^UB-/, '')}.pdf`;
+    const fileName = `${booking.bookingReference || booking.id.slice(0, 8)}.pdf`;
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);

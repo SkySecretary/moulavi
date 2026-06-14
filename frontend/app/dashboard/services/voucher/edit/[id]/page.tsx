@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getUser, hasRole } from '@/lib/auth';
-import { voucherAPI } from '@/lib/api';
+import { voucherAPI, umrahVisaMasterAPI, cityMasterAPI, locationMasterAPI, transportRouteMasterAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Calendar, Plane, Users, Building, MapPin, Mail, ArrowLeft, Clock, Route, Ticket, Truck, Plus, X } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar, Plane, Users, Building, MapPin, Mail, ArrowLeft, Clock, Route, Ticket, Truck, Plus, X, ArrowRight } from 'lucide-react';
 import { TimePicker } from '@/components/ui/time-picker';
 import { extractDateFromISO } from '@/lib/umrah/validation';
 
@@ -32,15 +33,45 @@ export default function EditVoucherPage() {
   const [hotelSchedules, setHotelSchedules] = useState<any[]>([]);
   const [movementDetails, setMovementDetails] = useState<any[]>([]);
   const [flightDetails, setFlightDetails] = useState<any[]>([]);
+  const [airports, setAirports] = useState<any[]>([]);
+  const [cities, setCities] = useState<any[]>([]);
+  const [locationMasters, setLocationMasters] = useState<any[]>([]);
+  const [transportRoutes, setTransportRoutes] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!user || !hasRole(['admin', 'staff'])) {
+    if (!user || !hasRole(['admin', 'staff', 'party'])) {
       router.push('/');
       return;
     }
     load();
+    fetchMasterData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voucherId]);
+
+  const fetchMasterData = async () => {
+    try {
+      const [airportsRes, citiesRes, locationsRes, routesRes] = await Promise.all([
+        umrahVisaMasterAPI.getAirports(),
+        cityMasterAPI.getActive(),
+        locationMasterAPI.getActive(),
+        transportRouteMasterAPI.getActive()
+      ]);
+      
+      const fetchedAirports = airportsRes.data.locationMasters || airportsRes.data.airports || [];
+      const fetchedCities = citiesRes.data.cityMasters || citiesRes.data || [];
+      const fetchedLocations = locationsRes.data.locationMasters || locationsRes.data || [];
+      const fetchedRoutes = routesRes.data.transportRouteMasters || routesRes.data || [];
+
+      console.log(`[DEBUG] Master Data Loaded: Airports=${fetchedAirports.length}, Cities=${fetchedCities.length}, Locations=${fetchedLocations.length}, Routes=${fetchedRoutes.length}`);
+
+      setAirports(fetchedAirports);
+      setCities(fetchedCities);
+      setLocationMasters(fetchedLocations);
+      setTransportRoutes(fetchedRoutes);
+    } catch (err) {
+      console.error('Failed to fetch master data:', err);
+    }
+  };
 
   const load = async () => {
     try {
@@ -69,17 +100,30 @@ export default function EditVoucherPage() {
   const handleSave = async () => {
     try {
       setSaving(true);
-      await voucherAPI.updateVoucher(voucherId, {
-        guestName,
-        guestMobile,
-        groupCode,
-        paxCount,
-        reservationDate,
-        hotelSchedules,
-        movementDetails,
-        flightDetails,
-      });
-      toast.success('Voucher updated successfully');
+      if (user?.role === 'party') {
+        // For parties, update movements one by one using the dedicated API
+        const promises = movementDetails.map((m, index) => 
+          voucherAPI.updateMovementDetails(voucherId, index, {
+            driverDetails1: m.driverDetails1,
+            driverDetails2: m.driverDetails2,
+            vehicleNumber: m.vehicleNumber,
+          })
+        );
+        await Promise.all(promises);
+        toast.success('Movement details updated');
+      } else {
+        await voucherAPI.updateVoucher(voucherId, {
+          guestName,
+          guestMobile,
+          groupCode,
+          paxCount,
+          reservationDate,
+          hotelSchedules,
+          movementDetails,
+          flightDetails,
+        });
+        toast.success('Voucher updated successfully');
+      }
       await load();
     } catch (err: any) {
       console.error(err);
@@ -88,6 +132,8 @@ export default function EditVoucherPage() {
       setSaving(false);
     }
   };
+
+  const isAdminOrStaff = hasRole(['admin', 'staff']);
 
   const formatDate = (date?: string | Date) => {
     if (!date) return 'N/A';
@@ -236,6 +282,7 @@ export default function EditVoucherPage() {
                         onChange={(e) => setGuestName(e.target.value)}
                         placeholder="Guest Name"
                         className="font-bold"
+                        disabled={!isAdminOrStaff}
                       />
                     </div>
                     <div className="space-y-1">
@@ -244,6 +291,7 @@ export default function EditVoucherPage() {
                         value={groupCode}
                         onChange={(e) => setGroupCode(e.target.value)}
                         placeholder="Group Code"
+                        disabled={!isAdminOrStaff}
                       />
                     </div>
                     <div className="space-y-1">
@@ -253,6 +301,7 @@ export default function EditVoucherPage() {
                         value={paxCount}
                         onChange={(e) => setPaxCount(parseInt(e.target.value) || 0)}
                         min="1"
+                        disabled={!isAdminOrStaff}
                       />
                     </div>
                   </div>
@@ -263,6 +312,7 @@ export default function EditVoucherPage() {
                         value={guestMobile}
                         onChange={(e) => setGuestMobile(e.target.value)}
                         placeholder="Guest Mobile"
+                        disabled={!isAdminOrStaff}
                       />
                     </div>
                     <div className="space-y-1">
@@ -271,6 +321,7 @@ export default function EditVoucherPage() {
                         type="date"
                         value={reservationDate}
                         onChange={(e) => setReservationDate(e.target.value)}
+                        disabled={!isAdminOrStaff}
                       />
                     </div>
                   </div>
@@ -313,9 +364,11 @@ export default function EditVoucherPage() {
                     <CardTitle className="text-lg flex items-center gap-2">
                       <Building className="h-5 w-5 text-purple-600" /> Hotel Schedules ({hotelSchedules.length})
                     </CardTitle>
-                    <Button variant="outline" size="sm" onClick={addHotelSchedule}>
-                      <Plus className="h-4 w-4 mr-1" /> Add Hotel
-                    </Button>
+                    {isAdminOrStaff && (
+                      <Button variant="outline" size="sm" onClick={addHotelSchedule}>
+                        <Plus className="h-4 w-4 mr-1" /> Add Hotel
+                      </Button>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -335,30 +388,56 @@ export default function EditVoucherPage() {
                               </div>
                               <p className="text-sm font-semibold text-gray-700">Hotel {index + 1}</p>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeHotelSchedule(index)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
+                            {isAdminOrStaff && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeHotelSchedule(index)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <label className="text-xs text-gray-600 mb-1 block">City</label>
-                              <Input
-                                value={hotel.location || ''}
-                                onChange={(e) => updateHotelSchedule(index, 'location', e.target.value)}
-                                placeholder="City"
-                              />
+                              <Select 
+                                value={cities.find(c => c.name === hotel.location)?.id || ''} 
+                                onValueChange={(val) => {
+                                  const city = cities.find(c => c.id === val);
+                                  updateHotelSchedule(index, 'location', city?.name || '');
+                                }}
+                                disabled={!isAdminOrStaff}
+                              >
+                                <SelectTrigger className="w-full h-10 bg-white border-gray-200">
+                                  <SelectValue placeholder="Select city" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {cities.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
                             </div>
                             <div>
-                              <label className="text-xs text-gray-600 mb-1 block">Hotel</label>
-                              <Input
-                                value={hotel.hotelName || ''}
-                                onChange={(e) => updateHotelSchedule(index, 'hotelName', e.target.value)}
-                                placeholder="Hotel"
-                              />
+                              <label className="text-xs text-gray-600 mb-1 block">Hotel Name</label>
+                              <Select 
+                                value={locationMasters.find(l => l.name === hotel.hotelName)?.id || ''} 
+                                onValueChange={(val) => {
+                                  const loc = locationMasters.find(l => l.id === val);
+                                  updateHotelSchedule(index, 'hotelName', loc?.name || '');
+                                }}
+                                disabled={!isAdminOrStaff}
+                              >
+                                <SelectTrigger className="w-full h-10 bg-white border-gray-200">
+                                  <SelectValue placeholder="Select hotel" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {locationMasters
+                                    .filter(l => l.locationType === 'HOTEL' && (!hotel.location || l.city === hotel.location || l.cityMaster?.name === hotel.location))
+                                    .map(l => (
+                                      <SelectItem key={l.id} value={l.id}>{l.name} ({l.city})</SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
                             </div>
                             <div>
                               <label className="text-xs text-gray-600 mb-1 block">Check-In</label>
@@ -366,6 +445,7 @@ export default function EditVoucherPage() {
                                 type="date"
                                 value={hotel.checkIn || ''}
                                 onChange={(e) => updateHotelSchedule(index, 'checkIn', e.target.value)}
+                                disabled={!isAdminOrStaff}
                               />
                             </div>
                             <div>
@@ -374,6 +454,7 @@ export default function EditVoucherPage() {
                                 type="date"
                                 value={hotel.checkOut || ''}
                                 onChange={(e) => updateHotelSchedule(index, 'checkOut', e.target.value)}
+                                disabled={!isAdminOrStaff}
                               />
                             </div>
                             <div>
@@ -400,119 +481,136 @@ export default function EditVoucherPage() {
                     <CardTitle className="text-lg flex items-center gap-2">
                       <Route className="h-5 w-5 text-blue-600" /> Movement Details ({movementDetails.length})
                     </CardTitle>
-                    <Button variant="outline" size="sm" onClick={addMovement}>
-                      <Plus className="h-4 w-4 mr-1" /> Add Movement
-                    </Button>
+                    {isAdminOrStaff && (
+                      <Button variant="outline" size="sm" onClick={addMovement}>
+                        <Plus className="h-4 w-4 mr-1" /> Add Movement
+                      </Button>
+                    )}
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-0">
                   {movementDetails.length === 0 ? (
-                    <div className="text-center py-8 bg-gray-50 rounded-lg">
+                    <div className="text-center py-8 bg-gray-50 rounded-lg m-6">
                       <Route className="h-10 w-10 text-gray-300 mx-auto mb-2" />
                       <p className="text-sm text-gray-600">No movement details found</p>
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      {movementDetails.map((movement, index) => (
-                        <div key={index} className="border border-gray-200 rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-2">
-                              <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                                <span className="text-xs font-bold text-blue-600">{movement.sr || movement.route || `#${index + 1}`}</span>
-                              </div>
-                              <p className="text-sm font-semibold text-gray-700">Route {movement.sr || index + 1}</p>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeMovement(index)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="text-xs text-gray-600 mb-1 block">Route Number</label>
-                              <Input
-                                value={movement.route || ''}
-                                onChange={(e) => updateMovement(index, 'route', e.target.value)}
-                                placeholder="Route Number"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-600 mb-1 block">Date</label>
-                              <Input
-                                type="date"
-                                value={movement.date || ''}
-                                onChange={(e) => updateMovement(index, 'date', e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-600 mb-1 block">Time</label>
-                              <TimePicker
-                                value={movement.time || ''}
-                                onChange={(val) => updateMovement(index, 'time', val)}
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-600 mb-1 block">From City</label>
-                              <Input
-                                value={movement.from || ''}
-                                onChange={(e) => updateMovement(index, 'from', e.target.value)}
-                                placeholder="From City"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-600 mb-1 block">From Location</label>
-                              <Input
-                                value={movement.fromLocation || ''}
-                                onChange={(e) => updateMovement(index, 'fromLocation', e.target.value)}
-                                placeholder="From Location"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-600 mb-1 block">To City</label>
-                              <Input
-                                value={movement.to || ''}
-                                onChange={(e) => updateMovement(index, 'to', e.target.value)}
-                                placeholder="To City"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-600 mb-1 block">To Location</label>
-                              <Input
-                                value={movement.toLocation || ''}
-                                onChange={(e) => updateMovement(index, 'toLocation', e.target.value)}
-                                placeholder="To Location"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-600 mb-1 block">Driver Details 1</label>
-                              <Input
-                                value={movement.driverDetails1 || ''}
-                                onChange={(e) => updateMovement(index, 'driverDetails1', e.target.value)}
-                                placeholder="Driver Details 1"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-600 mb-1 block">Driver Details 2</label>
-                              <Input
-                                value={movement.driverDetails2 || ''}
-                                onChange={(e) => updateMovement(index, 'driverDetails2', e.target.value)}
-                                placeholder="Driver Details 2"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-600 mb-1 block">Vehicle Number</label>
-                              <Input
-                                value={movement.vehicleNumber || ''}
-                                onChange={(e) => updateMovement(index, 'vehicleNumber', e.target.value)}
-                                placeholder="Vehicle Number"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-gray-50 border-y border-gray-200">
+                            <th className="p-3 text-left text-[10px] font-black uppercase text-slate-500 w-10">#</th>
+                            <th className="p-3 text-left text-[10px] font-black uppercase text-slate-500 w-[130px]">Date</th>
+                            <th className="p-3 text-left text-[10px] font-black uppercase text-slate-500 w-[100px]">Time (24h)</th>
+                            <th className="p-3 text-left text-[10px] font-black uppercase text-slate-500 min-w-[200px]">From</th>
+                            <th className="p-3 text-left text-[10px] font-black uppercase text-slate-500 min-w-[200px]">To</th>
+                            <th className="p-3 text-left text-[10px] font-black uppercase text-slate-500 min-w-[250px] bg-primary/5">Driver / Vehicle</th>
+                            <th className="p-3 text-center text-[10px] font-black uppercase text-slate-500 w-16">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {movementDetails.map((movement, index) => (
+                            <tr key={index} className="hover:bg-gray-50/50 transition-colors group">
+                              <td className="p-3 text-center bg-gray-50/30">
+                                <span className="text-[10px] font-black text-slate-400">{index + 1}</span>
+                              </td>
+                              <td className="p-2">
+                                <Input
+                                  type="date"
+                                  value={movement.date || ''}
+                                  onChange={(e) => updateMovement(index, 'date', e.target.value)}
+                                  className="h-8 text-[10px] font-bold border-gray-200 bg-white"
+                                  disabled={!isAdminOrStaff}
+                                />
+                              </td>
+                              <td className="p-2">
+                                <TimePicker
+                                  value={movement.time || ''}
+                                  onChange={(val) => updateMovement(index, 'time', val)}
+                                  className="h-8 text-[10px] font-bold border-gray-200 bg-white"
+                                  disabled={!isAdminOrStaff}
+                                />
+                              </td>
+                              <td className="p-2">
+                                <Select 
+                                  value={movement.fromLocationId || ''} 
+                                  onValueChange={(val) => {
+                                    const loc = locationMasters.find(l => l.id === val);
+                                    updateMovement(index, 'fromLocationId', loc?.id);
+                                    updateMovement(index, 'fromLocation', loc?.name || '');
+                                    updateMovement(index, 'from', loc?.city || '');
+                                  }}
+                                  disabled={!isAdminOrStaff}
+                                >
+                                  <SelectTrigger className="h-8 text-[10px] font-bold border-gray-200 bg-white">
+                                    <SelectValue placeholder="Select Origin" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {locationMasters.map(l => (
+                                      <SelectItem key={l.id} value={l.id} className="text-[10px]">
+                                        {l.name} ({l.city})
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </td>
+                              <td className="p-2">
+                                <Select 
+                                  value={movement.toLocationId || ''} 
+                                  onValueChange={(val) => {
+                                    const loc = locationMasters.find(l => l.id === val);
+                                    updateMovement(index, 'toLocationId', loc?.id);
+                                    updateMovement(index, 'toLocation', loc?.name || '');
+                                    updateMovement(index, 'to', loc?.city || '');
+                                  }}
+                                  disabled={!isAdminOrStaff}
+                                >
+                                  <SelectTrigger className="h-8 text-[10px] font-bold border-gray-200 bg-white">
+                                    <SelectValue placeholder="Select Destination" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {locationMasters.map(l => (
+                                      <SelectItem key={l.id} value={l.id} className="text-[10px]">
+                                        {l.name} ({l.city})
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </td>
+                              <td className="p-2 bg-primary/5">
+                                <div className="space-y-1.5">
+                                  <div className="flex gap-2">
+                                    <Input
+                                      value={movement.driverDetails1 || ''}
+                                      onChange={(e) => updateMovement(index, 'driverDetails1', e.target.value)}
+                                      placeholder="Primary Driver"
+                                      className="h-7 text-[10px] font-bold border-primary/20 bg-white"
+                                    />
+                                    <Input
+                                      value={movement.vehicleNumber || ''}
+                                      onChange={(e) => updateMovement(index, 'vehicleNumber', e.target.value)}
+                                      placeholder="Vehicle Plate #"
+                                      className="h-7 text-[10px] font-black uppercase border-primary/20 bg-white"
+                                    />
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-2 text-center">
+                                {isAdminOrStaff && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeMovement(index)}
+                                    className="h-8 w-8 text-slate-300 hover:text-destructive hover:bg-destructive/5 opacity-0 group-hover:opacity-100 transition-all"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </CardContent>
@@ -523,11 +621,13 @@ export default function EditVoucherPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2">
-                      <Plane className="h-5 w-5 text-sky-600" /> Flight Details ({flightDetails.length})
+                      <Plane className="h-5 w-5 text-sky-600" /> Flight Details
                     </CardTitle>
-                    <Button variant="outline" size="sm" onClick={addFlight}>
-                      <Plus className="h-4 w-4 mr-1" /> Add Flight
-                    </Button>
+                    {isAdminOrStaff && (
+                      <Button variant="outline" size="sm" onClick={addFlight}>
+                        <Plus className="h-4 w-4 mr-1" /> Add Flight
+                      </Button>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -537,107 +637,102 @@ export default function EditVoucherPage() {
                       <p className="text-sm text-gray-600">No flight details found</p>
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      {flightDetails.map((flight, index) => (
-                        <div key={index} className="border border-gray-200 rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-2">
-                              <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
-                                flight.type === 'AA' ? 'bg-green-100' : 'bg-orange-100'
-                              }`}>
-                                <Plane className={`h-4 w-4 ${
-                                  flight.type === 'AA' ? 'text-green-600' : 'text-orange-600'
-                                }`} />
-                              </div>
-                              <p className="text-sm font-semibold text-gray-700">
-                                {flight.type === 'AA' ? 'Arrival' : 'Departure'} Flight
-                              </p>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeFlight(index)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="text-xs text-gray-600 mb-1 block">Type</label>
-                              <select
-                                value={flight.type || 'AA'}
-                                onChange={(e) => updateFlight(index, 'type', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                              >
-                                <option value="AA">Arrival (AA)</option>
-                                <option value="AD">Departure (AD)</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-600 mb-1 block">Carrier</label>
-                              <Input
-                                value={flight.carrier || ''}
-                                onChange={(e) => updateFlight(index, 'carrier', e.target.value)}
-                                placeholder="Carrier"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-600 mb-1 block">Flight Number</label>
-                              <Input
-                                value={flight.number || ''}
-                                onChange={(e) => updateFlight(index, 'number', e.target.value)}
-                                placeholder="Flight Number"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-600 mb-1 block">Date</label>
-                              <Input
-                                type="date"
-                                value={flight.date || ''}
-                                onChange={(e) => updateFlight(index, 'date', e.target.value)}
-                              />
-                            </div>
-                            {flight.type === 'AA' && (
-                              <div>
-                                <label className="text-xs text-gray-600 mb-1 block">Arrival Airport</label>
-                                <Input
-                                  value={flight.from || ''}
-                                  onChange={(e) => updateFlight(index, 'from', e.target.value)}
-                                  placeholder="Arrival Airport"
-                                />
-                              </div>
-                            )}
-                            {flight.type === 'AD' && (
-                              <div>
-                                <label className="text-xs text-gray-600 mb-1 block">Departure Airport</label>
-                                <Input
-                                  value={flight.to || ''}
-                                  onChange={(e) => updateFlight(index, 'to', e.target.value)}
-                                  placeholder="Departure Airport"
-                                />
-                              </div>
-                            )}
-                            {flight.type === 'AD' && (
-                              <div>
-                                <label className="text-xs text-gray-600 mb-1 block">ETD</label>
-                                <TimePicker
-                                  value={flight.etd || ''}
-                                  onChange={(val) => updateFlight(index, 'etd', val)}
-                                />
-                              </div>
-                            )}
-                            {flight.type === 'AA' && (
-                              <div>
-                                <label className="text-xs text-gray-600 mb-1 block">ETA</label>
-                                <TimePicker
-                                  value={flight.eta || ''}
-                                  onChange={(val) => updateFlight(index, 'eta', val)}
-                                />
-                              </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {/* Separate into Arrival and Departure groups for consistent design */}
+                      {[ { type: 'AA', title: 'Arrival', color: 'sky' }, { type: 'AD', title: 'Departure', color: 'orange' } ].map((group) => {
+                        const flights = flightDetails.filter(f => f.type === group.type);
+                        return (
+                          <div key={group.type} className={`border-l-4 border-${group.color}-500 pl-4 py-2 space-y-4`}>
+                            <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{group.title}</p>
+                            {flights.length === 0 ? (
+                              <p className="text-xs text-gray-400 italic">No {group.title.toLowerCase()} flights added</p>
+                            ) : (
+                              flights.map((flight, localIdx) => {
+                                // Find global index to update correctly
+                                const globalIdx = flightDetails.findIndex(f => f === flight);
+                                return (
+                                  <div key={globalIdx} className="space-y-4 p-3 bg-gray-50/50 rounded-lg relative group">
+                                    {isAdminOrStaff && (
+                                      <button 
+                                        onClick={() => removeFlight(globalIdx)}
+                                        className="absolute -top-2 -right-2 h-5 w-5 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </button>
+                                    )}
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div>
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Carrier</label>
+                                        <Input
+                                          value={flight.carrier || ''}
+                                          onChange={(e) => updateFlight(globalIdx, 'carrier', e.target.value)}
+                                          placeholder="e.g. SV"
+                                          className="h-8 text-xs font-bold"
+                                          disabled={!isAdminOrStaff}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Flight #</label>
+                                        <Input
+                                          value={flight.number || ''}
+                                          onChange={(e) => updateFlight(globalIdx, 'number', e.target.value)}
+                                          placeholder="1234"
+                                          className="h-8 text-xs font-bold"
+                                          disabled={!isAdminOrStaff}
+                                        />
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div>
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Date</label>
+                                        <Input
+                                          type="date"
+                                          value={flight.date || ''}
+                                          onChange={(e) => updateFlight(globalIdx, 'date', e.target.value)}
+                                          className="h-8 text-xs"
+                                          disabled={!isAdminOrStaff}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">{group.type === 'AA' ? 'ETA' : 'ETD'}</label>
+                                        <TimePicker
+                                          value={(group.type === 'AA' ? flight.eta : flight.etd) || ''}
+                                          onChange={(val) => updateFlight(globalIdx, group.type === 'AA' ? 'eta' : 'etd', val)}
+                                          className="h-8 text-xs"
+                                          disabled={!isAdminOrStaff}
+                                        />
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">{group.type === 'AA' ? 'Arrival Hub' : 'Departure Hub'}</label>
+                                      <Select 
+                                        value={airports.some(a => a.name === (group.type === 'AA' ? flight.from : flight.to) || a.code === (group.type === 'AA' ? flight.from : flight.to)) ? 
+                                          (airports.find(a => a.name === (group.type === 'AA' ? flight.from : flight.to) || a.code === (group.type === 'AA' ? flight.from : flight.to))?.id) : ''} 
+                                        onValueChange={(val) => {
+                                          const airport = airports.find(a => a.id === val);
+                                          updateFlight(globalIdx, group.type === 'AA' ? 'from' : 'to', airport?.name || '');
+                                        }}
+                                        disabled={!isAdminOrStaff}
+                                      >
+                                        <SelectTrigger className="h-8 text-xs font-medium bg-white border-gray-200">
+                                          <SelectValue placeholder="Select airport" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {airports.map(a => (
+                                            <SelectItem key={a.id} value={a.id} className="text-xs">
+                                              {a.code} - {a.name} ({a.city})
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  </div>
+                                );
+                              })
                             )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </CardContent>

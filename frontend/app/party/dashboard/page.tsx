@@ -217,7 +217,7 @@ export default function PartyDashboardPage() {
       const link = document.createElement('a');
       link.href = url;
       
-      const fileName = `Booking_${booking.bookingReference || booking.id.slice(0, 8)}_${(booking.groupName || 'NoName').replace(/\s+/g, '_')}.pdf`;
+      const fileName = `${booking.bookingReference || booking.id.slice(0, 8)}.pdf`;
       link.download = fileName;
       
       document.body.appendChild(link);

@@ -248,9 +248,7 @@ export default function ViewUmrahVisaBookingPage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Voucher_${pdfData.voucherNumber}_${pdfData.guestName
-        .replace(/\s+/g, '_')
-        .slice(0, 20)}.pdf`;
+      link.download = `voucher_${pdfData.voucherNumber}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

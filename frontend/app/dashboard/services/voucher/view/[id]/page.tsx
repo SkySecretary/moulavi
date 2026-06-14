@@ -20,7 +20,7 @@ export default function ViewVoucherPage() {
   const [voucher, setVoucher] = useState<any>(null);
 
   useEffect(() => {
-    if (!user || !hasRole(['admin', 'staff'])) {
+    if (!user || !hasRole(['admin', 'staff', 'party'])) {
       router.push('/');
       return;
     }
@@ -67,12 +67,14 @@ export default function ViewVoucherPage() {
                 <p className="text-sm text-gray-500">Reservation Number: {voucher?.voucherNumber || 'N/A'}</p>
               </div>
               <div className="flex items-center gap-3">
-                <Button 
-                  variant="outline" 
-                  onClick={() => router.push(`/dashboard/services/voucher/edit/${voucherId}`)}
-                >
-                  Edit
-                </Button>
+                {hasRole(['admin', 'staff']) && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => router.push(`/dashboard/services/voucher/edit/${voucherId}`)}
+                  >
+                    Edit
+                  </Button>
+                )}
                 <Button variant="outline" onClick={() => router.back()}>
                   <ArrowLeft className="h-4 w-4 mr-1" /> Back
                 </Button>

@@ -38,7 +38,8 @@ router.post('/login', loginValidation, asyncHandler(async (req: AuthRequest, res
   
   // Find user
   const user = await prisma.user.findUnique({
-    where: { email }
+    where: { email },
+    include: { party: true }
   });
   
   if (!user) {
@@ -63,7 +64,12 @@ router.post('/login', loginValidation, asyncHandler(async (req: AuthRequest, res
   }
   
   // Generate tokens
-  const payload = { id: user.id, email: user.email, role: user.role };
+  const payload = { 
+    id: user.id, 
+    email: user.email, 
+    role: user.role,
+    partyId: user.party?.id 
+  };
   const accessToken = generateAccessToken(payload);
   const refreshToken = generateRefreshToken(payload);
   
@@ -120,6 +126,7 @@ router.post('/refresh', asyncHandler(async (req: AuthRequest, res: Response) => 
       id: payload.id,
       email: payload.email,
       role: payload.role,
+      partyId: payload.partyId,
     });
     
     res.json({ accessToken: newAccessToken });
