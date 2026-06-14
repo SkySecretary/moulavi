@@ -819,6 +819,9 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
 router.patch('/:bookingId/travel-details', authenticate, async (req, res) => {
   try {
     const { bookingId } = req.params;
+    console.log(`[DEBUG] Updating travel details for booking ${bookingId}`);
+    console.log(`[DEBUG] Full Body:`, JSON.stringify(req.body, null, 2));
+
     const {
       arrivalDate,
       arrivalTime,
@@ -830,8 +833,6 @@ router.patch('/:bookingId/travel-details', authenticate, async (req, res) => {
       arrivalDateTime: incomingArrivalDateTime,
       departureDateTime: incomingDepartureDateTime,
     } = req.body || {};
-
-    console.log(`[DEBUG] Updating travel details for booking ${bookingId}`);
     
     // Combine date and time into datetime before storing
     // Support both separate date/time and direct ISO string

@@ -25,7 +25,8 @@ import {
   Users,
   UserPlus,
   Download,
-  Loader2
+  Loader2,
+  Ticket
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
