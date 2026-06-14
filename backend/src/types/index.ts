@@ -13,7 +13,8 @@ import {
   UmrahVisaStatus,
   VisaType,
   Gender,
-  LocationType
+  LocationType,
+  TripStatus
 } from '@prisma/client';
 
 // Re-export Prisma types for convenience (Updated for cleanup)
@@ -31,7 +32,8 @@ export type {
   UmrahVisaStatus,
   VisaType,
   Gender,
-  LocationType
+  LocationType,
+  TripStatus
 };
 
 

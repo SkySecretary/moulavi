@@ -243,6 +243,8 @@ export const umrahVisaAPI = {
 
   updateTravelDetails: (id: string, data: any) => api.patch(`/umrah-visa/${id}/travel-details`, data),
 
+  updateTripStatus: (id: string, tripStatus: string) => api.patch(`/umrah-visa/${id}/trip-status`, { tripStatus }),
+
   updateAccommodation: (id: string, data: any) => api.patch(`/umrah-visa/${id}/accommodation`, data),
 
   updateTransportBookings: (id: string, transportBookings: any[]) =>

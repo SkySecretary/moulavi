@@ -12,6 +12,7 @@ router.get('/bookings', authenticate, async (req, res) => {
       page = '1', 
       limit = '10', 
       status, 
+      tripStatus,
       partyId, 
       search,
       arrivalDateFrom,
@@ -53,6 +54,11 @@ router.get('/bookings', authenticate, async (req, res) => {
     if (status && status !== 'all') {
       if (Array.isArray(status)) where.status = { in: status };
       else where.status = status;
+    }
+
+    if (tripStatus && tripStatus !== 'all') {
+      if (Array.isArray(tripStatus)) where.tripStatus = { in: tripStatus };
+      else where.tripStatus = tripStatus;
     }
 
     if (bookingMode) where.bookingMode = bookingMode;

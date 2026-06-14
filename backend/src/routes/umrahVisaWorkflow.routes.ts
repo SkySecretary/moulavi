@@ -5,6 +5,7 @@ import { prisma } from './umrahVisa/shared';
 import { syncBookingStatus, syncBookingStatusInTx } from '../services/statusSyncService';
 import { generateVoucherNumber, formatTime, formatDate, generateRouteNumbersForVoucher } from '../services/voucherService';
 import { generateVoucherPDF } from '../services/pdfService';
+import { sendIqamaConfirmationEmail } from '../services/emailService';
 import { VoucherPdfData } from '../types/voucher';
 import { isS3Configured, S3_CONFIG, generateDownloadUrl, s3Client, extractS3KeyFromUrl } from '../config/s3';
 import { combineDateTime } from '../utils/datetime';
@@ -2209,6 +2210,62 @@ router.delete('/booking/:id', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Error deleting booking:', error);
     res.status(500).json({ error: 'Failed to delete booking' });
+  }
+});
+
+// PATCH /api/umrah-visa/:bookingId/trip-status - Update trip status (pending/hosting/completed)
+router.patch('/:bookingId/trip-status', authenticate, async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { tripStatus } = req.body;
+    const user = (req as any).user;
+
+    if (!['pending', 'hosting', 'completed'].includes(tripStatus)) {
+      return res.status(400).json({ error: 'Invalid trip status' });
+    }
+
+    const booking = await prisma.umrahVisaBooking.findUnique({
+      where: { id: bookingId },
+      include: { 
+        sponsorIqamaDetails: { where: { isAlternate: false } },
+        party: true
+      },
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const updatedBooking = await prisma.umrahVisaBooking.update({
+      where: { id: bookingId },
+      data: {
+        tripStatus,
+        lastUpdatedBy: user.id,
+      },
+    });
+
+    // If status changed to hosting, send notifications
+    if (tripStatus === 'hosting') {
+      const iqama = booking.sponsorIqamaDetails?.[0];
+      if (iqama) {
+        try {
+           // Pass party email and iqama holder mobile for dual notification
+           await sendIqamaConfirmationEmail(
+             booking.party.email,
+             iqama.iqamaSponserName,
+             iqama.confirmationImagePath || '',
+             iqama.sponserMobileNumber || undefined
+           );
+        } catch (err) {
+           console.error('Error sending hosting notification:', err);
+        }
+      }
+    }
+
+    res.json({ success: true, booking: updatedBooking });
+  } catch (error) {
+    console.error('Error updating trip status:', error);
+    res.status(500).json({ error: 'Failed to update trip status' });
   }
 });
 

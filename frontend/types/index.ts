@@ -142,6 +142,7 @@ export type UmrahVisaStatus =
 
 // Visa Type
 export type VisaType = 'individual_visa' | 'group_visa';
+export type TripStatus = 'pending' | 'hosting' | 'completed';
 
 export interface UmrahVisaDetails {
   id?: string;
@@ -210,6 +211,7 @@ export interface UmrahVisaBooking {
   iqamaNationalShortAddress?: string;
   passengerCount: number;
   status?: UmrahVisaStatus;
+  tripStatus?: TripStatus;
   passengers?: UmrahPassenger[];
   documentsDownloadCount?: number;
   documentsDownloadedBy?: string;

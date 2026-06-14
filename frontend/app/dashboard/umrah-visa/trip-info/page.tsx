@@ -43,6 +43,8 @@ export default function TripInfoPage() {
     totalPages: 0,
   });
   const [activeTab, setActiveTab] = useState<'iqama' | 'hotel'>('iqama');
+  const [iqamaSubTab, setIqamaSubTab] = useState<'pending' | 'hosting' | 'completed'>('pending');
+  const [hotelSubTab, setHotelSubTab] = useState<'pending' | 'completed'>('pending');
   const [editingIqama, setEditingIqama] = useState<Record<string, {
     makkahHotelName: string;
     makkahBrn: string;
@@ -58,11 +60,13 @@ export default function TripInfoPage() {
       return;
     }
     fetchBookings(pagination.page);
-  }, [pagination.page, searchQuery, arrivalDateFrom, arrivalDateTo, activeTab]);
+  }, [pagination.page, searchQuery, arrivalDateFrom, arrivalDateTo, activeTab, iqamaSubTab, hotelSubTab]);
 
   const fetchBookings = async (page = 1) => {
   try {
     setIsLoading(true);
+    const tripStatus = activeTab === 'iqama' ? iqamaSubTab : hotelSubTab;
+
     const response = await umrahVisaAPI.getBookings({ 
       limit: 10,
       page: page,
@@ -70,7 +74,8 @@ export default function TripInfoPage() {
       arrivalDateFrom: arrivalDateFrom,
       arrivalDateTo: arrivalDateTo,
       accommodationType: activeTab,
-      status: ['group_assigned', 'voucher', 'bill']
+      status: ['group_assigned', 'voucher', 'bill'],
+      tripStatus: tripStatus
     });
     const data = response.data;
 
@@ -220,16 +225,40 @@ export default function TripInfoPage() {
     }
   };
 
+  const handleUpdateTripStatus = async (bookingId: string, status: 'pending' | 'hosting' | 'completed') => {
+    try {
+      if (status === 'hosting') {
+        toast.info('Sending hosting notifications...');
+      } else {
+        toast.info(`Marking as ${status}...`);
+      }
+      
+      await umrahVisaAPI.updateTripStatus(bookingId, status);
+      toast.success(`Status updated to ${status}`);
+      fetchBookings();
+    } catch (error: any) {
+      console.error('Error updating trip status:', error);
+      toast.error(error?.response?.data?.error || `Failed to update status to ${status}`);
+    }
+  };
+
   const handleMarkReadyForVoucher = async (booking: UmrahVisaBooking) => {
     if (!booking.id) return;
 
     try {
-      toast.info('Marking booking as ready for voucher...');
-      const response = await umrahVisaAPI.markReadyForVoucher(booking.id);
-      toast.success('Booking marked as ready for voucher generation');
+      toast.info('Marking as completed...');
+      // Update trip status to completed
+      await umrahVisaAPI.updateTripStatus(booking.id, 'completed');
+      
+      // Also trigger mark-ready-for-voucher if it's still group_assigned
+      if (booking.status === 'group_assigned') {
+        await umrahVisaAPI.markReadyForVoucher(booking.id);
+      }
+      
+      toast.success('Trip marked as completed');
       fetchBookings();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to mark booking as ready');
+      toast.error(error.message || 'Failed to mark trip as completed');
     }
   };
 
@@ -342,6 +371,9 @@ export default function TripInfoPage() {
   };
 
   const renderActionButton = (booking: UmrahVisaBooking) => {
+    const isIqama = booking.accommodationType === 'iqama';
+    const currentStatus = booking.tripStatus || 'pending';
+
     return (
       <div className="flex items-center gap-2">
         <Button
@@ -353,23 +385,50 @@ export default function TripInfoPage() {
           <Copy className="h-3 w-3" />
           Copy All
         </Button>
-        {booking.accommodationType === 'hotel' && (
-          <Button
-            size="sm"
-            onClick={() => handleMarkReadyForVoucher(booking)}
-            className="flex items-center gap-1 whitespace-nowrap"
-          >
-            Done
-          </Button>
-        )}
-        {booking.accommodationType === 'iqama' && (
-          <Button
-            size="sm"
-            onClick={() => handleUpdateIqamaHotel(booking.id!)}
-            className="flex items-center gap-1 bg-green-600 hover:bg-green-700"
-          >
-            Save
-          </Button>
+        
+        {isIqama ? (
+          <>
+            {currentStatus === 'pending' && (
+              <Button
+                size="sm"
+                onClick={() => handleUpdateTripStatus(booking.id!, 'hosting')}
+                className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700"
+              >
+                Start Hosting
+              </Button>
+            )}
+            {currentStatus === 'hosting' && (
+              <Button
+                size="sm"
+                onClick={() => handleUpdateTripStatus(booking.id!, 'completed')}
+                className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white font-bold"
+              >
+                Done
+              </Button>
+            )}
+            {currentStatus === 'pending' && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleUpdateIqamaHotel(booking.id!)}
+                className="h-8 text-[10px] text-purple-600 border border-purple-100"
+              >
+                Save Info
+              </Button>
+            )}
+          </>
+        ) : (
+          <>
+            {currentStatus !== 'completed' && (
+              <Button
+                size="sm"
+                onClick={() => handleMarkReadyForVoucher(booking)}
+                className="flex items-center gap-1 whitespace-nowrap bg-green-600 hover:bg-green-700 text-white font-bold"
+              >
+                Done
+              </Button>
+            )}
+          </>
         )}
       </div>
     );
@@ -443,27 +502,70 @@ export default function TripInfoPage() {
               )}
 
               {/* Tabs for Accommodation Type */}
-              <div className="flex space-x-2 border-b">
-                <button
-                  onClick={() => setActiveTab('iqama')}
-                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'iqama'
-                      ? 'border-purple-600 text-purple-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Iqama
-                </button>
-                <button
-                  onClick={() => setActiveTab('hotel')}
-                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'hotel'
-                      ? 'border-purple-600 text-purple-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Hotel
-                </button>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-1 gap-4">
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => { setActiveTab('iqama'); setPagination(p => ({...p, page: 1})); }}
+                    className={`px-6 py-2 text-sm font-black uppercase tracking-widest border-b-2 transition-colors ${
+                      activeTab === 'iqama'
+                        ? 'border-purple-600 text-purple-600'
+                        : 'border-transparent text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    Iqama Trip
+                  </button>
+                  <button
+                    onClick={() => { setActiveTab('hotel'); setPagination(p => ({...p, page: 1})); }}
+                    className={`px-6 py-2 text-sm font-black uppercase tracking-widest border-b-2 transition-colors ${
+                      activeTab === 'hotel'
+                        ? 'border-emerald-600 text-emerald-600'
+                        : 'border-transparent text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    Hotel Trip
+                  </button>
+                </div>
+
+                {/* Sub-tabs based on active main tab */}
+                <div className="flex items-center gap-1 bg-gray-100/50 p-1 rounded-xl border w-fit">
+                  {activeTab === 'iqama' ? (
+                    <>
+                      <button 
+                        onClick={() => { setIqamaSubTab('pending'); setPagination(p => ({...p, page: 1})); }}
+                        className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${iqamaSubTab === 'pending' ? 'bg-white text-purple-600 shadow-sm border border-purple-100' : 'text-gray-400 hover:text-gray-600'}`}
+                      >
+                        Pending
+                      </button>
+                      <button 
+                        onClick={() => { setIqamaSubTab('hosting'); setPagination(p => ({...p, page: 1})); }}
+                        className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${iqamaSubTab === 'hosting' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                      >
+                        Hosting
+                      </button>
+                      <button 
+                        onClick={() => { setIqamaSubTab('completed'); setPagination(p => ({...p, page: 1})); }}
+                        className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${iqamaSubTab === 'completed' ? 'bg-green-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                      >
+                        Completed
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button 
+                        onClick={() => { setHotelSubTab('pending'); setPagination(p => ({...p, page: 1})); }}
+                        className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${hotelSubTab === 'pending' ? 'bg-white text-emerald-600 shadow-sm border border-emerald-100' : 'text-gray-400 hover:text-gray-600'}`}
+                      >
+                        Pending
+                      </button>
+                      <button 
+                        onClick={() => { setHotelSubTab('completed'); setPagination(p => ({...p, page: 1})); }}
+                        className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${hotelSubTab === 'completed' ? 'bg-green-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                      >
+                        Completed
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* Search and Filters */}

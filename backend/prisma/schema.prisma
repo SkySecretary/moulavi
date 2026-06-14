@@ -105,6 +105,7 @@ model UmrahVisaBooking {
   multipleGroupDetails      Json?                      @map("multiple_group_details")
   bookingReference          String?                    @unique @map("booking_reference")
   brn                       String?                    @map("brn")
+  tripStatus                TripStatus                 @default(pending) @map("trip_status")
   statusHistory             BookingStatusHistory[]
   documents                 Document[]
   hotelBookings             UmrahHotelBooking[]
@@ -822,4 +823,10 @@ enum RouteType {
 enum PricingType {
   umrah
   others
+}
+
+enum TripStatus {
+  pending
+  hosting
+  completed
 }
