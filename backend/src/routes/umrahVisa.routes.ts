@@ -291,11 +291,12 @@ router.post('/:bookingId/notify-missing-brn', authenticate, authorize('admin', '
       }
     });
 
-    if (!booking || !booking.party || !booking.party.contactNumber) {
-      return res.status(404).json({ error: 'Booking or Party contact not found' });
+    if (!booking || !booking.party) {
+      return res.status(404).json({ error: 'Booking or Party not found' });
     }
 
     const { sendCustomWhatsApp } = await import('../services/whatsappService');
+    const { sendMissingBrnEmail } = await import('../services/emailService');
 
     const agentName = booking.party.partyName;
     const voucherNo = booking.groupNumber || booking.bookingReference || booking.id.slice(0, 8);
@@ -303,7 +304,13 @@ router.post('/:bookingId/notify-missing-brn', authenticate, authorize('admin', '
       ? booking.travelDetails[0].arrivalDateTime.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })
       : 'the scheduled date';
 
-    const message = `Dear ${agentName},
+    let notificationSent = false;
+    let errors = [];
+
+    // 1. WhatsApp
+    if (booking.party.contactNumber) {
+      try {
+        const message = `Dear ${agentName},
 
 Greetings from Moulavi Travel.
 
@@ -320,9 +327,32 @@ Your prompt cooperation is highly appreciated.
 Regards,
 Moulavi Travel`;
 
-    await sendCustomWhatsApp(booking.party.contactNumber, message);
+        await sendCustomWhatsApp(booking.party.contactNumber, message);
+        notificationSent = true;
+      } catch (err: any) {
+        errors.push(`WhatsApp: ${err.message}`);
+      }
+    } else {
+      errors.push('No contact number for WhatsApp');
+    }
 
-    res.json({ success: true, message: 'Notification sent successfully' });
+    // 2. Email
+    if (booking.party.email) {
+      try {
+        await sendMissingBrnEmail(booking.party.email, agentName, voucherNo, arrivalDate);
+        notificationSent = true;
+      } catch (err: any) {
+        errors.push(`Email: ${err.message}`);
+      }
+    } else {
+      errors.push('No email address available');
+    }
+
+    if (!notificationSent) {
+      return res.status(500).json({ error: 'Failed to send notifications via all channels', details: errors });
+    }
+
+    res.json({ success: true, message: 'Notification(s) sent successfully' });
   } catch (error) {
     console.error('Error sending missing BRN notification:', error);
     res.status(500).json({ error: 'Failed to send notification' });

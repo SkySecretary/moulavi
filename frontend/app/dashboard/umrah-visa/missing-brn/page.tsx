@@ -89,7 +89,7 @@ export default function MissingBRNPage() {
     try {
       setSendingNotification(bookingId);
       await umrahVisaAPI.notifyMissingBrn(bookingId);
-      toast.success('Notification sent via WhatsApp');
+      toast.success('Reminder sent via available channels (WhatsApp/Email)');
     } catch (error) {
       console.error('Error sending notification:', error);
       toast.error('Failed to send notification');
@@ -230,7 +230,7 @@ export default function MissingBRNPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleSendNotification(booking.id)}
-                          disabled={sendingNotification === booking.id || !booking.party?.contactNumber}
+                          disabled={sendingNotification === booking.id || (!booking.party?.contactNumber && !booking.party?.email)}
                           className="font-bold text-primary border-primary/20 hover:bg-primary/5"
                         >
                           {sendingNotification === booking.id ? (

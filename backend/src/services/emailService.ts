@@ -104,10 +104,64 @@ const EMAIL_TEMPLATES = {
           <p>© 2025 Moulavi Travels. All rights reserved.</p>
           <p>info@moulavi.com | +91 90044 81414</p>
         </div>
-      </div>
-    </body>
-    </html>
-  `,
+        </div>
+        </body>
+        </html>
+        `,
+
+        missingBrnNotification: (agentName: string, voucherNo: string, arrivalDate: string) => `
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Missing Madinah BRN - Action Required</title>
+        <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background-color: #f8f9fa; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .header { background: #d97706; color: white; padding: 30px 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
+        .content { padding: 30px; }
+        .greeting { font-size: 18px; font-weight: 600; margin-bottom: 20px; color: #b45309; }
+        .message { font-size: 16px; color: #555; margin-bottom: 20px; }
+        .info-box { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 20px; border-radius: 4px; margin-bottom: 30px; }
+        .footer { background: #1e293b; color: #cbd5e1; padding: 20px; text-align: center; font-size: 12px; }
+        .footer p { margin: 5px 0; }
+        </style>
+        </head>
+        <body>
+        <div class="container">
+        <div class="header">
+          <h1>Action Required: Missing Madinah BRN</h1>
+        </div>
+        <div class="content">
+          <div class="greeting">Dear ${agentName},</div>
+          <div class="message">
+            Greetings from Moulavi Travel.
+          </div>
+          <div class="message">
+            Your Voucher No. <strong>${voucherNo}</strong> is scheduled for travel from Makkah to Madinah on <strong>${arrivalDate}</strong>.
+          </div>
+          <div class="info-box">
+            <p><strong>Important Notice:</strong> We have not yet received your Madinah BRN. Please note that the transport company will not provide the bus service without a valid Madinah BRN.</p>
+            <p><strong>Without the Madinah BRN, you will not be permitted to enter or visit Madinah City.</strong></p>
+          </div>
+          <div class="message">
+            Kindly submit the Madinah BRN at least 5 days before the travel date to avoid any disruption to your transportation and travel arrangements.
+          </div>
+          <p class="message" style="margin-top: 30px;">
+            Your prompt cooperation is highly appreciated.
+          </p>
+          <p style="font-weight: bold; color: #b45309;">Regards,<br>Moulavi Travel</p>
+        </div>
+        <div class="footer">
+          <p>© 2026 Moulavi Travels. All rights reserved.</p>
+          <p>info@moulavi.com | +91 90044 81414</p>
+        </div>
+        </div>
+        </body>
+        </html>
+        `,
 
   registrationAdminNotification: (details: any) => `
     <!DOCTYPE html>
@@ -682,6 +736,23 @@ export const sendServiceConfirmationEmail = async (
     throw error;
     }
   }
+};
+
+export const sendMissingBrnEmail = async (
+  to: string,
+  agentName: string,
+  voucherNo: string,
+  arrivalDate: string
+): Promise<void> => {
+  console.log(`[EMAIL] Attempting to send Missing BRN email to ${to}`);
+  const mailOptions: nodemailer.SendMailOptions = {
+    from: EMAIL_CONFIG.from,
+    to,
+    subject: `Action Required: Missing Madinah BRN for ${voucherNo}`,
+    html: EMAIL_TEMPLATES.missingBrnNotification(agentName, voucherNo, arrivalDate),
+  };
+  await sendEmail(mailOptions);
+  console.log(`[EMAIL] Successfully sent Missing BRN email to ${to}`);
 };
 
 // Send bill email with PDF attachment
