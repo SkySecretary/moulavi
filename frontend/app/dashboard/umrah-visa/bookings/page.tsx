@@ -340,9 +340,21 @@ export default function UmrahVisaPage() {
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              <span className="font-bold text-primary text-xs whitespace-nowrap">
-                                {booking.bookingReference || 'N/A'}
-                              </span>
+                              <div className="flex flex-col">
+                                <span className="font-bold text-primary text-xs whitespace-nowrap">
+                                  {booking.bookingReference || 'N/A'}
+                                </span>
+                                {booking.createdAt && (
+                                  <span className="text-[9px] text-gray-400 mt-1">
+                                    C: {formatDate(booking.createdAt)}
+                                  </span>
+                                )}
+                                {booking.updatedAt && booking.updatedAt !== booking.createdAt && (
+                                  <span className="text-[9px] text-gray-400">
+                                    M: {formatDate(booking.updatedAt)}
+                                  </span>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell>
                               <div className="space-y-1">

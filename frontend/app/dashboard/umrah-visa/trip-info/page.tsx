@@ -645,18 +645,30 @@ export default function TripInfoPage() {
                             </TableCell>
                             {/* Booking Ref */}
                             <TableCell>
-                              <div className="flex items-center gap-1">
-                                <span className="text-xs font-bold text-primary font-mono tracking-tighter">
-                                  {booking.bookingReference || 'N/A'}
-                                </span>
-                                {booking.bookingReference && (
-                                  <button
-                                    onClick={() => copyToClipboard(booking.bookingReference!, 'Booking Ref')}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
-                                    title="Copy reference"
-                                  >
-                                    <Copy className="h-3 w-3 text-gray-500" />
-                                  </button>
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-xs font-bold text-primary font-mono tracking-tighter">
+                                    {booking.bookingReference || 'N/A'}
+                                  </span>
+                                  {booking.bookingReference && (
+                                    <button
+                                      onClick={() => copyToClipboard(booking.bookingReference!, 'Booking Ref')}
+                                      className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
+                                      title="Copy reference"
+                                    >
+                                      <Copy className="h-3 w-3 text-gray-500" />
+                                    </button>
+                                  )}
+                                </div>
+                                {booking.createdAt && (
+                                  <span className="text-[9px] text-gray-400 mt-1">
+                                    C: {formatDate(booking.createdAt)}
+                                  </span>
+                                )}
+                                {booking.updatedAt && booking.updatedAt !== booking.createdAt && (
+                                  <span className="text-[9px] text-gray-400">
+                                    M: {formatDate(booking.updatedAt)}
+                                  </span>
                                 )}
                               </div>
                             </TableCell>
