@@ -18,7 +18,8 @@ import {
   Bell,
   Menu,
   Clock,
-  X
+  X,
+  ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getUser, removeUser } from '@/lib/auth';
@@ -100,19 +101,27 @@ export default function Navbar() {
             {/* Desktop Navigation Tabs */}
             <div className="hidden lg:flex items-center space-x-1">
               {mainTabs.map((tab) => (
-                <button
-                  key={tab.path}
-                  onClick={() => router.push(tab.path)}
-                  className={cn(
-                    "px-4 py-2 rounded-full text-sm font-bold transition-all duration-200 flex items-center gap-2",
-                    isActive(tab.path)
-                      ? "bg-secondary text-white shadow-md shadow-secondary/20"
-                      : "text-gray-500 hover:bg-gray-100 hover:text-secondary"
-                  )}
-                >
-                  <tab.icon className={cn("h-4 w-4", isActive(tab.path) ? "text-primary" : "")} />
-                  {tab.name}
-                </button>
+                <div key={tab.path} className="flex items-center group/nav">
+                  <button
+                    onClick={() => router.push(tab.path)}
+                    className={cn(
+                      "px-4 py-2 rounded-full text-sm font-bold transition-all duration-200 flex items-center gap-2",
+                      isActive(tab.path)
+                        ? "bg-secondary text-white shadow-md shadow-secondary/20"
+                        : "text-gray-500 hover:bg-gray-100 hover:text-secondary"
+                    )}
+                  >
+                    <tab.icon className={cn("h-4 w-4", isActive(tab.path) ? "text-primary" : "")} />
+                    {tab.name}
+                  </button>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); window.open(tab.path, '_blank'); }}
+                    className="opacity-0 group-hover/nav:opacity-100 p-1.5 -ml-3 mr-1 bg-white rounded-full shadow-sm border border-gray-100 text-gray-400 hover:text-secondary hover:scale-110 transition-all z-10"
+                    title="Open in new tab"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </button>
+                </div>
               ))}
 
               {/* Apps Dropdown */}
@@ -136,20 +145,28 @@ export default function Navbar() {
                     onMouseLeave={() => setIsAppsDropdownOpen(false)}
                   >
                     {appItems.map((item) => (
-                      <button
-                        key={item.path}
-                        onClick={() => {
-                          router.push(item.path);
-                          setIsAppsDropdownOpen(false);
-                        }}
-                        className={cn(
-                          "w-full text-left px-4 py-2 text-sm font-bold flex items-center gap-3 transition-colors",
-                          pathname === item.path ? "text-primary bg-primary/5" : "text-gray-600 hover:bg-gray-50 hover:text-secondary"
-                        )}
-                      >
-                        <item.icon className="h-4 w-4" />
-                        {item.name}
-                      </button>
+                      <div key={item.path} className="flex items-center group/dropdown">
+                        <button
+                          onClick={() => {
+                            router.push(item.path);
+                            setIsAppsDropdownOpen(false);
+                          }}
+                          className={cn(
+                            "flex-1 text-left px-4 py-2 text-sm font-bold flex items-center gap-3 transition-colors",
+                            pathname === item.path ? "text-primary bg-primary/5" : "text-gray-600 hover:bg-gray-50 hover:text-secondary"
+                          )}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          {item.name}
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); window.open(item.path, '_blank'); setIsAppsDropdownOpen(false); }}
+                          className="opacity-0 group-hover/dropdown:opacity-100 p-1.5 mr-2 text-gray-400 hover:text-secondary hover:bg-gray-100 rounded-lg transition-all"
+                          title="Open in new tab"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -202,17 +219,25 @@ export default function Navbar() {
                     <div className="space-y-1">
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-2">Navigation</p>
                       {mainTabs.map((tab) => (
-                        <button
-                          key={tab.path}
-                          onClick={() => router.push(tab.path)}
-                          className={cn(
-                            "w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 font-bold transition-all",
-                            isActive(tab.path) ? "bg-primary/10 text-secondary" : "text-gray-600 hover:bg-gray-50"
-                          )}
-                        >
-                          <tab.icon className="h-5 w-5" />
-                          {tab.name}
-                        </button>
+                        <div key={tab.path} className="flex items-center group/mobile-nav">
+                          <button
+                            onClick={() => router.push(tab.path)}
+                            className={cn(
+                              "flex-1 text-left px-4 py-3 rounded-xl flex items-center gap-3 font-bold transition-all",
+                              isActive(tab.path) ? "bg-primary/10 text-secondary" : "text-gray-600 hover:bg-gray-50"
+                            )}
+                          >
+                            <tab.icon className="h-5 w-5" />
+                            {tab.name}
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); window.open(tab.path, '_blank'); }}
+                            className="p-3 text-gray-400 hover:text-secondary"
+                            title="Open in new tab"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </button>
+                        </div>
                       ))}
                     </div>
 
@@ -220,14 +245,22 @@ export default function Navbar() {
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-2">Quick Actions</p>
                       <div className="grid grid-cols-2 gap-2 px-2">
                         {appItems.map((item) => (
-                          <button
-                            key={item.path}
-                            onClick={() => router.push(item.path)}
-                            className="flex flex-col items-center justify-center p-3 rounded-2xl bg-gray-50 hover:bg-primary/5 transition-colors group"
-                          >
-                            <item.icon className="h-5 w-5 text-gray-400 group-hover:text-primary mb-2" />
-                            <span className="text-[10px] font-bold text-gray-600 text-center">{item.name}</span>
-                          </button>
+                          <div key={item.path} className="relative group/mobile-app">
+                            <button
+                              onClick={() => router.push(item.path)}
+                              className="w-full flex flex-col items-center justify-center p-3 rounded-2xl bg-gray-50 hover:bg-primary/5 transition-colors group"
+                            >
+                              <item.icon className="h-5 w-5 text-gray-400 group-hover:text-primary mb-2" />
+                              <span className="text-[10px] font-bold text-gray-600 text-center">{item.name}</span>
+                            </button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); window.open(item.path, '_blank'); }}
+                              className="absolute top-2 right-2 p-1.5 text-gray-300 hover:text-secondary opacity-0 group-hover/mobile-app:opacity-100 transition-opacity"
+                              title="Open in new tab"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                            </button>
+                          </div>
                         ))}
                       </div>
                     </div>
