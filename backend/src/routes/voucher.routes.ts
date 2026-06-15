@@ -121,7 +121,7 @@ router.get(
       whereMovement.voucher = { partyId: user.partyId };
     }
 
-    const [totalVouchers, todayMovements, tomorrowMovements] = await Promise.all([
+    const [totalVouchers, todayMovements, tomorrowMovements, dayAfterTomorrowMovements] = await Promise.all([
       prisma.voucher.count({ where: whereVoucher }),
       prisma.voucherMovement.count({
         where: {
@@ -141,12 +141,22 @@ router.get(
           },
         },
       }),
+      prisma.voucherMovement.count({
+        where: {
+          ...whereMovement,
+          date: {
+            gte: new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000),
+            lt: new Date(tomorrow.getTime() + 2 * 24 * 60 * 60 * 1000),
+          },
+        },
+      }),
     ]);
 
     res.json({
       totalVouchers,
       todayMovements,
       tomorrowMovements,
+      dayAfterTomorrowMovements,
     });
   })
 );
@@ -194,7 +204,13 @@ router.get(
         where,
         skip,
         take: limitNum,
-        include: { voucher: true },
+        include: { 
+          voucher: {
+            include: {
+              umrahCompany: true
+            }
+          } 
+        },
         orderBy: { date: 'asc' },
       }),
       prisma.voucherMovement.count({ where }),
@@ -231,6 +247,8 @@ router.get(
         guestName: movement.voucher.guestName,
         mobile: movement.voucher.guestMobile || '',
         pax: movement.voucher.paxCount,
+        qty: movement.voucher.paxCount,
+        umrahCompany: movement.voucher.umrahCompany?.partyName || '—',
         from: movement.from || '',
         fromLocation: movement.fromLocation || '',
         fromLocationId: movement.fromLocationId || null,
@@ -301,7 +319,13 @@ router.get(
         where,
         skip,
         take: limitNum,
-        include: { voucher: true },
+        include: { 
+          voucher: {
+            include: {
+              umrahCompany: true
+            }
+          } 
+        },
         orderBy: { date: 'asc' },
       }),
       prisma.voucherMovement.count({ where }),
@@ -338,6 +362,124 @@ router.get(
         guestName: movement.voucher.guestName,
         mobile: movement.voucher.guestMobile || '',
         pax: movement.voucher.paxCount,
+        qty: movement.voucher.paxCount,
+        umrahCompany: movement.voucher.umrahCompany?.partyName || '—',
+        from: movement.from || '',
+        fromLocation: movement.fromLocation || '',
+        fromLocationId: movement.fromLocationId || null,
+        to: movement.to || '',
+        toLocation: movement.toLocation || '',
+        toLocationId: movement.toLocationId || null,
+        driverDetails1: movement.driverDetails1 || '',
+        driverDetails2: movement.driverDetails2 || '',
+        vehicleNumber: movement.vehicleNumber || '',
+        partyEmail: '', // Vouchers are standalone, no booking connection
+        partyWhatsApp: '', // Vouchers are standalone, no booking connection
+      };
+    });
+
+    res.json({ 
+      movements,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      }
+    });
+  })
+);
+
+// Get day after tomorrow's movements
+router.get(
+  '/movements/after-tomorrow',
+  authenticate,
+  authorize('admin', 'staff', 'party'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = req.user!;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dayAfterTomorrow = new Date(today);
+    dayAfterTomorrow.setDate(today.getDate() + 2);
+    const threeDaysFromNow = new Date(today);
+    threeDaysFromNow.setDate(today.getDate() + 3);
+
+    const { from, to, page = '1', limit = '50', search = '' } = req.query;
+    const pageNum = parseInt(page as string, 10);
+    const limitNum = parseInt(limit as string, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const where: any = {
+        date: {
+          gte: dayAfterTomorrow,
+          lt: threeDaysFromNow,
+        },
+    };
+
+    if (user.role === 'party') {
+      where.voucher = { partyId: user.partyId };
+    }
+
+    if (from) where.from = from as string;
+    if (to) where.to = to as string;
+    if (search) {
+      where.OR = [
+        { route: { contains: search as string } },
+        { voucher: { guestName: { contains: search as string } } },
+        { voucher: { voucherNumber: { contains: search as string } } },
+      ];
+    }
+
+    const [movementsData, total] = await Promise.all([
+      prisma.voucherMovement.findMany({
+        where,
+        skip,
+        take: limitNum,
+        include: { 
+          voucher: {
+            include: {
+              umrahCompany: true
+            }
+          } 
+        },
+        orderBy: { date: 'asc' },
+      }),
+      prisma.voucherMovement.count({ where }),
+    ]);
+
+    // Get all movements for vouchers in the current page to calculate correct indices
+    const voucherIds = [...new Set(movementsData.map(m => m.voucherId))];
+    const allVoucherMovements = await prisma.voucherMovement.findMany({
+      where: { voucherId: { in: voucherIds } },
+      orderBy: { sr: 'asc' },
+    });
+
+    const movementsByVoucher = new Map<string, any[]>();
+    allVoucherMovements.forEach((movement) => {
+      if (!movementsByVoucher.has(movement.voucherId)) {
+        movementsByVoucher.set(movement.voucherId, []);
+      }
+      movementsByVoucher.get(movement.voucherId)!.push(movement);
+    });
+
+    const movements = movementsData.map((movement) => {
+      const voucherMovements = movementsByVoucher.get(movement.voucherId) || [];
+      const movementIndex = voucherMovements.findIndex((m) => m.id === movement.id);
+
+      return {
+        voucherId: movement.voucherId,
+        voucherNumber: movement.voucher.voucherNumber,
+        movementIndex,
+        movementId: movement.id,
+        routeNumber: movement.route || '',
+        date: movement.date.toISOString().split('T')[0],
+        time: movement.time || '',
+        agentName: movement.voucher.guestName || 'N/A',
+        guestName: movement.voucher.guestName,
+        mobile: movement.voucher.guestMobile || '',
+        pax: movement.voucher.paxCount,
+        qty: movement.voucher.paxCount,
+        umrahCompany: movement.voucher.umrahCompany?.partyName || '—',
         from: movement.from || '',
         fromLocation: movement.fromLocation || '',
         fromLocationId: movement.fromLocationId || null,
@@ -447,9 +589,19 @@ router.get(
 
     // Group by from/to combination and count
     const statsMap = new Map<string, number>();
+    let makkahMovements = 0;
+    let madinahMovements = 0;
+
     movementsData.forEach((movement) => {
       const key = `${movement.from}|||${movement.to}`;
       statsMap.set(key, (statsMap.get(key) || 0) + 1);
+      
+      const fromCity = (movement.from || '').toUpperCase();
+      if (fromCity.includes('MAKKAH')) {
+        makkahMovements++;
+      } else if (fromCity.includes('MADINAH')) {
+        madinahMovements++;
+      }
     });
 
     const stats = Array.from(statsMap.entries()).map(([key, count]) => {
@@ -460,6 +612,8 @@ router.get(
     res.json({
       stats,
       totalEntries: movementsData.length,
+      makkahMovements,
+      madinahMovements,
     });
   })
 );
@@ -504,9 +658,19 @@ router.get(
 
     // Group by from/to combination and count
     const statsMap = new Map<string, number>();
+    let makkahMovements = 0;
+    let madinahMovements = 0;
+
     movementsData.forEach((movement) => {
       const key = `${movement.from}|||${movement.to}`;
       statsMap.set(key, (statsMap.get(key) || 0) + 1);
+      
+      const fromCity = (movement.from || '').toUpperCase();
+      if (fromCity.includes('MAKKAH')) {
+        makkahMovements++;
+      } else if (fromCity.includes('MADINAH')) {
+        madinahMovements++;
+      }
     });
 
     const stats = Array.from(statsMap.entries()).map(([key, count]) => {
@@ -517,6 +681,78 @@ router.get(
     res.json({
       stats,
       totalEntries: movementsData.length,
+      makkahMovements,
+      madinahMovements,
+    });
+  })
+);
+
+// Get day after tomorrow's movement statistics
+router.get(
+  '/movements/stats/after-tomorrow',
+  authenticate,
+  authorize('admin', 'staff', 'party'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = req.user!;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dayAfterTomorrow = new Date(today);
+    dayAfterTomorrow.setDate(today.getDate() + 2);
+    const threeDaysFromNow = new Date(today);
+    threeDaysFromNow.setDate(today.getDate() + 3);
+
+    const where: any = {
+      date: {
+        gte: dayAfterTomorrow,
+        lt: threeDaysFromNow,
+      },
+      from: {
+        not: '',
+      },
+      to: {
+        not: '',
+      },
+    };
+
+    if (user.role === 'party') {
+      where.voucher = { partyId: user.partyId };
+    }
+
+    const movementsData = await prisma.voucherMovement.findMany({
+      where,
+      select: {
+        from: true,
+        to: true,
+      },
+    });
+
+    // Group by from/to combination and count
+    const statsMap = new Map<string, number>();
+    let makkahMovements = 0;
+    let madinahMovements = 0;
+
+    movementsData.forEach((movement) => {
+      const key = `${movement.from}|||${movement.to}`;
+      statsMap.set(key, (statsMap.get(key) || 0) + 1);
+      
+      const fromCity = (movement.from || '').toUpperCase();
+      if (fromCity.includes('MAKKAH')) {
+        makkahMovements++;
+      } else if (fromCity.includes('MADINAH')) {
+        madinahMovements++;
+      }
+    });
+
+    const stats = Array.from(statsMap.entries()).map(([key, count]) => {
+      const [from, to] = key.split('|||');
+      return { from, to, count };
+    });
+
+    res.json({
+      stats,
+      totalEntries: movementsData.length,
+      makkahMovements,
+      madinahMovements,
     });
   })
 );

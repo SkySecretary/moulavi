@@ -432,9 +432,16 @@ export const voucherAPI = {
     if (to) params.to = to;
     return api.get('/vouchers/movements/tomorrow', { params });
   },
+  getAfterTomorrowMovements: (from?: string, to?: string) => {
+    const params: any = {};
+    if (from) params.from = from;
+    if (to) params.to = to;
+    return api.get('/vouchers/movements/after-tomorrow', { params });
+  },
   getMovementFilterOptions: () => api.get('/vouchers/movements/filter-options'),
   getTodayMovementStats: () => api.get('/vouchers/movements/stats/today'),
   getTomorrowMovementStats: () => api.get('/vouchers/movements/stats/tomorrow'),
+  getAfterTomorrowMovementStats: () => api.get('/vouchers/movements/stats/after-tomorrow'),
   createQuickVoucher: (data: any) => api.post('/vouchers/quick', data),
   getVoucherById: (id: string) => api.get(`/vouchers/${id}`),
   updateVoucher: (id: string, data: any) => api.put(`/vouchers/${id}`, data),

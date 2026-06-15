@@ -49,7 +49,7 @@ export default function VoucherServicePage() {
   // Tab States
   const [activeMainTab, setActiveMainTab] = useState<'vouchers' | 'movements'>('vouchers');
   const [activeVoucherSubTab, setActiveVoucherSubTab] = useState<'all' | 'quick'>('all');
-  const [activeMovementSubTab, setActiveMovementSubTab] = useState<'today' | 'tomorrow'>('today');
+  const [activeMovementSubTab, setActiveMovementSubTab] = useState<'today' | 'tomorrow' | 'after-tomorrow'>('today');
   
   // Data States
   const [vouchers, setVouchers] = useState<any[]>([]);
@@ -66,6 +66,7 @@ export default function VoucherServicePage() {
   
   const [todayMovements, setTodayMovements] = useState<any[]>([]);
   const [tomorrowMovements, setTomorrowMovements] = useState<any[]>([]);
+  const [afterTomorrowMovements, setAfterTomorrowMovements] = useState<any[]>([]);
   const [loadingMovements, setLoadingMovements] = useState(false);
   const [movementPagination, setMovementPagination] = useState({
     page: 1,
@@ -78,6 +79,7 @@ export default function VoucherServicePage() {
   const [loadingStats, setLoadingStats] = useState(true);
   const [todayStats, setTodayStats] = useState<any>({});
   const [tomorrowStats, setTomorrowStats] = useState<any>({});
+  const [afterTomorrowStats, setAfterTomorrowStats] = useState<any>({});
   
   // Filter States
   const [showFilters, setShowFilters] = useState(false);
@@ -157,13 +159,37 @@ export default function VoucherServicePage() {
     }
   };
 
+  const loadAfterTomorrowMovements = async () => {
+    try {
+      setLoadingMovements(true);
+      const from = selectedFrom && selectedFrom !== 'all' ? selectedFrom : undefined;
+      const to = selectedTo && selectedTo !== 'all' ? selectedTo : undefined;
+      const response = await api.get('/vouchers/movements/after-tomorrow', {
+        params: { 
+          from, 
+          to, 
+          page: movementPagination.page, 
+          limit: movementPagination.limit,
+          search: movementSearch
+        }
+      });
+      setAfterTomorrowMovements(response.data.movements);
+      setMovementPagination(response.data.pagination);
+    } catch (error) {
+      console.error('Error loading after tomorrow movements:', error);
+    } finally {
+      setLoadingMovements(false);
+    }
+  };
+
   // Sync data with active tabs
   useEffect(() => {
     if (activeMainTab === 'vouchers' && activeVoucherSubTab === 'all') {
       loadVouchers();
     } else if (activeMainTab === 'movements') {
       if (activeMovementSubTab === 'today') loadTodayMovements();
-      else loadTomorrowMovements();
+      else if (activeMovementSubTab === 'tomorrow') loadTomorrowMovements();
+      else loadAfterTomorrowMovements();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeMainTab, activeVoucherSubTab, activeMovementSubTab, searchTerm, dateFrom, dateTo, pagination.page, movementPagination.page, movementSearch, selectedFrom, selectedTo]);
@@ -179,6 +205,9 @@ export default function VoucherServicePage() {
       
       const tomStats = await voucherAPI.getTomorrowMovementStats();
       setTomorrowStats(tomStats.data);
+
+      const afterTomStats = await voucherAPI.getAfterTomorrowMovementStats();
+      setAfterTomorrowStats(afterTomStats.data);
     } catch (error) {
       console.error('Error loading stats:', error);
     } finally {
@@ -322,8 +351,12 @@ export default function VoucherServicePage() {
     }
   };
 
-  const currentMovements = activeMovementSubTab === 'today' ? todayMovements : tomorrowMovements;
-  const currentMoveStats = activeMovementSubTab === 'today' ? todayStats : tomorrowStats;
+  const currentMovements = activeMovementSubTab === 'today' ? todayMovements : 
+                          activeMovementSubTab === 'tomorrow' ? tomorrowMovements : 
+                          afterTomorrowMovements;
+  const currentMoveStats = activeMovementSubTab === 'today' ? todayStats : 
+                           activeMovementSubTab === 'tomorrow' ? tomorrowStats : 
+                           afterTomorrowStats;
 
   if (!user || !hasRole(['admin', 'staff', 'party'])) return null;
 
@@ -336,7 +369,7 @@ export default function VoucherServicePage() {
             <h1 className="text-xl lg:text-2xl font-bold text-gray-900 tracking-tight">Voucher Management</h1>
             <p className="text-xs lg:text-sm text-gray-500 font-medium">Daily movements and transport voucher control</p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => { loadStats(); loadVouchers(); loadTodayMovements(); loadTomorrowMovements(); }} className="font-bold h-9">
+          <Button variant="outline" size="sm" onClick={() => { loadStats(); loadVouchers(); loadTodayMovements(); loadTomorrowMovements(); loadAfterTomorrowMovements(); }} className="font-bold h-9">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh Data
           </Button>
@@ -357,6 +390,10 @@ export default function VoucherServicePage() {
           <div className="flex-1 min-w-[180px] bg-white rounded-xl border p-3 flex items-center gap-3 shadow-sm">
             <div className="h-10 w-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600 flex-shrink-0"><TrendingUp className="h-5 w-5" /></div>
             <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tomorrow</p><p className="text-xl font-black text-gray-900">{loadingStats ? '...' : (stats.tomorrowMovements || 0)}</p></div>
+          </div>
+          <div className="flex-1 min-w-[180px] bg-white rounded-xl border p-3 flex items-center gap-3 shadow-sm">
+            <div className="h-10 w-10 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600 flex-shrink-0"><Calendar className="h-5 w-5" /></div>
+            <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Day After</p><p className="text-xl font-black text-gray-900">{loadingStats ? '...' : (stats.dayAfterTomorrowMovements || 0)}</p></div>
           </div>
         </div>
 
@@ -501,6 +538,7 @@ export default function VoucherServicePage() {
                 <TabsList className="bg-gray-100 border p-1 h-9 rounded-lg">
                   <TabsTrigger value="today" className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-8 h-7 rounded-md transition-all">Today</TabsTrigger>
                   <TabsTrigger value="tomorrow" className="data-[state=active]:bg-amber-500 data-[state=active]:text-white text-xs font-bold px-8 h-7 rounded-md transition-all">Tomorrow</TabsTrigger>
+                  <TabsTrigger value="after-tomorrow" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white text-xs font-bold px-8 h-7 rounded-md transition-all">Day After</TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-2">
                   <div className="relative w-full sm:w-64"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" /><Input placeholder="Filter movements..." value={movementSearch} onChange={(e) => setMovementSearch(e.target.value)} className="pl-9 h-9 rounded-lg" /></div>
@@ -522,10 +560,20 @@ export default function VoucherServicePage() {
                 <CardHeader className="bg-gray-50/50 border-b pb-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className={`h-10 w-10 rounded-lg ${activeMovementSubTab === 'today' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'} flex items-center justify-center font-bold`}>{currentMovements.length}</div>
+                      <div className={`h-10 w-10 rounded-lg ${
+                        activeMovementSubTab === 'today' ? 'bg-emerald-100 text-emerald-700' : 
+                        activeMovementSubTab === 'tomorrow' ? 'bg-amber-100 text-amber-700' : 
+                        'bg-purple-100 text-purple-700'
+                      } flex items-center justify-center font-bold`}>{currentMovements.length}</div>
                       <div>
-                        <CardTitle className="text-base font-bold text-secondary uppercase tracking-tight">{activeMovementSubTab.toUpperCase()} SCHEDULE</CardTitle>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Live movement logs for {activeMovementSubTab === 'today' ? 'current session' : 'next session'}</p>
+                        <CardTitle className="text-base font-bold text-secondary uppercase tracking-tight">{activeMovementSubTab === 'after-tomorrow' ? 'DAY AFTER TOMORROW' : activeMovementSubTab.toUpperCase()} SCHEDULE</CardTitle>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                          Live movement logs for {
+                            activeMovementSubTab === 'today' ? 'current session' : 
+                            activeMovementSubTab === 'tomorrow' ? 'next session' : 
+                            'upcoming session'
+                          }
+                        </p>
                       </div>
                     </div>
                     <div className="flex gap-4">
@@ -538,8 +586,9 @@ export default function VoucherServicePage() {
                   <Table>
                     <TableHeader className="bg-gray-50/30">
                       <TableRow className="border-b border-gray-100 hover:bg-transparent uppercase">
-                        <TableHead className="px-6 text-[10px] font-black text-gray-400 tracking-widest">Route</TableHead>
-                        <TableHead className="text-[10px] font-black text-gray-400 tracking-widest">Voucher</TableHead>
+                        <TableHead className="px-6 text-[10px] font-black text-gray-400 tracking-widest">Voucher</TableHead>
+                        <TableHead className="text-[10px] font-black text-gray-400 tracking-widest">Umrah Co.</TableHead>
+                        <TableHead className="text-[10px] font-black text-gray-400 tracking-widest text-center">Qty</TableHead>
                         <TableHead className="text-[10px] font-black text-gray-400 tracking-widest">Timeline</TableHead>
                         <TableHead className="text-[10px] font-black text-gray-400 tracking-widest">Guest Protocol</TableHead>
                         <TableHead className="text-[10px] font-black text-gray-400 tracking-widest">Location Matrix</TableHead>
@@ -555,8 +604,13 @@ export default function VoucherServicePage() {
                         const edited = editingMovements.get(mid) || m;
                         return (
                           <TableRow key={mid} className="hover:bg-gray-50/50 transition-colors border-gray-50">
-                            <TableCell className="px-6 font-black text-primary text-xs">{m.routeNumber}</TableCell>
-                            <TableCell className="font-mono text-[10px] font-bold text-secondary">{m.voucherNumber}</TableCell>
+                            <TableCell className="px-6">
+                              <span className="font-black text-secondary bg-secondary/10 px-2.5 py-1.5 rounded-xl text-base border border-secondary/20 shadow-sm inline-block min-w-[100px] text-center">
+                                {m.voucherNumber}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-[10px] font-bold text-gray-600 uppercase max-w-[120px] truncate">{m.umrahCompany}</TableCell>
+                            <TableCell className="text-center"><Badge variant="outline" className="font-black bg-blue-50 text-blue-700 border-blue-100">{m.qty || m.pax} PAX</Badge></TableCell>
                             <TableCell>
                               <div className="flex flex-col">
                                 <span className="font-bold text-gray-900 text-xs">{new Date(m.date).toLocaleDateString('en-GB', { timeZone: 'UTC', day: '2-digit', month: 'short' })}</span>
