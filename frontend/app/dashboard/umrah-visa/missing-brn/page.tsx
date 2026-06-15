@@ -24,6 +24,8 @@ import {
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
 import { umrahVisaAPI } from '@/lib/api';
+import { DatePicker } from '@/components/ui/date-picker';
+import { fromDisplayDate, toDisplayDate } from '@/lib/umrah/validation';
 
 export default function MissingBRNPage() {
   const router = useRouter();
@@ -34,6 +36,10 @@ export default function MissingBRNPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [sendingNotification, setSendingNotification] = useState<string | null>(null);
   const [savingBrn, setSavingBrn] = useState<string | null>(null);
+  
+  // Filters
+  const [arrivalDateFrom, setArrivalDateFrom] = useState('');
+  const [arrivalDateTo, setArrivalDateTo] = useState('');
   
   // Local state for inline BRN editing
   // Map of hotelBookingId -> BRN value
@@ -63,15 +69,17 @@ export default function MissingBRNPage() {
     } else {
       fetchHistory(historyPagination.page);
     }
-  }, [pagination.page, historyPagination.page, activeTab]);
+  }, [pagination.page, historyPagination.page, activeTab, arrivalDateFrom, arrivalDateTo]);
 
   const fetchBookings = async (page = 1) => {
     try {
       setIsLoading(true);
-      const params = {
+      const params: any = {
         page: page.toString(),
         limit: '50',
       };
+      if (arrivalDateFrom) params.arrivalDateFrom = arrivalDateFrom;
+      if (arrivalDateTo) params.arrivalDateTo = arrivalDateTo;
       
       const response = await umrahVisaAPI.getMissingBrnBookings(params);
       setBookings(response.data.bookings || []);
@@ -203,16 +211,43 @@ export default function MissingBRNPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v)} className="flex-1 flex flex-col">
-        <TabsList className="bg-white border w-fit mb-4">
-          <TabsTrigger value="missing" className="data-[state=active]:bg-amber-50 data-[state=active]:text-amber-700 font-bold px-6">
-            <AlertCircle className="h-4 w-4 mr-2" />
-            Missing BRNs
-          </TabsTrigger>
-          <TabsTrigger value="history" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 font-bold px-6">
-            <History className="h-4 w-4 mr-2" />
-            Update History
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <TabsList className="bg-white border w-fit">
+            <TabsTrigger value="missing" className="data-[state=active]:bg-amber-50 data-[state=active]:text-amber-700 font-bold px-6">
+              <AlertCircle className="h-4 w-4 mr-2" />
+              Missing BRNs
+            </TabsTrigger>
+            <TabsTrigger value="history" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 font-bold px-6">
+              <History className="h-4 w-4 mr-2" />
+              Update History
+            </TabsTrigger>
+          </TabsList>
+          
+          {activeTab === 'missing' && (
+            <div className="flex items-center gap-2 bg-white border p-1 rounded-lg shadow-sm">
+              <span className="text-xs font-bold text-gray-500 px-2 uppercase tracking-wider">Arrival Date:</span>
+              <div className="flex items-center gap-2">
+                <DatePicker 
+                  value={toDisplayDate(arrivalDateFrom)} 
+                  onChange={(v) => {
+                    setArrivalDateFrom(fromDisplayDate(v));
+                    setPagination(prev => ({ ...prev, page: 1 }));
+                  }} 
+                  className="w-32 h-8 text-xs" 
+                />
+                <span className="text-gray-400">to</span>
+                <DatePicker 
+                  value={toDisplayDate(arrivalDateTo)} 
+                  onChange={(v) => {
+                    setArrivalDateTo(fromDisplayDate(v));
+                    setPagination(prev => ({ ...prev, page: 1 }));
+                  }} 
+                  className="w-32 h-8 text-xs" 
+                />
+              </div>
+            </div>
+          )}
+        </div>
 
         <TabsContent value="missing" className="flex-1 flex flex-col m-0 data-[state=inactive]:hidden">
           <Card className="flex-1 flex flex-col border-0 shadow-sm rounded-2xl overflow-hidden bg-white">

@@ -196,18 +196,35 @@ router.get('/missing-brn', authenticate, authorize('admin', 'staff'), async (req
     const { 
       page = '1', 
       limit = '50', 
+      arrivalDateFrom,
+      arrivalDateTo
     } = req.query;
     const pageNum = parseInt(page as string) || 1;
     const limitNum = parseInt(limit as string) || 50;
     const skip = (pageNum - 1) * limitNum;
 
+    const where: any = {
+      visaType: 'group_visa',
+      accommodationType: 'hotel',
+      status: { not: 'cancelled' },
+    };
+
+    // Date Filters (Arrival Date)
+    if (arrivalDateFrom || arrivalDateTo) {
+      where.travelDetails = {
+        some: {
+          isAlternate: false,
+          arrivalDateTime: {
+            ...(arrivalDateFrom ? { gte: new Date(arrivalDateFrom as string) } : {}),
+            ...(arrivalDateTo ? { lte: new Date(arrivalDateTo as string) } : {}),
+          }
+        }
+      };
+    }
+
     // Fetch all active group_visa bookings with hotel accommodation
     const bookings = await prisma.umrahVisaBooking.findMany({
-      where: {
-        visaType: 'group_visa',
-        accommodationType: 'hotel',
-        status: { not: 'cancelled' },
-      },
+      where,
       include: {
         party: {
           select: {
@@ -284,7 +301,7 @@ router.patch('/hotels/:hotelBookingId/brn', authenticate, authorize('admin', 'st
       data: {
         hotelBookingId,
         bookingId: existingHotel.bookingId,
-        oldBrn: existingHotel.brn,
+        oldBrn: existingHotel.brn === null ? undefined : existingHotel.brn,
         newBrn: brn,
         updatedBy: user.id,
       }
@@ -334,7 +351,7 @@ router.get('/brn-update-history', authenticate, authorize('admin', 'staff'), asy
                 select: { name: true }
               },
               hotel: {
-                select: { locationName: true }
+                select: { name: true }
               },
               checkInDate: true,
             }
