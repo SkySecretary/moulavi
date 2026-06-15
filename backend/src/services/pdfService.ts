@@ -105,24 +105,32 @@ function getImageAsBase64(filePath: string | undefined): string | null {
   try {
     if (filePath.startsWith('http')) return filePath;
     
-    // Normalize path: if it contains 'uploads', ensure we use the relative version
-    // joined with the current process working directory. This fixes issues where
-    // absolute server paths were stored in the database.
-    let targetPath = filePath;
+    // List of possible base directories to search for the file
+    // 1. Current working directory (usually backend/)
+    // 2. One level up from cwd (root of project)
+    // 3. Absolute path if provided
+    const searchBases = [
+      process.cwd(),
+      path.join(process.cwd(), '..'),
+      '' // For absolute paths
+    ];
+
+    // Normalize: if it contains 'uploads', get the relative portion from 'uploads/...'
+    let cleanPath = filePath;
     if (filePath.includes('uploads')) {
-      const relativePath = filePath.replace(/.*[\/\\]uploads[\/\\]/, 'uploads/');
-      targetPath = path.join(process.cwd(), relativePath);
-    } else if (!path.isAbsolute(filePath)) {
-      targetPath = path.join(process.cwd(), filePath);
+      cleanPath = filePath.substring(filePath.indexOf('uploads'));
+    }
+
+    for (const base of searchBases) {
+      const targetPath = base ? path.join(base, cleanPath) : cleanPath;
+      if (fs.existsSync(targetPath) && !fs.lstatSync(targetPath).isDirectory()) {
+        const bitmap = fs.readFileSync(targetPath);
+        const extension = path.extname(targetPath).slice(1) || 'png';
+        return `data:image/${extension};base64,${bitmap.toString('base64')}`;
+      }
     }
     
-    if (fs.existsSync(targetPath)) {
-      const bitmap = fs.readFileSync(targetPath);
-      const extension = path.extname(targetPath).slice(1) || 'png';
-      return `data:image/${extension};base64,${bitmap.toString('base64')}`;
-    }
-    
-    console.warn(`[PDF-VOUCHER] Image file not found at path: ${targetPath} (original: ${filePath})`);
+    console.warn(`[PDF-VOUCHER] Image file not found: ${filePath}. Tried searching for: ${cleanPath} in ${searchBases.join(', ')}`);
     return null;
   } catch (error) {
     console.error('[PDF-VOUCHER] Error converting image to base64:', error);
