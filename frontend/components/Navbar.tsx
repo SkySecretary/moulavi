@@ -19,7 +19,8 @@ import {
   Menu,
   Clock,
   X,
-  ExternalLink
+  ExternalLink,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getUser, removeUser } from '@/lib/auth';
@@ -73,6 +74,7 @@ export default function Navbar() {
 
   const appItems = isAdminOrStaff ? [
     { name: 'Assign Group', path: '/dashboard/umrah-visa/assign-group', icon: Users },
+    { name: 'Missing BRN', path: '/dashboard/umrah-visa/missing-brn', icon: AlertCircle },
     { name: 'Vouchers (Umrah)', path: '/dashboard/umrah-visa/voucher', icon: Award },
     { name: 'Invoices', path: '/dashboard/umrah-visa/invoice', icon: FileText },
   ] : [

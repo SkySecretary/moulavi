@@ -190,6 +190,145 @@ router.get('/bookings', authenticate, async (req, res) => {
   }
 });
 
+// GET /api/umrah-visa/missing-brn - Get group hotel bookings with missing BRNs
+router.get('/missing-brn', authenticate, authorize('admin', 'staff'), async (req, res) => {
+  try {
+    const { 
+      page = '1', 
+      limit = '50', 
+    } = req.query;
+    const pageNum = parseInt(page as string) || 1;
+    const limitNum = parseInt(limit as string) || 50;
+    const skip = (pageNum - 1) * limitNum;
+
+    // Fetch all active group_visa bookings with hotel accommodation
+    const bookings = await prisma.umrahVisaBooking.findMany({
+      where: {
+        visaType: 'group_visa',
+        accommodationType: 'hotel',
+        status: { not: 'cancelled' },
+      },
+      include: {
+        party: {
+          select: {
+            partyName: true,
+            contactNumber: true,
+          },
+        },
+        travelDetails: {
+          where: { isAlternate: false },
+          orderBy: { arrivalDateTime: 'asc' },
+          take: 1
+        },
+        hotelBookings: {
+          where: { isAlternate: false },
+          include: { city: true }
+        }
+      },
+      orderBy: { travelDetails: { _count: 'desc' } }
+    });
+
+    // Filter in JS to find those with at least one hotel missing BRN
+    const missingBrnBookings = bookings.filter((booking: any) => {
+      if (!booking.hotelBookings || booking.hotelBookings.length === 0) return true; // Missing hotel entirely
+      return booking.hotelBookings.some((hotel: any) => {
+        return !hotel.brn || (Array.isArray(hotel.brn) && hotel.brn.length === 0) || (typeof hotel.brn === 'string' && hotel.brn.trim() === '');
+      });
+    });
+
+    // Sort by arrival date if possible, otherwise by ID
+    missingBrnBookings.sort((a: any, b: any) => {
+      const dateA = a.travelDetails?.[0]?.arrivalDateTime?.getTime() || 0;
+      const dateB = b.travelDetails?.[0]?.arrivalDateTime?.getTime() || 0;
+      return dateA - dateB;
+    });
+
+    const paginatedBookings = missingBrnBookings.slice(skip, skip + limitNum);
+
+    res.json({
+      bookings: paginatedBookings,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: missingBrnBookings.length,
+        totalPages: Math.ceil(missingBrnBookings.length / limitNum),
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching missing BRN bookings:', error);
+    res.status(500).json({ error: 'Failed to fetch missing BRN bookings' });
+  }
+});
+
+// PATCH /api/umrah-visa/hotels/:hotelBookingId/brn - Update BRN for a specific hotel booking
+router.patch('/hotels/:hotelBookingId/brn', authenticate, authorize('admin', 'staff'), async (req, res) => {
+  try {
+    const { hotelBookingId } = req.params;
+    const { brn } = req.body;
+
+    const updatedHotel = await prisma.umrahHotelBooking.update({
+      where: { id: hotelBookingId },
+      data: { brn },
+    });
+
+    res.json({ success: true, hotel: updatedHotel });
+  } catch (error) {
+    console.error('Error updating hotel BRN:', error);
+    res.status(500).json({ error: 'Failed to update hotel BRN' });
+  }
+});
+
+// POST /api/umrah-visa/:bookingId/notify-missing-brn - Send WhatsApp notification for missing BRN
+router.post('/:bookingId/notify-missing-brn', authenticate, authorize('admin', 'staff'), async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    
+    const booking = await prisma.umrahVisaBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        party: true,
+        travelDetails: { where: { isAlternate: false } }
+      }
+    });
+
+    if (!booking || !booking.party || !booking.party.contactNumber) {
+      return res.status(404).json({ error: 'Booking or Party contact not found' });
+    }
+
+    const { sendCustomWhatsApp } = await import('../services/whatsappService');
+
+    const agentName = booking.party.partyName;
+    const voucherNo = booking.groupNumber || booking.bookingReference || booking.id.slice(0, 8);
+    const arrivalDate = booking.travelDetails?.[0]?.arrivalDateTime 
+      ? booking.travelDetails[0].arrivalDateTime.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })
+      : 'the scheduled date';
+
+    const message = `Dear ${agentName},
+
+Greetings from Moulavi Travel.
+
+Your Voucher No. ${voucherNo} is scheduled for travel from Makkah to Madinah on ${arrivalDate}.
+
+We have not yet received your Madinah BRN. Please note that the transport company will not provide the bus service without a valid Madinah BRN.
+
+Without the Madinah BRN, you will not be permitted to enter or visit Madinah City.
+
+Kindly submit the Madinah BRN at least 5 days before the travel date to avoid any disruption to your transportation and travel arrangements.
+
+Your prompt cooperation is highly appreciated.
+
+Regards,
+Moulavi Travel`;
+
+    await sendCustomWhatsApp(booking.party.contactNumber, message);
+
+    res.json({ success: true, message: 'Notification sent successfully' });
+  } catch (error) {
+    console.error('Error sending missing BRN notification:', error);
+    res.status(500).json({ error: 'Failed to send notification' });
+  }
+});
+
 // GET /api/umrah-visa/stats - Get booking statistics
 router.get('/stats', authenticate, async (req, res) => {
   try {
