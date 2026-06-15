@@ -109,6 +109,10 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
   const handleQuickAddSuccess = async (newHotelId: string) => {
     if (activeBookingIndex !== null) {
       if (onHotelsRefresh) await onHotelsRefresh();
+      
+      // Clear the search for this index so the newly added hotel is not filtered out
+      setHotelSearch(prev => ({ ...prev, [activeBookingIndex]: '' }));
+      
       onUpdateBooking(activeBookingIndex, 'hotelId', newHotelId);
     }
   };

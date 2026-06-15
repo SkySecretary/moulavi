@@ -33,7 +33,7 @@ const updateLocationMasterValidation = [
 router.post(
   '/',
   authenticate,
-  authorize('admin', 'staff'),
+  authorize('admin', 'staff', 'party'),
   createLocationMasterValidation,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const errors = validationResult(req);
