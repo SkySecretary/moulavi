@@ -13,11 +13,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   RefreshCw,
   Send,
   Save,
-  AlertCircle
+  AlertCircle,
+  History
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
@@ -26,7 +28,9 @@ import { umrahVisaAPI } from '@/lib/api';
 export default function MissingBRNPage() {
   const router = useRouter();
   const user = getUser();
+  const [activeTab, setActiveTab] = useState<'missing' | 'history'>('missing');
   const [bookings, setBookings] = useState<any[]>([]);
+  const [historyLogs, setHistoryLogs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sendingNotification, setSendingNotification] = useState<string | null>(null);
   const [savingBrn, setSavingBrn] = useState<string | null>(null);
@@ -42,13 +46,24 @@ export default function MissingBRNPage() {
     totalPages: 0,
   });
 
+  const [historyPagination, setHistoryPagination] = useState({
+    page: 1,
+    limit: 50,
+    total: 0,
+    totalPages: 0,
+  });
+
   if (!user || !hasRole(['admin', 'staff'])) {
     return null;
   }
 
   useEffect(() => {
-    fetchBookings(pagination.page);
-  }, [pagination.page]);
+    if (activeTab === 'missing') {
+      fetchBookings(pagination.page);
+    } else {
+      fetchHistory(historyPagination.page);
+    }
+  }, [pagination.page, historyPagination.page, activeTab]);
 
   const fetchBookings = async (page = 1) => {
     try {
@@ -80,6 +95,25 @@ export default function MissingBRNPage() {
     } catch (error) {
       console.error('Error fetching missing BRN bookings:', error);
       toast.error('Failed to load missing BRN bookings');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchHistory = async (page = 1) => {
+    try {
+      setIsLoading(true);
+      const params = {
+        page: page.toString(),
+        limit: '50',
+      };
+      
+      const response = await umrahVisaAPI.getBrnUpdateHistory(params);
+      setHistoryLogs(response.data.history || []);
+      setHistoryPagination(response.data.pagination);
+    } catch (error) {
+      console.error('Error fetching BRN update history:', error);
+      toast.error('Failed to load history');
     } finally {
       setIsLoading(false);
     }
@@ -128,150 +162,260 @@ export default function MissingBRNPage() {
     }
   };
 
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString('en-GB', {
+        day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+    } catch {
+      return 'N/A';
+    }
+  };
+
+  const formatBrnDisplay = (brn: any) => {
+    if (!brn) return <span className="text-gray-400 italic">None</span>;
+    if (Array.isArray(brn)) return brn.length > 0 ? brn.join(', ') : <span className="text-gray-400 italic">None</span>;
+    if (typeof brn === 'string') return brn.trim() || <span className="text-gray-400 italic">None</span>;
+    return JSON.stringify(brn);
+  };
+
+  const currentPagination = activeTab === 'missing' ? pagination : historyPagination;
+  const setPage = (page: number) => {
+    if (activeTab === 'missing') setPagination(p => ({ ...p, page }));
+    else setHistoryPagination(p => ({ ...p, page }));
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full bg-gray-50/50 p-4 lg:p-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
             <AlertCircle className="h-6 w-6 text-amber-500" />
-            Missing BRN Tracking
+            BRN Tracking
           </h1>
-          <p className="text-sm text-gray-500 font-medium">Identify group hotel bookings missing BRN details and notify agents.</p>
+          <p className="text-sm text-gray-500 font-medium">Identify missing BRNs and track update history.</p>
         </div>
-        <Button onClick={() => fetchBookings(pagination.page)} variant="outline" className="font-bold">
+        <Button onClick={() => activeTab === 'missing' ? fetchBookings(pagination.page) : fetchHistory(historyPagination.page)} variant="outline" className="font-bold">
           <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
       </div>
 
-      <Card className="flex-1 flex flex-col border-0 shadow-sm rounded-2xl overflow-hidden bg-white">
-        <div className="flex-1 overflow-auto">
-          <Table>
-            <TableHeader className="bg-gray-50 sticky top-0 z-10 shadow-sm">
-              <TableRow className="border-b border-gray-100">
-                <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Voucher / Group</TableHead>
-                <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Agent</TableHead>
-                <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Arrival</TableHead>
-                <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px] min-w-[350px]">Hotels & BRNs</TableHead>
-                <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px] text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
-                    <div className="flex justify-center"><RefreshCw className="h-6 w-6 animate-spin text-gray-400" /></div>
-                  </TableCell>
-                </TableRow>
-              ) : bookings.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12">
-                    <p className="text-gray-500 font-medium">All group hotel bookings have BRNs assigned.</p>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                bookings.map((booking) => {
-                  const agentName = booking.party?.partyName || 'Unknown Agent';
-                  const voucherRef = booking.groupNumber || booking.bookingReference || booking.id.slice(0, 8);
-                  const arrivalDate = booking.travelDetails?.[0]?.arrivalDateTime ? formatDate(booking.travelDetails[0].arrivalDateTime) : 'N/A';
-                  
-                  return (
-                    <TableRow key={booking.id} className="hover:bg-gray-50/50">
-                      <TableCell className="font-bold text-secondary">
-                        {voucherRef} <br/>
-                        <span className="text-xs text-gray-400 font-medium">{booking.passengerCount} PAX</span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-bold text-gray-900">{agentName}</span>
-                          <span className="text-xs text-gray-500">{booking.party?.contactNumber || 'No phone'}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-medium text-gray-900">
-                        {arrivalDate}
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-3">
-                          {booking.hotelBookings?.map((hotel: any) => {
-                            const isMissing = !hotel.brn || (Array.isArray(hotel.brn) && hotel.brn.length === 0) || (typeof hotel.brn === 'string' && hotel.brn.trim() === '');
-                            return (
-                              <div key={hotel.id} className="flex flex-col gap-1.5 p-2 rounded-lg bg-gray-50 border border-gray-100">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-xs font-bold text-gray-700">
-                                    {hotel.city?.name || 'Unknown City'} - Check-in: {formatDate(hotel.checkInDate)}
-                                  </span>
-                                  {isMissing && <span className="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded">MISSING BRN</span>}
-                                </div>
-                                <div className="flex gap-2">
-                                  <Input 
-                                    size={1}
-                                    placeholder="Enter BRN (comma separated)"
-                                    value={brnInputs[hotel.id] || ''}
-                                    onChange={(e) => setBrnInputs(prev => ({ ...prev, [hotel.id]: e.target.value }))}
-                                    className={`h-8 text-xs ${isMissing ? 'border-amber-300 bg-amber-50/30 focus-visible:ring-amber-500' : ''}`}
-                                  />
-                                  <Button 
-                                    size="sm" 
-                                    variant="secondary"
-                                    onClick={() => handleUpdateBrn(hotel.id)}
-                                    disabled={savingBrn === hotel.id || brnInputs[hotel.id] === (Array.isArray(hotel.brn) ? hotel.brn.join(', ') : (hotel.brn || ''))}
-                                    className="h-8 shrink-0 font-bold"
-                                  >
-                                    {savingBrn === hotel.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                                  </Button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleSendNotification(booking.id)}
-                          disabled={sendingNotification === booking.id || (!booking.party?.contactNumber && !booking.party?.email)}
-                          className="font-bold text-primary border-primary/20 hover:bg-primary/5"
-                        >
-                          {sendingNotification === booking.id ? (
-                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                          ) : (
-                            <Send className="h-4 w-4 mr-2" />
-                          )}
-                          Send Reminder
-                        </Button>
+      <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v)} className="flex-1 flex flex-col">
+        <TabsList className="bg-white border w-fit mb-4">
+          <TabsTrigger value="missing" className="data-[state=active]:bg-amber-50 data-[state=active]:text-amber-700 font-bold px-6">
+            <AlertCircle className="h-4 w-4 mr-2" />
+            Missing BRNs
+          </TabsTrigger>
+          <TabsTrigger value="history" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 font-bold px-6">
+            <History className="h-4 w-4 mr-2" />
+            Update History
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="missing" className="flex-1 flex flex-col m-0 data-[state=inactive]:hidden">
+          <Card className="flex-1 flex flex-col border-0 shadow-sm rounded-2xl overflow-hidden bg-white">
+            <div className="flex-1 overflow-auto">
+              <Table>
+                <TableHeader className="bg-gray-50 sticky top-0 z-10 shadow-sm">
+                  <TableRow className="border-b border-gray-100">
+                    <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Voucher / Group</TableHead>
+                    <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Agent</TableHead>
+                    <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Arrival</TableHead>
+                    <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px] min-w-[350px]">Hotels & BRNs</TableHead>
+                    <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px] text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8">
+                        <div className="flex justify-center"><RefreshCw className="h-6 w-6 animate-spin text-gray-400" /></div>
                       </TableCell>
                     </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-        
-        {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between p-4 border-t bg-gray-50/50">
+                  ) : bookings.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-12">
+                        <p className="text-gray-500 font-medium">All group hotel bookings have BRNs assigned.</p>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    bookings.map((booking) => {
+                      const agentName = booking.party?.partyName || 'Unknown Agent';
+                      const voucherRef = booking.groupNumber || booking.bookingReference || booking.id.slice(0, 8);
+                      const arrivalDate = booking.travelDetails?.[0]?.arrivalDateTime ? formatDate(booking.travelDetails[0].arrivalDateTime) : 'N/A';
+                      
+                      return (
+                        <TableRow key={booking.id} className="hover:bg-gray-50/50">
+                          <TableCell className="font-bold text-secondary">
+                            {voucherRef} <br/>
+                            <span className="text-xs text-gray-400 font-medium">{booking.passengerCount} PAX</span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-bold text-gray-900">{agentName}</span>
+                              <span className="text-xs text-gray-500">{booking.party?.contactNumber || 'No phone'}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-medium text-gray-900">
+                            {arrivalDate}
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-3">
+                              {booking.hotelBookings?.map((hotel: any) => {
+                                const isMissing = !hotel.brn || (Array.isArray(hotel.brn) && hotel.brn.length === 0) || (typeof hotel.brn === 'string' && hotel.brn.trim() === '');
+                                return (
+                                  <div key={hotel.id} className="flex flex-col gap-1.5 p-2 rounded-lg bg-gray-50 border border-gray-100">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-xs font-bold text-gray-700">
+                                        {hotel.city?.name || 'Unknown City'} - Check-in: {formatDate(hotel.checkInDate)}
+                                      </span>
+                                      {isMissing && <span className="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded">MISSING BRN</span>}
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <Input 
+                                        size={1}
+                                        placeholder="Enter BRN (comma separated)"
+                                        value={brnInputs[hotel.id] || ''}
+                                        onChange={(e) => setBrnInputs(prev => ({ ...prev, [hotel.id]: e.target.value }))}
+                                        className={`h-8 text-xs ${isMissing ? 'border-amber-300 bg-amber-50/30 focus-visible:ring-amber-500' : ''}`}
+                                      />
+                                      <Button 
+                                        size="sm" 
+                                        variant="secondary"
+                                        onClick={() => handleUpdateBrn(hotel.id)}
+                                        disabled={savingBrn === hotel.id || brnInputs[hotel.id] === (Array.isArray(hotel.brn) ? hotel.brn.join(', ') : (hotel.brn || ''))}
+                                        className="h-8 shrink-0 font-bold"
+                                      >
+                                        {savingBrn === hotel.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleSendNotification(booking.id)}
+                              disabled={sendingNotification === booking.id || (!booking.party?.contactNumber && !booking.party?.email)}
+                              className="font-bold text-primary border-primary/20 hover:bg-primary/5"
+                            >
+                              {sendingNotification === booking.id ? (
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <Send className="h-4 w-4 mr-2" />
+                              )}
+                              Send Reminder
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="history" className="flex-1 flex flex-col m-0 data-[state=inactive]:hidden">
+          <Card className="flex-1 flex flex-col border-0 shadow-sm rounded-2xl overflow-hidden bg-white">
+            <div className="flex-1 overflow-auto">
+              <Table>
+                <TableHeader className="bg-gray-50 sticky top-0 z-10 shadow-sm">
+                  <TableRow className="border-b border-gray-100">
+                    <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Updated At</TableHead>
+                    <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Voucher / Agent</TableHead>
+                    <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Hotel</TableHead>
+                    <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Old BRN</TableHead>
+                    <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">New BRN</TableHead>
+                    <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Updated By</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8">
+                        <div className="flex justify-center"><RefreshCw className="h-6 w-6 animate-spin text-gray-400" /></div>
+                      </TableCell>
+                    </TableRow>
+                  ) : historyLogs.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-12">
+                        <p className="text-gray-500 font-medium">No BRN update history found.</p>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    historyLogs.map((log) => {
+                      const voucherRef = log.booking?.groupNumber || log.booking?.bookingReference || 'Unknown';
+                      const agentName = log.booking?.party?.partyName || 'Unknown Agent';
+                      
+                      return (
+                        <TableRow key={log.id} className="hover:bg-gray-50/50">
+                          <TableCell className="font-medium text-gray-900 whitespace-nowrap">
+                            {formatDateTime(log.updatedAt)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-bold text-secondary">{voucherRef}</span>
+                              <span className="text-xs text-gray-500">{agentName}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-bold text-gray-900">{log.hotelBooking?.city?.name}</span>
+                              <span className="text-xs text-gray-500">Check-in: {formatDate(log.hotelBooking?.checkInDate)}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-red-600 font-mono text-xs max-w-[150px] truncate" title={Array.isArray(log.oldBrn) ? log.oldBrn.join(', ') : log.oldBrn}>
+                            {formatBrnDisplay(log.oldBrn)}
+                          </TableCell>
+                          <TableCell className="text-emerald-600 font-mono text-xs font-bold max-w-[150px] truncate" title={Array.isArray(log.newBrn) ? log.newBrn.join(', ') : log.newBrn}>
+                            {formatBrnDisplay(log.newBrn)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-medium text-gray-900">{log.user?.name || 'System'}</span>
+                              <span className="text-[10px] text-gray-400">{log.user?.email}</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+        </TabsContent>
+
+        {currentPagination.totalPages > 1 && (
+          <div className="flex items-center justify-between p-4 border-t bg-gray-50/50 mt-4 rounded-xl shadow-sm">
             <div className="text-sm text-gray-500 font-medium">
-              Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} entries
+              Showing {((currentPagination.page - 1) * currentPagination.limit) + 1} to {Math.min(currentPagination.page * currentPagination.limit, currentPagination.total)} of {currentPagination.total} entries
             </div>
             <div className="flex items-center space-x-2">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
-                disabled={pagination.page === 1}
+                onClick={() => setPage(currentPagination.page - 1)}
+                disabled={currentPagination.page === 1}
                 className="font-bold"
               >
                 Previous
               </Button>
               <div className="flex items-center space-x-1">
-                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((pageNum) => (
+                {Array.from({ length: currentPagination.totalPages }, (_, i) => i + 1).map((pageNum) => (
                   <Button
                     key={pageNum}
-                    variant={pageNum === pagination.page ? "default" : "outline"}
+                    variant={pageNum === currentPagination.page ? "default" : "outline"}
                     size="sm"
-                    className={`w-8 h-8 p-0 font-bold ${pageNum === pagination.page ? 'bg-secondary' : ''}`}
-                    onClick={() => setPagination(prev => ({ ...prev, page: pageNum }))}
+                    className={`w-8 h-8 p-0 font-bold ${pageNum === currentPagination.page ? 'bg-secondary' : ''}`}
+                    onClick={() => setPage(pageNum)}
                   >
                     {pageNum}
                   </Button>
@@ -280,8 +424,8 @@ export default function MissingBRNPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-                disabled={pagination.page === pagination.totalPages}
+                onClick={() => setPage(currentPagination.page + 1)}
+                disabled={currentPagination.page === currentPagination.totalPages}
                 className="font-bold"
               >
                 Next
@@ -289,7 +433,7 @@ export default function MissingBRNPage() {
             </div>
           </div>
         )}
-      </Card>
+      </Tabs>
     </div>
   );
 }

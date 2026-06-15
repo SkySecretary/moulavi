@@ -25,6 +25,7 @@ model User {
   bookingsLastUpdated         UmrahVisaBooking[]     @relation("BookingLastUpdatedBy")
   bookingsDocumentsDownloaded UmrahVisaBooking[]     @relation("BookingDocumentsDownloadedBy")
   vouchersGenerated           Voucher[]              @relation("VoucherGeneratedBy")
+  brnUpdates                  BrnUpdateHistory[]
 
   @@index([email])
   @@index([role])
@@ -114,6 +115,7 @@ model UmrahVisaBooking {
   sponsorIqamaDetails       UmrahSponserIqamaDetails[]
   transportBookings         UmrahTransportBooking[]
   travelDetails             UmrahTravelDetails[]
+  brnUpdates                BrnUpdateHistory[]
   lastUpdatedByUser         User?                      @relation("BookingLastUpdatedBy", fields: [lastUpdatedBy], references: [id])
   documentsDownloadedByUser User?                      @relation("BookingDocumentsDownloadedBy", fields: [documentsDownloadedBy], references: [id])
   umrahVisaProvider         Party?                     @relation("UmrahVisaProvider", fields: [umrahVisaProviderId], references: [id])
@@ -449,6 +451,7 @@ model UmrahHotelBooking {
   booking      UmrahVisaBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   hotel        LocationMaster   @relation("HotelBookings", fields: [hotelId], references: [id])
   city         CityMaster       @relation("HotelBookingCities", fields: [cityId], references: [id])
+  brnUpdates   BrnUpdateHistory[]
 
   @@index([bookingId])
   @@index([isAlternate])
@@ -830,3 +833,22 @@ enum TripStatus {
   hosting
   completed
 }
+
+model BrnUpdateHistory {
+  id              String             @id @default(uuid())
+  hotelBookingId  String             @map("hotel_booking_id")
+  bookingId       String             @map("booking_id")
+  oldBrn          Json?              @map("old_brn")
+  newBrn          Json?              @map("new_brn")
+  updatedBy       String             @map("updated_by")
+  updatedAt       DateTime           @default(now()) @map("updated_at")
+
+  hotelBooking    UmrahHotelBooking  @relation(fields: [hotelBookingId], references: [id], onDelete: Cascade)
+  booking         UmrahVisaBooking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user            User               @relation(fields: [updatedBy], references: [id], onDelete: Cascade)
+
+  @@index([hotelBookingId])
+  @@index([bookingId])
+  @@map("brn_update_history")
+}
+

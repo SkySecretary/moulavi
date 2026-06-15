@@ -265,16 +265,103 @@ router.patch('/hotels/:hotelBookingId/brn', authenticate, authorize('admin', 'st
   try {
     const { hotelBookingId } = req.params;
     const { brn } = req.body;
+    const user = (req as any).user;
+
+    const existingHotel = await prisma.umrahHotelBooking.findUnique({
+      where: { id: hotelBookingId },
+    });
+
+    if (!existingHotel) {
+      return res.status(404).json({ error: 'Hotel booking not found' });
+    }
 
     const updatedHotel = await prisma.umrahHotelBooking.update({
       where: { id: hotelBookingId },
       data: { brn },
     });
 
+    await prisma.brnUpdateHistory.create({
+      data: {
+        hotelBookingId,
+        bookingId: existingHotel.bookingId,
+        oldBrn: existingHotel.brn,
+        newBrn: brn,
+        updatedBy: user.id,
+      }
+    });
+
     res.json({ success: true, hotel: updatedHotel });
   } catch (error) {
     console.error('Error updating hotel BRN:', error);
     res.status(500).json({ error: 'Failed to update hotel BRN' });
+  }
+});
+
+// GET /api/umrah-visa/brn-update-history - Get BRN update history
+router.get('/brn-update-history', authenticate, authorize('admin', 'staff'), async (req, res) => {
+  try {
+    const { 
+      page = '1', 
+      limit = '50', 
+    } = req.query;
+    const pageNum = parseInt(page as string) || 1;
+    const limitNum = parseInt(limit as string) || 50;
+    const skip = (pageNum - 1) * limitNum;
+
+    const [history, total] = await Promise.all([
+      prisma.brnUpdateHistory.findMany({
+        skip,
+        take: limitNum,
+        orderBy: { updatedAt: 'desc' },
+        include: {
+          booking: {
+            select: {
+              groupNumber: true,
+              bookingReference: true,
+              groupName: true,
+              passengerCount: true,
+              party: {
+                select: {
+                  partyName: true,
+                  contactNumber: true,
+                }
+              }
+            }
+          },
+          hotelBooking: {
+            select: {
+              city: {
+                select: { name: true }
+              },
+              hotel: {
+                select: { locationName: true }
+              },
+              checkInDate: true,
+            }
+          },
+          user: {
+            select: {
+              name: true,
+              email: true,
+            }
+          }
+        }
+      }),
+      prisma.brnUpdateHistory.count(),
+    ]);
+
+    res.json({
+      history,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching BRN update history:', error);
+    res.status(500).json({ error: 'Failed to fetch BRN update history' });
   }
 });
 

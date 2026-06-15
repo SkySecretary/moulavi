@@ -241,6 +241,9 @@ export const umrahVisaAPI = {
   updateHotelBrn: (hotelBookingId: string, brn: string | string[]) =>
     api.patch(`/umrah-visa/hotels/${hotelBookingId}/brn`, { brn }),
 
+  getBrnUpdateHistory: (params?: any) =>
+    api.get('/umrah-visa/brn-update-history', { params }),
+
   notifyMissingBrn: (bookingId: string) =>
     api.post(`/umrah-visa/${bookingId}/notify-missing-brn`),
 
