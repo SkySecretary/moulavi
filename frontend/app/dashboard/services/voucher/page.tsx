@@ -49,7 +49,7 @@ export default function VoucherServicePage() {
   // Tab States
   const [activeMainTab, setActiveMainTab] = useState<'vouchers' | 'movements'>('vouchers');
   const [activeVoucherSubTab, setActiveVoucherSubTab] = useState<'all' | 'quick'>('all');
-  const [activeMovementSubTab, setActiveMovementSubTab] = useState<'today' | 'tomorrow' | 'after-tomorrow'>('today');
+  const [activeMovementSubTab, setActiveMovementSubTab] = useState<'today' | 'tomorrow' | 'after-tomorrow' | 'specific-date'>('today');
   
   // Data States
   const [vouchers, setVouchers] = useState<any[]>([]);
@@ -67,6 +67,7 @@ export default function VoucherServicePage() {
   const [todayMovements, setTodayMovements] = useState<any[]>([]);
   const [tomorrowMovements, setTomorrowMovements] = useState<any[]>([]);
   const [afterTomorrowMovements, setAfterTomorrowMovements] = useState<any[]>([]);
+  const [specificDateMovements, setSpecificDateMovements] = useState<any[]>([]);
   const [loadingMovements, setLoadingMovements] = useState(false);
   const [movementPagination, setMovementPagination] = useState({
     page: 1,
@@ -80,6 +81,7 @@ export default function VoucherServicePage() {
   const [todayStats, setTodayStats] = useState<any>({});
   const [tomorrowStats, setTomorrowStats] = useState<any>({});
   const [afterTomorrowStats, setAfterTomorrowStats] = useState<any>({});
+  const [specificDateStats, setSpecificDateStats] = useState<any>({});
   
   // Filter States
   const [showFilters, setShowFilters] = useState(false);
@@ -88,6 +90,7 @@ export default function VoucherServicePage() {
   const [availableFromOptions, setAvailableFromOptions] = useState<string[]>([]);
   const [availableToOptions, setAvailableToOptions] = useState<string[]>([]);
   const [movementSearch, setMovementSearch] = useState('');
+  const [selectedMovementDate, setSelectedMovementDate] = useState<string>(new Date().toISOString().split('T')[0]);
   
   // Editing & Action States
   const [editingMovements, setEditingMovements] = useState<Map<string, any>>(new Map());
@@ -182,6 +185,25 @@ export default function VoucherServicePage() {
     }
   };
 
+  const loadSpecificDateMovements = async () => {
+    try {
+      if (!selectedMovementDate) return;
+      setLoadingMovements(true);
+      const from = selectedFrom && selectedFrom !== 'all' ? selectedFrom : undefined;
+      const to = selectedTo && selectedTo !== 'all' ? selectedTo : undefined;
+      const response = await voucherAPI.getMovementsByDate(selectedMovementDate, from, to);
+      setSpecificDateMovements(response.data.movements);
+      setMovementPagination(response.data.pagination);
+      
+      const sStats = await voucherAPI.getMovementStatsByDate(selectedMovementDate);
+      setSpecificDateStats(sStats.data);
+    } catch (error) {
+      console.error('Error loading specific date movements:', error);
+    } finally {
+      setLoadingMovements(false);
+    }
+  };
+
   // Sync data with active tabs
   useEffect(() => {
     if (activeMainTab === 'vouchers' && activeVoucherSubTab === 'all') {
@@ -189,10 +211,11 @@ export default function VoucherServicePage() {
     } else if (activeMainTab === 'movements') {
       if (activeMovementSubTab === 'today') loadTodayMovements();
       else if (activeMovementSubTab === 'tomorrow') loadTomorrowMovements();
-      else loadAfterTomorrowMovements();
+      else if (activeMovementSubTab === 'after-tomorrow') loadAfterTomorrowMovements();
+      else loadSpecificDateMovements();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeMainTab, activeVoucherSubTab, activeMovementSubTab, searchTerm, dateFrom, dateTo, pagination.page, movementPagination.page, movementSearch, selectedFrom, selectedTo]);
+  }, [activeMainTab, activeVoucherSubTab, activeMovementSubTab, searchTerm, dateFrom, dateTo, pagination.page, movementPagination.page, movementSearch, selectedFrom, selectedTo, selectedMovementDate]);
 
   const loadStats = async () => {
     try {
@@ -275,7 +298,9 @@ export default function VoucherServicePage() {
         return updated;
       });
       if (activeMovementSubTab === 'today') loadTodayMovements();
-      else loadTomorrowMovements();
+      else if (activeMovementSubTab === 'tomorrow') loadTomorrowMovements();
+      else if (activeMovementSubTab === 'after-tomorrow') loadAfterTomorrowMovements();
+      else loadSpecificDateMovements();
       loadStats();
     } catch (error: any) {
       toast.error('Failed to update movement');
@@ -353,10 +378,12 @@ export default function VoucherServicePage() {
 
   const currentMovements = activeMovementSubTab === 'today' ? todayMovements : 
                           activeMovementSubTab === 'tomorrow' ? tomorrowMovements : 
-                          afterTomorrowMovements;
+                          activeMovementSubTab === 'after-tomorrow' ? afterTomorrowMovements :
+                          specificDateMovements;
   const currentMoveStats = activeMovementSubTab === 'today' ? todayStats : 
                            activeMovementSubTab === 'tomorrow' ? tomorrowStats : 
-                           afterTomorrowStats;
+                           activeMovementSubTab === 'after-tomorrow' ? afterTomorrowStats :
+                           specificDateStats;
 
   if (!user || !hasRole(['admin', 'staff', 'party'])) return null;
 
@@ -369,7 +396,7 @@ export default function VoucherServicePage() {
             <h1 className="text-xl lg:text-2xl font-bold text-gray-900 tracking-tight">Voucher Management</h1>
             <p className="text-xs lg:text-sm text-gray-500 font-medium">Daily movements and transport voucher control</p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => { loadStats(); loadVouchers(); loadTodayMovements(); loadTomorrowMovements(); loadAfterTomorrowMovements(); }} className="font-bold h-9">
+          <Button variant="outline" size="sm" onClick={() => { loadStats(); loadVouchers(); loadTodayMovements(); loadTomorrowMovements(); loadAfterTomorrowMovements(); if (activeMovementSubTab === 'specific-date') loadSpecificDateMovements(); }} className="font-bold h-9">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh Data
           </Button>
@@ -539,8 +566,15 @@ export default function VoucherServicePage() {
                   <TabsTrigger value="today" className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-8 h-7 rounded-md transition-all">Today</TabsTrigger>
                   <TabsTrigger value="tomorrow" className="data-[state=active]:bg-amber-500 data-[state=active]:text-white text-xs font-bold px-8 h-7 rounded-md transition-all">Tomorrow</TabsTrigger>
                   <TabsTrigger value="after-tomorrow" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white text-xs font-bold px-8 h-7 rounded-md transition-all">Day After</TabsTrigger>
+                  <TabsTrigger value="specific-date" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white text-xs font-bold px-8 h-7 rounded-md transition-all">Pick Date</TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-2">
+                  {activeMovementSubTab === 'specific-date' && (
+                    <div className="flex items-center gap-2 mr-2 bg-blue-50/50 p-1 px-2 rounded-lg border border-blue-100">
+                      <Label className="text-[10px] font-bold text-blue-600 uppercase">Target:</Label>
+                      <DatePicker value={toDisplayDate(selectedMovementDate)} onChange={(v) => setSelectedMovementDate(fromDisplayDate(v))} className="h-7 w-32 text-xs" />
+                    </div>
+                  )}
                   <div className="relative w-full sm:w-64"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" /><Input placeholder="Filter movements..." value={movementSearch} onChange={(e) => setMovementSearch(e.target.value)} className="pl-9 h-9 rounded-lg" /></div>
                   <Button variant={showFilters ? "secondary" : "outline"} size="sm" onClick={() => setShowFilters(!showFilters)} className="h-9 font-bold rounded-lg"><Filter className="h-4 w-4 mr-2" /> Filter List</Button>
                 </div>
@@ -563,15 +597,21 @@ export default function VoucherServicePage() {
                       <div className={`h-10 w-10 rounded-lg ${
                         activeMovementSubTab === 'today' ? 'bg-emerald-100 text-emerald-700' : 
                         activeMovementSubTab === 'tomorrow' ? 'bg-amber-100 text-amber-700' : 
-                        'bg-purple-100 text-purple-700'
+                        activeMovementSubTab === 'after-tomorrow' ? 'bg-purple-100 text-purple-700' :
+                        'bg-blue-100 text-blue-700'
                       } flex items-center justify-center font-bold`}>{currentMovements.length}</div>
                       <div>
-                        <CardTitle className="text-base font-bold text-secondary uppercase tracking-tight">{activeMovementSubTab === 'after-tomorrow' ? 'DAY AFTER TOMORROW' : activeMovementSubTab.toUpperCase()} SCHEDULE</CardTitle>
+                        <CardTitle className="text-base font-bold text-secondary uppercase tracking-tight">
+                          {activeMovementSubTab === 'after-tomorrow' ? 'DAY AFTER TOMORROW' : 
+                           activeMovementSubTab === 'specific-date' ? `SCHEDULE FOR ${new Date(selectedMovementDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}` :
+                           activeMovementSubTab.toUpperCase()} SCHEDULE
+                        </CardTitle>
                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
                           Live movement logs for {
                             activeMovementSubTab === 'today' ? 'current session' : 
                             activeMovementSubTab === 'tomorrow' ? 'next session' : 
-                            'upcoming session'
+                            activeMovementSubTab === 'after-tomorrow' ? 'upcoming session' :
+                            'selected date'
                           }
                         </p>
                       </div>
