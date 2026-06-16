@@ -45,6 +45,11 @@ export const PartyLayout: React.FC<PartyLayoutProps> = ({
     if (currentUser && currentUser.role === 'party' && !currentUser.emailVerified) {
       router.push('/verify-email');
     }
+    
+    // Prevent inactive party users from accessing their dashboard
+    if (currentUser && currentUser.role === 'party' && currentUser.isActive === false) {
+      router.push('/party/inactive');
+    }
   }, [router]);
 
   const handleLogout = async () => {

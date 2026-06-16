@@ -51,7 +51,10 @@ router.post('/login', loginValidation, asyncHandler(async (req: AuthRequest, res
   
   // Check if user is active
   if (!user.isActive) {
-    return res.status(403).json({ error: 'Account is deactivated' });
+    if (user.role === 'admin' || user.role === 'staff') {
+      return res.status(403).json({ error: 'Account is deactivated' });
+    }
+    // For 'party' role, we allow login but handle the restricted state in the frontend
   }
   
   // Verify password

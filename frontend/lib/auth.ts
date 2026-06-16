@@ -5,6 +5,7 @@ export interface User {
   role: 'admin' | 'staff' | 'party';
   partyId?: string;
   emailVerified?: boolean;
+  isActive?: boolean;
 }
 
 export const getUser = (): User | null => {
