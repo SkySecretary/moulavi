@@ -14,7 +14,7 @@ const router = Router();
 router.get(
   '/daily-bookings',
   authenticate,
-  authorize('admin', 'staff'),
+  authorize('admin', 'staff', 'party'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const { date, arrivalAirportCode, departureAirportCode, umrahVisaProviderId, type = 'all' } = req.query;
 
@@ -32,6 +32,21 @@ router.get(
     startOfDay.setUTCHours(0, 0, 0, 0);
     const endOfDay = new Date(targetDate);
     endOfDay.setUTCHours(23, 59, 59, 999);
+
+    const user = (req as any).user;
+    let finalPartyId: string | undefined = undefined;
+
+    if (user && user.role === 'party') {
+      const userParty = await prisma.party.findUnique({
+        where: { userId: user.id },
+        select: { id: true }
+      });
+      if (userParty) {
+        finalPartyId = userParty.id;
+      } else {
+        return res.json({ success: true, data: { bookings: [], stats: { arrival: 0, departure: 0, movement: 0 } } });
+      }
+    }
 
     const orConditions: any[] = [];
 
@@ -79,10 +94,13 @@ router.get(
 
     const where: any = {
       isDeleted: false,
+      status: { not: 'cancelled' },
       OR: orConditions.length > 0 ? orConditions : undefined,
     };
 
-    if (umrahVisaProviderId) {
+    if (finalPartyId) {
+      where.partyId = finalPartyId;
+    } else if (umrahVisaProviderId) {
       where.umrahVisaProviderId = umrahVisaProviderId as string;
     }
 

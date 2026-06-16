@@ -191,7 +191,7 @@ router.get('/bookings', authenticate, async (req, res) => {
 });
 
 // GET /api/umrah-visa/missing-brn - Get group hotel bookings with missing BRNs
-router.get('/missing-brn', authenticate, authorize('admin', 'staff'), async (req, res) => {
+router.get('/missing-brn', authenticate, authorize('admin', 'staff', 'party'), async (req, res) => {
   try {
     const { 
       page = '1', 
@@ -203,11 +203,31 @@ router.get('/missing-brn', authenticate, authorize('admin', 'staff'), async (req
     const limitNum = parseInt(limit as string) || 50;
     const skip = (pageNum - 1) * limitNum;
 
+    // Get the authenticated user
+    const user = (req as any).user;
+
     const where: any = {
       visaType: 'group_visa',
       accommodationType: 'hotel',
       status: { not: 'cancelled' },
     };
+
+    // If user is a party, automatically filter by their partyId
+    if (user && user.role === 'party') {
+      const userParty = await prisma.party.findUnique({
+        where: { userId: user.id },
+        select: { id: true }
+      });
+      
+      if (userParty) {
+        where.partyId = userParty.id;
+      } else {
+        return res.json({
+          bookings: [],
+          pagination: { page: pageNum, limit: limitNum, total: 0, totalPages: 0 },
+        });
+      }
+    }
 
     // Date Filters (Arrival Date)
     if (arrivalDateFrom || arrivalDateTo) {
@@ -329,7 +349,7 @@ router.patch('/hotels/:hotelBookingId/brn', authenticate, authorize('admin', 'st
 });
 
 // GET /api/umrah-visa/brn-update-history - Get BRN update history
-router.get('/brn-update-history', authenticate, authorize('admin', 'staff'), async (req, res) => {
+router.get('/brn-update-history', authenticate, authorize('admin', 'staff', 'party'), async (req, res) => {
   try {
     const { 
       page = '1', 
@@ -339,8 +359,30 @@ router.get('/brn-update-history', authenticate, authorize('admin', 'staff'), asy
     const limitNum = parseInt(limit as string) || 50;
     const skip = (pageNum - 1) * limitNum;
 
+    // Get the authenticated user
+    const user = (req as any).user;
+    const where: any = {};
+
+    // If user is a party, automatically filter by their partyId
+    if (user && user.role === 'party') {
+      const userParty = await prisma.party.findUnique({
+        where: { userId: user.id },
+        select: { id: true }
+      });
+      
+      if (userParty) {
+        where.booking = { partyId: userParty.id };
+      } else {
+        return res.json({
+          history: [],
+          pagination: { page: pageNum, limit: limitNum, total: 0, totalPages: 0 },
+        });
+      }
+    }
+
     const [history, total] = await Promise.all([
       prisma.brnUpdateHistory.findMany({
+        where,
         skip,
         take: limitNum,
         orderBy: { updatedAt: 'desc' },
