@@ -64,6 +64,7 @@ model Party {
   documents                PartyDocument[]
   pricingMasters           PricingMaster[]
   umrahVisaBookings        UmrahVisaBooking[] @relation("UmrahVisaProvider")
+  transportCompanyBookings UmrahVisaBooking[] @relation("TransportCompanyBooking")
   bookings                 UmrahVisaBooking[] @relation("BookingParty")
   transportCompanyVouchers Voucher[]          @relation("TransportCompany")
   umrahCompanyVouchers     Voucher[]          @relation("UmrahCompany")
@@ -107,6 +108,7 @@ model UmrahVisaBooking {
   bookingReference          String?                    @unique @map("booking_reference")
   brn                       String?                    @map("brn")
   tripStatus                TripStatus                 @default(pending) @map("trip_status")
+  transportCompanyId        String?                    @map("transport_company_id")
   statusHistory             BookingStatusHistory[]
   documents                 Document[]
   hotelBookings             UmrahHotelBooking[]
@@ -119,6 +121,7 @@ model UmrahVisaBooking {
   lastUpdatedByUser         User?                      @relation("BookingLastUpdatedBy", fields: [lastUpdatedBy], references: [id])
   documentsDownloadedByUser User?                      @relation("BookingDocumentsDownloadedBy", fields: [documentsDownloadedBy], references: [id])
   umrahVisaProvider         Party?                     @relation("UmrahVisaProvider", fields: [umrahVisaProviderId], references: [id])
+  transportCompany          Party?                     @relation("TransportCompanyBooking", fields: [transportCompanyId], references: [id])
   party                     Party                      @relation("BookingParty", fields: [partyId], references: [id], onDelete: Cascade)
 
   @@index([partyId])

@@ -33,6 +33,7 @@ export default function EditUmrahVisaBookingPage() {
   const [groupName, setGroupName] = useState('');
   const [brn, setBrn] = useState('');
   const [umrahVisaProviderId, setUmrahVisaProviderId] = useState('');
+  const [transportCompanyId, setTransportCompanyId] = useState('');
   
   // Travel Details
   const [arrivalDate, setArrivalDate] = useState('');
@@ -79,6 +80,7 @@ export default function EditUmrahVisaBookingPage() {
   const [transportMasters, setTransportMasters] = useState<any[]>([]);
   const [vehicleTypes, setVehicleTypes] = useState<any[]>([]);
   const [umrahCompanies, setUmrahCompanies] = useState<any[]>([]);
+  const [transportCompanies, setTransportCompanies] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user || !hasRole(['admin', 'staff'])) {
@@ -100,6 +102,7 @@ export default function EditUmrahVisaBookingPage() {
       setGroupName(b.groupName || '');
       setBrn(b.brn || '');
       setUmrahVisaProviderId(b.umrahVisaProviderId || '');
+      setTransportCompanyId(b.transportCompanyId || '');
 
       const mainTravel = b.travelDetails?.find((t: any) => !t.isAlternate);
       if (mainTravel?.arrivalDateTime) {
@@ -230,12 +233,20 @@ export default function EditUmrahVisaBookingPage() {
       );
       setVehicleTypes(uniqueVehicleTypes);
 
-      const umrahCompaniesRes = await partyAPI.getAll({ 
-        is_supplier: 'true', 
-        supplier_service_type: 'umra_visa_service',
-        limit: '1000' 
-      });
+      const [umrahCompaniesRes, transportCompaniesRes] = await Promise.all([
+        partyAPI.getAll({ 
+          is_supplier: 'true', 
+          supplier_service_type: 'umrah_service',
+          limit: '1000' 
+        }),
+        partyAPI.getAll({ 
+          is_supplier: 'true', 
+          supplier_service_type: 'transport_service',
+          limit: '1000' 
+        })
+      ]);
       setUmrahCompanies(umrahCompaniesRes.data?.parties || umrahCompaniesRes.data || []);
+      setTransportCompanies(transportCompaniesRes.data?.parties || transportCompaniesRes.data || []);
     } catch (err) {
       console.error('Error loading master data:', err);
     }
@@ -255,7 +266,7 @@ export default function EditUmrahVisaBookingPage() {
 
       setSaving(true);
 
-      await umrahVisaAPI.updateGroupNumber(bookingId, groupNumber, groupName, brn, umrahVisaProviderId);
+      await umrahVisaAPI.updateGroupNumber(bookingId, groupNumber, groupName, brn, umrahVisaProviderId, transportCompanyId);
 
       await umrahVisaAPI.updateTravelDetails(bookingId, {
         arrivalDateTime: combineDateAndTime(arrivalDate, arrivalTime),
@@ -599,6 +610,19 @@ export default function EditUmrahVisaBookingPage() {
                       </SelectTrigger>
                       <SelectContent>
                         {umrahCompanies.map(c => (
+                          <SelectItem key={c.id} value={c.id}>{c.partyName}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Transport Company</p>
+                    <Select value={transportCompanyId} onValueChange={setTransportCompanyId}>
+                      <SelectTrigger className="font-bold">
+                        <SelectValue placeholder="Select Transport Company" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {transportCompanies.map(c => (
                           <SelectItem key={c.id} value={c.id}>{c.partyName}</SelectItem>
                         ))}
                       </SelectContent>

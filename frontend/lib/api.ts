@@ -197,8 +197,8 @@ export const umrahVisaAPI = {
   updateBookingStatus: (id: string, status: string, notes?: string) =>
     api.patch(`/umrah-visa/booking/${id}/status`, { status, notes }),
   
-  updateGroupNumber: (id: string, groupNumber: string, groupName: string, brn?: string, umrahVisaProviderId?: string) =>
-    api.patch(`/umrah-visa/booking/${id}/group-number`, { groupNumber, groupName, brn, umrahVisaProviderId }),
+  updateGroupNumber: (id: string, groupNumber: string, groupName: string, brn?: string, umrahVisaProviderId?: string, transportCompanyId?: string) =>
+    api.patch(`/umrah-visa/booking/${id}/group-number`, { groupNumber, groupName, brn, umrahVisaProviderId, transportCompanyId }),
   
   deleteBooking: (id: string) => api.delete(`/umrah-visa/booking/${id}`),
   

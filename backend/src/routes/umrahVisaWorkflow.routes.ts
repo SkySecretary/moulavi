@@ -2129,11 +2129,11 @@ router.delete('/movement-details/:id', authenticate, async (req, res) => {
   }
 });
 
-// PATCH /api/umrah-visa/booking/:id/group-number - Update group number, name and BRN
+// PATCH /api/umrah-visa/booking/:id/group-number - Update group number, name, BRN, and companies
 router.patch('/booking/:id/group-number', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
-    const { groupNumber, groupName, brn, umrahVisaProviderId } = req.body;
+    const { groupNumber, groupName, brn, umrahVisaProviderId, transportCompanyId } = req.body;
     const user = (req as any).user;
 
     const booking = await prisma.umrahVisaBooking.update({
@@ -2143,6 +2143,7 @@ router.patch('/booking/:id/group-number', authenticate, async (req, res) => {
         groupName,
         brn,
         umrahVisaProviderId: umrahVisaProviderId || undefined,
+        transportCompanyId: transportCompanyId || undefined,
         lastUpdatedBy: user.id,
       },
     });
