@@ -14,7 +14,9 @@ import {
   Users,
   Settings,
   Menu,
-  X
+  X,
+  Clock,
+  AlertCircle
 } from 'lucide-react';
 
 interface PartyLayoutProps {
@@ -86,6 +88,22 @@ export const PartyLayout: React.FC<PartyLayoutProps> = ({
   ];
 
   const umrahVisaItems = [
+    {
+      id: 'tafweej',
+      label: 'Tafweej',
+      description: 'Daily operational overview',
+      icon: Clock,
+      href: '/party/tafweej',
+      isActive: pathname === '/party/tafweej',
+    },
+    {
+      id: 'missing-brn',
+      label: 'Missing BRN',
+      description: 'Track missing hotel BRNs',
+      icon: AlertCircle,
+      href: '/party/missing-brn',
+      isActive: pathname === '/party/missing-brn',
+    },
     {
       id: 'individual',
       label: 'Individual Umrah Visa',
