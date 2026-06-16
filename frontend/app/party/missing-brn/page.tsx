@@ -64,30 +64,53 @@ export default function PartyMissingBRNPage() {
       
       const response = await umrahVisaAPI.getMissingBrnBookings(params);
       
-      // Filter for party's own bookings on client side as an extra safeguard if API doesn't handle it strictly
       const partyBookings = response.data.bookings || [];
-      
       setBookings(partyBookings);
       setPagination(response.data.pagination);
 
-      // Initialize local BRN state
-      const initialBrnState: Record<string, string> = {};
-      partyBookings.forEach((booking: any) => {
-        booking.hotelBookings?.forEach((hotel: any) => {
-          let currentBrn = '';
-          if (Array.isArray(hotel.brn)) {
-            currentBrn = hotel.brn.join(', ');
-          } else if (hotel.brn) {
-            currentBrn = hotel.brn;
-          }
-          initialBrnState[hotel.id] = currentBrn;
+      // Initialize local BRN state ONLY if it's empty to prevent re-triggering loops
+      setBrnInputs(prev => {
+        const newState = { ...prev };
+        partyBookings.forEach((booking: any) => {
+          booking.hotelBookings?.forEach((hotel: any) => {
+            if (!(hotel.id in newState)) {
+              let currentBrn = '';
+              if (Array.isArray(hotel.brn)) {
+                currentBrn = hotel.brn.join(', ');
+              } else if (hotel.brn) {
+                currentBrn = hotel.brn;
+              }
+              newState[hotel.id] = currentBrn;
+            }
+          });
         });
+        return newState;
       });
-      setBrnInputs(initialBrnState);
 
     } catch (error) {
       console.error('Error fetching missing BRN bookings:', error);
       toast.error('Failed to load missing BRN bookings');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [arrivalDateFrom, arrivalDateTo]);
+
+  // Separate function just to refresh the list without touching brnInputs if possible, or handling it carefully
+  const refreshBookingsOnly = useCallback(async (page = 1) => {
+    try {
+      setIsLoading(true);
+      const params: any = {
+        page: page.toString(),
+        limit: '50',
+      };
+      if (arrivalDateFrom) params.arrivalDateFrom = arrivalDateFrom;
+      if (arrivalDateTo) params.arrivalDateTo = arrivalDateTo;
+      
+      const response = await umrahVisaAPI.getMissingBrnBookings(params);
+      setBookings(response.data.bookings || []);
+      setPagination(response.data.pagination);
+    } catch (error) {
+       console.error('Error refreshing bookings:', error);
     } finally {
       setIsLoading(false);
     }
@@ -102,8 +125,7 @@ export default function PartyMissingBRNPage() {
       await umrahVisaAPI.updateHotelBrn(hotelBookingId, brnArray);
       toast.success('BRN updated successfully');
       
-      // Refreshing the list keeps it accurate.
-      await fetchBookings(pagination.page);
+      await refreshBookingsOnly(pagination.page);
     } catch (error) {
       console.error('Error updating BRN:', error);
       toast.error('Failed to update BRN');
@@ -121,10 +143,7 @@ export default function PartyMissingBRNPage() {
       };
       
       const response = await umrahVisaAPI.getBrnUpdateHistory(params);
-      
-      const partyLogs = response.data.history || [];
-      
-      setHistoryLogs(partyLogs);
+      setHistoryLogs(response.data.history || []);
       setHistoryPagination(response.data.pagination);
     } catch (error) {
       console.error('Error fetching BRN update history:', error);
@@ -135,16 +154,16 @@ export default function PartyMissingBRNPage() {
   }, []);
 
   useEffect(() => {
-    if (!user || !hasRole(['party'])) {
-      return;
-    }
+    if (!user || !hasRole(['party'])) return;
     
     if (activeTab === 'missing') {
       fetchBookings(pagination.page);
     } else {
       fetchHistory(historyPagination.page);
     }
-  }, [pagination.page, historyPagination.page, activeTab, fetchBookings, fetchHistory, user]);
+    // Only fetch when tab or page changes, or dates change.
+    // fetchBookings and fetchHistory are stable via useCallback.
+  }, [pagination.page, historyPagination.page, activeTab, arrivalDateFrom, arrivalDateTo, fetchBookings, fetchHistory, user?.id]);
 
   if (!user || !hasRole(['party'])) {
     return null;
