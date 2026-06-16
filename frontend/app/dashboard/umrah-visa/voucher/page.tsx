@@ -118,7 +118,7 @@ export default function VoucherPage() {
             <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Book Voucher</h1>
             <p className="text-xs lg:text-sm text-gray-500 mt-0.5">Generate transport vouchers for bookings</p>
           </div>
-          <Button onClick={fetchBookings} variant="outline" className="flex items-center gap-2">
+          <Button onClick={() => fetchBookings()} variant="outline" className="flex items-center gap-2">
             <RefreshCw className="h-4 w-4" />
             <span className="hidden sm:inline">Refresh</span>
           </Button>

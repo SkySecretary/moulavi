@@ -236,7 +236,7 @@ export default function UmrahVisaPage() {
                 Add to Existing
               </Button>
               <div className="w-px h-6 bg-gray-200 mx-1 hidden sm:block" />
-              <Button onClick={fetchBookings} variant="outline" size="sm" className="flex items-center gap-2 font-bold">
+              <Button onClick={() => fetchBookings()} variant="outline" size="sm" className="flex items-center gap-2 font-bold">
                 <RefreshCw className="h-4 w-4" />
                 <span className="hidden sm:inline">Refresh</span>
               </Button>

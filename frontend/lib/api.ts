@@ -253,6 +253,9 @@ export const umrahVisaAPI = {
   getAvailableActions: (bookingId: string) =>
     api.get(`/umrah-visa/${bookingId}/available-actions`),
 
+  getPendingBrnLoad: (accommodationType: 'hotel' | 'iqama') =>
+    api.get('/umrah-visa/stats/pending-brn-load', { params: { accommodationType } }),
+
   updateTravelDetails: (id: string, data: any) => api.patch(`/umrah-visa/${id}/travel-details`, data),
 
   updateTripStatus: (id: string, tripStatus: string) => api.patch(`/umrah-visa/${id}/trip-status`, { tripStatus }),
@@ -461,6 +464,7 @@ export const voucherAPI = {
   getTomorrowMovementStats: () => api.get('/vouchers/movements/stats/tomorrow'),
   getAfterTomorrowMovementStats: () => api.get('/vouchers/movements/stats/after-tomorrow'),
   getMovementStatsByDate: (date: string) => api.get('/vouchers/movements/stats/by-date', { params: { date } }),
+
   createQuickVoucher: (data: any) => api.post('/vouchers/quick', data),
   getVoucherById: (id: string) => api.get(`/vouchers/${id}`),
   updateVoucher: (id: string, data: any) => api.put(`/vouchers/${id}`, data),

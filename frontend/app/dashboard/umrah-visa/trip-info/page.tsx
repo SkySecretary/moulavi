@@ -19,6 +19,7 @@ import {
   Users,
   RefreshCw,
   Copy,
+  AlertCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
@@ -52,6 +53,9 @@ export default function TripInfoPage() {
     madinahBrn: string;
   }>>({});
 
+  const [pendingBrnLoad, setPendingBrnLoad] = useState<Array<{ date: string; count: number }>>([]);
+  const [isLoadingLoad, setIsLoadingLoad] = useState(false);
+
   // ...
 
   useEffect(() => {
@@ -60,7 +64,20 @@ export default function TripInfoPage() {
       return;
     }
     fetchBookings(pagination.page);
+    fetchPendingLoad();
   }, [pagination.page, searchQuery, arrivalDateFrom, arrivalDateTo, activeTab, iqamaSubTab, hotelSubTab]);
+
+  const fetchPendingLoad = async () => {
+    try {
+      setIsLoadingLoad(true);
+      const response = await umrahVisaAPI.getPendingBrnLoad(activeTab);
+      setPendingBrnLoad(response.data.stats || []);
+    } catch (error) {
+      console.error('Error fetching pending load:', error);
+    } finally {
+      setIsLoadingLoad(false);
+    }
+  };
 
   const fetchBookings = async (page = 1) => {
   try {
@@ -392,7 +409,8 @@ export default function TripInfoPage() {
               <Button
                 size="sm"
                 onClick={() => handleUpdateTripStatus(booking.id!, 'hosting')}
-                className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700"
+                disabled={!booking.makkahBrn && !booking.madinahBrn}
+                className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:bg-gray-400"
               >
                 Start Hosting
               </Button>
@@ -423,7 +441,8 @@ export default function TripInfoPage() {
               <Button
                 size="sm"
                 onClick={() => handleMarkReadyForVoucher(booking)}
-                className="flex items-center gap-1 whitespace-nowrap bg-green-600 hover:bg-green-700 text-white font-bold"
+                disabled={!(booking.hotelBookings?.some((h: any) => h.brn && (Array.isArray(h.brn) ? h.brn.length > 0 : String(h.brn).trim() !== '')))}
+                className="flex items-center gap-1 whitespace-nowrap bg-green-600 hover:bg-green-700 text-white font-bold disabled:opacity-50 disabled:bg-gray-400"
               >
                 Done
               </Button>
@@ -461,7 +480,7 @@ export default function TripInfoPage() {
             </p>
           </div>
           <Button 
-            onClick={fetchBookings}
+            onClick={() => fetchBookings()}
             variant="outline"
             className="flex items-center gap-2"
           >
@@ -482,24 +501,35 @@ export default function TripInfoPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Stats Card for Iqama Tab */}
-              {activeTab === 'iqama' && (
-                <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200">
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-3 bg-purple-100 rounded-lg">
-                          <Users className="h-6 w-6 text-purple-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-600">Total Passengers (BEDS)</p>
-                          <p className="text-2xl font-bold text-gray-900">{pagination.totalPassengers || 0}</p>
-                        </div>
+              {/* Stats Card / Date-wise Pending Load */}
+              <div className="space-y-4">
+                <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold text-amber-800 uppercase tracking-wider flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4" />
+                      Pending BRN Load Summary
+                    </CardTitle>
+                    <CardDescription className="text-[10px] text-amber-600 font-medium"> Total mutammers in bookings without any hotel BRN saved (by arrival date)</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {isLoadingLoad ? (
+                      <div className="flex justify-center py-4"><RefreshCw className="h-5 w-5 animate-spin text-amber-400" /></div>
+                    ) : pendingBrnLoad.length === 0 ? (
+                      <p className="text-xs text-gray-500 font-medium italic">No pending load found for this category.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-3">
+                        {pendingBrnLoad.map((item) => (
+                          <div key={item.date} className="flex flex-col items-center bg-white border border-amber-100 rounded-xl p-3 shadow-sm min-w-[100px]">
+                            <span className="text-[10px] font-black text-amber-600 uppercase tracking-tighter mb-1">{new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+                            <span className="text-xl font-black text-secondary">{item.count}</span>
+                            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mt-1">Pilgrims</span>
+                          </div>
+                        ))}
                       </div>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
-              )}
+              </div>
 
               {/* Tabs for Accommodation Type */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-1 gap-4">
@@ -599,6 +629,7 @@ export default function TripInfoPage() {
                     <TableRow>
                       <TableHead className="w-[130px]">Visa Type</TableHead>
                       <TableHead className="w-[120px]">Booking Ref</TableHead>
+                      <TableHead className="w-[100px] text-center font-black">Qty</TableHead>
                       <TableHead className="w-[200px]">{activeTab === 'hotel' ? 'Party Code/Name' : 'Group Details'}</TableHead>
                       <TableHead className="w-[180px]">Arrival Details</TableHead>
                       <TableHead className="w-[180px]">Departure Details</TableHead>
@@ -672,6 +703,14 @@ export default function TripInfoPage() {
                                 )}
                               </div>
                             </TableCell>
+
+                            {/* Qty Cell */}
+                            <TableCell className="text-center">
+                              <Badge variant="outline" className="font-black bg-blue-50 text-blue-700 border-blue-100">
+                                {booking.passengerCount} PAX
+                              </Badge>
+                            </TableCell>
+
                             {/* Group Details / Party Code Name */}
                             <TableCell>
                               {activeTab === 'hotel' ? (

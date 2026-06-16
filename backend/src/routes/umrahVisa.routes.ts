@@ -245,9 +245,23 @@ router.get('/missing-brn', authenticate, authorize('admin', 'staff'), async (req
       orderBy: { travelDetails: { _count: 'desc' } }
     });
 
-    // Filter in JS to find those with at least one hotel missing BRN
+    // Filter in JS to find those with missing BRN
     const missingBrnBookings = bookings.filter((booking: any) => {
-      if (!booking.hotelBookings || booking.hotelBookings.length === 0) return true; // Missing hotel entirely
+      // 1. If it has NO hotel bookings at all, it's missing.
+      if (!booking.hotelBookings || booking.hotelBookings.length === 0) return true;
+
+      // 2. Count how many hotels have a filled BRN
+      const hotelsWithBrn = booking.hotelBookings.filter((hotel: any) => {
+        return hotel.brn && (Array.isArray(hotel.brn) ? hotel.brn.length > 0 : String(hotel.brn).trim() !== '');
+      });
+
+      // 3. For Group Visas, we expect at least 2 hotels (Makkah & Madinah)
+      // It stays in the list if it has less than 2 hotels filled with BRN
+      if (booking.visaType === 'group_visa') {
+        return hotelsWithBrn.length < 2;
+      }
+
+      // 4. Fallback for others: stays if any hotel is missing BRN
       return booking.hotelBookings.some((hotel: any) => {
         return !hotel.brn || (Array.isArray(hotel.brn) && hotel.brn.length === 0) || (typeof hotel.brn === 'string' && hotel.brn.trim() === '');
       });
@@ -460,6 +474,76 @@ Moulavi Travel`;
   } catch (error) {
     console.error('Error sending missing BRN notification:', error);
     res.status(500).json({ error: 'Failed to send notification' });
+  }
+});
+
+// GET /api/umrah-visa/stats/pending-brn-load - Get date-wise mutammer count for bookings without BRN
+router.get('/stats/pending-brn-load', authenticate, authorize('admin', 'staff'), async (req, res) => {
+  try {
+    const { accommodationType = 'hotel' } = req.query;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const bookings = await prisma.umrahVisaBooking.findMany({
+      where: {
+        accommodationType: accommodationType as any,
+        status: { not: 'cancelled' },
+        tripStatus: 'pending',
+      },
+      include: {
+        travelDetails: {
+          where: { 
+            isAlternate: false,
+            arrivalDateTime: { gte: today }
+          },
+          orderBy: { arrivalDateTime: 'asc' },
+          take: 1
+        },
+        hotelBookings: {
+          where: { isAlternate: false }
+        },
+        sponsorIqamaDetails: {
+          where: { isAlternate: false }
+        }
+      }
+    });
+
+    const pendingLoadMap = new Map<string, number>();
+
+    bookings.forEach((booking: any) => {
+      const arrivalDate = booking.travelDetails?.[0]?.arrivalDateTime;
+      if (!arrivalDate) return;
+
+      const dateKey = arrivalDate.toISOString().split('T')[0];
+
+      let hasAtLeastOneBrn = false;
+      if (booking.accommodationType === 'hotel') {
+        hasAtLeastOneBrn = booking.hotelBookings.some((h: any) => {
+          return h.brn && (Array.isArray(h.brn) ? h.brn.length > 0 : String(h.brn).trim() !== '');
+        });
+      } else if (booking.accommodationType === 'iqama') {
+        const iqama = booking.sponsorIqamaDetails?.[0];
+        if (iqama) {
+          hasAtLeastOneBrn = (iqama.makkahBrn && String(iqama.makkahBrn).trim() !== '') || 
+                           (iqama.madinahBrn && String(iqama.madinahBrn).trim() !== '');
+        }
+      }
+
+      // Only count if it has NO BRNs at all
+      if (!hasAtLeastOneBrn) {
+        pendingLoadMap.set(dateKey, (pendingLoadMap.get(dateKey) || 0) + booking.passengerCount);
+      }
+    });
+
+    const stats = Array.from(pendingLoadMap.entries())
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    res.json({ stats });
+  } catch (error) {
+    console.error('Error fetching pending BRN load:', error);
+    res.status(500).json({ error: 'Failed to fetch pending BRN load' });
   }
 });
 

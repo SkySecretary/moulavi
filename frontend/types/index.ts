@@ -256,6 +256,12 @@ export interface UmrahVisaBooking {
     sponserDob?: string;
     sponserMobileNumber?: string;
     sponserNationalShortAddress?: string;
+    makkahHotelName?: string;
+    makkahBrn?: string;
+    madinahHotelName?: string;
+    madinahBrn?: string;
+    confirmationImagePath?: string;
+    confirmationUploadedAt?: string;
   }>;
   hotelBookings?: Array<{
     id: string;
@@ -264,13 +270,22 @@ export interface UmrahVisaBooking {
     locationId: string;
     checkIn: string;
     checkOut: string;
+    brn?: any;
+    checkInDate?: string;
+    checkOutDate?: string;
     hotel?: {
       id: string;
-      hotelName: string;
+      name?: string;
+      hotelName?: string;
     };
     location?: {
       id: string;
-      locationName: string;
+      name?: string;
+      locationName?: string;
+    };
+    city?: {
+      id: string;
+      name: string;
     };
   }>;
   transportBookings?: Array<{
@@ -305,6 +320,12 @@ export interface UmrahVisaBooking {
     passengerCount?: number;
     documentId?: string | null;
   }>;
+  // Computed fields added during mapping in some views
+  makkahHotelName?: string;
+  makkahBrn?: string;
+  madinahHotelName?: string;
+  madinahBrn?: string;
+  flightBrn?: string;
 }
 
 
