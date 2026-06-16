@@ -30,6 +30,8 @@ export default function PartyMissingBRNPage() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [historyLogs, setHistoryLogs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [savingBrn, setSavingBrn] = useState<string | null>(null);
+  const [brnInputs, setBrnInputs] = useState<Record<string, string>>({});
   
   // Filters
   const [arrivalDateFrom, setArrivalDateFrom] = useState('');
@@ -71,6 +73,22 @@ export default function PartyMissingBRNPage() {
         total: partyBookings.length,
         totalPages: Math.ceil(partyBookings.length / 50)
       });
+
+      // Initialize local BRN state
+      const initialBrnState: Record<string, string> = {};
+      partyBookings.forEach((booking: any) => {
+        booking.hotelBookings?.forEach((hotel: any) => {
+          let currentBrn = '';
+          if (Array.isArray(hotel.brn)) {
+            currentBrn = hotel.brn.join(', ');
+          } else if (hotel.brn) {
+            currentBrn = hotel.brn;
+          }
+          initialBrnState[hotel.id] = currentBrn;
+        });
+      });
+      setBrnInputs(initialBrnState);
+
     } catch (error) {
       console.error('Error fetching missing BRN bookings:', error);
       toast.error('Failed to load missing BRN bookings');
@@ -78,6 +96,25 @@ export default function PartyMissingBRNPage() {
       setIsLoading(false);
     }
   }, [arrivalDateFrom, arrivalDateTo, user?.partyId]);
+
+  const handleUpdateBrn = async (hotelBookingId: string) => {
+    try {
+      setSavingBrn(hotelBookingId);
+      const brnValue = brnInputs[hotelBookingId] || '';
+      const brnArray = brnValue.split(',').map(s => s.trim()).filter(Boolean);
+      
+      await umrahVisaAPI.updateHotelBrn(hotelBookingId, brnArray);
+      toast.success('BRN updated successfully');
+      
+      // Refreshing the list keeps it accurate.
+      await fetchBookings(pagination.page);
+    } catch (error) {
+      console.error('Error updating BRN:', error);
+      toast.error('Failed to update BRN');
+    } finally {
+      setSavingBrn(null);
+    }
+  };
 
   const fetchHistory = useCallback(async (page = 1) => {
     try {
@@ -268,12 +305,23 @@ export default function PartyMissingBRNPage() {
                                       )}
                                     </div>
                                     <div className="flex gap-2 text-xs">
-                                      <span className="font-medium text-gray-600">Current BRN:</span>
-                                      <span className="font-bold text-gray-900">{formatBrnDisplay(hotel.brn)}</span>
+                                      <Input 
+                                        size={1}
+                                        placeholder="Enter BRN (comma separated)"
+                                        value={brnInputs[hotel.id] || ''}
+                                        onChange={(e) => setBrnInputs(prev => ({ ...prev, [hotel.id]: e.target.value }))}
+                                        className={`h-8 text-xs ${isMissing ? 'border-amber-300 bg-amber-50/30 focus-visible:ring-amber-500' : ''}`}
+                                      />
+                                      <Button 
+                                        size="sm" 
+                                        variant="secondary"
+                                        onClick={() => handleUpdateBrn(hotel.id)}
+                                        disabled={savingBrn === hotel.id || brnInputs[hotel.id] === (Array.isArray(hotel.brn) ? hotel.brn.join(', ') : (hotel.brn || ''))}
+                                        className="h-8 shrink-0 font-bold"
+                                      >
+                                        {savingBrn === hotel.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : 'Save'}
+                                      </Button>
                                     </div>
-                                    {isMissing && (
-                                      <p className="text-[10px] text-amber-600 italic">Please contact support or update via the booking page to provide the BRN.</p>
-                                    )}
                                   </div>
                                 );
                               })}
