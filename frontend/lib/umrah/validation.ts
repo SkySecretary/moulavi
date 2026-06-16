@@ -5,29 +5,8 @@ import { Step1Data, Step2Data, Step3Data, Step4Data, Step5Data, Step6Data, Passe
 
 export const formatFlightNumber = (value: string): string => {
   // Remove all invalid characters and convert to uppercase
-  let cleaned = value.replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
-  
-  // Split by dash if present, otherwise treat as single string
-  const parts = cleaned.split('-');
-  
-  if (parts.length === 1) {
-    // No dash found, format as we type
-    const allChars = parts[0];
-    if (allChars.length === 0) return '';
-    if (allChars.length <= 2) return allChars;
-    // First 2 chars, then dash, then up to 4 more chars
-    const firstPart = allChars.substring(0, 2);
-    const secondPart = allChars.substring(2, 7); // Max 5 chars
-    return secondPart.length > 0 ? `${firstPart}-${secondPart}` : `${firstPart}-`;
-  } else {
-    // Dash found, format both parts
-    const firstPart = parts[0].substring(0, 2).replace(/[^A-Z0-9]/g, '');
-    const secondPart = parts.slice(1).join('').substring(0, 5).replace(/[^A-Z0-9]/g, '');
-    
-    if (firstPart.length === 0) return '';
-    if (firstPart.length < 2) return firstPart + (secondPart.length > 0 ? '-' + secondPart : '-');
-    return secondPart.length > 0 ? `${firstPart}-${secondPart}` : `${firstPart}-`;
-  }
+  // Allow alphanumeric characters and optional dashes
+  return value.replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
 };
 
 // Strict dd/mm/yy or dd/mm/yyyy validation regex

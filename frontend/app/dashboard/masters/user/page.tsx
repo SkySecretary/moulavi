@@ -179,6 +179,16 @@ export default function UserMasterPage() {
     window.location.reload();
   };
 
+  const handleToggleActive = async (userToToggle: any) => {
+    const success = await updateUser(userToToggle.id, { is_active: !userToToggle.isActive } as any);
+    if (success) {
+      toast.success(`User ${!userToToggle.isActive ? 'activated' : 'blocked'} successfully`);
+      window.location.reload(); // Simple refresh to show new status
+    } else {
+      toast.error('Failed to update user status');
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -268,6 +278,7 @@ export default function UserMasterPage() {
               onUserDeleted={handleUserDeleted}
               onEditUser={handleEditUser}
               onViewUser={handleViewUser}
+              onToggleActive={handleToggleActive}
             />
           </CardContent>
         </Card>

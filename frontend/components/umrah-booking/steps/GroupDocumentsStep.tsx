@@ -119,7 +119,7 @@ export const GroupDocumentsStep: React.FC<GroupDocumentsStepProps> = ({
         </div>
       </div>
 
-      <div class="flex flex-col sm:items-start gap-1 border-b border-secondary/10 pb-4">
+      <div className="flex flex-col sm:items-start gap-1 border-b border-secondary/10 pb-4">
         <h4 className="text-lg font-bold text-primary uppercase tracking-tight">Group Documentation Upload</h4>
         <p className="text-[10px] text-muted-foreground font-medium opacity-60">
           Upload individual images (JPG, PNG, HEIC), PDFs or a ZIP file containing all required documents (Max 20MB per file)

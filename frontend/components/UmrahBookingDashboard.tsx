@@ -68,6 +68,7 @@ export default function UmrahBookingDashboard({
     total: 0,
     totalPages: 0
   });
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const loadBookings = useCallback(async () => {
     setLoading(true);

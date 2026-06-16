@@ -1350,7 +1350,8 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
                         fromLocationId: '',
                         to: '',
                         toLocationId: '',
-                        type: 'transport'
+                        fromLocation: '',
+                        toLocation: '',
                       });
                       setFormData({...formData, movementDetails: newMovements});
                     }}

@@ -290,7 +290,7 @@ export const useUmrahBooking = () => {
           })),
           iqamaDetails: bookingState.step3Data.iqamaDetails ? {
             ...bookingState.step3Data.iqamaDetails,
-            iqamaDob: fromDisplayDate(bookingState.step3Data.iqamaDetails.iqamaDob),
+            iqamaDob: bookingState.step3Data.iqamaDetails.iqamaDob ? fromDisplayDate(bookingState.step3Data.iqamaDetails.iqamaDob) : undefined,
           } : undefined,
         };
         formData.append('step3', JSON.stringify(step3ISO));

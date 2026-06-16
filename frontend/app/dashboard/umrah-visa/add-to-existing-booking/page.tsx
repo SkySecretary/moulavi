@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { getUser, hasRole } from '@/lib/auth';
 import { UploadCloud, File, X, Users, ChevronRight } from 'lucide-react';
 import { umrahVisaAPI, partyAPI } from '@/lib/api';
@@ -16,6 +17,7 @@ interface UmrahVisaBooking {
   id: string;
   groupNumber?: string;
   groupName?: string;
+  bookingReference?: string;
   passengerCount: number;
   status: string;
   visaType?: 'individual_visa' | 'group_visa';
@@ -242,25 +244,17 @@ export default function AdminAddToExistingBookingPage() {
                     {loadingParties ? (
                       <div className="text-sm text-gray-500 py-4 text-center">Loading parties...</div>
                     ) : (
-                      <Select
+                      <SearchableSelect
+                        options={parties.map(p => ({ value: p.id, label: `${p.partyName} (${p.email})` }))}
                         value={selectedPartyId}
                         onValueChange={(value) => {
                           setSelectedPartyId(value);
                           setFormData({ ...formData, existingBookingId: '' });
                         }}
-                        required
-                      >
-                        <SelectTrigger className="h-12 text-base">
-                          <SelectValue placeholder="Select a party" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {parties.map((party) => (
-                            <SelectItem key={party.id} value={party.id}>
-                              {party.partyName} ({party.email})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="Select a party"
+                        searchPlaceholder="Search party..."
+                        className="h-12 text-base"
+                      />
                     )}
                   </div>
                   {selectedPartyId && (

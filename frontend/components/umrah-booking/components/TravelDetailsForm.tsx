@@ -112,7 +112,6 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                     onChange({ arrivalFlightNumber: formatted });
                   }}
                   disabled={disabled}
-                  maxLength={12}
                   className="h-12 border-gray-100 rounded-lg font-bold text-secondary focus:ring-secondary/20 bg-gray-50/30 text-center tracking-widest text-sm"
                 />
               </td>
@@ -129,15 +128,6 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                   onChange={(value) => onChange({ arrivalTime: value })}
                   disabled={disabled}
                   className="h-12"
-                />
-              </td>
-              <td className="px-6 py-4" rowSpan={2}>
-                <Input
-                  placeholder="Travel BRN"
-                  value={data.brn || ''}
-                  onChange={(e) => onChange({ brn: e.target.value })}
-                  disabled={disabled}
-                  className="h-full min-h-[100px] border-gray-100 rounded-lg font-bold text-primary focus:ring-secondary/20 bg-gray-50/30 text-center text-base"
                 />
               </td>
             </tr>
@@ -179,7 +169,6 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                     onChange({ departureFlightNumber: formatted });
                   }}
                   disabled={disabled}
-                  maxLength={12}
                   className="h-12 border-gray-100 rounded-lg font-bold text-secondary focus:ring-secondary/20 bg-gray-50/30 text-center tracking-widest text-sm"
                 />
               </td>
@@ -247,7 +236,6 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                   onChange({ arrivalFlightNumber: formatted });
                 }}
                 disabled={disabled}
-                maxLength={12}
                 className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs"
               />
             </div>
@@ -296,18 +284,7 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                   onChange({ departureFlightNumber: formatted });
                 }}
                 disabled={disabled}
-                maxLength={12}
                 className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Travel BRN</Label>
-              <Input 
-                placeholder="Enter BRN" 
-                value={data.brn || ''} 
-                onChange={(e) => onChange({ brn: e.target.value })} 
-                disabled={disabled} 
-                className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs" 
               />
             </div>
           </CardContent>

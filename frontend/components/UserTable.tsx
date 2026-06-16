@@ -34,6 +34,7 @@ interface UserTableProps {
   onUserDeleted: () => void;
   onEditUser: (user: User) => void;
   onViewUser: (user: User) => void;
+  onToggleActive?: (user: User) => void;
 }
 
 export default function UserTable({
@@ -49,7 +50,8 @@ export default function UserTable({
   onBulkDelete,
   onUserDeleted,
   onEditUser,
-  onViewUser
+  onViewUser,
+  onToggleActive
 }: UserTableProps) {
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
@@ -325,9 +327,21 @@ export default function UserTable({
               </Badge>
             </div>
             <div className="col-span-2">
-              <Badge variant={user.isActive ? "default" : "secondary"}>
-                {user.isActive ? "Active" : "Inactive"}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant={user.isActive ? "default" : "secondary"}>
+                  {user.isActive ? "Active" : "Inactive"}
+                </Badge>
+                {onToggleActive && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onToggleActive(user)}
+                    className="h-6 text-[10px] px-2"
+                  >
+                    {user.isActive ? 'Block' : 'Activate'}
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="col-span-2">
               <div className="flex items-center gap-1">
@@ -452,9 +466,21 @@ export default function UserTable({
                       {getRoleIcon(user.role)}
                       {user.role.toUpperCase()}
                     </Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <Badge variant={user.isActive ? "default" : "secondary"} className="text-xs">
                       {user.isActive ? "Active" : "Inactive"}
                     </Badge>
+                    {onToggleActive && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onToggleActive(user)}
+                        className="h-6 text-[10px] px-2"
+                      >
+                        {user.isActive ? 'Block' : 'Activate'}
+                      </Button>
+                    )}
                   </div>
                 </div>
 

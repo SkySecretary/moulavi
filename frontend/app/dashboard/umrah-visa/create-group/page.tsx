@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { getUser, hasRole } from '@/lib/auth';
 import { ChevronRight, ChevronLeft, Plane, Users, Home, User, Truck, ArrowLeft, Loader2 } from 'lucide-react';
@@ -26,6 +27,7 @@ import { validateStep1, validateStep2, validateStep3, validateStep4, validateSte
 interface Party {
   id: string;
   partyName: string;
+  partyCode?: string;
   email: string;
 }
 
@@ -184,10 +186,14 @@ function CreateGroupContent() {
               <CardContent className="p-8 space-y-6">
                 <div className="space-y-2">
                   <Label className="text-[10px] font-bold text-primary/60 uppercase ml-1">Choose Partner Agency</Label>
-                  <Select value={selectedPartyId} onValueChange={(v) => { setSelectedPartyId(v); setCurrentStep(1); }}>
-                    <SelectTrigger className="h-12 rounded-xl border-gray-100 font-bold"><SelectValue placeholder="Select a party" /></SelectTrigger>
-                    <SelectContent className="rounded-xl border-0 shadow-2xl p-1">{parties.map((p) => (<SelectItem key={p.id} value={p.id} className="text-xs font-bold p-3">{p.partyName}</SelectItem>))}</SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    options={parties.map(p => ({ value: p.id, label: `${p.partyName} ${p.partyCode ? `(${p.partyCode})` : ''}` }))}
+                    value={selectedPartyId}
+                    onValueChange={(v) => { setSelectedPartyId(v); setCurrentStep(1); }}
+                    placeholder="Select a party"
+                    searchPlaceholder="Search agency..."
+                    className="h-12 rounded-xl border-gray-100"
+                  />
                 </div>
               </CardContent>
             </Card>

@@ -18,6 +18,7 @@ interface UmrahVisaBooking {
   id: string;
   groupNumber?: string;
   groupName?: string;
+  bookingReference?: string;
   passengerCount: number;
   status: string;
   visaType?: 'individual_visa' | 'group_visa';

@@ -67,6 +67,7 @@ export default function Navbar() {
     { name: 'Trips', path: '/dashboard/umrah-visa/trip-info', icon: MapPin },
   ] : [
     { name: 'Dashboard', path: '/party/dashboard', icon: LayoutDashboard },
+    { name: 'Tafweej', path: '/party/tafweej', icon: Clock },
     { name: 'Vouchers', path: '/dashboard/services/voucher', icon: Ticket },
     { name: 'New Individual', path: '/party/umrah-visa', icon: User },
     { name: 'New Group', path: '/party/umrah-visa-group', icon: Users },
@@ -78,6 +79,7 @@ export default function Navbar() {
     { name: 'Vouchers (Umrah)', path: '/dashboard/umrah-visa/voucher', icon: Award },
     { name: 'Invoices', path: '/dashboard/umrah-visa/invoice', icon: FileText },
   ] : [
+    { name: 'Missing BRN', path: '/party/missing-brn', icon: AlertCircle },
     { name: 'Add to Existing', path: '/party/add-to-existing-booking', icon: PlusCircle },
     { name: 'My Profile', path: '/party/settings', icon: Settings },
   ];
