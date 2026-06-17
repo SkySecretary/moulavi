@@ -5,6 +5,7 @@ uploads/*
 !uploads/.gitkeep
 *.log
 .DS_Store
+backups/
 
 
 /src/generated/prisma
