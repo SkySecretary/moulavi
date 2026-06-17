@@ -13,8 +13,8 @@ import { s3Client, S3_CONFIG, generateS3Key, generateUniqueFileName, isS3Configu
 // Export Prisma client instance (shared across all route files)
 export const prisma = new PrismaClient();
 
-// Flight number validation regex: 2 alphanumeric + dash + 1-4 alphanumeric (e.g., C1-132A, SC-123, 22-SCV)
-export const FLIGHT_NUMBER_REGEX = /^[A-Z0-9]{2}-[A-Z0-9]{1,4}$/;
+// Flight number validation regex: 2-3 alphanumeric + optional dash + 1-10 alphanumeric
+export const FLIGHT_NUMBER_REGEX = /^[A-Z0-9]{2,3}-?[A-Z0-9]{1,10}$/;
 
 // Configure multer storage for individual bookings (S3 or local)
 const individualStorage = isS3Configured()
@@ -222,11 +222,11 @@ export const step2Schema = z.object({
   arrivalDate: z.string(), // YYYY-MM-DD format
   arrivalTime: z.string(), // HH:mm format
   arrivalAirportId: z.string().uuid(),
-  arrivalFlightNumber: z.string().regex(FLIGHT_NUMBER_REGEX, 'Flight number must be in format: XX-XXXX (2 alphanumeric, dash, 1-4 alphanumeric)'),
+  arrivalFlightNumber: z.string().regex(FLIGHT_NUMBER_REGEX, 'Invalid arrival flight number format (e.g., 6E-6083)'),
   departureDate: z.string(), // YYYY-MM-DD format
   departureTime: z.string(), // HH:mm format
   departureAirportId: z.string().uuid(),
-  departureFlightNumber: z.string().regex(FLIGHT_NUMBER_REGEX, 'Flight number must be in format: XX-XXXX (2 alphanumeric, dash, 1-4 alphanumeric)'),
+  departureFlightNumber: z.string().regex(FLIGHT_NUMBER_REGEX, 'Invalid departure flight number format (e.g., 6E-6083)'),
   brn: z.string().optional(),
   passengerCount: z.number().min(1).max(50).optional(), // Number of passengers (for both individual and group bookings - now in Step 2)
   transportBookings: z.array(z.object({

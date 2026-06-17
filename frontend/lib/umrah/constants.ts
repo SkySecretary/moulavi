@@ -6,8 +6,8 @@ export const BOOKING_LIMITS = {
   FLIGHT_NUMBER_MAX_LENGTH: 8,
 } as const;
 
-// Flight number format: 2 alphanumeric characters, dash, 1-5 alphanumeric characters (e.g., C1-132A, SC-1234, 22-SCV)
-export const FLIGHT_NUMBER_REGEX = /^[A-Z0-9]{2}-[A-Z0-9]{1,5}$/;
+// Flight number format: 2-3 alphanumeric characters, optional dash, 1-10 alphanumeric characters
+export const FLIGHT_NUMBER_REGEX = /^[A-Z0-9]{2,3}-?[A-Z0-9]{1,10}$/;
 
 export const BOOKING_MODES = {
   GROUP_NUMBER: 'group_number',

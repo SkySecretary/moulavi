@@ -5,7 +5,16 @@ import { Step1Data, Step2Data, Step3Data, Step4Data, Step5Data, Step6Data, Passe
 
 export const formatFlightNumber = (value: string): string => {
   // Remove all invalid characters and convert to uppercase
-  // Allow alphanumeric characters and optional dashes
+  let cleaned = value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  
+  // Airline codes are typically 2 or 3 characters. 
+  // We'll auto-format if it looks like a standard flight number without a dash.
+  if (cleaned.length > 2 && !value.includes('-')) {
+    // If it starts with 2 letters/numbers and then more numbers, it's likely a 2-char code
+    return `${cleaned.substring(0, 2)}-${cleaned.substring(2)}`;
+  }
+  
+  // If it already has a dash or is short, just return cleaned alphanumeric
   return value.replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
 };
 
@@ -264,11 +273,11 @@ export const validateStep2 = (data: Step2Data, airports: any[], step1Data?: Step
   }
 
   if (!FLIGHT_NUMBER_REGEX.test(data.arrivalFlightNumber)) {
-    return 'Arrival flight number must be in format: XX-XXXXX (2 alphanumeric, dash, 1-5 alphanumeric)';
+    return 'Invalid arrival flight number format (e.g., 6E-6083 or SV-123)';
   }
 
   if (!FLIGHT_NUMBER_REGEX.test(data.departureFlightNumber)) {
-    return 'Departure flight number must be in format: XX-XXXXX (2 alphanumeric, dash, 1-5 alphanumeric)';
+    return 'Invalid departure flight number format (e.g., 6E-6083 or SV-123)';
   }
 
   const durationResult = calculateDuration(data.arrivalDate, data.departureDate);

@@ -16,15 +16,15 @@ echo "🚀 Starting optimized deployment to $SERVER_IP..."
 
 # Step 1: Prep and Sync in one SSH ControlMaster context if possible, or just be very efficient.
 # We will create the release directory first.
-echo "📂 Creating release directory..."
-ssh -o ControlMaster=auto -o ControlPath=/tmp/ssh-%r@%h:%p -o ControlPersist=600 $SERVER_USER@$SERVER_IP "mkdir -p $RELEASE_PATH/backend/prisma $RELEASE_PATH/backend/dist $RELEASE_PATH/frontend/.next"
+echo "📂 Creating release directory tree..."
+ssh $SERVER_USER@$SERVER_IP "mkdir -p $RELEASE_PATH/backend/dist $RELEASE_PATH/backend/prisma $RELEASE_PATH/frontend/.next"
 
 # Step 2: Upload everything
 echo "📤 Uploading backend and frontend..."
-rsync -avz -e "ssh -o ControlMaster=auto -o ControlPath=/tmp/ssh-%r@%h:%p" --exclude "node_modules" --exclude "dist" --exclude "dev.db" --exclude "uploads" --exclude ".env" backend/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/backend/
-rsync -avz -e "ssh -o ControlMaster=auto -o ControlPath=/tmp/ssh-%r@%h:%p" backend/dist/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/backend/dist/
-rsync -avz -e "ssh -o ControlMaster=auto -o ControlPath=/tmp/ssh-%r@%h:%p" --exclude "node_modules" --exclude ".next" --exclude ".env*" frontend/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/frontend/
-rsync -avz -e "ssh -o ControlMaster=auto -o ControlPath=/tmp/ssh-%r@%h:%p" frontend/.next/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/frontend/.next/
+rsync -avz --exclude "node_modules" --exclude "dist" --exclude "dev.db" --exclude "uploads" --exclude ".env" backend/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/backend/
+rsync -avz backend/dist/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/backend/dist/
+rsync -avz --exclude "node_modules" --exclude ".next" --exclude ".env*" frontend/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/frontend/
+rsync -avz frontend/.next/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/frontend/.next/
 
 # Step 3: Finalize and Restart in one final SSH session
 echo "⚙️  Finalizing and Restarting..."

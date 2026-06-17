@@ -828,8 +828,8 @@ router.get('/:bookingId/voucher-data', authenticate, async (req, res) => {
           {
             type: 'AA', // Arrival
             date: mainTravel.arrivalDateTime ? mainTravel.arrivalDateTime.toISOString() : '',
-            carrier: mainTravel.arrivalFlightNumber?.split('-')[0] || '',
-            number: mainTravel.arrivalFlightNumber?.split('-')[1] || '',
+            carrier: mainTravel.arrivalFlightNumber?.includes('-') ? mainTravel.arrivalFlightNumber.split('-')[0] : (mainTravel.arrivalFlightNumber?.substring(0, 2) || ''),
+            number: mainTravel.arrivalFlightNumber?.includes('-') ? mainTravel.arrivalFlightNumber.split('-')[1] : (mainTravel.arrivalFlightNumber?.substring(2) || ''),
             arrivalAirportId: mainTravel.arrivalAirportId,
             arrivalAirport: mainTravel.arrivalAirport.code || mainTravel.arrivalAirport.name || '',
             etd: '',
@@ -838,8 +838,8 @@ router.get('/:bookingId/voucher-data', authenticate, async (req, res) => {
           {
             type: 'AD', // Departure
             date: mainTravel.departureDateTime ? mainTravel.departureDateTime.toISOString() : '',
-            carrier: mainTravel.departureFlightNumber?.split('-')[0] || '',
-            number: mainTravel.departureFlightNumber?.split('-')[1] || '',
+            carrier: mainTravel.departureFlightNumber?.includes('-') ? mainTravel.departureFlightNumber.split('-')[0] : (mainTravel.departureFlightNumber?.substring(0, 2) || ''),
+            number: mainTravel.departureFlightNumber?.includes('-') ? mainTravel.departureFlightNumber.split('-')[1] : (mainTravel.departureFlightNumber?.substring(2) || ''),
             departureAirportId: mainTravel.departureAirportId,
             departureAirport: mainTravel.departureAirport.code || mainTravel.departureAirport.name || '',
             etd: mainTravel.departureDateTime ? mainTravel.departureDateTime.toISOString() : '',
@@ -1527,8 +1527,8 @@ router.get('/:bookingId/generate-booking-pdf', authenticate, async (req, res) =>
         {
           type: 'AA',
           date: travel.arrivalDateTime ? travel.arrivalDateTime.toISOString() : '',
-          carrier: travel.arrivalFlightNumber?.match(/^[A-Z]+/)?.[0] || '',
-          number: travel.arrivalFlightNumber?.match(/\d+/)?.[0] || travel.arrivalFlightNumber || '',
+          carrier: travel.arrivalFlightNumber?.includes('-') ? travel.arrivalFlightNumber.split('-')[0] : (travel.arrivalFlightNumber?.substring(0, 2) || ''),
+          number: travel.arrivalFlightNumber?.includes('-') ? travel.arrivalFlightNumber.split('-').slice(1).join('-') : (travel.arrivalFlightNumber?.substring(2) || travel.arrivalFlightNumber || ''),
           from: travel.arrivalAirport?.city || '',
           to: travel.arrivalAirport?.name || '',
           arrivalAirport: travel.arrivalAirport?.code || travel.arrivalAirport?.name || '',
@@ -1538,8 +1538,8 @@ router.get('/:bookingId/generate-booking-pdf', authenticate, async (req, res) =>
         {
           type: 'AD',
           date: travel.departureDateTime ? travel.departureDateTime.toISOString() : '',
-          carrier: travel.departureFlightNumber?.match(/^[A-Z]+/)?.[0] || '',
-          number: travel.departureFlightNumber?.match(/\d+/)?.[0] || travel.departureFlightNumber || '',
+          carrier: travel.departureFlightNumber?.includes('-') ? travel.departureFlightNumber.split('-')[0] : (travel.departureFlightNumber?.substring(0, 2) || ''),
+          number: travel.departureFlightNumber?.includes('-') ? travel.departureFlightNumber.split('-').slice(1).join('-') : (travel.departureFlightNumber?.substring(2) || travel.departureFlightNumber || ''),
           from: travel.departureAirport?.name || '',
           to: travel.departureAirport?.city || '',
           departureAirport: travel.departureAirport?.code || travel.departureAirport?.name || '',
