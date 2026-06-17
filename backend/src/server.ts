@@ -115,6 +115,7 @@ app.use('/api/parties', partyRoutes);
 app.use('/api', partyContactRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/users', userMasterRoutes);
+app.use('/api/umrah-visa/operational', umrahOperationalRoutes);
 // Register workflow routes first (more specific routes like /:bookingId/voucher-data)
 // Then individual and group routes, then shared routes (less specific like /:bookingId)
 app.use('/api/umrah-visa', umrahVisaWorkflowRoutes);

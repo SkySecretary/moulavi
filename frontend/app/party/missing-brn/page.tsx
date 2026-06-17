@@ -26,7 +26,12 @@ import { fromDisplayDate, toDisplayDate } from '@/lib/umrah/validation';
 import { PartyLayout } from '@/components/layouts/PartyLayout';
 
 export default function PartyMissingBRNPage() {
-  const user = getUser();
+  const [user, setUser] = useState<any>(null);
+  
+  useEffect(() => {
+    setUser(getUser());
+  }, []);
+
   const [activeTab, setActiveTab] = useState<'missing' | 'history'>('missing');
   const [bookings, setBookings] = useState<any[]>([]);
   const [historyLogs, setHistoryLogs] = useState<any[]>([]);

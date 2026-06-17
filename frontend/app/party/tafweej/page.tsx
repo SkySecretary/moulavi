@@ -32,7 +32,12 @@ import { cn } from '@/lib/utils';
 import { PartyLayout } from '@/components/layouts/PartyLayout';
 
 export default function PartyTafweejPage() {
-  const user = getUser();
+  const [user, setUser] = useState<any>(null);
+  
+  useEffect(() => {
+    setUser(getUser());
+  }, []);
+
   const [activeTab, setActiveTab] = useState<'today' | 'tomorrow'>('today');
   const [filterType, setFilterType] = useState<'all' | 'arrival' | 'departure'>('all');
   const [bookings, setBookings] = useState<any[]>([]);
@@ -51,6 +56,7 @@ export default function PartyTafweejPage() {
 
   const fetchDailyBookings = useCallback(async () => {
     try {
+      if (!user?.partyId) return;
       setIsLoading(true);
       const dateStr = getTargetDate();
 
@@ -59,7 +65,7 @@ export default function PartyTafweejPage() {
         arrivalAirportCode: arrivalFilter || undefined,
         departureAirportCode: departureFilter || undefined,
         type: filterType,
-        partyId: user?.partyId, // Fetch ONLY their own bookings
+        partyId: user.partyId, // Fetch ONLY their own bookings
       });
 
       if (response.data?.success) {
@@ -67,17 +73,16 @@ export default function PartyTafweejPage() {
       }
     } catch (error) {
       console.error('Error fetching daily overview:', error);
-      toast.error('Failed to load operational data');
     } finally {
       setIsLoading(false);
     }
-  }, [activeTab, arrivalFilter, departureFilter, filterType, getTargetDate, user?.partyId]);
+  }, [getTargetDate, arrivalFilter, departureFilter, filterType, user?.partyId]);
 
   useEffect(() => {
-    if (user && hasRole(['party'])) {
+    if (user?.id && hasRole(['party'])) {
       fetchDailyBookings();
     }
-  }, [fetchDailyBookings, user]);
+  }, [fetchDailyBookings, user?.id]);
 
   if (!user || !hasRole(['party'])) {
     return null;

@@ -91,7 +91,9 @@ router.post('/login', loginValidation, asyncHandler(async (req: AuthRequest, res
       name: user.name,
       email: user.email,
       role: user.role,
-      emailVerified: user.emailVerified
+      emailVerified: user.emailVerified,
+      isActive: user.isActive,
+      partyId: user.party?.id
     },
     accessToken,
     refreshToken,
