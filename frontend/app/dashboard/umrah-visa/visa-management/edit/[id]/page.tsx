@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { MovementsTable } from '@/components/umrah-booking/components/MovementsTable';
 import { Calendar, Plane, Users, Building, MapPin, Mail, ArrowLeft, Clock, DollarSign, Route, Truck, X, Plus, Save } from 'lucide-react';
 import { Movement, LocationMaster } from '@/lib/umrah/types';
@@ -604,29 +605,23 @@ export default function EditUmrahVisaBookingPage() {
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Umrah Company</p>
-                    <Select value={umrahVisaProviderId} onValueChange={setUmrahVisaProviderId}>
-                      <SelectTrigger className="font-bold">
-                        <SelectValue placeholder="Select Umrah Company" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {umrahCompanies.map(c => (
-                          <SelectItem key={c.id} value={c.id}>{c.partyName}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      options={umrahCompanies.map(c => ({ value: c.id, label: c.partyName }))}
+                      value={umrahVisaProviderId}
+                      onValueChange={setUmrahVisaProviderId}
+                      placeholder="Select Umrah Company"
+                      searchPlaceholder="Search company..."
+                    />
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Transport Company</p>
-                    <Select value={transportCompanyId} onValueChange={setTransportCompanyId}>
-                      <SelectTrigger className="font-bold">
-                        <SelectValue placeholder="Select Transport Company" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {transportCompanies.map(c => (
-                          <SelectItem key={c.id} value={c.id}>{c.partyName}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      options={transportCompanies.map(c => ({ value: c.id, label: c.partyName }))}
+                      value={transportCompanyId}
+                      onValueChange={setTransportCompanyId}
+                      placeholder="Select Transport Company"
+                      searchPlaceholder="Search company..."
+                    />
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Passengers</p>
@@ -668,7 +663,6 @@ export default function EditUmrahVisaBookingPage() {
                         value={arrivalFlightNumber} 
                         onChange={(e) => setArrivalFlightNumber(formatFlightNumber(e.target.value))} 
                         placeholder="SV-XXXX" 
-                        maxLength={8}
                       />
                     </div>
                     <div>
@@ -701,7 +695,6 @@ export default function EditUmrahVisaBookingPage() {
                         value={departureFlightNumber} 
                         onChange={(e) => setDepartureFlightNumber(formatFlightNumber(e.target.value))} 
                         placeholder="SV-XXXX" 
-                        maxLength={8}
                       />
                     </div>
                   </div>
