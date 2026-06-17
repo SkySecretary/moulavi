@@ -56,6 +56,20 @@ export default function TripInfoPage() {
   const [pendingBrnLoad, setPendingBrnLoad] = useState<Array<{ date: string; count: number }>>([]);
   const [isLoadingLoad, setIsLoadingLoad] = useState(false);
 
+  const handlePendingLoadClick = (date: string) => {
+    // Set dates to filter for this specific day
+    setArrivalDateFrom(date);
+    setArrivalDateTo(date);
+    // Switch to pending subtab to see the results
+    if (activeTab === 'iqama') {
+      setIqamaSubTab('pending');
+    } else {
+      setHotelSubTab('pending');
+    }
+    setPagination(prev => ({ ...prev, page: 1 }));
+    toast.info(`Filtering for ${new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} pending load`);
+  };
+
   // ...
 
   useEffect(() => {
@@ -519,11 +533,15 @@ export default function TripInfoPage() {
                     ) : (
                       <div className="flex flex-wrap gap-3">
                         {pendingBrnLoad.map((item) => (
-                          <div key={item.date} className="flex flex-col items-center bg-white border border-amber-100 rounded-xl p-3 shadow-sm min-w-[100px]">
-                            <span className="text-[10px] font-black text-amber-600 uppercase tracking-tighter mb-1">{new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
-                            <span className="text-xl font-black text-secondary">{item.count}</span>
+                          <button 
+                            key={item.date} 
+                            onClick={() => handlePendingLoadClick(item.date)}
+                            className="flex flex-col items-center bg-white border border-amber-100 rounded-xl p-3 shadow-sm min-w-[100px] hover:border-amber-400 hover:shadow-md transition-all active:scale-95 text-center group"
+                          >
+                            <span className="text-[10px] font-black text-amber-600 uppercase tracking-tighter mb-1 group-hover:text-amber-700">{new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+                            <span className="text-xl font-black text-secondary group-hover:scale-110 transition-transform">{item.count}</span>
                             <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mt-1">Pilgrims</span>
-                          </div>
+                          </button>
                         ))}
                       </div>
                     )}
