@@ -270,20 +270,10 @@ router.get('/missing-brn', authenticate, authorize('admin', 'staff', 'party'), a
       // 1. If it has NO hotel bookings at all, it's missing.
       if (!booking.hotelBookings || booking.hotelBookings.length === 0) return true;
 
-      // 2. Count how many hotels have a filled BRN
-      const hotelsWithBrn = booking.hotelBookings.filter((hotel: any) => {
-        return hotel.brn && (Array.isArray(hotel.brn) ? hotel.brn.length > 0 : String(hotel.brn).trim() !== '');
-      });
-
-      // 3. For Group Visas, we expect at least 2 hotels (Makkah & Madinah)
-      // It stays in the list if it has less than 2 hotels filled with BRN
-      if (booking.visaType === 'group_visa') {
-        return hotelsWithBrn.length < 2;
-      }
-
-      // 4. Fallback for others: stays if any hotel is missing BRN
+      // 2. It stays in the list if ANY of its hotels are missing a BRN
       return booking.hotelBookings.some((hotel: any) => {
-        return !hotel.brn || (Array.isArray(hotel.brn) && hotel.brn.length === 0) || (typeof hotel.brn === 'string' && hotel.brn.trim() === '');
+        const hasBrn = hotel.brn && (Array.isArray(hotel.brn) ? hotel.brn.length > 0 : String(hotel.brn).trim() !== '');
+        return !hasBrn;
       });
     });
 
@@ -312,7 +302,7 @@ router.get('/missing-brn', authenticate, authorize('admin', 'staff', 'party'), a
 });
 
 // PATCH /api/umrah-visa/hotels/:hotelBookingId/brn - Update BRN for a specific hotel booking
-router.patch('/hotels/:hotelBookingId/brn', authenticate, authorize('admin', 'staff'), async (req, res) => {
+router.patch('/hotels/:hotelBookingId/brn', authenticate, authorize('admin', 'staff', 'party'), async (req, res) => {
   try {
     const { hotelBookingId } = req.params;
     const { brn } = req.body;

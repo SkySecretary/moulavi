@@ -17,7 +17,7 @@ echo "🚀 Starting optimized deployment to $SERVER_IP..."
 # Step 1: Prep and Sync in one SSH ControlMaster context if possible, or just be very efficient.
 # We will create the release directory first.
 echo "📂 Creating release directory..."
-ssh -o ControlMaster=auto -o ControlPath=/tmp/ssh-%r@%h:%p -o ControlPersist=600 $SERVER_USER@$SERVER_IP "mkdir -p $RELEASE_PATH/backend/prisma $RELEASE_PATH/frontend"
+ssh -o ControlMaster=auto -o ControlPath=/tmp/ssh-%r@%h:%p -o ControlPersist=600 $SERVER_USER@$SERVER_IP "mkdir -p $RELEASE_PATH/backend/prisma $RELEASE_PATH/backend/dist $RELEASE_PATH/frontend/.next"
 
 # Step 2: Upload everything
 echo "📤 Uploading backend and frontend..."

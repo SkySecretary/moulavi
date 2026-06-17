@@ -210,13 +210,13 @@ export default function PartyMissingBRNPage() {
   };
 
   return (
-    <PartyLayout title="Missing BRN Tracking" subtitle="Identify and provide missing hotel BRN details">
+    <PartyLayout title="BRN Alert" subtitle="Identify and provide missing hotel BRN details">
       <div className="flex-1 flex flex-col h-full bg-gray-50/50 p-4 lg:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
               <AlertCircle className="h-6 w-6 text-amber-500" />
-              Missing BRN Tracking
+              BRN Alert
             </h1>
             <p className="text-sm text-gray-500 font-medium">Identify group hotel bookings missing BRN details.</p>
           </div>

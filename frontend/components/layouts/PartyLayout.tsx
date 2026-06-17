@@ -97,14 +97,6 @@ export const PartyLayout: React.FC<PartyLayoutProps> = ({
       isActive: pathname === '/party/tafweej',
     },
     {
-      id: 'missing-brn',
-      label: 'Missing BRN',
-      description: 'Track missing hotel BRNs',
-      icon: AlertCircle,
-      href: '/party/missing-brn',
-      isActive: pathname === '/party/missing-brn',
-    },
-    {
       id: 'individual',
       label: 'Individual Umrah Visa',
       description: 'Apply for individual visa',
@@ -127,6 +119,14 @@ export const PartyLayout: React.FC<PartyLayoutProps> = ({
       icon: Users,
       href: '/party/add-to-existing-booking',
       isActive: pathname === '/party/add-to-existing-booking',
+    },
+    {
+      id: 'missing-brn',
+      label: 'BRN Alert',
+      description: 'Track missing hotel BRNs',
+      icon: AlertCircle,
+      href: '/party/missing-brn',
+      isActive: pathname === '/party/missing-brn',
     },
   ];
 
