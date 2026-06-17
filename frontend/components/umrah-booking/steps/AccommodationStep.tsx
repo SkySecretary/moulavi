@@ -298,6 +298,7 @@ export const AccommodationStep: React.FC<AccommodationStepProps> = ({
               <Label htmlFor="iqamaNationalShortAddress" className="text-[10px] font-bold text-primary/60 uppercase ml-1">National Short Address *</Label>
               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 <InputOTP
+                  maxLength={8}
                   pattern={REGEXP_ONLY_DIGITS_AND_CHARS}
                   value={data.iqamaDetails?.iqamaNationalShortAddress || ''}
                   onChange={(value) => onChange({ iqamaDetails: { ...data.iqamaDetails, iqamaNationalShortAddress: value } })}
