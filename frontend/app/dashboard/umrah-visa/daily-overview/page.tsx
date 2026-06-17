@@ -26,7 +26,8 @@ import {
   Filter,
   X,
   Truck,
-  Printer
+  Printer,
+  Copy
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
@@ -36,9 +37,12 @@ import { toDisplayDate, extractTimeFromISO } from '@/lib/umrah/validation';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { toBlob } from 'html-to-image';
+import { useRef } from 'react';
 
 export default function DailyOverviewPage() {
   const user = getUser();
+  const tableRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<'today' | 'tomorrow'>('today');
   const [filterType, setFilterType] = useState<'all' | 'arrival' | 'departure'>('all');
   const [bookings, setBookings] = useState<any[]>([]);
@@ -118,6 +122,30 @@ export default function DailyOverviewPage() {
     const date = new Date();
     if (activeTab === 'tomorrow') date.setDate(date.getDate() + 1);
     return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  const handleCopyImage = async () => {
+    if (!tableRef.current) return;
+    
+    try {
+      const blob = await toBlob(tableRef.current, { 
+        backgroundColor: '#ffffff', 
+        pixelRatio: 3, // Higher quality for WhatsApp
+        filter: (node: any) => {
+          if (node.classList && node.classList.contains('no-capture')) return false;
+          return true;
+        }
+      });
+      
+      if (blob) {
+        const item = new ClipboardItem({ 'image/png': blob });
+        await navigator.clipboard.write([item]);
+        toast.success('Tafweej schedule copied to clipboard!');
+      }
+    } catch (error) {
+      console.error('Error copying image:', error);
+      toast.error('Failed to copy image to clipboard');
+    }
   };
 
   const handlePrint = () => {
@@ -239,21 +267,30 @@ export default function DailyOverviewPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button onClick={handlePrint} variant="outline" size="sm" className="h-9 border-primary/20 hover:bg-primary/5 text-primary font-bold">
+            <Button onClick={handleCopyImage} variant="outline" size="sm" className="h-9 border-blue-200 hover:bg-blue-50 text-blue-700 font-bold no-capture">
+              <Copy className="h-4 w-4 mr-2" />
+              Copy Image
+            </Button>
+            <Button onClick={handlePrint} variant="outline" size="sm" className="h-9 border-primary/20 hover:bg-primary/5 text-primary font-bold no-capture">
               <Printer className="h-4 w-4 mr-2" />
               Print PDF
             </Button>
-            <Button onClick={fetchDailyBookings} variant="outline" size="sm" className="h-9">
+            <Button onClick={fetchDailyBookings} variant="outline" size="sm" className="h-9 no-capture">
               <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
           </div>
-        </div>
-      </div>
+          </div>
+          </div>
 
-      <div className="flex-1 overflow-auto p-4 lg:p-8 space-y-6">
-        <Tabs value={activeTab} onValueChange={(val: any) => setActiveTab(val)} className="w-full">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div className="flex-1 overflow-auto p-4 lg:p-8 space-y-6" ref={tableRef}>
+          <div className="hidden lg:block mb-2">
+          <h2 className="text-xl font-bold text-gray-800 tracking-tight">Tafweej - {getTargetDateLabel()}</h2>
+          <p className="text-xs text-gray-400 font-black uppercase tracking-widest">Type: {filterType.toUpperCase()} {arrivalFilter && `| Arr: ${arrivalFilter}`} {departureFilter && `| Dep: ${departureFilter}`} {umraCompanyFilter && `| Co: ${umraCompanyFilter}`}</p>
+          </div>
+          <Tabs value={activeTab} onValueChange={(val: any) => setActiveTab(val)} className="w-full">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 no-capture">
+
             <div className="flex flex-col sm:flex-row gap-4">
               <TabsList className="bg-white border p-1 h-11 w-fit rounded-xl shadow-sm">
                 <TabsTrigger value="today" className="rounded-lg px-6 data-[state=active]:bg-primary data-[state=active]:text-white font-bold uppercase text-[10px] tracking-widest">

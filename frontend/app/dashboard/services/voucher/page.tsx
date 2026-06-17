@@ -36,6 +36,7 @@ import {
   Plane,
   Truck,
   Printer,
+  Copy,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
@@ -44,10 +45,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import QuickVoucherForm from '@/components/voucher/QuickVoucherForm';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { toBlob } from 'html-to-image';
+import { useRef } from 'react';
 
 export default function VoucherServicePage() {
   const router = useRouter();
   const user = getUser();
+  const movementRef = useRef<HTMLDivElement>(null);
   
   // Tab States
   const [activeMainTab, setActiveMainTab] = useState<'vouchers' | 'movements'>('vouchers');
@@ -385,6 +389,30 @@ export default function VoucherServicePage() {
     doc.save(`Tafweej_Movements_${filenameDate}.pdf`);
   };
 
+  const handleCopyMovementsImage = async () => {
+    if (!movementRef.current) return;
+    
+    try {
+      const blob = await toBlob(movementRef.current, { 
+        backgroundColor: '#ffffff', 
+        pixelRatio: 3,
+        filter: (node: any) => {
+          if (node.classList && node.classList.contains('no-capture')) return false;
+          return true;
+        }
+      });
+      
+      if (blob) {
+        const item = new ClipboardItem({ 'image/png': blob });
+        await navigator.clipboard.write([item]);
+        toast.success('Movements schedule copied to clipboard!');
+      }
+    } catch (error) {
+      console.error('Error copying image:', error);
+      toast.error('Failed to copy image to clipboard');
+    }
+  };
+
   const downloadVoucherPDF = async (voucherId: string) => {
     try {
       setDownloadingVoucherId(voucherId);
@@ -636,72 +664,87 @@ export default function VoucherServicePage() {
           </TabsContent>
 
           <TabsContent value="movements" className="animate-in fade-in-50 duration-300 space-y-4">
-            <Tabs value={activeMovementSubTab} onValueChange={(v: any) => setActiveMovementSubTab(v)} className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-2 rounded-xl border shadow-sm">
-                <TabsList className="bg-gray-100 border p-1 h-9 rounded-lg">
-                  <TabsTrigger value="today" className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-8 h-7 rounded-md transition-all">Today</TabsTrigger>
-                  <TabsTrigger value="tomorrow" className="data-[state=active]:bg-amber-500 data-[state=active]:text-white text-xs font-bold px-8 h-7 rounded-md transition-all">Tomorrow</TabsTrigger>
-                  <TabsTrigger value="after-tomorrow" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white text-xs font-bold px-8 h-7 rounded-md transition-all">Day After</TabsTrigger>
-                  <TabsTrigger value="specific-date" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white text-xs font-bold px-8 h-7 rounded-md transition-all">Pick Date</TabsTrigger>
-                </TabsList>
-                <div className="flex items-center gap-2">
-                  {activeMovementSubTab === 'specific-date' && (
-                    <div className="flex items-center gap-2 mr-2 bg-blue-50/50 p-1 px-2 rounded-lg border border-blue-100">
-                      <Label className="text-[10px] font-bold text-blue-600 uppercase">Target:</Label>
-                      <DatePicker value={toDisplayDate(selectedMovementDate)} onChange={(v) => setSelectedMovementDate(fromDisplayDate(v))} className="h-7 w-32 text-xs" />
-                    </div>
-                  )}
-                  <div className="relative w-full sm:w-64"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" /><Input placeholder="Filter movements..." value={movementSearch} onChange={(e) => setMovementSearch(e.target.value)} className="pl-9 h-9 rounded-lg" /></div>
-                  <Button variant={showFilters ? "secondary" : "outline"} size="sm" onClick={() => setShowFilters(!showFilters)} className="h-9 font-bold rounded-lg"><Filter className="h-4 w-4 mr-2" /> Filter List</Button>
-                </div>
+            <div ref={movementRef} className="space-y-4 bg-white p-4 rounded-3xl">
+              <div className="hidden lg:block border-b pb-2 mb-2">
+                <h2 className="text-xl font-bold text-gray-800">Tafweej Movements - {
+                  activeMovementSubTab === 'after-tomorrow' ? 'DAY AFTER TOMORROW' : 
+                  activeMovementSubTab === 'specific-date' ? new Date(selectedMovementDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) :
+                  activeMovementSubTab.toUpperCase()
+                }</h2>
+                <p className="text-xs text-gray-400 font-black uppercase tracking-widest">
+                  {movementSearch && `Search: ${movementSearch} | `} {selectedFrom && `From: ${selectedFrom} | `} {selectedTo && `To: ${selectedTo}`}
+                </p>
               </div>
+              <Tabs value={activeMovementSubTab} onValueChange={(v: any) => setActiveMovementSubTab(v)} className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-2 rounded-xl border shadow-sm no-capture">
+                  <TabsList className="bg-gray-100 border p-1 h-9 rounded-lg">
+                    <TabsTrigger value="today" className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-8 h-7 rounded-md transition-all">Today</TabsTrigger>
+                    <TabsTrigger value="tomorrow" className="data-[state=active]:bg-amber-500 data-[state=active]:text-white text-xs font-bold px-8 h-7 rounded-md transition-all">Tomorrow</TabsTrigger>
+                    <TabsTrigger value="after-tomorrow" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white text-xs font-bold px-8 h-7 rounded-md transition-all">Day After</TabsTrigger>
+                    <TabsTrigger value="specific-date" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white text-xs font-bold px-8 h-7 rounded-md transition-all">Pick Date</TabsTrigger>
+                  </TabsList>
+                  <div className="flex items-center gap-2">
+                    {activeMovementSubTab === 'specific-date' && (
+                      <div className="flex items-center gap-2 mr-2 bg-blue-50/50 p-1 px-2 rounded-lg border border-blue-100">
+                        <Label className="text-[10px] font-bold text-blue-600 uppercase">Target:</Label>
+                        <DatePicker value={toDisplayDate(selectedMovementDate)} onChange={(v) => setSelectedMovementDate(fromDisplayDate(v))} className="h-7 w-32 text-xs" />
+                      </div>
+                    )}
+                    <div className="relative w-full sm:w-64"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" /><Input placeholder="Filter movements..." value={movementSearch} onChange={(e) => setMovementSearch(e.target.value)} className="pl-9 h-9 rounded-lg" /></div>
+                    <Button variant={showFilters ? "secondary" : "outline"} size="sm" onClick={() => setShowFilters(!showFilters)} className="h-9 font-bold rounded-lg"><Filter className="h-4 w-4 mr-2" /> Filter List</Button>
+                  </div>
+                </div>
 
-              {showFilters && (
-                <Card className="border-dashed border-2 bg-white/50 rounded-2xl animate-in slide-in-from-top-2 duration-200">
-                  <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-                    <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-gray-500 tracking-widest ml-1">From Location</Label><Select value={selectedFrom || 'all'} onValueChange={(v) => setSelectedFrom(v === 'all' ? null : v)}><SelectTrigger className="h-9"><SelectValue placeholder="All" /></SelectTrigger><SelectContent className="rounded-xl border-0 shadow-2xl"><SelectItem value="all">All Spectrum</SelectItem>{availableFromOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
-                    <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-gray-500 tracking-widest ml-1">To Location</Label><Select value={selectedTo || 'all'} onValueChange={(v) => setSelectedTo(v === 'all' ? null : v)}><SelectTrigger className="h-9"><SelectValue placeholder="All" /></SelectTrigger><SelectContent className="rounded-xl border-0 shadow-2xl"><SelectItem value="all">All Spectrum</SelectItem>{availableToOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
-                    <Button variant="ghost" size="sm" className="h-9 text-xs font-bold text-primary" onClick={() => { setSelectedFrom(null); setSelectedTo(null); }}>Reset All Filters</Button>
-                  </CardContent>
-                </Card>
-              )}
+                {showFilters && (
+                  <Card className="border-dashed border-2 bg-white/50 rounded-2xl animate-in slide-in-from-top-2 duration-200 no-capture">
+                    <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                      <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-gray-500 tracking-widest ml-1">From Location</Label><Select value={selectedFrom || 'all'} onValueChange={(v) => setSelectedFrom(v === 'all' ? null : v)}><SelectTrigger className="h-9"><SelectValue placeholder="All" /></SelectTrigger><SelectContent className="rounded-xl border-0 shadow-2xl"><SelectItem value="all">All Spectrum</SelectItem>{availableFromOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                      <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-gray-500 tracking-widest ml-1">To Location</Label><Select value={selectedTo || 'all'} onValueChange={(v) => setSelectedTo(v === 'all' ? null : v)}><SelectTrigger className="h-9"><SelectValue placeholder="All" /></SelectTrigger><SelectContent className="rounded-xl border-0 shadow-2xl"><SelectItem value="all">All Spectrum</SelectItem>{availableToOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                      <Button variant="ghost" size="sm" className="h-9 text-xs font-bold text-primary" onClick={() => { setSelectedFrom(null); setSelectedTo(null); }}>Reset All Filters</Button>
+                    </CardContent>
+                  </Card>
+                )}
 
-              <Card className="rounded-2xl border-0 shadow-sm overflow-hidden bg-white">
-                <CardHeader className="bg-gray-50/50 border-b pb-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`h-10 w-10 rounded-lg ${
-                        activeMovementSubTab === 'today' ? 'bg-emerald-100 text-emerald-700' : 
-                        activeMovementSubTab === 'tomorrow' ? 'bg-amber-100 text-amber-700' : 
-                        activeMovementSubTab === 'after-tomorrow' ? 'bg-purple-100 text-purple-700' :
-                        'bg-blue-100 text-blue-700'
-                      } flex items-center justify-center font-bold`}>{currentMovements.length}</div>
-                      <div>
-                        <CardTitle className="text-base font-bold text-secondary uppercase tracking-tight">
-                          {activeMovementSubTab === 'after-tomorrow' ? 'DAY AFTER TOMORROW' : 
-                           activeMovementSubTab === 'specific-date' ? `SCHEDULE FOR ${new Date(selectedMovementDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}` :
-                           activeMovementSubTab.toUpperCase()} SCHEDULE
-                        </CardTitle>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                          Live movement logs for {
-                            activeMovementSubTab === 'today' ? 'current session' : 
-                            activeMovementSubTab === 'tomorrow' ? 'next session' : 
-                            activeMovementSubTab === 'after-tomorrow' ? 'upcoming session' :
-                            'selected date'
-                          }
-                        </p>
+                <Card className="rounded-2xl border-0 shadow-sm overflow-hidden bg-white">
+                  <CardHeader className="bg-gray-50/50 border-b pb-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`h-10 w-10 rounded-lg ${
+                          activeMovementSubTab === 'today' ? 'bg-emerald-100 text-emerald-700' : 
+                          activeMovementSubTab === 'tomorrow' ? 'bg-amber-100 text-amber-700' : 
+                          activeMovementSubTab === 'after-tomorrow' ? 'bg-purple-100 text-purple-700' :
+                          'bg-blue-100 text-blue-700'
+                        } flex items-center justify-center font-bold`}>{currentMovements.length}</div>
+                        <div>
+                          <CardTitle className="text-base font-bold text-secondary uppercase tracking-tight">
+                            {activeMovementSubTab === 'after-tomorrow' ? 'DAY AFTER TOMORROW' : 
+                             activeMovementSubTab === 'specific-date' ? `SCHEDULE FOR ${new Date(selectedMovementDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}` :
+                             activeMovementSubTab.toUpperCase()} SCHEDULE
+                          </CardTitle>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                            Live movement logs for {
+                              activeMovementSubTab === 'today' ? 'current session' : 
+                              activeMovementSubTab === 'tomorrow' ? 'next session' : 
+                              activeMovementSubTab === 'after-tomorrow' ? 'upcoming session' :
+                              'selected date'
+                            }
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-4">
+                         <Button variant="outline" size="sm" onClick={handleCopyMovementsImage} className="h-9 border-blue-200 hover:bg-blue-50 text-blue-700 font-bold no-capture">
+                           <Copy className="h-4 w-4 mr-2" />
+                           Copy Image
+                         </Button>
+                         <Button variant="outline" size="sm" onClick={handlePrintMovements} className="h-9 border-primary/20 hover:bg-primary/5 text-primary font-bold no-capture">
+                           <Printer className="h-4 w-4 mr-2" />
+                           Print PDF
+                         </Button>
+                         <div className="text-right"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Makkah Load</p><p className="font-black text-secondary">{currentMoveStats.makkahMovements || 0} MVMT</p></div>
+                         <div className="text-right"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Madinah Load</p><p className="font-black text-secondary">{currentMoveStats.madinahMovements || 0} MVMT</p></div>
                       </div>
                     </div>
-                    <div className="flex gap-4">
-                       <Button variant="outline" size="sm" onClick={handlePrintMovements} className="h-9 border-primary/20 hover:bg-primary/5 text-primary font-bold">
-                         <Printer className="h-4 w-4 mr-2" />
-                         Print PDF
-                       </Button>
-                       <div className="text-right"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Makkah Load</p><p className="font-black text-secondary">{currentMoveStats.makkahMovements || 0} MVMT</p></div>
-                       <div className="text-right"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Madinah Load</p><p className="font-black text-secondary">{currentMoveStats.madinahMovements || 0} MVMT</p></div>
-                    </div>
-                  </div>
-                </CardHeader>
+                  </CardHeader>
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader className="bg-gray-50/30">
@@ -712,9 +755,10 @@ export default function VoucherServicePage() {
                         <TableHead className="text-[10px] font-black text-gray-400 tracking-widest">Timeline</TableHead>
                         <TableHead className="text-[10px] font-black text-gray-400 tracking-widest">Guest Protocol</TableHead>
                         <TableHead className="text-[10px] font-black text-gray-400 tracking-widest">Location Matrix</TableHead>
-                        <TableHead className="text-[10px] font-black text-gray-400 tracking-widest w-[300px]">Driver & Vehicle Information</TableHead>
-                        <TableHead className="px-6 text-right w-10"></TableHead>
-                      </TableRow>
+                        <TableHead className="px-6 text-[10px] font-black text-gray-400 tracking-widest w-[300px]">Driver & Vehicle Information</TableHead>
+                        <TableHead className="px-6 text-right w-10 no-capture"></TableHead>
+                        </TableRow>
+
                     </TableHeader>
                     <TableBody>
                       {loadingMovements ? [...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={8} className="px-6"><Skeleton className="h-10 w-full" /></TableCell></TableRow>) : 
@@ -780,7 +824,7 @@ export default function VoucherServicePage() {
                                 </div>
                               </div>
                             </TableCell>
-                            <TableCell className="px-6 text-right">
+                            <TableCell className="px-6 text-right no-capture">
                               {editingMovements.has(mid) ? (
                                 <div className="flex justify-end gap-1">
                                   <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600 bg-emerald-50 hover:bg-emerald-100" onClick={() => saveMovement(m)} disabled={savingMovementId === mid}>
