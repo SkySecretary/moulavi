@@ -35,12 +35,15 @@ import {
   X,
   Plane,
   Truck,
+  Printer,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
 import api, { voucherAPI } from '@/lib/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import QuickVoucherForm from '@/components/voucher/QuickVoucherForm';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function VoucherServicePage() {
   const router = useRouter();
@@ -307,6 +310,79 @@ export default function VoucherServicePage() {
     } finally {
       setSavingMovementId(null);
     }
+  };
+
+  const handlePrintMovements = () => {
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'pt',
+      format: 'a4'
+    });
+
+    let dateLabel = activeMovementSubTab.toUpperCase();
+    if (activeMovementSubTab === 'after-tomorrow') dateLabel = 'DAY AFTER TOMORROW';
+    if (activeMovementSubTab === 'specific-date') dateLabel = new Date(selectedMovementDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    
+    const title = 'Tafweej Movements - ' + dateLabel;
+    const filters = [];
+    if (movementSearch) filters.push(`Search: ${movementSearch}`);
+    if (selectedFrom) filters.push(`From: ${selectedFrom}`);
+    if (selectedTo) filters.push(`To: ${selectedTo}`);
+    
+    const subtitle = filters.join(' | ');
+
+    doc.setFontSize(18);
+    doc.text(title, 40, 40);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(subtitle, 40, 60);
+
+    const tableData = currentMovements.map((m) => {
+      const mid = m.movementId || `${m.voucherId}-${m.movementIndex}`;
+      const edited = editingMovements.get(mid) || m;
+      
+      return [
+        m.voucherNumber,
+        m.umrahCompany,
+        `${m.qty || m.pax} PAX`,
+        `${new Date(m.date).toLocaleDateString('en-GB', { timeZone: 'UTC', day: '2-digit', month: 'short' })}\n${m.time}`,
+        `${m.guestName}\n${m.mobile}`,
+        `${m.from} (${m.fromLocation}) -> ${m.to} (${m.toLocation})`,
+        `${edited.driverDetails1 || ''}\n${edited.driverDetails2 || ''}\n${edited.vehicleNumber || ''}`
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 80,
+      head: [['Voucher', 'Umrah Co.', 'Qty', 'Timeline', 'Guest Details', 'Location Matrix', 'Driver & Vehicle']],
+      body: tableData,
+      theme: 'grid',
+      styles: {
+        fontSize: 7,
+        cellPadding: 3,
+      },
+      headStyles: {
+        fillColor: [51, 51, 51],
+        fontSize: 7,
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      columnStyles: {
+        2: { halign: 'center' },
+        3: { halign: 'center' },
+      },
+      margin: { top: 80, bottom: 40, left: 40, right: 40 },
+      didDrawPage: (data) => {
+        const str = 'Page ' + doc.internal.getNumberOfPages();
+        doc.setFontSize(8);
+        const pageSize = doc.internal.pageSize;
+        const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
+        doc.text(str, data.settings.margin.left, pageHeight - 20);
+      }
+    });
+
+    const filenameDate = activeMovementSubTab === 'specific-date' ? selectedMovementDate : activeMovementSubTab;
+    doc.save(`Tafweej_Movements_${filenameDate}.pdf`);
   };
 
   const downloadVoucherPDF = async (voucherId: string) => {
@@ -617,6 +693,10 @@ export default function VoucherServicePage() {
                       </div>
                     </div>
                     <div className="flex gap-4">
+                       <Button variant="outline" size="sm" onClick={handlePrintMovements} className="h-9 border-primary/20 hover:bg-primary/5 text-primary font-bold">
+                         <Printer className="h-4 w-4 mr-2" />
+                         Print PDF
+                       </Button>
                        <div className="text-right"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Makkah Load</p><p className="font-black text-secondary">{currentMoveStats.makkahMovements || 0} MVMT</p></div>
                        <div className="text-right"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Madinah Load</p><p className="font-black text-secondary">{currentMoveStats.madinahMovements || 0} MVMT</p></div>
                     </div>

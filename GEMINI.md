@@ -18,8 +18,14 @@ This document serves as the foundational reference for the NuSync project. It ca
 1.  **Bookings Listing:** Centralized dashboard for creating Individual and Group bookings.
 2.  **Voucher Management:** 
     *   **Vouchers Tab:** Listing and Quick Create (manual entry).
-    *   **Movements Tab:** Today/Tomorrow view for transport tracking with editable driver/vehicle details.
-3.  **Settings:** Gear icon in Navbar leads to centralized management of all master data (Users, Cities, Countries, Transport Routes, etc.).
+    *   **Movements Tab:** Today/Tomorrow view for transport tracking with editable driver/vehicle details. Includes **PDF Print** functionality for Tafweej.
+3.  **Tafweej (Daily Overview):** Comprehensive operational view with PDF Print support for daily scheduling.
+4.  **Settings:** Gear icon in Navbar leads to centralized management of all master data (Users, Cities, Countries, Transport Routes, etc.).
+
+### Database & Backup
+- **Database:** SQLite managed via Prisma (`backend/prisma/dev.db`).
+- **Auto-Backup:** A scheduled task runs every 12 hours (via `backend/src/server.ts`) backing up the database to `backend/backups/`. It keeps the last 10 backups.
+- **Manual Backup:** Can be triggered via `node backend/scripts/backup-db.js`.
 
 ### Alternate Booking Information (Mandate)
 The system supports "Alternate Info" for all bookings. This allows users to store placeholder/dummy details (flights, hotels, transport) separately from the confirmed main information.

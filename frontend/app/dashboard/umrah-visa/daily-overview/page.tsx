@@ -25,7 +25,8 @@ import {
   Calendar as CalendarIcon,
   Filter,
   X,
-  Truck
+  Truck,
+  Printer
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
@@ -33,6 +34,8 @@ import { umrahVisaAPI } from '@/lib/api';
 import { VISA_TYPE_CONFIG } from '@/lib/constants';
 import { toDisplayDate, extractTimeFromISO } from '@/lib/umrah/validation';
 import { cn } from '@/lib/utils';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function DailyOverviewPage() {
   const user = getUser();
@@ -117,6 +120,105 @@ export default function DailyOverviewPage() {
     return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
+  const handlePrint = () => {
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'pt',
+      format: 'a4'
+    });
+
+    const title = 'Tafweej - ' + getTargetDateLabel();
+    const filters = [];
+    filters.push(`Type: ${filterType.toUpperCase()}`);
+    if (arrivalFilter) filters.push(`Arr: ${arrivalFilter}`);
+    if (departureFilter) filters.push(`Dep: ${departureFilter}`);
+    if (umraCompanyFilter) filters.push(`Umra Co: ${umraCompanyFilter}`);
+    if (searchQuery) filters.push(`Search: ${searchQuery}`);
+    
+    const subtitle = filters.join(' | ');
+
+    doc.setFontSize(18);
+    doc.text(title, 40, 40);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(subtitle, 40, 60);
+
+    const tableData = filteredBookings.map((booking) => {
+      const travel = booking.travelDetails?.[0];
+      const movement = booking.movementDetails?.[0];
+      const dateStr = getTargetDate();
+      
+      const isArrivalToday = travel?.arrivalDateTime && isSameDate(travel.arrivalDateTime, dateStr);
+      const isDepartureToday = travel?.departureDateTime && isSameDate(travel.departureDateTime, dateStr);
+
+      const visaType = VISA_TYPE_CONFIG[booking.visaType as keyof typeof VISA_TYPE_CONFIG]?.label || booking.visaType;
+      const reference = booking.bookingReference || 'N/A';
+      const group = `${booking.groupNumber || 'N/A'}\n${booking.groupName || ''}`;
+      const party = booking.party?.partyName || 'N/A';
+      const provider = booking.umrahVisaProvider?.partyName || 'N/A';
+      const qty = booking.passengerCount || 0;
+
+      let arrival = '---';
+      if (isArrivalToday) {
+        arrival = `${travel?.arrivalAirport?.code || '???'} - ${travel?.arrivalFlightNumber || 'N/A'}\n${travel?.arrivalAirport?.city || ''}\n${extractTimeFromISO(travel?.arrivalDateTime)}`;
+      }
+
+      let departure = '---';
+      if (isDepartureToday) {
+        departure = `${travel?.departureAirport?.code || '???'} - ${travel?.departureFlightNumber || 'N/A'}\n${travel?.departureAirport?.city || ''}\n${extractTimeFromISO(travel?.departureDateTime)}`;
+      }
+
+      let cityMovement = 'No movement';
+      if (movement) {
+        cityMovement = `${movement.fromCity?.name} -> ${movement.toCity?.name}\n${extractTimeFromISO(movement.travelDateTime)}`;
+      }
+
+      return [
+        visaType,
+        reference,
+        group,
+        party,
+        provider,
+        qty,
+        arrival,
+        departure,
+        cityMovement
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 80,
+      head: [['Visa Type', 'Reference', 'Group Details', 'Party Name', 'Service Provider', 'Qty', 'Arrival Hub', 'Departure Hub', 'City Movement']],
+      body: tableData,
+      theme: 'grid',
+      styles: {
+        fontSize: 8,
+        cellPadding: 3,
+      },
+      headStyles: {
+        fillColor: [51, 51, 51],
+        fontSize: 8,
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      columnStyles: {
+        5: { halign: 'center' },
+        6: { halign: 'center' },
+        7: { halign: 'center' },
+      },
+      margin: { top: 80, bottom: 40, left: 40, right: 40 },
+      didDrawPage: (data) => {
+        const str = 'Page ' + doc.internal.getNumberOfPages();
+        doc.setFontSize(8);
+        const pageSize = doc.internal.pageSize;
+        const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
+        doc.text(str, data.settings.margin.left, pageHeight - 20);
+      }
+    });
+
+    doc.save(`Tafweej_${getTargetDate()}.pdf`);
+  };
+
   const formatDate = (isoString: string) => {
     if (!isoString) return 'N/A';
     return toDisplayDate(isoString);
@@ -137,6 +239,10 @@ export default function DailyOverviewPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button onClick={handlePrint} variant="outline" size="sm" className="h-9 border-primary/20 hover:bg-primary/5 text-primary font-bold">
+              <Printer className="h-4 w-4 mr-2" />
+              Print PDF
+            </Button>
             <Button onClick={fetchDailyBookings} variant="outline" size="sm" className="h-9">
               <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
