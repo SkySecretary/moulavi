@@ -272,26 +272,49 @@ export const AccommodationStep: React.FC<AccommodationStepProps> = ({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="iqamaMobile" className="text-[10px] font-bold text-primary/60 uppercase ml-1">Mobile Number</Label>
-              <Input
-                id="iqamaMobile"
-                type="tel"
-                placeholder="+966"
-                value={data.iqamaDetails?.iqamaMobile || ''}
-                onChange={(e) => {
-                  let val = e.target.value;
-                  // If user starts typing and doesn't have +966, prepend it
-                  if (val && !val.startsWith('+966')) {
-                    // Remove leading 0 if they type 05...
-                    if (val.startsWith('0')) val = val.substring(1);
-                    // Prepend +966
-                    if (!val.startsWith('+')) val = '+966' + val;
-                  }
-                  onChange({ iqamaDetails: { ...data.iqamaDetails, iqamaMobile: val } });
-                }}
-                disabled={disabled}
-                className="h-10 bg-white border-gray-100 rounded-lg font-bold text-primary focus:ring-secondary/20 text-xs shadow-sm"
-              />
+              <Label htmlFor="iqamaMobile" className="text-[10px] font-bold text-primary/60 uppercase ml-1">Sponsor Mobile Number *</Label>
+              <div className="relative">
+                <Input
+                  id="iqamaMobile"
+                  type="tel"
+                  placeholder="+966 5X XXX XXXX"
+                  value={data.iqamaDetails?.iqamaMobile || '+966'}
+                  onChange={(e) => {
+                    let val = e.target.value;
+                    
+                    // If deleted everything, keep the prefix
+                    if (val.length < 4) {
+                      val = '+966';
+                    }
+                    
+                    // Always ensure it starts with +966
+                    if (!val.startsWith('+966')) {
+                      // Remove non-digits to clean up potential mess
+                      const digits = val.replace(/\D/g, '');
+                      // If it starts with 0 (like 05...), remove the 0
+                      const cleanDigits = digits.startsWith('0') ? digits.substring(1) : digits;
+                      val = '+966' + cleanDigits;
+                    }
+
+                    // Enforce only digits after +966
+                    const prefix = '+966';
+                    const body = val.substring(4).replace(/\D/g, '');
+                    
+                    // Saudi mobile numbers shouldn't start with 0 after prefix
+                    const cleanBody = body.startsWith('0') ? body.substring(1) : body;
+                    
+                    // Limit to 9 digits (standard Saudi mobile length after prefix)
+                    const limitedBody = cleanBody.substring(0, 9);
+                    
+                    onChange({ iqamaDetails: { ...data.iqamaDetails, iqamaMobile: prefix + limitedBody } });
+                  }}
+                  disabled={disabled}
+                  className="h-10 bg-white border-gray-100 rounded-lg font-bold text-primary focus:ring-secondary/20 text-xs shadow-sm pl-3"
+                />
+              </div>
+              <p className="text-[8px] font-bold text-secondary uppercase tracking-widest ml-1 animate-pulse">
+                Format: +966 followed by 9 digits (e.g. +9665XXXXXXXX)
+              </p>
             </div>
 
             <div className="space-y-3 sm:col-span-2">

@@ -709,6 +709,11 @@ export default function TripInfoPage() {
                                     </button>
                                   )}
                                 </div>
+                                {booking.vouchers?.[0]?.voucherNumber && (
+                                  <span className="text-[10px] text-emerald-600 font-black uppercase tracking-widest mt-0.5">
+                                    Voucher: {booking.vouchers[0].voucherNumber}
+                                  </span>
+                                )}
                                 {booking.createdAt && (
                                   <span className="text-[9px] text-gray-400 mt-1">
                                     C: {formatDate(booking.createdAt)}

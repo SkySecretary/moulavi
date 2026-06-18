@@ -278,14 +278,20 @@ export default function MissingBRNPage() {
                   ) : (
                     bookings.map((booking) => {
                       const agentName = booking.party?.partyName || 'Unknown Agent';
-                      const voucherRef = booking.groupNumber || booking.bookingReference || booking.id.slice(0, 8);
+                      const groupRef = booking.groupNumber || booking.bookingReference || booking.id.slice(0, 8);
+                      const voucherNumber = booking.vouchers?.[0]?.voucherNumber;
                       const arrivalDate = booking.travelDetails?.[0]?.arrivalDateTime ? formatDate(booking.travelDetails[0].arrivalDateTime) : 'N/A';
                       
                       return (
                         <TableRow key={booking.id} className="hover:bg-gray-50/50">
                           <TableCell className="font-bold text-secondary">
-                            {voucherRef} <br/>
-                            <span className="text-xs text-gray-400 font-medium">{booking.passengerCount} PAX</span>
+                            <div className="flex flex-col">
+                              <span className="text-secondary">{groupRef}</span>
+                              {voucherNumber && (
+                                <span className="text-[10px] text-emerald-600 font-black uppercase tracking-widest mt-0.5">Voucher: {voucherNumber}</span>
+                              )}
+                              <span className="text-xs text-gray-400 font-medium mt-1">{booking.passengerCount} PAX</span>
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col">

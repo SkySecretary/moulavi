@@ -163,12 +163,13 @@ export default function Home() {
             <CardContent className="p-8 lg:p-10">
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-[10px] font-black text-primary/40 uppercase tracking-widest ml-1">Username</Label>
+                  <Label htmlFor="email" className="text-[10px] font-black text-primary/40 uppercase tracking-widest ml-1">Username / Email</Label>
                   <div className="relative">
                     <Input
                       id="email"
                       type="email"
                       placeholder="username"
+                      autoComplete="username"
                       {...register('email')}
                       disabled={isLoading}
                       className="h-12 bg-gray-50 border-gray-100 rounded-xl font-bold text-primary focus:ring-secondary/20 pl-10 transition-all shadow-inner"
@@ -190,6 +191,7 @@ export default function Home() {
                       id="password"
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
+                      autoComplete="current-password"
                       {...register('password')}
                       disabled={isLoading}
                       className="h-12 bg-gray-50 border-gray-100 rounded-xl font-bold text-primary focus:ring-secondary/20 pl-10 pr-12 transition-all shadow-inner"
