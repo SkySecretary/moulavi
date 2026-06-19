@@ -1,28 +1,22 @@
-// Step 5: Documents Component - Simple ZIP file upload (similar to group booking)
-
 import React, { useState, useRef } from 'react';
-import { Card } from '@/components/ui/card';
-import { UploadCloud, File, X, Eye, FileText, ShieldCheck } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { UploadCloud, File, X, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Step5Data, Step6Data, Step1Data, Step3Data } from '@/lib/umrah/types';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { Step1Data, Step3Data, Step6Data } from '@/lib/umrah/types';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface DocumentsStepProps {
-  data: (Step5Data | Step6Data) & { documents?: File[] };
+  data: Step6Data;
   step1Data: Step1Data;
   step3Data: Step3Data;
-  onChange: (data: Partial<Step5Data | Step6Data | { documents: File[] }>) => void;
-  onStep1DataChange?: (data: Partial<Step1Data>) => void;
+  onChange: (data: Partial<Step6Data>) => void;
   disabled?: boolean;
+  passengerCount: number;
 }
 
 export const DocumentsStep: React.FC<DocumentsStepProps> = ({
@@ -31,45 +25,106 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
   step3Data,
   onChange,
   disabled = false,
+  passengerCount,
 }) => {
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // Get uploaded files
-  const uploadedFiles = data.documents || [];
-
-  // Determine hasGroupNumber and accommodationType
+  // Determine bookingMode and accommodationType
   const hasGroupNumber = step1Data.bookingMode === 'group_number';
   const accommodationType = step3Data.accommodationType;
 
+  // Helper: Get files list for a given field name safely
+  const getFieldFiles = (field: keyof Step6Data): File[] => {
+    const val = data[field];
+    return Array.isArray(val) ? (val as File[]) : [];
+  };
+
+  const handleFilesSelectForField = (field: keyof Step6Data, newFiles: FileList | File[]) => {
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+    const currentFiles = getFieldFiles(field);
+    const validFiles: File[] = [...currentFiles];
+
+    Array.from(newFiles).forEach(file => {
+      // Validate file type
+      const isValidType = /jpeg|jpg|png|pdf|zip|heic|heif|webp/.test(file.type.toLowerCase()) || 
+                          /\.(zip|pdf|jpg|jpeg|png|heic|heif|webp)$/i.test(file.name);
+      
+      if (!isValidType) {
+        toast.error(`${file.name} is not a valid file type. Please upload images (JPG, PNG, HEIC, WEBP), PDFs or ZIP.`);
+        return;
+      }
+
+      // Validate size
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`${file.name} exceeds the 50MB size limit.`);
+        return;
+      }
+
+      validFiles.push(file);
+    });
+
+    onChange({ [field]: validFiles });
+
+    // Initialize/extend passportNumbers if passengerPhotos changed
+    if (field === 'passengerPhotos') {
+      const currentPassportNumbers = data.passportNumbers || [];
+      const newPassportNumbers = [...currentPassportNumbers];
+      while (newPassportNumbers.length < validFiles.length) {
+        newPassportNumbers.push('');
+      }
+      onChange({ passportNumbers: newPassportNumbers });
+    }
+  };
+
+  const handleRemoveFileForField = (field: keyof Step6Data, index: number) => {
+    const currentFiles = getFieldFiles(field);
+    const updatedFiles = [...currentFiles];
+    updatedFiles.splice(index, 1);
+    
+    const updates: Partial<Step6Data> = { [field]: updatedFiles };
+    
+    // Also remove corresponding passport number entry if passengerPhotos changed
+    if (field === 'passengerPhotos' && data.passportNumbers) {
+      const updatedPassportNumbers = [...data.passportNumbers];
+      updatedPassportNumbers.splice(index, 1);
+      updates.passportNumbers = updatedPassportNumbers;
+    }
+    
+    onChange(updates);
+  };
+
+  const handlePassportNumberChange = (index: number, val: string) => {
+    const currentNumbers = data.passportNumbers || [];
+    const updatedNumbers = [...currentNumbers];
+    updatedNumbers[index] = val;
+    onChange({ passportNumbers: updatedNumbers });
+  };
+
   // Generate dynamic instructions based on conditions
   const getInstructions = () => {
-    const baseWarning = "Ensure all required documents are attached. Individual files should not exceed 50MB. bookings without proper documentation will be subject to cancellation.";
+    const baseWarning = "Ensure all required documents are attached. Individual files should not exceed 50MB. Bookings without proper documentation will be subject to cancellation.";
     
     let requiredDocs: string[] = [];
 
     if (hasGroupNumber && accommodationType === 'hotel') {
-      requiredDocs = ['PAN card of all passengers'];
+      requiredDocs = ['PAN card copy of passengers'];
     } else if (hasGroupNumber && accommodationType === 'iqama') {
-      requiredDocs = ['PAN card of all passengers', 'Iqama holder Iqama copy'];
+      requiredDocs = ['PAN card copy of passengers', 'Iqama copy of Sponsor'];
     } else if (!hasGroupNumber && accommodationType === 'hotel') {
       requiredDocs = [
         'Passport front and back of all passengers',
-        'PAN card of all passengers',
-        'Passport sized photo of each passenger'
+        'Passport sized photo of each passenger',
+        'Onward Flight Ticket copy',
+        'Return Flight Ticket copy'
       ];
     } else if (!hasGroupNumber && accommodationType === 'iqama') {
       requiredDocs = [
         'Passport front and back of all passengers',
-        'PAN card of all passengers',
         'Passport sized photo of each passenger',
-        'Iqama holder Iqama copy'
+        'Iqama copy of Sponsor',
+        'Onward Flight Ticket copy',
+        'Return Flight Ticket copy'
       ];
     } else {
-      // Fallback if accommodationType is not set yet
-      requiredDocs = [
-        'All required documents as per your booking type'
-      ];
+      requiredDocs = ['All required documents as per your booking type'];
     }
 
     return { baseWarning, requiredDocs };
@@ -77,71 +132,126 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
 
   const { baseWarning, requiredDocs } = getInstructions();
 
-  const handleFilesSelect = (newFiles: FileList | File[]) => {
-    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-    const validFiles: File[] = [...uploadedFiles];
-    let hasError = false;
+  // Reusable Section Uploader Component
+  const SectionUploader = ({ 
+    field, 
+    label, 
+    description, 
+    required = false, 
+    showPassportLabel = false 
+  }: { 
+    field: keyof Step6Data; 
+    label: string; 
+    description: string; 
+    required?: boolean; 
+    showPassportLabel?: boolean 
+  }) => {
+    const files = getFieldFiles(field);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [dragging, setDragging] = useState(false);
 
-    Array.from(newFiles).forEach(file => {
-      // Validate file type - Expanded to include HEIC/HEIF and WEBP
-      const isValidType = /jpeg|jpg|png|pdf|zip|heic|heif|webp/.test(file.type.toLowerCase()) || 
-                          /\.(zip|pdf|jpg|jpeg|png|heic|heif|webp)$/i.test(file.name);
-      
-      if (!isValidType) {
-        toast.error(`${file.name} is not a valid file type. Please upload images (JPG, PNG, HEIC, WEBP), PDFs or ZIP.`);
-        hasError = true;
-        return;
-      }
+    return (
+      <Card className="p-4 rounded-xl border border-secondary/10 bg-white shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+          <div>
+            <div className="flex items-center gap-2">
+              <h5 className="text-xs font-bold text-primary uppercase tracking-wider">
+                {label} {required && <span className="text-destructive">*</span>}
+              </h5>
+              {files.length > 0 && (
+                <Badge variant="secondary" className="text-[9px] font-bold bg-primary/5 text-primary">
+                  {files.length} {files.length === 1 ? 'file' : 'files'}
+                </Badge>
+              )}
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{description}</p>
+          </div>
+        </div>
 
-      // Validate size
-      if (file.size > MAX_FILE_SIZE) {
-        toast.error(`${file.name} exceeds the 50MB size limit.`);
-        hasError = true;
-        return;
-      }
+        {/* Dropzone */}
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={(e) => { e.preventDefault(); setDragging(false); }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            if (e.dataTransfer.files.length > 0) {
+              handleFilesSelectForField(field, e.dataTransfer.files);
+            }
+          }}
+          onClick={() => fileInputRef.current?.click()}
+          className={cn(
+            "relative group overflow-hidden rounded-xl border-2 border-dashed transition-all cursor-pointer p-4 flex flex-col items-center justify-center min-h-[90px]",
+            dragging
+              ? "bg-primary/5 border-primary shadow-sm"
+              : "bg-gray-50/50 border-secondary/20 hover:bg-white hover:border-primary/40"
+          )}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*,.pdf,.zip,.heic,.heif,.webp"
+            onChange={(e) => {
+              if (e.target.files && e.target.files.length > 0) {
+                handleFilesSelectForField(field, e.target.files);
+              }
+            }}
+            disabled={disabled}
+            className="hidden"
+          />
+          <UploadCloud className="h-5 w-5 text-secondary group-hover:text-primary mb-1.5 transition-all" />
+          <p className="text-[9px] font-bold text-primary uppercase tracking-wide">
+            {dragging ? 'Drop files here' : 'Drag & drop or click to upload'}
+          </p>
+        </div>
 
-      validFiles.push(file);
-    });
+        {/* File Cards */}
+        {files.length > 0 && (
+          <div className="space-y-2">
+            {files.map((file: File, index: number) => (
+              <div key={index} className="p-3 rounded-xl bg-gray-50/50 border border-secondary/5 flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
+                <div className="flex items-center gap-3 overflow-hidden min-w-0 flex-1">
+                  <div className="h-7 w-7 rounded bg-primary/5 flex items-center justify-center text-primary flex-shrink-0">
+                    <File className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-bold text-primary truncate uppercase tracking-tight" title={file.name}>
+                      {file.name}
+                    </p>
+                    <p className="text-[8px] text-muted-foreground font-medium">
+                      {(file.size / (1024 * 1024)).toFixed(2)} MB
+                    </p>
+                  </div>
+                </div>
 
-    if (validFiles.length > 0) {
-      onChange({ documents: validFiles });
-    }
-  };
+                {/* Passport Number Label Input (for Passenger Photos) */}
+                {showPassportLabel && (
+                  <div className="w-full sm:w-44 flex flex-col gap-1">
+                    <Label className="text-[8px] font-bold text-primary/60 uppercase">Passport Number *</Label>
+                    <Input
+                      placeholder="e.g. P1234567"
+                      value={(data.passportNumbers || [])[index] || ''}
+                      onChange={(e) => handlePassportNumberChange(index, e.target.value.toUpperCase())}
+                      className="h-7 text-[10px] uppercase font-bold"
+                      disabled={disabled}
+                    />
+                  </div>
+                )}
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      handleFilesSelect(files);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      handleFilesSelect(files);
-    }
-  };
-
-  const handleRemoveFile = (index: number) => {
-    const updatedFiles = [...uploadedFiles];
-    updatedFiles.splice(index, 1);
-    onChange({ documents: updatedFiles });
-    if (updatedFiles.length === 0 && fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+                <button
+                  type="button"
+                  onClick={() => handleRemoveFileForField(field, index)}
+                  className="h-6 w-6 rounded-full hover:bg-destructive/10 flex items-center justify-center text-destructive/40 hover:text-destructive transition-all self-end sm:self-auto"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    );
   };
 
   return (
@@ -158,10 +268,9 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
             alt="Sample Documents Guide"
             width={1200}
             height={400}
-            className="w-full h-auto object-cover max-h-[250px]"
+            className="w-full h-auto object-cover max-h-[200px]"
             unoptimized
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
       </div>
 
@@ -169,82 +278,75 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
         <div>
           <h4 className="text-lg font-bold text-primary uppercase tracking-tight">Documents Upload</h4>
           <p className="text-[10px] text-muted-foreground font-medium mt-0.5 opacity-60">
-            Upload images (JPG, PNG, HEIC), PDFs or a ZIP file (Max 50MB per file)
+            Upload files in their corresponding categories (Max 50MB per file)
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          {/* Upload Area */}
-          <div
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onClick={() => fileInputRef.current?.click()}
-            className={cn(
-              "relative group overflow-hidden rounded-2xl border-2 border-dashed transition-all duration-700 cursor-pointer min-h-[150px] flex items-center justify-center",
-              isDragging
-                ? "bg-primary/5 border-primary shadow-lg scale-[1.01]"
-                : "bg-gray-50/50 border-secondary/20 hover:bg-white hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5"
-            )}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="image/*,.pdf,.zip,.heic,.heif"
-              onChange={handleFileInputChange}
-              disabled={disabled}
-              className="hidden"
+        <div className="lg:col-span-2 space-y-4">
+          
+          {/* Section 1: Passport copies (mandatory if no group number) */}
+          {!hasGroupNumber && (
+            <SectionUploader 
+              field="passportCopies"
+              label="Passport Copies"
+              description={`Passport front and back pages. Exactly ${passengerCount} files are required.`}
+              required
             />
-            
-            <div className="flex flex-col items-center justify-center p-6 text-center">
-              <div className={cn(
-                "h-10 w-10 rounded-xl flex items-center justify-center mb-3 transition-all duration-700 shadow-md",
-                isDragging 
-                  ? "bg-primary text-white" 
-                  : "bg-white text-secondary border border-secondary/10 group-hover:bg-primary group-hover:text-white"
-              )}>
-                <UploadCloud className="h-5 w-5" />
-              </div>
-              <p className="text-sm font-bold text-primary tracking-tight mb-0.5 uppercase">
-                {isDragging ? 'Drop files now' : 'Click to upload multiple files'}
-              </p>
-              <p className="text-[8px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">
-                JPG, PNG, HEIC, PDF or ZIP (Max 50MB each)
-              </p>
-            </div>
-          </div>
-
-          {/* File List */}
-          {uploadedFiles.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-[9px] font-bold text-primary/40 uppercase tracking-widest mb-3">Attached Files ({uploadedFiles.length})</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {uploadedFiles.map((file, index) => (
-                  <div key={index} className="p-3 rounded-xl bg-white border border-secondary/10 shadow-sm flex items-center justify-between group hover:border-primary/20 transition-all animate-in slide-in-from-left-2 duration-300">
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="h-8 w-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 flex-shrink-0">
-                        {file.name.toLowerCase().endsWith('.pdf') ? <FileText className="h-4 w-4" /> : <File className="h-4 w-4" />}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-bold text-primary truncate uppercase tracking-tight">{file.name}</p>
-                        <p className="text-[8px] text-muted-foreground font-medium">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handleRemoveFile(index); }}
-                      className="h-6 w-6 rounded-full hover:bg-destructive/10 flex items-center justify-center text-destructive/40 hover:text-destructive transition-all"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
           )}
+
+          {/* Section 2: Passenger photo (mandatory if no group number) */}
+          {!hasGroupNumber && (
+            <SectionUploader 
+              field="passengerPhotos"
+              label="Passenger Photos"
+              description={`Passport size white background photos. Exactly ${passengerCount} files are required.`}
+              required
+              showPassportLabel
+            />
+          )}
+
+          {/* Section 3: Pan card copies (optional) */}
+          <SectionUploader 
+            field="panCardCopies"
+            label="PAN Card Copies"
+            description="PAN card copy of passengers. (Optional)"
+          />
+
+          {/* Section 4: Iqama copies (mandatory for individual iqama bookings) */}
+          {accommodationType === 'iqama' && (
+            <SectionUploader 
+              field="iqamaCopies"
+              label="Iqama Copies"
+              description="Sponsor's Iqama copy. (Required)"
+              required
+            />
+          )}
+
+          {/* Section 5: Onward Flight Ticket (mandatory) */}
+          <SectionUploader 
+            field="onwardTickets"
+            label="Onward Flight Tickets"
+            description="Onward flight reservation or ticket copies. (Required)"
+            required
+          />
+
+          {/* Section 6: Return Flight Ticket (mandatory) */}
+          <SectionUploader 
+            field="returnTickets"
+            label="Return Flight Tickets"
+            description="Return flight reservation or ticket copies. (Required)"
+            required
+          />
+
+          {/* Section 7: National Address (optional) */}
+          <SectionUploader 
+            field="nationalAddresses"
+            label="National Address Copy"
+            description="National Address verification document or short address copy. (Optional)"
+          />
+
         </div>
 
         {/* Instructions Sidebar - Compact */}
@@ -274,7 +376,7 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
 
             <div className="pt-4 border-t border-white/5 relative z-10">
               <p className="text-[9px] text-gray-500 font-bold leading-relaxed uppercase tracking-widest text-center">
-                Individual files or a single ZIP archive.
+                Ensure passenger photos are labeled with the correct passport number.
               </p>
             </div>
           </div>

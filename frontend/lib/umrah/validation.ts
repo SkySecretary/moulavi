@@ -654,29 +654,52 @@ export const validateStep3 = (
       return null; // All validations passed
       };
 
-// For individual bookings: Step 6 is documents
-export const validateStep6 = (data: Step6Data & { documents?: File[] }, step1Data: Step1Data, step3Data: Step3Data, isGroupVisa: boolean = false): string | null => {
-  // Either ZIP file or multiple individual files are required
-  const zipFile = data?.panCardZipFile;
-  const individualDocs = data?.documents;
-  
-  if (!zipFile && (!individualDocs || individualDocs.length === 0)) {
-    return 'Please upload required documents (ZIP file or multiple images/PDFs)';
-  }
+export const validateStep6 = (
+  data: Step6Data,
+  step1Data: Step1Data,
+  step3Data: Step3Data,
+  passengerCount: number,
+  isGroupVisa: boolean = false
+): string | null => {
+  const isIndividualWithoutGroupNumber = !isGroupVisa && step1Data.bookingMode !== 'group_number';
 
-  // If ZIP is provided, validate it
-  if (zipFile) {
-    const isValidZip = zipFile.type === 'application/zip' || zipFile.name.toLowerCase().endsWith('.zip');
-    if (!isValidZip) {
-      return 'Please upload a valid ZIP file (.zip)';
-    }
-
-    // Validate ZIP file size (max 50MB)
-    const maxSize = 50 * 1024 * 1024; // 50MB
-    if (zipFile.size > maxSize) {
-      return 'ZIP file size exceeds 50MB limit. Please compress your files.';
+  // 1) Passport copies
+  if (isIndividualWithoutGroupNumber) {
+    if (!data.passportCopies || data.passportCopies.length !== passengerCount) {
+      return `Exactly ${passengerCount} passport copy files are required (matching passenger count). Currently uploaded: ${data.passportCopies?.length || 0}`;
     }
   }
-  
+
+  // 2) Passenger photo
+  if (isIndividualWithoutGroupNumber) {
+    if (!data.passengerPhotos || data.passengerPhotos.length !== passengerCount) {
+      return `Exactly ${passengerCount} passenger photos are required (matching passenger count). Currently uploaded: ${data.passengerPhotos?.length || 0}`;
+    }
+    if (!data.passportNumbers || data.passportNumbers.length !== passengerCount || data.passportNumbers.some(p => !p || p.trim() === '')) {
+      return 'Please enter a passport number label for each passenger photo.';
+    }
+  }
+
+  // 4) Iqama copies (mandatory for individual iqama type accommodation booking)
+  if (!isGroupVisa && step3Data.accommodationType === 'iqama') {
+    if (!data.iqamaCopies || data.iqamaCopies.length === 0) {
+      return 'Iqama copy is required for Iqama accommodation type.';
+    }
+  }
+
+  // 5) onward ticket (mandatory)
+  if (!isGroupVisa) {
+    if (!data.onwardTickets || data.onwardTickets.length === 0) {
+      return 'Onward ticket copy is required.';
+    }
+  }
+
+  // 6) return ticket (mandatory)
+  if (!isGroupVisa) {
+    if (!data.returnTickets || data.returnTickets.length === 0) {
+      return 'Return ticket copy is required.';
+    }
+  }
+
   return null; // All validations passed
 };

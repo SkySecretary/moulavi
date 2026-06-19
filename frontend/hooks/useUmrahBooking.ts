@@ -261,12 +261,36 @@ export const useUmrahBooking = () => {
           formData.append('panCardZipFile', zipFile);
         }
 
-        // Add multiple documents if present (new feature)
+        // Add multiple documents if present (legacy)
         const documents = (bookingState.step6Data as any)?.documents;
         if (documents && Array.isArray(documents)) {
           documents.forEach((file: File) => {
             formData.append('documents', file);
           });
+        }
+
+        // Add split documents to FormData (new feature)
+        const docFields = [
+          'passportCopies',
+          'passengerPhotos',
+          'panCardCopies',
+          'iqamaCopies',
+          'onwardTickets',
+          'returnTickets',
+          'nationalAddresses'
+        ];
+        docFields.forEach(field => {
+          const files = (bookingState.step6Data as any)?.[field];
+          if (files && Array.isArray(files)) {
+            files.forEach((file: File) => {
+              formData.append(field, file);
+            });
+          }
+        });
+
+        // Add passportNumbers metadata
+        if (bookingState.step6Data?.passportNumbers) {
+          formData.append('passportNumbers', JSON.stringify(bookingState.step6Data.passportNumbers));
         }
 
         // Add JSON data as string

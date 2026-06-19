@@ -90,7 +90,7 @@ export default function UmrahVisaNewPage() {
       case 5:
         return validateStep5Movements(bookingState.step5Data, bookingState.step1Data, bookingState.step2Data, bookingState.step3Data, bookingState.step4Data, masterData.locationMasters);
       case 6:
-        return validateStep6(bookingState.step6Data || { panCardZipFile: null }, bookingState.step1Data, bookingState.step3Data, false);
+        return validateStep6(bookingState.step6Data || {}, bookingState.step1Data, bookingState.step3Data, bookingState.step2Data.passengerCount || bookingState.step1Data.passengerCount || 0, false);
       default:
         return null;
     }
@@ -249,11 +249,12 @@ export default function UmrahVisaNewPage() {
       case 6:
         return (
           <DocumentsStep
-            data={bookingState.step6Data || { panCardZipFile: null }}
+            data={bookingState.step6Data || {}}
             step1Data={bookingState.step1Data}
             step3Data={bookingState.step3Data}
             onChange={updateStep6Data}
             disabled={isLoading}
+            passengerCount={bookingState.step2Data.passengerCount || bookingState.step1Data.passengerCount || 0}
           />
         );
 

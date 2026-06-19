@@ -222,24 +222,47 @@ router.post('/step4', authenticate, async (req, res) => {
 // POST /api/umrah-visa/create-booking - Create complete booking (all steps in one transaction)
 router.post('/create-booking', authenticate, uploadIndividual.fields([
   { name: 'panCardZipFile', maxCount: 1 },
-  { name: 'documents', maxCount: 500 }
+  { name: 'documents', maxCount: 500 }, // legacy
+  { name: 'passportCopies', maxCount: 100 },
+  { name: 'passengerPhotos', maxCount: 100 },
+  { name: 'panCardCopies', maxCount: 100 },
+  { name: 'iqamaCopies', maxCount: 100 },
+  { name: 'onwardTickets', maxCount: 100 },
+  { name: 'returnTickets', maxCount: 100 },
+  { name: 'nationalAddresses', maxCount: 100 }
 ]), async (req, res) => {
   try {
     const user = (req as any).user;
     
     // Check file size limits for multiple documents (50MB each)
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-    if (files && files['documents']) {
+    const allFileFields = [
+      'documents',
+      'passportCopies',
+      'passengerPhotos',
+      'panCardCopies',
+      'iqamaCopies',
+      'onwardTickets',
+      'returnTickets',
+      'nationalAddresses'
+    ];
+    if (files) {
       const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-      for (const file of files['documents']) {
-        if (file.size > MAX_FILE_SIZE) {
-          return res.status(400).json({ error: `File ${file.originalname} exceeds the 50MB size limit` });
+      for (const field of allFileFields) {
+        const fieldFiles = files[field];
+        if (fieldFiles && Array.isArray(fieldFiles)) {
+          for (const file of fieldFiles) {
+            if (file.size > MAX_FILE_SIZE) {
+              return res.status(400).json({ error: `File ${file.originalname} exceeds the 50MB size limit` });
+            }
+          }
         }
       }
     }
 
     // Parse JSON strings from FormData (if FormData) or use req.body directly (if JSON)
     let step1Data, step2Data, step3Data, step4Data, step5Data: { movements?: any[] } | undefined, partyId;
+    let passportNumbers: string[] = [];
     
     if (req.body.step1) {
       // FormData mode - parse JSON strings
@@ -249,6 +272,14 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
       step3Data = JSON.parse(req.body.step3);
       step4Data = req.body.step4 ? JSON.parse(req.body.step4) : undefined;
       step5Data = req.body.step5 ? JSON.parse(req.body.step5) : undefined;
+      
+      if (req.body.passportNumbers) {
+        try {
+          passportNumbers = JSON.parse(req.body.passportNumbers);
+        } catch (e) {
+          console.error('Error parsing passport numbers:', e);
+        }
+      }
       
       // Convert date strings to Date objects for step3Data hotel bookings
       if (step3Data.hotelBookings && Array.isArray(step3Data.hotelBookings)) {
@@ -321,13 +352,14 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
       return res.status(400).json({ error: 'Maximum 5 passengers allowed for iqama accommodation' });
     }
 
-    // Validate file upload (ZIP or Multiple files)
+    // Validate file upload (ZIP or Multiple files or Split files)
     const zipFile = files?.['panCardZipFile']?.[0];
     const multipleDocs = files?.['documents'];
+    const hasSplitFiles = allFileFields.some(field => files?.[field] && files[field].length > 0);
     
-    if (!zipFile && (!multipleDocs || multipleDocs.length === 0)) {
+    if (!zipFile && (!multipleDocs || multipleDocs.length === 0) && !hasSplitFiles) {
       return res.status(400).json({ 
-        error: 'Documents are required. Please upload a ZIP file or multiple images/PDFs.' 
+        error: 'Documents are required. Please upload files in their corresponding categories.' 
       });
     }
 
@@ -720,15 +752,17 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
 
       // 7. Create UmrahPassenger (all passengers)
       const passengers = await Promise.all(
-        finalPassengers.map(passenger =>
-          tx.umrahPassenger.create({
+        finalPassengers.map((passenger, index) => {
+          const passportNo = passportNumbers[index] || null;
+          return tx.umrahPassenger.create({
             data: {
               bookingId: booking.id,
               fullName: passenger.fullName,
               isLeadPassenger: hasGroupNumber ? (passenger.isLeadPassenger) : passenger.isLeadPassenger,
+              passportNumber: passportNo,
             },
-          })
-        )
+          });
+        })
       );
 
       // 7.5. Save uploaded files as Documents (linked to booking, not individual passenger)
@@ -747,7 +781,7 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
         });
       }
 
-      // Handle multiple documents
+      // Handle multiple documents (legacy)
       if (files?.['documents']) {
         for (const f of files['documents']) {
           docsToCreate.push({
@@ -760,6 +794,39 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
           });
         }
       }
+
+      // Handle split documents (new feature)
+      const splitDocFields: { field: string; type: string; linkToPassenger?: boolean }[] = [
+        { field: 'passportCopies', type: 'passport_copy', linkToPassenger: true },
+        { field: 'passengerPhotos', type: 'passenger_photo', linkToPassenger: true },
+        { field: 'panCardCopies', type: 'pan_card' },
+        { field: 'iqamaCopies', type: 'iqama' },
+        { field: 'onwardTickets', type: 'onward_ticket' },
+        { field: 'returnTickets', type: 'return_ticket' },
+        { field: 'nationalAddresses', type: 'national_address' }
+      ];
+
+      splitDocFields.forEach(({ field, type, linkToPassenger }) => {
+        const fieldFiles = files?.[field];
+        if (fieldFiles && Array.isArray(fieldFiles)) {
+          fieldFiles.forEach((f, idx) => {
+            const docData: any = {
+              bookingId: booking.id,
+              documentType: type,
+              fileName: f.originalname,
+              filePath: isS3Configured() ? (f as any).location : f.path,
+              fileSize: f.size,
+              mimeType: f.mimetype,
+            };
+
+            if (linkToPassenger && passengers[idx]) {
+              docData.passengerId = passengers[idx].id;
+            }
+
+            docsToCreate.push(docData);
+          });
+        }
+      });
 
       if (docsToCreate.length > 0) {
         await tx.document.createMany({

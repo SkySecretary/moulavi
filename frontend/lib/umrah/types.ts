@@ -98,6 +98,14 @@ export interface Step6Data {
   // For individual bookings: documents (Step 6 is documents)
   panCardZipFile?: File | null; // ZIP file containing all required documents
   documents?: File[]; // Multiple files
+  passportCopies?: File[];
+  passengerPhotos?: File[];
+  panCardCopies?: File[];
+  iqamaCopies?: File[];
+  onwardTickets?: File[];
+  returnTickets?: File[];
+  nationalAddresses?: File[];
+  passportNumbers?: string[];
 }
 
 export interface TransportBooking {
