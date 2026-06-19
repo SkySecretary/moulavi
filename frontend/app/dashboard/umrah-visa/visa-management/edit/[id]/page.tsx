@@ -18,6 +18,7 @@ import { Movement, LocationMaster } from '@/lib/umrah/types';
 import { TimePicker } from '@/components/ui/time-picker';
 import { formatTransportRoute } from '@/lib/utils';
 import { formatFlightNumber, toDisplayDate, fromDisplayDate, isValidStrictDate, extractDateFromISO, extractTimeFromISO, combineDateAndTime } from '@/lib/umrah/validation';
+import { UMRAH_VISA_STATUS_CONFIG } from '@/lib/constants';
 
 export default function EditUmrahVisaBookingPage() {
   const router = useRouter();
@@ -38,6 +39,7 @@ export default function EditUmrahVisaBookingPage() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [passengerCount, setPassengerCount] = useState(0);
+  const [bookingStatus, setBookingStatus] = useState('');
   
   // Travel Details
   const [arrivalDate, setArrivalDate] = useState('');
@@ -109,6 +111,7 @@ export default function EditUmrahVisaBookingPage() {
       setTransportCompanyId(b.transportCompanyId || '');
       setSelectedCustomerId(b.partyId || '');
       setPassengerCount(b.passengerCount || 0);
+      setBookingStatus(b.status || '');
 
       const mainTravel = b.travelDetails?.find((t: any) => !t.isAlternate);
       if (mainTravel?.arrivalDateTime) {
@@ -277,6 +280,10 @@ export default function EditUmrahVisaBookingPage() {
       }
 
       setSaving(true);
+
+      if (bookingStatus && bookingStatus !== booking.status) {
+        await umrahVisaAPI.updateBookingStatus(bookingId, bookingStatus, 'Status updated via manual edit');
+      }
 
       await umrahVisaAPI.updateGroupNumber(bookingId, groupNumber, groupName, brn, umrahVisaProviderId, transportCompanyId, passengerCount, selectedCustomerId);
 
@@ -652,6 +659,21 @@ export default function EditUmrahVisaBookingPage() {
                       onChange={(e) => setPassengerCount(parseInt(e.target.value) || 0)}
                       className="font-bold"
                     />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Booking Status</p>
+                    <Select value={bookingStatus} onValueChange={setBookingStatus} disabled={saving}>
+                      <SelectTrigger className="font-bold bg-white">
+                        <SelectValue placeholder="Select Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(UMRAH_VISA_STATUS_CONFIG).map(([key, config]) => (
+                          <SelectItem key={key} value={key} className="font-medium">
+                            {config.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </CardContent>
