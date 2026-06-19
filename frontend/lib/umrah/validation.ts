@@ -692,12 +692,18 @@ export const validateStep6 = (
     if (!data.onwardTickets || data.onwardTickets.length === 0) {
       return 'Onward ticket copy is required.';
     }
+    if (!data.onwardTicketConfirmed) {
+      return 'Please confirm the validity of the uploaded onward flight ticket(s).';
+    }
   }
 
   // 6) return ticket (mandatory)
   if (!isGroupVisa) {
     if (!data.returnTickets || data.returnTickets.length === 0) {
       return 'Return ticket copy is required.';
+    }
+    if (!data.returnTicketConfirmed) {
+      return 'Please confirm the validity of the uploaded return flight ticket(s).';
     }
   }
 

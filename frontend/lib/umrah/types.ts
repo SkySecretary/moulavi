@@ -106,6 +106,8 @@ export interface Step6Data {
   returnTickets?: File[];
   nationalAddresses?: File[];
   passportNumbers?: string[];
+  onwardTicketConfirmed?: boolean;
+  returnTicketConfirmed?: boolean;
 }
 
 export interface TransportBooking {

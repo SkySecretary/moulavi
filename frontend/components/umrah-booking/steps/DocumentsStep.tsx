@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+
 
 interface DocumentsStepProps {
   data: Step6Data;
@@ -87,6 +89,15 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
       updatedPassportNumbers.splice(index, 1);
       updates.passportNumbers = updatedPassportNumbers;
     }
+
+    // Clear confirmation if no files are remaining in ticket fields
+    if (updatedFiles.length === 0) {
+      if (field === 'onwardTickets') {
+        updates.onwardTicketConfirmed = false;
+      } else if (field === 'returnTickets') {
+        updates.returnTicketConfirmed = false;
+      }
+    }
     
     onChange(updates);
   };
@@ -138,13 +149,15 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
     label, 
     description, 
     required = false, 
-    showPassportLabel = false 
+    showPassportLabel = false,
+    showTicketConfirmation = false
   }: { 
     field: keyof Step6Data; 
     label: string; 
     description: string; 
     required?: boolean; 
-    showPassportLabel?: boolean 
+    showPassportLabel?: boolean;
+    showTicketConfirmation?: boolean;
   }) => {
     const files = getFieldFiles(field);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -250,6 +263,40 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
             ))}
           </div>
         )}
+
+        {/* Ticket Validity Confirmation */}
+        {showTicketConfirmation && files.length > 0 && (
+          <div className="p-3.5 rounded-xl bg-amber-50/45 border border-amber-500/20 flex items-start gap-3 mt-2 animate-in fade-in duration-300">
+            <Checkbox
+              id={`${field}-confirm`}
+              checked={
+                field === 'onwardTickets'
+                  ? !!data.onwardTicketConfirmed
+                  : !!data.returnTicketConfirmed
+              }
+              onCheckedChange={(checked) => {
+                if (field === 'onwardTickets') {
+                  onChange({ onwardTicketConfirmed: !!checked });
+                } else if (field === 'returnTickets') {
+                  onChange({ returnTicketConfirmed: !!checked });
+                }
+              }}
+              className="mt-0.5 border-amber-500/50 data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600 focus-visible:ring-amber-500"
+              disabled={disabled}
+            />
+            <div className="space-y-1">
+              <label
+                htmlFor={`${field}-confirm`}
+                className="text-[10px] font-bold text-amber-900 cursor-pointer select-none leading-normal uppercase tracking-wider block"
+              >
+                Ticket Declaration & Confirmation
+              </label>
+              <p className="text-[10px] text-amber-700 font-medium leading-relaxed">
+                I declare and confirm that this is a valid ticket and represents the exact itinerary the pilgrim will use to travel.
+              </p>
+            </div>
+          </div>
+        )}
       </Card>
     );
   };
@@ -330,6 +377,7 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
             label="Onward Flight Tickets"
             description="Onward flight reservation or ticket copies. (Required)"
             required
+            showTicketConfirmation
           />
 
           {/* Section 6: Return Flight Ticket (mandatory) */}
@@ -338,6 +386,7 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
             label="Return Flight Tickets"
             description="Return flight reservation or ticket copies. (Required)"
             required
+            showTicketConfirmation
           />
 
           {/* Section 7: National Address (optional) */}
