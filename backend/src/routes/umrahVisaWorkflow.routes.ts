@@ -2174,6 +2174,10 @@ router.patch('/booking/:id/status', authenticate, async (req, res) => {
     const { status, notes } = req.body;
     const user = (req as any).user;
 
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: 'Only admins are authorized to manually change booking status' });
+    }
+
     const oldBooking = await prisma.umrahVisaBooking.findUnique({
       where: { id },
       select: { status: true },

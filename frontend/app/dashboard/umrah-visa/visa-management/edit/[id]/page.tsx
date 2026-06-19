@@ -25,6 +25,7 @@ export default function EditUmrahVisaBookingPage() {
   const params = useParams();
   const bookingId = (params?.id as string) || '';
   const user = getUser();
+  const isAdmin = hasRole('admin');
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -281,7 +282,7 @@ export default function EditUmrahVisaBookingPage() {
 
       setSaving(true);
 
-      if (bookingStatus && bookingStatus !== booking.status) {
+      if (isAdmin && bookingStatus && bookingStatus !== booking.status) {
         await umrahVisaAPI.updateBookingStatus(bookingId, bookingStatus, 'Status updated via manual edit');
       }
 
@@ -662,18 +663,28 @@ export default function EditUmrahVisaBookingPage() {
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Booking Status</p>
-                    <Select value={bookingStatus} onValueChange={setBookingStatus} disabled={saving}>
-                      <SelectTrigger className="font-bold bg-white">
-                        <SelectValue placeholder="Select Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(UMRAH_VISA_STATUS_CONFIG).map(([key, config]) => (
-                          <SelectItem key={key} value={key} className="font-medium">
-                            {config.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {isAdmin ? (
+                      <Select value={bookingStatus} onValueChange={setBookingStatus} disabled={saving}>
+                        <SelectTrigger className="font-bold bg-white">
+                          <SelectValue placeholder="Select Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(UMRAH_VISA_STATUS_CONFIG).map(([key, config]) => (
+                            <SelectItem key={key} value={key} className="font-medium">
+                              {config.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="pt-1.5">
+                        <Badge className={`text-xs font-semibold ${
+                          UMRAH_VISA_STATUS_CONFIG[bookingStatus as keyof typeof UMRAH_VISA_STATUS_CONFIG]?.color || 'bg-gray-100'
+                        }`}>
+                          {UMRAH_VISA_STATUS_CONFIG[bookingStatus as keyof typeof UMRAH_VISA_STATUS_CONFIG]?.label || bookingStatus}
+                        </Badge>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
