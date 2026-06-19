@@ -286,8 +286,29 @@ router.get('/missing-brn', authenticate, authorize('admin', 'staff', 'party'), a
 
     const paginatedBookings = missingBrnBookings.slice(skip, skip + limitNum);
 
+    // Fetch vouchers for these paginated bookings
+    const bookingIds = paginatedBookings.map((b: any) => b.id);
+    const vouchers = await prisma.voucher.findMany({
+      where: {
+        bookingId: { in: bookingIds }
+      },
+      select: {
+        bookingId: true,
+        voucherNumber: true
+      }
+    });
+
+    // Map vouchers to their bookings
+    const bookingsWithVouchers = paginatedBookings.map((booking: any) => {
+      const bookingVouchers = vouchers.filter((v: any) => v.bookingId === booking.id);
+      return {
+        ...booking,
+        vouchers: bookingVouchers
+      };
+    });
+
     res.json({
-      bookings: paginatedBookings,
+      bookings: bookingsWithVouchers,
       pagination: {
         page: pageNum,
         limit: limitNum,

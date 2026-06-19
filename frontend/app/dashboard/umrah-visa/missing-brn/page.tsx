@@ -255,7 +255,9 @@ export default function MissingBRNPage() {
               <Table>
                 <TableHeader className="bg-gray-50 sticky top-0 z-10 shadow-sm">
                   <TableRow className="border-b border-gray-100">
-                    <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Voucher / Group</TableHead>
+                    <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Group No</TableHead>
+                    <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Voucher No</TableHead>
+                    <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Qty (No of muttammer)</TableHead>
                     <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Agent</TableHead>
                     <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Arrival</TableHead>
                     <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px] min-w-[350px]">Hotels & BRNs</TableHead>
@@ -265,13 +267,13 @@ export default function MissingBRNPage() {
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8">
+                      <TableCell colSpan={7} className="text-center py-8">
                         <div className="flex justify-center"><RefreshCw className="h-6 w-6 animate-spin text-gray-400" /></div>
                       </TableCell>
                     </TableRow>
                   ) : bookings.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-12">
+                      <TableCell colSpan={7} className="text-center py-12">
                         <p className="text-gray-500 font-medium">All group hotel bookings have BRNs assigned.</p>
                       </TableCell>
                     </TableRow>
@@ -285,13 +287,13 @@ export default function MissingBRNPage() {
                       return (
                         <TableRow key={booking.id} className="hover:bg-gray-50/50">
                           <TableCell className="font-bold text-secondary">
-                            <div className="flex flex-col">
-                              <span className="text-secondary">{groupRef}</span>
-                              {voucherNumber && (
-                                <span className="text-[10px] text-emerald-600 font-black uppercase tracking-widest mt-0.5">Voucher: {voucherNumber}</span>
-                              )}
-                              <span className="text-xs text-gray-400 font-medium mt-1">{booking.passengerCount} PAX</span>
-                            </div>
+                            {groupRef}
+                          </TableCell>
+                          <TableCell className="font-black text-emerald-600 tracking-wider">
+                            {voucherNumber || '-'}
+                          </TableCell>
+                          <TableCell className="font-bold text-gray-800">
+                            {booking.passengerCount} PAX
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col">

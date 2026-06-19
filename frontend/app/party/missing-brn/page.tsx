@@ -269,40 +269,48 @@ export default function PartyMissingBRNPage() {
             <Card className="flex-1 flex flex-col border-0 shadow-sm rounded-2xl overflow-hidden bg-white">
               <div className="flex-1 overflow-auto">
                 <Table>
-                  <TableHeader className="bg-gray-50 sticky top-0 z-10 shadow-sm">
-                    <TableRow className="border-b border-gray-100">
-                      <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Voucher / Group</TableHead>
-                      <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Arrival</TableHead>
-                      <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px] min-w-[350px]">Hotels & BRNs</TableHead>
+                <TableHeader className="bg-gray-50 sticky top-0 z-10 shadow-sm">
+                  <TableRow className="border-b border-gray-100">
+                    <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Group No</TableHead>
+                    <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Voucher No</TableHead>
+                    <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Qty (No of muttammer)</TableHead>
+                    <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px]">Arrival</TableHead>
+                    <TableHead className="font-black text-gray-500 uppercase tracking-wider text-[11px] min-w-[350px]">Hotels & BRNs</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8">
+                        <div className="flex justify-center"><RefreshCw className="h-6 w-6 animate-spin text-gray-400" /></div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center py-8">
-                          <div className="flex justify-center"><RefreshCw className="h-6 w-6 animate-spin text-gray-400" /></div>
-                        </TableCell>
-                      </TableRow>
-                    ) : bookings.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center py-12">
-                          <p className="text-gray-500 font-medium">You have no group hotel bookings missing BRNs.</p>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      bookings.map((booking) => {
-                        const voucherRef = booking.groupNumber || booking.bookingReference || booking.id.slice(0, 8);
-                        const arrivalDate = booking.travelDetails?.[0]?.arrivalDateTime ? formatDate(booking.travelDetails[0].arrivalDateTime) : 'N/A';
-                        
-                        return (
-                          <TableRow key={booking.id} className="hover:bg-gray-50/50">
-                            <TableCell className="font-bold text-secondary">
-                              {voucherRef} <br/>
-                              <span className="text-xs text-gray-400 font-medium">{booking.passengerCount} PAX</span>
-                            </TableCell>
-                            <TableCell className="font-medium text-gray-900">
-                              {arrivalDate}
-                            </TableCell>
+                  ) : bookings.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-12">
+                        <p className="text-gray-500 font-medium">You have no group hotel bookings missing BRNs.</p>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    bookings.map((booking) => {
+                      const voucherRef = booking.groupNumber || booking.bookingReference || booking.id.slice(0, 8);
+                      const voucherNumber = booking.vouchers?.[0]?.voucherNumber;
+                      const arrivalDate = booking.travelDetails?.[0]?.arrivalDateTime ? formatDate(booking.travelDetails[0].arrivalDateTime) : 'N/A';
+                      
+                      return (
+                        <TableRow key={booking.id} className="hover:bg-gray-50/50">
+                          <TableCell className="font-bold text-secondary">
+                            {voucherRef}
+                          </TableCell>
+                          <TableCell className="font-black text-emerald-600 tracking-wider">
+                            {voucherNumber || '-'}
+                          </TableCell>
+                          <TableCell className="font-bold text-gray-800">
+                            {booking.passengerCount} PAX
+                          </TableCell>
+                          <TableCell className="font-medium text-gray-900">
+                            {arrivalDate}
+                          </TableCell>
                             <TableCell>
                               <div className="space-y-3">
                                 {booking.hotelBookings?.map((hotel: any) => {
