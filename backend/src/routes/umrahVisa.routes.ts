@@ -78,12 +78,17 @@ router.get('/bookings', authenticate, async (req, res) => {
 
     // Date Filters (Arrival Date)
     if (arrivalDateFrom || arrivalDateTo) {
+      const fromDate = arrivalDateFrom ? new Date(arrivalDateFrom as string) : undefined;
+      if (fromDate) fromDate.setUTCHours(0, 0, 0, 0);
+      const toDate = arrivalDateTo ? new Date(arrivalDateTo as string) : undefined;
+      if (toDate) toDate.setUTCHours(23, 59, 59, 999);
+
       where.travelDetails = {
         some: {
           isAlternate: false,
           arrivalDateTime: {
-            ...(arrivalDateFrom ? { gte: new Date(arrivalDateFrom as string) } : {}),
-            ...(arrivalDateTo ? { lte: new Date(arrivalDateTo as string) } : {}),
+            ...(fromDate ? { gte: fromDate } : {}),
+            ...(toDate ? { lte: toDate } : {}),
           }
         }
       };
@@ -231,12 +236,17 @@ router.get('/missing-brn', authenticate, authorize('admin', 'staff', 'party'), a
 
     // Date Filters (Arrival Date)
     if (arrivalDateFrom || arrivalDateTo) {
+      const fromDate = arrivalDateFrom ? new Date(arrivalDateFrom as string) : undefined;
+      if (fromDate) fromDate.setUTCHours(0, 0, 0, 0);
+      const toDate = arrivalDateTo ? new Date(arrivalDateTo as string) : undefined;
+      if (toDate) toDate.setUTCHours(23, 59, 59, 999);
+
       where.travelDetails = {
         some: {
           isAlternate: false,
           arrivalDateTime: {
-            ...(arrivalDateFrom ? { gte: new Date(arrivalDateFrom as string) } : {}),
-            ...(arrivalDateTo ? { lte: new Date(arrivalDateTo as string) } : {}),
+            ...(fromDate ? { gte: fromDate } : {}),
+            ...(toDate ? { lte: toDate } : {}),
           }
         }
       };
@@ -622,12 +632,17 @@ router.get('/stats', authenticate, async (req, res) => {
 
     // Date Filters
     if (arrivalDateFrom || arrivalDateTo) {
+      const fromDate = arrivalDateFrom ? new Date(arrivalDateFrom as string) : undefined;
+      if (fromDate) fromDate.setUTCHours(0, 0, 0, 0);
+      const toDate = arrivalDateTo ? new Date(arrivalDateTo as string) : undefined;
+      if (toDate) toDate.setUTCHours(23, 59, 59, 999);
+
       where.travelDetails = {
         some: {
           isAlternate: false,
           arrivalDateTime: {
-            ...(arrivalDateFrom ? { gte: new Date(arrivalDateFrom as string) } : {}),
-            ...(arrivalDateTo ? { lte: new Date(arrivalDateTo as string) } : {}),
+            ...(fromDate ? { gte: fromDate } : {}),
+            ...(toDate ? { lte: toDate } : {}),
           }
         }
       };
