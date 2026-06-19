@@ -147,7 +147,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
         cityMasterAPI.getActive(),
         locationMasterAPI.getActive(),
         transportRouteMasterAPI.getActive(),
-        partyAPI.getAll(),
+        partyAPI.getAll({ limit: '1000' }),
       ]);
       
       const citiesData = citiesRes.data?.cityMasters || citiesRes.data || [];
@@ -1234,13 +1234,13 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Select value={flight.fromLocationId} onValueChange={(v) => updateFlightDetail(idx, 'fromLocationId', v)}>
-                                <SelectTrigger className="h-7 rounded border-gray-100 text-[9px] w-20"><SelectValue placeholder="From" /></SelectTrigger>
-                                <SelectContent className="max-h-[300px]">{airports.map(a => <SelectItem key={a.id} value={a.id} className="text-[10px]">{a.airportCode || a.code || a.name}</SelectItem>)}</SelectContent>
+                                <SelectTrigger className="h-7 rounded border-gray-100 text-[9px] w-28"><SelectValue placeholder="From" /></SelectTrigger>
+                                <SelectContent className="max-h-[300px]">{airports.map(a => <SelectItem key={a.id} value={a.id} className="text-[10px]">{a.code} - {a.name || a.airportName} ({a.city || a.cityMaster?.name || ''})</SelectItem>)}</SelectContent>
                               </Select>
                               <span className="text-muted-foreground text-[9px]">→</span>
                               <Select value={flight.toLocationId} onValueChange={(v) => updateFlightDetail(idx, 'toLocationId', v)}>
-                                <SelectTrigger className="h-7 rounded border-gray-100 text-[9px] w-20"><SelectValue placeholder="To" /></SelectTrigger>
-                                <SelectContent className="max-h-[300px]">{airports.map(a => <SelectItem key={a.id} value={a.id} className="text-[10px]">{a.airportCode || a.code || a.name}</SelectItem>)}</SelectContent>
+                                <SelectTrigger className="h-7 rounded border-gray-100 text-[9px] w-28"><SelectValue placeholder="To" /></SelectTrigger>
+                                <SelectContent className="max-h-[300px]">{airports.map(a => <SelectItem key={a.id} value={a.id} className="text-[10px]">{a.code} - {a.name || a.airportName} ({a.city || a.cityMaster?.name || ''})</SelectItem>)}</SelectContent>
                               </Select>
                             </div>
                           </TableCell>
