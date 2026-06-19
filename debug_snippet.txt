@@ -1,0 +1,10 @@
+                  activeMovementSubTab === 'after-tomorrow' ? afterTomorrowStats :
+                           specificDateStats;
+
+  if (!user || !hasRole(['admin', 'staff', 'party'])) return null;
+
+  return (
+    <div className="flex-1 flex flex-col bg-gray-50/50 min-h-screen">
+      {/* Header Bar */}
+      <div className="sticky top-0 z-10 bg-white border-b px-4 lg:px-8 py-4">
+        <div class

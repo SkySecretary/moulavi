@@ -11,24 +11,26 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 RELEASE_PATH="$REMOTE_ROOT/releases/$TIMESTAMP"
 SHARED_PATH="$REMOTE_ROOT/shared"
 CURRENT_PATH="$REMOTE_ROOT/current"
+SSH_KEY="/Users/awadnejil/.ssh/id_rsa_deploy"
+SSH_CMD="ssh -i $SSH_KEY"
 
 echo "🚀 Starting optimized deployment to $SERVER_IP..."
 
 # Step 1: Prep and Sync in one SSH ControlMaster context if possible, or just be very efficient.
 # We will create the release directory first.
 echo "📂 Creating release directory tree..."
-ssh $SERVER_USER@$SERVER_IP "mkdir -p $RELEASE_PATH/backend/dist $RELEASE_PATH/backend/prisma $RELEASE_PATH/frontend/.next"
+$SSH_CMD $SERVER_USER@$SERVER_IP "mkdir -p $RELEASE_PATH/backend/dist $RELEASE_PATH/backend/prisma $RELEASE_PATH/frontend/.next"
 
 # Step 2: Upload everything
 echo "📤 Uploading backend and frontend..."
-rsync -avz --exclude "node_modules" --exclude "dist" --exclude "dev.db" --exclude "uploads" --exclude ".env" backend/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/backend/
-rsync -avz backend/dist/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/backend/dist/
-rsync -avz --exclude "node_modules" --exclude ".next" --exclude ".env*" frontend/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/frontend/
-rsync -avz frontend/.next/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/frontend/.next/
+rsync -avz -e "$SSH_CMD" --exclude "node_modules" --exclude "dist" --exclude "dev.db" --exclude "uploads" --exclude ".env" backend/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/backend/
+rsync -avz -e "$SSH_CMD" backend/dist/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/backend/dist/
+rsync -avz -e "$SSH_CMD" --exclude "node_modules" --exclude ".next" --exclude ".env*" frontend/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/frontend/
+rsync -avz -e "$SSH_CMD" frontend/.next/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/frontend/.next/
 
 # Step 3: Finalize and Restart in one final SSH session
 echo "⚙️  Finalizing and Restarting..."
-ssh -o ControlMaster=auto -o ControlPath=/tmp/ssh-%r@%h:%p $SERVER_USER@$SERVER_IP << EOF
+$SSH_CMD -o ControlMaster=auto -o ControlPath=/tmp/ssh-%r@%h:%p $SERVER_USER@$SERVER_IP << EOF
     # Shared Data Initialization
     mkdir -p $SHARED_PATH
     [ ! -f "$SHARED_PATH/dev.db" ] && [ -f "$REMOTE_ROOT/backend/prisma/dev.db" ] && cp "$REMOTE_ROOT/backend/prisma/dev.db" "$SHARED_PATH/dev.db"

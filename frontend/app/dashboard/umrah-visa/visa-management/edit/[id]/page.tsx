@@ -35,6 +35,9 @@ export default function EditUmrahVisaBookingPage() {
   const [brn, setBrn] = useState('');
   const [umrahVisaProviderId, setUmrahVisaProviderId] = useState('');
   const [transportCompanyId, setTransportCompanyId] = useState('');
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [passengerCount, setPassengerCount] = useState(0);
   
   // Travel Details
   const [arrivalDate, setArrivalDate] = useState('');
@@ -104,6 +107,8 @@ export default function EditUmrahVisaBookingPage() {
       setBrn(b.brn || '');
       setUmrahVisaProviderId(b.umrahVisaProviderId || '');
       setTransportCompanyId(b.transportCompanyId || '');
+      setSelectedCustomerId(b.partyId || '');
+      setPassengerCount(b.passengerCount || 0);
 
       const mainTravel = b.travelDetails?.find((t: any) => !t.isAlternate);
       if (mainTravel?.arrivalDateTime) {
@@ -234,7 +239,7 @@ export default function EditUmrahVisaBookingPage() {
       );
       setVehicleTypes(uniqueVehicleTypes);
 
-      const [umrahCompaniesRes, transportCompaniesRes] = await Promise.all([
+      const [umrahCompaniesRes, transportCompaniesRes, customersRes] = await Promise.all([
         partyAPI.getAll({ 
           is_supplier: 'true', 
           supplier_service_type: 'umrah_service',
@@ -244,10 +249,16 @@ export default function EditUmrahVisaBookingPage() {
           is_supplier: 'true', 
           supplier_service_type: 'transport_service',
           limit: '1000' 
+        }),
+        partyAPI.getAll({
+          is_customer: 'true',
+          page: '1',
+          limit: '1000'
         })
       ]);
       setUmrahCompanies(umrahCompaniesRes.data?.parties || umrahCompaniesRes.data || []);
       setTransportCompanies(transportCompaniesRes.data?.parties || transportCompaniesRes.data || []);
+      setCustomers(customersRes.data?.parties || customersRes.data || []);
     } catch (err) {
       console.error('Error loading master data:', err);
     }
@@ -267,7 +278,7 @@ export default function EditUmrahVisaBookingPage() {
 
       setSaving(true);
 
-      await umrahVisaAPI.updateGroupNumber(bookingId, groupNumber, groupName, brn, umrahVisaProviderId, transportCompanyId);
+      await umrahVisaAPI.updateGroupNumber(bookingId, groupNumber, groupName, brn, umrahVisaProviderId, transportCompanyId, passengerCount, selectedCustomerId);
 
       await umrahVisaAPI.updateTravelDetails(bookingId, {
         arrivalDateTime: combineDateAndTime(arrivalDate, arrivalTime),
@@ -624,8 +635,23 @@ export default function EditUmrahVisaBookingPage() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Passengers</p>
-                    <p className="text-lg font-bold text-gray-900">{booking.passengerCount}</p>
+                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Agency / Customer</p>
+                    <SearchableSelect
+                      options={customers.map(c => ({ value: c.id, label: c.partyName }))}
+                      value={selectedCustomerId}
+                      onValueChange={setSelectedCustomerId}
+                      placeholder="Select Customer / Agency"
+                      searchPlaceholder="Search customer..."
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Passengers (Qty)</p>
+                    <Input 
+                      type="number"
+                      value={passengerCount}
+                      onChange={(e) => setPassengerCount(parseInt(e.target.value) || 0)}
+                      className="font-bold"
+                    />
                   </div>
                 </div>
               </CardContent>

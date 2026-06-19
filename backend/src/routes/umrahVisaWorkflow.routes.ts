@@ -2133,19 +2133,31 @@ router.delete('/movement-details/:id', authenticate, async (req, res) => {
 router.patch('/booking/:id/group-number', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
-    const { groupNumber, groupName, brn, umrahVisaProviderId, transportCompanyId } = req.body;
+    const { groupNumber, groupName, brn, umrahVisaProviderId, transportCompanyId, passengerCount, partyId } = req.body;
     const user = (req as any).user;
+
+    const isAdminOrStaff = user.role === 'admin' || user.role === 'staff';
+
+    const updateData: any = {
+      groupNumber,
+      groupName,
+      brn,
+      umrahVisaProviderId: umrahVisaProviderId || undefined,
+      transportCompanyId: transportCompanyId || undefined,
+      lastUpdatedBy: user.id,
+    };
+
+    if (passengerCount !== undefined) {
+      updateData.passengerCount = Number(passengerCount);
+    }
+
+    if (partyId && isAdminOrStaff) {
+      updateData.partyId = partyId;
+    }
 
     const booking = await prisma.umrahVisaBooking.update({
       where: { id },
-      data: {
-        groupNumber,
-        groupName,
-        brn,
-        umrahVisaProviderId: umrahVisaProviderId || undefined,
-        transportCompanyId: transportCompanyId || undefined,
-        lastUpdatedBy: user.id,
-      },
+      data: updateData,
     });
 
     res.json({ success: true, booking });

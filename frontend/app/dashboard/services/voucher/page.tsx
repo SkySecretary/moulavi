@@ -882,6 +882,7 @@ export default function VoucherServicePage() {
                 </div>
               </Card>
             </Tabs>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

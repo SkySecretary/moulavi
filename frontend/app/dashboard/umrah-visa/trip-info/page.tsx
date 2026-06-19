@@ -19,7 +19,9 @@ import {
   Users,
   RefreshCw,
   Copy,
-  AlertCircle
+  AlertCircle,
+  Download,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
@@ -46,6 +48,30 @@ export default function TripInfoPage() {
   const [activeTab, setActiveTab] = useState<'iqama' | 'hotel'>('iqama');
   const [iqamaSubTab, setIqamaSubTab] = useState<'pending' | 'hosting' | 'completed'>('pending');
   const [hotelSubTab, setHotelSubTab] = useState<'pending' | 'completed'>('pending');
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const handleDownloadBookingPDF = async (booking: any) => {
+    if (!booking.id) return;
+    try {
+      setDownloadingId(booking.id);
+      const response = await umrahVisaAPI.generateBookingPDF(booking.id);
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const fileName = `${booking.bookingReference || booking.id.slice(0, 8)}.pdf`;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate booking PDF');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
   const [editingIqama, setEditingIqama] = useState<Record<string, {
     makkahHotelName: string;
     makkahBrn: string;
@@ -416,6 +442,21 @@ export default function TripInfoPage() {
           <Copy className="h-3 w-3" />
           Copy All
         </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => handleDownloadBookingPDF(booking)}
+          disabled={downloadingId === booking.id}
+          className="flex items-center gap-1 border-gray-200 text-gray-700 hover:bg-gray-50"
+          title="Download Booking PDF"
+        >
+          {downloadingId === booking.id ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Download className="h-3 w-3" />
+          )}
+          PDF
+        </Button>
         
         {isIqama ? (
           <>
@@ -709,9 +750,9 @@ export default function TripInfoPage() {
                                     </button>
                                   )}
                                 </div>
-                                {booking.vouchers?.[0]?.voucherNumber && (
+                                {(booking as any).vouchers?.[0]?.voucherNumber && (
                                   <span className="text-[10px] text-emerald-600 font-black uppercase tracking-widest mt-0.5">
-                                    Voucher: {booking.vouchers[0].voucherNumber}
+                                    Voucher: {(booking as any).vouchers[0].voucherNumber}
                                   </span>
                                 )}
                                 {booking.createdAt && (
