@@ -16,6 +16,28 @@ const archiver = require('archiver');
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
 
+const getCategoryDir = (documentType: string): string => {
+  switch (documentType) {
+    case 'passport_copy':
+      return 'Passports';
+    case 'passenger_photo':
+      return 'Photos';
+    case 'pan_card':
+    case 'pan_card_zip':
+      return 'PAN Cards';
+    case 'iqama':
+      return 'Iqamas';
+    case 'onward_ticket':
+      return 'Onward Tickets';
+    case 'return_ticket':
+      return 'Return Tickets';
+    case 'national_address':
+      return 'National Address';
+    default:
+      return 'Other';
+  }
+};
+
 const router = Router();
 
 // GET /api/umrah-visa/:bookingId/download-all-documents - Download all documents as ZIP
@@ -74,9 +96,15 @@ router.get('/:bookingId/download-all-documents', authenticate, async (req, res) 
 
     // Add each document to the archive
     for (const doc of documents) {
-      const fileName = doc.passenger 
-        ? `${doc.passenger.fullName.replace(/[^a-zA-Z0-9]/g, '_')}_${doc.fileName}`
-        : doc.fileName;
+      let fileName = doc.fileName;
+      if (doc.passenger) {
+        const cleanName = doc.passenger.fullName.replace(/[^a-zA-Z0-9]/g, '_');
+        const passportPart = doc.passenger.passportNumber ? `_${doc.passenger.passportNumber}` : '';
+        fileName = `${cleanName}${passportPart}_${doc.fileName}`;
+      }
+
+      const categoryDir = getCategoryDir(doc.documentType);
+      const zipFilePath = `${categoryDir}/${fileName}`;
 
       if (isS3Configured() && s3Client) {
         try {
@@ -87,7 +115,7 @@ router.get('/:bookingId/download-all-documents', authenticate, async (req, res) 
           });
           const response = await s3Client.send(command);
           if (response.Body) {
-            archive.append(response.Body as Readable, { name: fileName });
+            archive.append(response.Body as Readable, { name: zipFilePath });
           }
         } catch (s3Error) {
           console.error(`Error fetching file from S3: ${doc.filePath}`, s3Error);
@@ -95,7 +123,7 @@ router.get('/:bookingId/download-all-documents', authenticate, async (req, res) 
       } else {
         // Local file storage
         if (fs.existsSync(doc.filePath)) {
-          archive.file(doc.filePath, { name: fileName });
+          archive.file(doc.filePath, { name: zipFilePath });
         } else {
           console.error(`Local file not found: ${doc.filePath}`);
         }
@@ -278,6 +306,9 @@ router.get('/:bookingId/download-zip', authenticate, async (req, res) => {
           fileName = `${cleanName}${passportPart}_${doc.fileName}`;
         }
 
+        const categoryDir = getCategoryDir(doc.documentType);
+        const zipFilePath = `${categoryDir}/${fileName}`;
+
         if (isS3Configured() && s3Client) {
           try {
             const s3Key = extractS3KeyFromUrl(doc.filePath) || doc.filePath;
@@ -287,14 +318,14 @@ router.get('/:bookingId/download-zip', authenticate, async (req, res) => {
             });
             const response = await s3Client.send(command);
             if (response.Body) {
-              archive.append(response.Body as Readable, { name: fileName });
+              archive.append(response.Body as Readable, { name: zipFilePath });
             }
           } catch (s3Error) {
             console.error(`Error fetching file from S3: ${doc.filePath}`, s3Error);
           }
         } else {
           if (fs.existsSync(doc.filePath)) {
-            archive.file(doc.filePath, { name: fileName });
+            archive.file(doc.filePath, { name: zipFilePath });
           } else {
             console.error(`Local file not found: ${doc.filePath}`);
           }
