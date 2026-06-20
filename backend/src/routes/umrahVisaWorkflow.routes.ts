@@ -55,10 +55,9 @@ router.get('/:bookingId/download-all-documents', authenticate, async (req, res) 
     });
 
     // Set response headers
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const zipFileName = booking?.bookingReference 
-      ? `documents-${booking.bookingReference}.zip`
-      : `booking-documents-${bookingId}-${timestamp}.zip`;
+      ? `${booking.bookingReference}-all-docs.zip`
+      : `${bookingId}-all-docs.zip`;
       
     res.attachment(zipFileName);
 
@@ -1404,7 +1403,7 @@ router.post('/generate-pdf', authenticate, async (req, res) => {
     const pdfBuffer = await generateVoucherPDF(voucherData);
 
     // Set response headers
-    const fileName = `Voucher_${voucherData.voucherNumber}.pdf`;
+    const fileName = `Voucher-${voucherData.voucherNumber}.pdf`;
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
@@ -1552,7 +1551,7 @@ router.get('/:bookingId/generate-booking-pdf', authenticate, async (req, res) =>
     // Generate PDF
     const pdfBuffer = await generateVoucherPDF(pdfData);
 
-    const fileName = `Voucher_${booking.bookingReference || booking.id.slice(0, 8)}.pdf`;
+    const fileName = `Voucher-${booking.bookingReference || booking.id.slice(0, 8)}.pdf`;
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);

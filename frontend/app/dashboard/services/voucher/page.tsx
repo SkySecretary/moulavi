@@ -468,7 +468,7 @@ export default function VoucherServicePage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `voucher_${pdfData.voucherNumber}.pdf`;
+      link.download = `Voucher-${pdfData.voucherNumber}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

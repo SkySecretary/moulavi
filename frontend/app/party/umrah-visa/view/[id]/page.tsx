@@ -49,7 +49,9 @@ export default function ViewUmrahVisaBookingPage() {
       link.href = url;
       
       const contentDisposition = response.headers['content-disposition'];
-      let fileName = `booking-documents-${bookingId}.zip`;
+      let fileName = booking?.bookingReference
+        ? `${booking.bookingReference}-all-docs.zip`
+        : `booking-documents-${bookingId}.zip`;
       if (contentDisposition) {
         const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
         if (fileNameMatch && fileNameMatch[1]) {
@@ -248,7 +250,7 @@ export default function ViewUmrahVisaBookingPage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `voucher_${pdfData.voucherNumber}.pdf`;
+      link.download = `Voucher-${pdfData.voucherNumber}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

@@ -385,7 +385,9 @@ export default function ViewUmrahVisaBookingPage() {
       
       // Try to get filename from content-disposition header if available
       const contentDisposition = response.headers['content-disposition'];
-      let fileName = `booking-documents-${bookingId}.zip`;
+      let fileName = booking?.bookingReference
+        ? `${booking.bookingReference}-all-docs.zip`
+        : `booking-documents-${bookingId}.zip`;
       if (contentDisposition) {
         const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
         if (fileNameMatch && fileNameMatch[1]) {
