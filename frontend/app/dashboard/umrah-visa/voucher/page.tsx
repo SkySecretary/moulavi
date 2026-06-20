@@ -13,6 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Search,
   Ticket,
@@ -35,7 +36,7 @@ export default function VoucherPage() {
   const [arrivalDateTo, setArrivalDateTo] = useState('');
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 10,
+    limit: 20,
     total: 0,
     totalPages: 0,
   });
@@ -46,7 +47,7 @@ export default function VoucherPage() {
     try {
       setIsLoading(true);
       const response = await umrahVisaAPI.getBookings({ 
-        limit: 10,
+        limit: pagination.limit,
         page: page,
         search: searchQuery,
         arrivalDateFrom: arrivalDateFrom,
@@ -70,7 +71,7 @@ export default function VoucherPage() {
       fetchBookings(pagination.page);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination.page, searchQuery, arrivalDateFrom, arrivalDateTo]);
+  }, [pagination.page, pagination.limit, searchQuery, arrivalDateFrom, arrivalDateTo]);
 
   const handleFilterChange = () => {
     setPagination(prev => ({ ...prev, page: 1 }));
@@ -213,11 +214,34 @@ export default function VoucherPage() {
               </div>
 
               <div className="flex items-center justify-between mt-6">
-                <p className="text-sm text-gray-500">
-                  Showing {pagination.total > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} to{' '}
-                  {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-                  {pagination.total} results
-                </p>
+                <div className="flex items-center space-x-4">
+                  <p className="text-sm text-gray-500">
+                    Showing {pagination.total > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} to{' '}
+                    {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
+                    {pagination.total} results
+                  </p>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs text-gray-500">Show</span>
+                    <Select
+                      value={String(pagination.limit)}
+                      onValueChange={(val) => {
+                        const newLimit = parseInt(val);
+                        setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+                      }}
+                    >
+                      <SelectTrigger className="h-8 w-16 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="text-xs text-gray-500">per page</span>
+                  </div>
+                </div>
                 
                 {pagination.totalPages > 1 && (
                   <div className="flex items-center space-x-2">

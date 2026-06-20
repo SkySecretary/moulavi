@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { locationMasterAPI } from '@/lib/api';
 import { LocationMaster, CreateLocationMasterRequest, UpdateLocationMasterRequest, LocationType } from '@/types';
@@ -10,53 +10,42 @@ export function useLocationMaster() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLocationType, setFilterLocationType] = useState<LocationType | undefined>();
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+  });
 
-  const filteredLocations = useMemo(() => {
-    let filtered = locations;
-
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(location =>
-        location.name.toLowerCase().includes(term) ||
-        location.code.toLowerCase().includes(term) ||
-        location.city.toLowerCase().includes(term)
-      );
-    }
-
-    if (filterLocationType) {
-      filtered = filtered.filter(location => location.locationType === filterLocationType);
-    }
-
-    return filtered;
-  }, [locations, searchTerm, filterLocationType]);
-
-  // Wrap loadLocations in useCallback to prevent infinite loops
-  const loadLocations = useCallback(async (locationType?: LocationType) => {
-    console.log('[useLocationMaster] loadLocations called', { locationType });
+  const loadLocations = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await locationMasterAPI.getActive({ locationType });
-      const locations = response.data.locationMasters || [];
-      console.log('[useLocationMaster] Locations loaded:', locations.length);
-      setLocations(locations);
+      const response = await locationMasterAPI.getAll({ 
+        page: pagination.page,
+        limit: pagination.limit,
+        search: searchTerm,
+        locationType: filterLocationType
+      });
+      const locationsData = response.data.locationMasters || [];
+      setLocations(locationsData);
+      setPagination(response.data.pagination || {
+        page: 1,
+        limit: pagination.limit,
+        total: locationsData.length,
+        totalPages: 1
+      });
     } catch (error) {
       console.error('[useLocationMaster] Error loading locations:', error);
       toast.error('Failed to load locations');
     } finally {
       setLoading(false);
     }
-  }, []); // Empty dependency array - this function doesn't depend on any props or state
+  }, [pagination.page, pagination.limit, searchTerm, filterLocationType]);
 
-  // Wrap all functions that call loadLocations in useCallback to prevent recreating them
   const createLocation = useCallback(async (data: CreateLocationMasterRequest): Promise<boolean> => {
-    console.log('[useLocationMaster] createLocation called', { data });
     try {
-      const response = await locationMasterAPI.create(data);
-      console.log('[useLocationMaster] Location created, response:', response);
-      // Don't show success toast here - parent component will handle it
-      console.log('[useLocationMaster] Reloading locations...');
+      await locationMasterAPI.create(data);
       await loadLocations();
-      console.log('[useLocationMaster] Locations reloaded');
       return true;
     } catch (error: any) {
       console.error('[useLocationMaster] Error creating location:', error);
@@ -69,7 +58,6 @@ export function useLocationMaster() {
   const updateLocation = useCallback(async (id: string, data: UpdateLocationMasterRequest): Promise<boolean> => {
     try {
       await locationMasterAPI.update(id, data);
-      // Don't show success toast here - parent component will handle it
       await loadLocations();
       return true;
     } catch (error: any) {
@@ -83,7 +71,6 @@ export function useLocationMaster() {
   const deleteLocation = useCallback(async (id: string): Promise<boolean> => {
     try {
       await locationMasterAPI.delete(id);
-      // Don't show success toast here - parent component will handle it
       await loadLocations();
       return true;
     } catch (error: any) {
@@ -97,7 +84,6 @@ export function useLocationMaster() {
   const toggleLocationStatus = useCallback(async (location: LocationMaster): Promise<boolean> => {
     try {
       await locationMasterAPI.toggleStatus(location.id);
-      // Don't show success toast here - parent component will handle it
       await loadLocations();
       return true;
     } catch (error: any) {
@@ -115,7 +101,9 @@ export function useLocationMaster() {
 
   useEffect(() => {
     loadLocations();
-  }, [loadLocations]); // Now loadLocations is stable due to useCallback
+  }, [loadLocations]);
+
+  const filteredLocations = locations;
 
   return {
     locations,
@@ -125,6 +113,8 @@ export function useLocationMaster() {
     filterLocationType,
     setFilterLocationType,
     filteredLocations,
+    pagination,
+    setPagination,
     createLocation,
     updateLocation,
     deleteLocation,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { cityMasterAPI } from '@/lib/api';
 import { CityMaster, CreateCityMasterRequest, UpdateCityMasterRequest } from '@/types';
@@ -9,27 +9,28 @@ export function useCityMaster() {
   const [cities, setCities] = useState<CityMaster[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-
-  const filteredCities = useMemo(() => {
-    let filtered = cities;
-
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(city =>
-        city.name.toLowerCase().includes(term) ||
-        city.country?.countryName.toLowerCase().includes(term) ||
-        city.country?.countryCode.toLowerCase().includes(term)
-      );
-    }
-
-    return filtered;
-  }, [cities, searchTerm]);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+  });
 
   const loadCities = async () => {
     try {
       setLoading(true);
-      const response = await cityMasterAPI.getAll({ limit: 1000 });
+      const response = await cityMasterAPI.getAll({ 
+        page: pagination.page,
+        limit: pagination.limit,
+        search: searchTerm 
+      });
       setCities(response.data.cityMasters || []);
+      setPagination(response.data.pagination || {
+        page: 1,
+        limit: pagination.limit,
+        total: response.data.cityMasters?.length || 0,
+        totalPages: 1
+      });
     } catch (error) {
       console.error('Error loading cities:', error);
       toast.error('Failed to load cities');
@@ -92,7 +93,9 @@ export function useCityMaster() {
 
   useEffect(() => {
     loadCities();
-  }, []);
+  }, [searchTerm, pagination.page, pagination.limit]);
+
+  const filteredCities = cities;
 
   return {
     cities,
@@ -100,6 +103,8 @@ export function useCityMaster() {
     loading,
     searchTerm,
     setSearchTerm,
+    pagination,
+    setPagination,
     loadCities,
     createCity,
     updateCity,
@@ -107,4 +112,3 @@ export function useCityMaster() {
     toggleCityStatus,
   };
 }
-

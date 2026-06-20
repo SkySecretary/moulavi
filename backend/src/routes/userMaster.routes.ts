@@ -87,13 +87,17 @@ router.get(
   authenticate,
   authorize('admin', 'staff'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { page = '1', limit = '10', search } = req.query;
+    const { page = '1', limit = '10', search, role } = req.query;
     
     const pageNum = parseInt(page as string);
     const limitNum = parseInt(limit as string);
     const skip = (pageNum - 1) * limitNum;
     
     const where: any = {};
+    
+    if (role && role !== 'all') {
+      where.role = role;
+    }
     
     if (search) {
       where.OR = [

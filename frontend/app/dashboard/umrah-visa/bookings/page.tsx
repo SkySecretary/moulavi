@@ -50,7 +50,7 @@ export default function UmrahVisaPage() {
   const [arrivalDateTo, setArrivalDateTo] = useState('');
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 10,
+    limit: 20,
     total: 0,
     totalPages: 0,
   });
@@ -65,14 +65,14 @@ export default function UmrahVisaPage() {
 
   useEffect(() => {
     fetchBookings(pagination.page);
-  }, [pagination.page, searchQuery, selectedStatus, selectedVisaType, arrivalDateFrom, arrivalDateTo]);
+  }, [pagination.page, pagination.limit, searchQuery, selectedStatus, selectedVisaType, arrivalDateFrom, arrivalDateTo]);
 
   const fetchBookings = async (page = 1) => {
     try {
       setIsLoading(true);
       const params: any = {
         page: page.toString(),
-        limit: '10',
+        limit: pagination.limit.toString(),
         search: searchQuery,
         status: selectedStatus === 'all' ? undefined : selectedStatus,
         visaType: selectedVisaType === 'all' ? undefined : selectedVisaType,
@@ -122,6 +122,43 @@ export default function UmrahVisaPage() {
         month: 'short',
         day: 'numeric',
       });
+    } catch {
+      return 'N/A';
+    }
+  };
+
+  const formatRecordDateTimeIST = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    try {
+      // Ensure the string is treated as UTC if it lacks a timezone designator,
+      // preventing the browser from double-converting or misinterpreting it.
+      let normalized = dateString;
+      if (
+        typeof dateString === 'string' &&
+        !dateString.includes('Z') &&
+        !dateString.includes('GMT') &&
+        !/[+-]\d{2}:?\d{2}$/.test(dateString)
+      ) {
+        if (dateString.includes(':') || dateString.includes('T')) {
+          normalized = dateString.endsWith(' ') ? dateString.trim() + 'Z' : dateString + 'Z';
+        }
+      }
+
+      const date = new Date(normalized);
+      if (isNaN(date.getTime())) return 'N/A';
+      const d = date.toLocaleDateString('en-US', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+      const t = date.toLocaleTimeString('en-US', {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+      return `${d} ${t}`;
     } catch {
       return 'N/A';
     }
@@ -346,12 +383,12 @@ export default function UmrahVisaPage() {
                                 </span>
                                 {booking.createdAt && (
                                   <span className="text-[9px] text-gray-400 mt-1">
-                                    C: {formatDate(booking.createdAt)}
+                                    C: {formatRecordDateTimeIST(booking.createdAt)}
                                   </span>
                                 )}
                                 {booking.updatedAt && booking.updatedAt !== booking.createdAt && (
                                   <span className="text-[9px] text-gray-400">
-                                    M: {formatDate(booking.updatedAt)}
+                                    M: {formatRecordDateTimeIST(booking.updatedAt)}
                                   </span>
                                 )}
                               </div>
@@ -456,11 +493,34 @@ export default function UmrahVisaPage() {
 
                 {/* Pagination */}
                 <div className="flex items-center justify-between mt-6">
-                  <p className="text-sm text-gray-500">
-                    Showing {pagination.total > 0 ? ((pagination.page - 1) * 10) + 1 : 0} to{' '}
-                    {Math.min(pagination.page * 10, pagination.total)} of{' '}
-                    {pagination.total} results
-                  </p>
+                  <div className="flex items-center space-x-4">
+                    <p className="text-sm text-gray-500">
+                      Showing {pagination.total > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} to{' '}
+                      {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
+                      {pagination.total} results
+                    </p>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs text-gray-500">Show</span>
+                      <Select
+                        value={String(pagination.limit)}
+                        onValueChange={(val) => {
+                          const newLimit = parseInt(val);
+                          setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+                        }}
+                      >
+                        <SelectTrigger className="h-8 w-16 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="20">20</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                          <SelectItem value="100">100</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span className="text-xs text-gray-500">per page</span>
+                    </div>
+                  </div>
                   
                   {pagination.totalPages > 1 && (
                     <div className="flex items-center space-x-2">

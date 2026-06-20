@@ -53,3 +53,20 @@ export const convertToINR = (amount: number, exchangeRate: number) => {
   return amount * exchangeRate;
 };
 
+/**
+ * Resolves absolute S3 URLs or local relative paths to a clean file URL.
+ */
+export function getFileUrl(path: string | null | undefined): string {
+  if (!path) return '';
+  
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+  
+  // If already pointing to the view proxy endpoint, return as is
+  if (path.includes('/api/upload/view')) {
+    return path;
+  }
+  
+  return `${apiUrl}/upload/view?path=${encodeURIComponent(path)}`;
+}
+
+

@@ -11,6 +11,7 @@ import { partyAPI, partyDocumentAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import { Party, CreatePartyRequest, CreatePartyContactRequest, PartyDocumentType } from '@/types';
 import { Plus, X, Trash2, Upload } from 'lucide-react';
+import { getFileUrl } from '@/lib/utils';
 
 interface CreatePartyDialogProps {
   open: boolean;
@@ -523,7 +524,7 @@ export default function CreatePartyDialog({
                   ) : editingParty?.logoPath ? (
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] text-blue-600 font-medium">✓ Existing logo loaded</span>
-                      <a href={editingParty.logoPath.startsWith('/') ? editingParty.logoPath : `/${editingParty.logoPath}`} target="_blank" rel="noreferrer" className="text-[10px] underline text-blue-500">View</a>
+                      <a href={getFileUrl(editingParty.logoPath)} target="_blank" rel="noreferrer" className="text-[10px] underline text-blue-500">View</a>
                     </div>
                   ) : null}
                 </div>

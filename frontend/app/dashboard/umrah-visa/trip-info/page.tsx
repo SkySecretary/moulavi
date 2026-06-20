@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { getFileUrl } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +24,7 @@ import {
   Download,
   Loader2
 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
 import { UmrahVisaBooking, UmrahVisaStatus } from '@/types';
@@ -41,7 +43,7 @@ export default function TripInfoPage() {
   const [arrivalDateTo, setArrivalDateTo] = useState('');
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 10,
+    limit: 20,
     total: 0,
     totalPages: 0,
   });
@@ -105,7 +107,7 @@ export default function TripInfoPage() {
     }
     fetchBookings(pagination.page);
     fetchPendingLoad();
-  }, [pagination.page, searchQuery, arrivalDateFrom, arrivalDateTo, activeTab, iqamaSubTab, hotelSubTab]);
+  }, [pagination.page, pagination.limit, searchQuery, arrivalDateFrom, arrivalDateTo, activeTab, iqamaSubTab, hotelSubTab]);
 
   const fetchPendingLoad = async () => {
     try {
@@ -125,7 +127,7 @@ export default function TripInfoPage() {
     const tripStatus = activeTab === 'iqama' ? iqamaSubTab : hotelSubTab;
 
     const response = await umrahVisaAPI.getBookings({ 
-      limit: 10,
+      limit: pagination.limit,
       page: page,
       search: searchQuery,
       arrivalDateFrom: arrivalDateFrom,
@@ -237,6 +239,43 @@ export default function TripInfoPage() {
       });
       const t = date.toLocaleTimeString('en-US', {
         timeZone: 'UTC',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+      return `${d} ${t}`;
+    } catch {
+      return 'N/A';
+    }
+  };
+
+  const formatRecordDateTimeIST = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    try {
+      // Ensure the string is treated as UTC if it lacks a timezone designator,
+      // preventing the browser from double-converting or misinterpreting it.
+      let normalized = dateString;
+      if (
+        typeof dateString === 'string' &&
+        !dateString.includes('Z') &&
+        !dateString.includes('GMT') &&
+        !/[+-]\d{2}:?\d{2}$/.test(dateString)
+      ) {
+        if (dateString.includes(':') || dateString.includes('T')) {
+          normalized = dateString.endsWith(' ') ? dateString.trim() + 'Z' : dateString + 'Z';
+        }
+      }
+
+      const date = new Date(normalized);
+      if (isNaN(date.getTime())) return 'N/A';
+      const d = date.toLocaleDateString('en-US', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+      const t = date.toLocaleTimeString('en-US', {
+        timeZone: 'Asia/Kolkata',
         hour: '2-digit',
         minute: '2-digit',
         hour12: true,
@@ -757,12 +796,12 @@ export default function TripInfoPage() {
                                 )}
                                 {booking.createdAt && (
                                   <span className="text-[9px] text-gray-400 mt-1">
-                                    C: {formatDate(booking.createdAt)}
+                                    C: {formatRecordDateTimeIST(booking.createdAt)}
                                   </span>
                                 )}
                                 {booking.updatedAt && booking.updatedAt !== booking.createdAt && (
                                   <span className="text-[9px] text-gray-400">
-                                    M: {formatDate(booking.updatedAt)}
+                                    M: {formatRecordDateTimeIST(booking.updatedAt)}
                                   </span>
                                 )}
                               </div>
@@ -1270,7 +1309,7 @@ export default function TripInfoPage() {
                                   {booking.lastUpdatedByUser?.name || 'System'}
                                 </div>
                                 <div className="text-gray-500">
-                                  {booking.updatedAt ? formatDate(booking.updatedAt) : 'N/A'}
+                                  {booking.updatedAt ? formatRecordDateTimeIST(booking.updatedAt) : 'N/A'}
                                 </div>
                               </div>
                             </TableCell>
@@ -1309,7 +1348,7 @@ export default function TripInfoPage() {
                                   {iqamaDetails?.confirmationImagePath ? (
                                     <div className="flex flex-col items-center gap-1">
                                       <a 
-                                        href={`${process.env.NEXT_PUBLIC_API_URL || ''}/uploads/${iqamaDetails.confirmationImagePath}`.replace('/api/uploads/', '/uploads/')} 
+                                        href={getFileUrl(iqamaDetails.confirmationImagePath)} 
                                         target="_blank" 
                                         rel="noopener noreferrer"
                                         className="text-[10px] text-blue-600 font-bold hover:underline bg-blue-50 px-2 py-1 rounded border border-blue-200"
@@ -1373,11 +1412,34 @@ export default function TripInfoPage() {
 
               {/* Pagination */}
               <div className="flex items-center justify-between mt-6">
-                <p className="text-sm text-gray-500">
-                  Showing {pagination.total > 0 ? ((pagination.page - 1) * (pagination.limit || 10)) + 1 : 0} to{' '}
-                  {Math.min(pagination.page * (pagination.limit || 10), pagination.total)} of{' '}
-                  {pagination.total} results
-                </p>
+                <div className="flex items-center space-x-4">
+                  <p className="text-sm text-gray-500">
+                    Showing {pagination.total > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} to{' '}
+                    {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
+                    {pagination.total} results
+                  </p>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs text-gray-500">Show</span>
+                    <Select
+                      value={String(pagination.limit)}
+                      onValueChange={(val) => {
+                        const newLimit = parseInt(val);
+                        setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+                      }}
+                    >
+                      <SelectTrigger className="h-8 w-16 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="text-xs text-gray-500">per page</span>
+                  </div>
+                </div>
                 
                 {pagination.totalPages > 1 && (
                   <div className="flex items-center space-x-2">

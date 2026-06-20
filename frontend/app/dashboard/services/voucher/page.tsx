@@ -66,7 +66,7 @@ export default function VoucherServicePage() {
   const [dateTo, setDateTo] = useState('');
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 10,
+    limit: 20,
     total: 0,
     totalPages: 0,
   });
@@ -78,7 +78,7 @@ export default function VoucherServicePage() {
   const [loadingMovements, setLoadingMovements] = useState(false);
   const [movementPagination, setMovementPagination] = useState({
     page: 1,
-    limit: 50,
+    limit: 20,
     total: 0,
     totalPages: 0,
   });
@@ -222,7 +222,7 @@ export default function VoucherServicePage() {
       else loadSpecificDateMovements();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeMainTab, activeVoucherSubTab, activeMovementSubTab, searchTerm, dateFrom, dateTo, pagination.page, movementPagination.page, movementSearch, selectedFrom, selectedTo, selectedMovementDate]);
+  }, [activeMainTab, activeVoucherSubTab, activeMovementSubTab, searchTerm, dateFrom, dateTo, pagination.page, pagination.limit, movementPagination.page, movementPagination.limit, movementSearch, selectedFrom, selectedTo, selectedMovementDate]);
 
   const loadStats = async () => {
     try {
@@ -619,11 +619,34 @@ export default function VoucherServicePage() {
                       </Table>
                     </div>
                     <div className="p-4 border-t flex items-center justify-between bg-gray-50/30">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2">
-                        Showing {pagination.total > 0 ? ((pagination.page - 1) * (pagination.limit || 10)) + 1 : 0} to{' '}
-                        {Math.min(pagination.page * (pagination.limit || 10), pagination.total)} of{' '}
-                        {pagination.total} entries
-                      </p>
+                      <div className="flex items-center space-x-4">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2">
+                          Showing {pagination.total > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} to{' '}
+                          {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
+                          {pagination.total} entries
+                        </p>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase">Show</span>
+                          <Select
+                            value={String(pagination.limit)}
+                            onValueChange={(val) => {
+                              const newLimit = parseInt(val);
+                              setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+                            }}
+                          >
+                            <SelectTrigger className="h-7 w-16 text-[10px] font-bold">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="10">10</SelectItem>
+                              <SelectItem value="20">20</SelectItem>
+                              <SelectItem value="50">50</SelectItem>
+                              <SelectItem value="100">100</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase">per page</span>
+                        </div>
+                      </div>
                       {pagination.totalPages > 1 && (
                         <div className="flex gap-2">
                           <Button 
@@ -849,11 +872,34 @@ export default function VoucherServicePage() {
                   </Table>
                 </div>
                 <div className="p-4 border-t flex items-center justify-between bg-gray-50/30">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2">
-                    Showing {movementPagination.total > 0 ? ((movementPagination.page - 1) * (movementPagination.limit || 10)) + 1 : 0} to{' '}
-                    {Math.min(movementPagination.page * (movementPagination.limit || 10), movementPagination.total)} of{' '}
-                    {movementPagination.total} entries
-                  </p>
+                  <div className="flex items-center space-x-4">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2">
+                      Showing {movementPagination.total > 0 ? ((movementPagination.page - 1) * movementPagination.limit) + 1 : 0} to{' '}
+                      {Math.min(movementPagination.page * movementPagination.limit, movementPagination.total)} of{' '}
+                      {movementPagination.total} entries
+                    </p>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase">Show</span>
+                      <Select
+                        value={String(movementPagination.limit)}
+                        onValueChange={(val) => {
+                          const newLimit = parseInt(val);
+                          setMovementPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+                        }}
+                      >
+                        <SelectTrigger className="h-7 w-16 text-[10px] font-bold">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="20">20</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                          <SelectItem value="100">100</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase">per page</span>
+                    </div>
+                  </div>
                   {movementPagination.totalPages > 1 && (
                     <div className="flex gap-2">
                       <Button 

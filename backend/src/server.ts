@@ -149,18 +149,18 @@ app.listen(PORT, () => {
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
   
-  // Initialize Database Backup (Every 12 hours)
+  // Initialize Database Backup (Every 2 hours)
   try {
     const backupDatabase = require('../scripts/backup-db');
     // Run an initial backup on start
     backupDatabase();
-    // Schedule every 12 hours
-    const TWELVE_HOURS = 12 * 60 * 60 * 1000;
+    // Schedule every 2 hours
+    const TWO_HOURS = 2 * 60 * 60 * 1000;
     setInterval(() => {
       console.log(`[SERVER] Running scheduled database backup...`);
       backupDatabase();
-    }, TWELVE_HOURS);
-    console.log(`💾 Auto-backup: Scheduled every 12 hours`);
+    }, TWO_HOURS);
+    console.log(`💾 Auto-backup: Scheduled every 2 hours`);
   } catch (error: any) {
     console.warn(`⚠️  Auto-backup initialization failed: ${error.message}`);
   }

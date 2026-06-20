@@ -96,17 +96,37 @@ router.get('/:bookingId/download-all-documents', authenticate, async (req, res) 
 
     // Add each document to the archive
     for (const doc of documents) {
+      // Skip the pan_card_zip itself in the dynamic ZIP to avoid nested ZIPs
+      if (doc.documentType === 'pan_card_zip') continue;
+
       let fileName = doc.fileName;
       if (doc.passenger) {
-        const cleanName = doc.passenger.fullName.replace(/[^a-zA-Z0-9]/g, '_');
-        const passportPart = doc.passenger.passportNumber ? `_${doc.passenger.passportNumber}` : '';
-        fileName = `${cleanName}${passportPart}_${doc.fileName}`;
+        const passportNo = doc.passenger.passportNumber;
+        const ext = path.extname(doc.fileName);
+        if (doc.documentType === 'passport_copy' || doc.documentType === 'passenger_photo') {
+          if (passportNo) {
+            fileName = `${passportNo}${ext}`;
+          } else {
+            const cleanName = doc.passenger.fullName.replace(/[^a-zA-Z0-9]/g, '_');
+            fileName = `${cleanName}${ext}`;
+          }
+        } else {
+          const cleanName = doc.passenger.fullName.replace(/[^a-zA-Z0-9]/g, '_');
+          const passportPart = passportNo ? `_${passportNo}` : '';
+          fileName = `${cleanName}${passportPart}_${doc.fileName}`;
+        }
       }
 
       const categoryDir = getCategoryDir(doc.documentType);
       const zipFilePath = `${categoryDir}/${fileName}`;
 
-      if (isS3Configured() && s3Client) {
+      const isS3File = doc.filePath.startsWith('http://') || doc.filePath.startsWith('https://');
+
+      if (fs.existsSync(doc.filePath) && !isS3File) {
+        // Local file storage
+        archive.file(doc.filePath, { name: zipFilePath });
+      } else if (isS3Configured() && s3Client) {
+        // Fetch from S3
         try {
           const s3Key = extractS3KeyFromUrl(doc.filePath) || doc.filePath;
           const command = new GetObjectCommand({
@@ -121,12 +141,7 @@ router.get('/:bookingId/download-all-documents', authenticate, async (req, res) 
           console.error(`Error fetching file from S3: ${doc.filePath}`, s3Error);
         }
       } else {
-        // Local file storage
-        if (fs.existsSync(doc.filePath)) {
-          archive.file(doc.filePath, { name: zipFilePath });
-        } else {
-          console.error(`Local file not found: ${doc.filePath}`);
-        }
+        console.error(`File not found: ${doc.filePath}`);
       }
     }
 
@@ -232,145 +247,163 @@ router.get('/:bookingId/download-zip', authenticate, async (req, res) => {
       return res.status(403).json({ error: 'Only admin/staff can download zip files' });
     }
 
-    // Find document with pan_card_zip type for this booking
-    const zipDocument = await prisma.document.findFirst({
+    // Find all documents for this booking
+    const documents = await prisma.document.findMany({
       where: {
-        bookingId,
-        documentType: 'pan_card_zip',
+        OR: [
+          { bookingId: bookingId },
+          { passenger: { bookingId: bookingId } }
+        ],
         isDeleted: false,
       },
+      include: {
+        passenger: true
+      }
     });
 
-    if (!zipDocument) {
-      // Check if there are other documents for this booking
-      const documentCount = await prisma.document.count({
-        where: {
-          OR: [
-            { bookingId: bookingId },
-            { passenger: { bookingId: bookingId } }
-          ],
-          isDeleted: false,
-        },
-      });
+    if (documents.length === 0) {
+      return res.status(404).json({ error: 'No documents found for this booking' });
+    }
 
-      if (documentCount === 0) {
-        return res.status(404).json({ error: 'Zip file not found for this booking' });
-      }
+    // Check if we should dynamically generate the ZIP or serve pre-uploaded ZIP directly.
+    // If the only document is a 'pan_card_zip', we can serve it directly for performance.
+    // Otherwise, we dynamically generate a ZIP containing all split documents.
+    const nonZipDocs = documents.filter(d => d.documentType !== 'pan_card_zip');
+    const zipDocument = documents.find(d => d.documentType === 'pan_card_zip');
 
-      // Fallback: Dynamically generate and stream ZIP of all documents
-      const [booking, documents] = await Promise.all([
-        prisma.umrahVisaBooking.findUnique({
-          where: { id: bookingId },
-          select: { bookingReference: true }
-        }),
-        prisma.document.findMany({
-          where: {
-            OR: [
-              { bookingId: bookingId },
-              { passenger: { bookingId: bookingId } }
-            ],
-            isDeleted: false,
-          },
-          include: {
-            passenger: true
-          }
-        })
-      ]);
+    if (nonZipDocs.length === 0 && zipDocument) {
+      // Serve the uploaded PAN ZIP directly (performance optimization for legacy group bookings)
+      const isS3File = zipDocument.filePath.startsWith('http://') || zipDocument.filePath.startsWith('https://');
 
-      const archive = archiver('zip', {
-        zlib: { level: 9 }
-      });
-
-      const zipFileName = booking?.bookingReference 
-        ? `${booking.bookingReference}-all-docs.zip`
-        : `${bookingId}-all-docs.zip`;
-        
-      res.setHeader('Content-Type', 'application/zip');
-      res.setHeader('Content-Disposition', `attachment; filename="${zipFileName}"`);
-
-      archive.pipe(res);
-
-      archive.on('error', (err: any) => {
-        console.error('Archiver error:', err);
-        if (!res.headersSent) {
-          res.status(500).send({ error: 'Failed to create ZIP archive' });
+      if (isS3File && isS3Configured()) {
+        try {
+          const downloadUrl = await generateDownloadUrl(zipDocument.filePath);
+          return res.json({
+            downloadUrl,
+            fileName: zipDocument.fileName,
+            fileSize: zipDocument.fileSize,
+            mimeType: zipDocument.mimeType,
+          });
+        } catch (error) {
+          console.error('Error generating download URL:', error);
+          return res.status(500).json({ error: 'Failed to generate download URL' });
         }
-      });
+      } else {
+        // Serve local file
+        const absolutePath = path.resolve(process.cwd(), zipDocument.filePath);
+        console.log(`Attempting to download local ZIP:
+          - DB Path: ${zipDocument.filePath}
+          - Absolute Path: ${absolutePath}
+          - Exists: ${fs.existsSync(zipDocument.filePath)}
+          - Process CWD: ${process.cwd()}
+        `);
 
-      for (const doc of documents) {
-        // Name passenger photos with their passport number if available
-        let fileName = doc.fileName;
-        if (doc.passenger) {
-          const cleanName = doc.passenger.fullName.replace(/[^a-zA-Z0-9]/g, '_');
-          const passportPart = doc.passenger.passportNumber ? `_${doc.passenger.passportNumber}` : '';
-          fileName = `${cleanName}${passportPart}_${doc.fileName}`;
-        }
-
-        const categoryDir = getCategoryDir(doc.documentType);
-        const zipFilePath = `${categoryDir}/${fileName}`;
-
-        if (isS3Configured() && s3Client) {
+        if (fs.existsSync(zipDocument.filePath)) {
+          return res.download(zipDocument.filePath, zipDocument.fileName);
+        } else if (isS3Configured()) {
+          // Fallback: try S3
           try {
-            const s3Key = extractS3KeyFromUrl(doc.filePath) || doc.filePath;
-            const command = new GetObjectCommand({
-              Bucket: S3_CONFIG.BUCKET_NAME,
-              Key: s3Key,
+            const downloadUrl = await generateDownloadUrl(zipDocument.filePath);
+            return res.json({
+              downloadUrl,
+              fileName: zipDocument.fileName,
+              fileSize: zipDocument.fileSize,
+              mimeType: zipDocument.mimeType,
             });
-            const response = await s3Client.send(command);
-            if (response.Body) {
-              archive.append(response.Body as Readable, { name: zipFilePath });
-            }
-          } catch (s3Error) {
-            console.error(`Error fetching file from S3: ${doc.filePath}`, s3Error);
+          } catch (error) {
+            console.error('Error generating download URL for S3 fallback:', error);
+            return res.status(404).json({ error: 'Zip file not found' });
           }
         } else {
-          if (fs.existsSync(doc.filePath)) {
-            archive.file(doc.filePath, { name: zipFilePath });
+          console.error(`File not found at path: ${zipDocument.filePath}`);
+          return res.status(404).json({ error: 'Zip file not found on server disk' });
+        }
+      }
+    }
+
+    // Otherwise: Fallback/generate dynamic ZIP containing ALL booking files
+    const booking = await prisma.umrahVisaBooking.findUnique({
+      where: { id: bookingId },
+      select: { bookingReference: true }
+    });
+
+    const archive = archiver('zip', {
+      zlib: { level: 9 }
+    });
+
+    const zipFileName = booking?.bookingReference 
+      ? `${booking.bookingReference}-all-docs.zip`
+      : `${bookingId}-all-docs.zip`;
+      
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${zipFileName}"`);
+
+    archive.pipe(res);
+
+    archive.on('error', (err: any) => {
+      console.error('Archiver error:', err);
+      if (!res.headersSent) {
+        res.status(500).send({ error: 'Failed to create ZIP archive' });
+      }
+    });
+
+    for (const doc of documents) {
+      // Skip the pan_card_zip itself in the dynamic ZIP to avoid nested ZIPs
+      if (doc.documentType === 'pan_card_zip') continue;
+
+      let fileName = doc.fileName;
+      if (doc.passenger) {
+        const passportNo = doc.passenger.passportNumber;
+        const ext = path.extname(doc.fileName);
+        if (doc.documentType === 'passport_copy' || doc.documentType === 'passenger_photo') {
+          if (passportNo) {
+            fileName = `${passportNo}${ext}`;
           } else {
-            console.error(`Local file not found: ${doc.filePath}`);
+            const cleanName = doc.passenger.fullName.replace(/[^a-zA-Z0-9]/g, '_');
+            fileName = `${cleanName}${ext}`;
           }
+        } else {
+          const cleanName = doc.passenger.fullName.replace(/[^a-zA-Z0-9]/g, '_');
+          const passportPart = passportNo ? `_${passportNo}` : '';
+          fileName = `${cleanName}${passportPart}_${doc.fileName}`;
         }
       }
 
-      await archive.finalize();
-      return;
-    }
+      const categoryDir = getCategoryDir(doc.documentType);
+      const zipFilePath = `${categoryDir}/${fileName}`;
 
-    // Handle file download based on storage type
-    if (isS3Configured()) {
-      // Generate presigned URL for S3 file
-      try {
-        const downloadUrl = await generateDownloadUrl(zipDocument.filePath);
-        res.json({
-          downloadUrl,
-          fileName: zipDocument.fileName,
-          fileSize: zipDocument.fileSize,
-          mimeType: zipDocument.mimeType,
-        });
-      } catch (error) {
-        console.error('Error generating download URL:', error);
-        res.status(500).json({ error: 'Failed to generate download URL' });
-      }
-    } else {
-      // Serve local file
-      const absolutePath = path.resolve(process.cwd(), zipDocument.filePath);
-      console.log(`Attempting to download local ZIP:
-        - DB Path: ${zipDocument.filePath}
-        - Absolute Path: ${absolutePath}
-        - Exists: ${fs.existsSync(zipDocument.filePath)}
-        - Process CWD: ${process.cwd()}
-      `);
+      const isS3File = doc.filePath.startsWith('http://') || doc.filePath.startsWith('https://');
 
-      if (fs.existsSync(zipDocument.filePath)) {
-        res.download(zipDocument.filePath, zipDocument.fileName);
+      if (fs.existsSync(doc.filePath) && !isS3File) {
+        // Local file storage
+        archive.file(doc.filePath, { name: zipFilePath });
+      } else if (isS3Configured() && s3Client) {
+        // Fetch from S3
+        try {
+          const s3Key = extractS3KeyFromUrl(doc.filePath) || doc.filePath;
+          const command = new GetObjectCommand({
+            Bucket: S3_CONFIG.BUCKET_NAME,
+            Key: s3Key,
+          });
+          const response = await s3Client.send(command);
+          if (response.Body) {
+            archive.append(response.Body as Readable, { name: zipFilePath });
+          }
+        } catch (s3Error) {
+          console.error(`Error fetching file from S3: ${doc.filePath}`, s3Error);
+        }
       } else {
-        console.error(`File not found at path: ${zipDocument.filePath}`);
-        res.status(404).json({ error: 'Zip file not found on server disk' });
+        console.error(`File not found: ${doc.filePath}`);
       }
     }
+
+    await archive.finalize();
+
   } catch (error) {
     console.error('Error downloading zip file:', error);
-    res.status(500).json({ error: 'Failed to download zip file' });
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to download zip file' });
+    }
   }
 });
 
@@ -653,7 +686,9 @@ router.get('/:bookingId/download-confirmation', authenticate, async (req, res) =
     const fileName = confirmationDoc?.fileName || 'confirmation-image.jpg';
 
     // Handle file download based on storage type
-    if (isS3Configured()) {
+    const isS3File = filePath.startsWith('http://') || filePath.startsWith('https://');
+
+    if (isS3File && isS3Configured()) {
       // Generate presigned URL for S3 file
       try {
         const downloadUrl = await generateDownloadUrl(filePath);
@@ -671,6 +706,20 @@ router.get('/:bookingId/download-confirmation', authenticate, async (req, res) =
       // Serve local file
       if (fs.existsSync(filePath)) {
         res.download(filePath, fileName);
+      } else if (isS3Configured()) {
+        // Fallback: try S3
+        try {
+          const downloadUrl = await generateDownloadUrl(filePath);
+          res.json({
+            downloadUrl,
+            fileName,
+            fileSize: confirmationDoc?.fileSize || null,
+            mimeType: confirmationDoc?.mimeType || 'image/jpeg',
+          });
+        } catch (error) {
+          console.error('Error generating download URL for S3 fallback:', error);
+          res.status(404).json({ error: 'Confirmation image not found' });
+        }
       } else {
         res.status(404).json({ error: 'File not found on server' });
       }

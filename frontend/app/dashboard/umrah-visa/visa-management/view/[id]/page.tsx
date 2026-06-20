@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Plane, Users, Building, MapPin, Mail, CheckCircle, ArrowLeft, Clock, DollarSign, Route, Truck, ArrowRight, Download, Info } from 'lucide-react';
 import { ManageAlternateInfoDialog } from '@/components/umrah-booking/components/ManageAlternateInfoDialog';
-import { formatTransportRoute } from '@/lib/utils';
+import { formatTransportRoute, getFileUrl } from '@/lib/utils';
 
 export default function ViewUmrahVisaBookingPage() {
   const router = useRouter();
@@ -309,12 +309,30 @@ export default function ViewUmrahVisaBookingPage() {
       setDownloadingZip(true);
       toast.info('Downloading zip file...');
       const response = await umrahVisaAPI.downloadBookingZip(bookingId);
+      const contentType = response.headers['content-type'] || response.data?.type || '';
       
-      // Check if response is a JSON object with downloadUrl (S3 path)
-      // or if it's the raw binary blob (local storage path)
-      if (response.data instanceof Blob || response.headers['content-type']?.includes('application/zip')) {
-        // Local storage path - response is the zip file itself
-        const blob = new Blob([response.data], { type: 'application/zip' });
+      if (contentType.includes('application/json')) {
+        // S3 path - response contains a JSON object wrapped in Blob or parsed directly
+        let jsonData: any = response.data;
+        if (response.data instanceof Blob) {
+          const text = await response.data.text();
+          jsonData = JSON.parse(text);
+        }
+        
+        if (jsonData.downloadUrl) {
+          const link = document.createElement('a');
+          link.href = jsonData.downloadUrl;
+          link.download = jsonData.fileName || 'documents.zip';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          toast.success('Zip file downloaded successfully!');
+        } else {
+          toast.error('Download URL not available');
+        }
+      } else {
+        // Local storage path or direct stream - response is the zip file itself
+        const blob = response.data instanceof Blob ? response.data : new Blob([response.data], { type: 'application/zip' });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -334,17 +352,6 @@ export default function ViewUmrahVisaBookingPage() {
         link.remove();
         window.URL.revokeObjectURL(url);
         toast.success('Zip file downloaded successfully!');
-      } else if (response.data.downloadUrl) {
-        // S3 path - response is a JSON object containing the URL
-        const link = document.createElement('a');
-        link.href = response.data.downloadUrl;
-        link.download = response.data.fileName || 'documents.zip';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success('Zip file downloaded successfully!');
-      } else {
-        toast.error('Download data not available');
       }
     } catch (error: any) {
       console.error('Download error:', error);
@@ -608,12 +615,12 @@ export default function ViewUmrahVisaBookingPage() {
                         <div className="space-y-4">
                           <div className="relative h-48 w-full max-w-md border rounded-lg overflow-hidden group">
                             <img 
-                              src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}${mainIqama.confirmationImagePath}`} 
+                              src={getFileUrl(mainIqama.confirmationImagePath)} 
                               alt="Confirmation" 
                               className="h-full w-full object-contain bg-white"
                             />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                              <Button variant="secondary" size="sm" onClick={() => window.open(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}${mainIqama.confirmationImagePath}`, '_blank')}>
+                              <Button variant="secondary" size="sm" onClick={() => window.open(getFileUrl(mainIqama.confirmationImagePath), '_blank')}>
                                 <Download className="h-4 w-4 mr-2" /> View Original
                               </Button>
                             </div>

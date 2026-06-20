@@ -35,13 +35,19 @@ import { getUser, hasRole } from '@/lib/auth';
 import { UmrahVisaBooking, UmrahVisaStatus } from '@/types';
 import { umrahVisaAPI } from '@/lib/api';
 import { UMRAH_VISA_STATUS_CONFIG } from '@/lib/constants';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function InvoicePage() {
   const user = getUser();
   const [bookingList, setBookingList] = useState<UmrahVisaBooking[]>([]);
-  const [filteredData, setFilteredData] = useState<UmrahVisaBooking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+  });
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<UmrahVisaBooking | null>(null);
   const [isFetchingSheet, setIsFetchingSheet] = useState(false);
@@ -49,29 +55,28 @@ export default function InvoicePage() {
   const [showResultsDialog, setShowResultsDialog] = useState(false);
   const [isGeneratingBills, setIsGeneratingBills] = useState(false);
 
+  useEffect(() => {
+    if (user && hasRole(['admin', 'staff'])) {
+      fetchBookings();
+    }
+  }, [pagination.page, pagination.limit, searchQuery]);
+
   if (!user || !hasRole(['admin', 'staff'])) {
     return null;
   }
 
-  useEffect(() => {
-    fetchBookings();
-  }, []);
-
-  useEffect(() => {
-    filterData();
-  }, [searchQuery, bookingList]);
-
   const fetchBookings = async () => {
     try {
       setIsLoading(true);
-      const response = await umrahVisaAPI.getBookings({ limit: 1000 });
+      const response = await umrahVisaAPI.getBookings({ 
+        page: pagination.page,
+        limit: pagination.limit,
+        status: 'bill',
+        search: searchQuery
+      });
       const data = response.data;
-      
-      const bookingsData = data.bookings
-        .filter((booking: any) => booking.status === 'bill')
-        .map((booking: any) => booking);
-
-      setBookingList(bookingsData);
+      setBookingList(data.bookings || []);
+      setPagination(data.pagination || { page: 1, limit: pagination.limit, total: 0, totalPages: 0 });
     } catch (error) {
       console.error('Error fetching bookings:', error);
       toast.error('Failed to load bookings');
@@ -99,23 +104,6 @@ export default function InvoicePage() {
     } finally {
       setIsFetchingSheet(false);
     }
-  };
-
-  const filterData = () => {
-    let filtered = bookingList.filter(booking => 
-      booking.status === 'bill'
-    );
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(booking =>
-        booking.party?.partyName?.toLowerCase().includes(query) ||
-        booking.groupNumber?.toLowerCase().includes(query) ||
-        booking.groupName?.toLowerCase().includes(query)
-      );
-    }
-
-    setFilteredData(filtered);
   };
 
   const formatDate = (dateString: string) => {
@@ -300,12 +288,20 @@ export default function InvoicePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Invoice</CardTitle>
-                <CardDescription>Showing {filteredData.length} of {bookingList.length} bookings</CardDescription>
+                <CardDescription>Showing {bookingList.length} of {pagination.total} bookings</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <Input placeholder="Search by party name, group number..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
+                  <Input 
+                    placeholder="Search by party name, group number..." 
+                    value={searchQuery} 
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setPagination(prev => ({ ...prev, page: 1 }));
+                    }} 
+                    className="pl-10" 
+                  />
                 </div>
 
                 <div className="rounded-md border overflow-x-auto">
@@ -325,12 +321,12 @@ export default function InvoicePage() {
                         <TableRow>
                           <TableCell colSpan={6} className="text-center py-8">Loading...</TableCell>
                         </TableRow>
-                      ) : filteredData.length === 0 ? (
+                      ) : bookingList.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={6} className="text-center py-8 text-gray-500">No bookings found</TableCell>
                         </TableRow>
                       ) : (
-                        filteredData.map((booking) => (
+                        bookingList.map((booking) => (
                           <TableRow key={booking.id}>
                             <TableCell>
                               <Badge variant={booking.visaType === 'group_visa' ? 'default' : 'secondary'} className="text-xs">
@@ -365,6 +361,61 @@ export default function InvoicePage() {
                       )}
                     </TableBody>
                   </Table>
+                </div>
+
+                <div className="flex items-center justify-between mt-4 border-t pt-4">
+                  <div className="flex items-center space-x-4">
+                    <p className="text-sm text-gray-500">
+                      Showing {pagination.total > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} to{' '}
+                      {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
+                      {pagination.total} results
+                    </p>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs text-gray-500">Show</span>
+                      <Select
+                        value={String(pagination.limit)}
+                        onValueChange={(val) => {
+                          const newLimit = parseInt(val);
+                          setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+                        }}
+                      >
+                        <SelectTrigger className="h-8 w-16 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="20">20</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                          <SelectItem value="100">100</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span className="text-xs text-gray-500">per page</span>
+                    </div>
+                  </div>
+                  
+                  {pagination.totalPages > 1 && (
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                        disabled={pagination.page === 1}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm text-gray-600">
+                        Page {pagination.page} of {pagination.totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                        disabled={pagination.page === pagination.totalPages}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -26,6 +26,7 @@ import { getUser, hasRole } from '@/lib/auth';
 import { umrahVisaAPI } from '@/lib/api';
 import { DatePicker } from '@/components/ui/date-picker';
 import { fromDisplayDate, toDisplayDate } from '@/lib/umrah/validation';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function MissingBRNPage() {
   const router = useRouter();
@@ -47,14 +48,14 @@ export default function MissingBRNPage() {
 
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 50,
+    limit: 20,
     total: 0,
     totalPages: 0,
   });
 
   const [historyPagination, setHistoryPagination] = useState({
     page: 1,
-    limit: 50,
+    limit: 20,
     total: 0,
     totalPages: 0,
   });
@@ -69,14 +70,14 @@ export default function MissingBRNPage() {
     } else {
       fetchHistory(historyPagination.page);
     }
-  }, [pagination.page, historyPagination.page, activeTab, arrivalDateFrom, arrivalDateTo]);
+  }, [pagination.page, pagination.limit, historyPagination.page, historyPagination.limit, activeTab, arrivalDateFrom, arrivalDateTo]);
 
   const fetchBookings = async (page = 1) => {
     try {
       setIsLoading(true);
       const params: any = {
         page: page.toString(),
-        limit: '50',
+        limit: pagination.limit.toString(),
       };
       if (arrivalDateFrom) params.arrivalDateFrom = arrivalDateFrom;
       if (arrivalDateTo) params.arrivalDateTo = arrivalDateTo;
@@ -113,7 +114,7 @@ export default function MissingBRNPage() {
       setIsLoading(true);
       const params = {
         page: page.toString(),
-        limit: '50',
+        limit: historyPagination.limit.toString(),
       };
       
       const response = await umrahVisaAPI.getBrnUpdateHistory(params);
@@ -192,6 +193,10 @@ export default function MissingBRNPage() {
   const setPage = (page: number) => {
     if (activeTab === 'missing') setPagination(p => ({ ...p, page }));
     else setHistoryPagination(p => ({ ...p, page }));
+  };
+  const setLimit = (limit: number) => {
+    if (activeTab === 'missing') setPagination(p => ({ ...p, limit, page: 1 }));
+    else setHistoryPagination(p => ({ ...p, limit, page: 1 }));
   };
 
   return (
@@ -436,44 +441,69 @@ export default function MissingBRNPage() {
           </Card>
         </TabsContent>
 
-        {currentPagination.totalPages > 1 && (
+        {currentPagination.total > 0 && (
           <div className="flex items-center justify-between p-4 border-t bg-gray-50/50 mt-4 rounded-xl shadow-sm">
-            <div className="text-sm text-gray-500 font-medium">
-              Showing {((currentPagination.page - 1) * currentPagination.limit) + 1} to {Math.min(currentPagination.page * currentPagination.limit, currentPagination.total)} of {currentPagination.total} entries
-            </div>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(currentPagination.page - 1)}
-                disabled={currentPagination.page === 1}
-                className="font-bold"
-              >
-                Previous
-              </Button>
-              <div className="flex items-center space-x-1">
-                {Array.from({ length: currentPagination.totalPages }, (_, i) => i + 1).map((pageNum) => (
-                  <Button
-                    key={pageNum}
-                    variant={pageNum === currentPagination.page ? "default" : "outline"}
-                    size="sm"
-                    className={`w-8 h-8 p-0 font-bold ${pageNum === currentPagination.page ? 'bg-secondary' : ''}`}
-                    onClick={() => setPage(pageNum)}
-                  >
-                    {pageNum}
-                  </Button>
-                ))}
+            <div className="flex items-center space-x-4">
+              <div className="text-sm text-gray-500 font-medium">
+                Showing {((currentPagination.page - 1) * currentPagination.limit) + 1} to {Math.min(currentPagination.page * currentPagination.limit, currentPagination.total)} of {currentPagination.total} entries
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(currentPagination.page + 1)}
-                disabled={currentPagination.page === currentPagination.totalPages}
-                className="font-bold"
-              >
-                Next
-              </Button>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs text-gray-500 font-medium">Show</span>
+                <Select
+                  value={String(currentPagination.limit)}
+                  onValueChange={(val) => {
+                    setLimit(parseInt(val));
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-16 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-xs text-gray-500 font-medium">per page</span>
+              </div>
             </div>
+            
+            {currentPagination.totalPages > 1 && (
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(currentPagination.page - 1)}
+                  disabled={currentPagination.page === 1}
+                  className="font-bold"
+                >
+                  Previous
+                </Button>
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: currentPagination.totalPages }, (_, i) => i + 1).map((pageNum) => (
+                    <Button
+                      key={pageNum}
+                      variant={pageNum === currentPagination.page ? "default" : "outline"}
+                      size="sm"
+                      className={`w-8 h-8 p-0 font-bold ${pageNum === currentPagination.page ? 'bg-secondary' : ''}`}
+                      onClick={() => setPage(pageNum)}
+                    >
+                      {pageNum}
+                    </Button>
+                  ))}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(currentPagination.page + 1)}
+                  disabled={currentPagination.page === currentPagination.totalPages}
+                  className="font-bold"
+                >
+                  Next
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </Tabs>

@@ -33,6 +33,7 @@ import { cn, formatCurrency } from '@/lib/utils';
 import { formatFlightNumber, toDisplayDate, fromDisplayDate } from '@/lib/umrah/validation';
 import { DatePicker } from '@/components/ui/date-picker';
 import { TimePicker } from '@/components/ui/time-picker';
+import { getUser, hasRole } from '@/lib/auth';
 
 interface VoucherPreviewDialogProps {
   open: boolean;
@@ -119,6 +120,8 @@ export function VoucherPreviewDialog({
 }: VoucherPreviewDialogProps) {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const user = getUser();
+  const isAdminOrStaff = hasRole(['admin', 'staff']);
   
   // Master Data
   const [cities, setCities] = useState<any[]>([]);
@@ -509,9 +512,13 @@ export function VoucherPreviewDialog({
     setVoucherData({ ...voucherData, movementDetails: updated });
   };
 
-  const handleFlightChange = (index: number, field: keyof FlightDetail, value: any) => {
+  const handleFlightChange = (index: number, updates: any, value?: any) => {
     const updated = [...voucherData.flightDetails];
-    updated[index] = { ...updated[index], [field]: value };
+    if (typeof updates === 'string') {
+      updated[index] = { ...updated[index], [updates]: value };
+    } else {
+      updated[index] = { ...updated[index], ...updates };
+    }
     setVoucherData({ ...voucherData, flightDetails: updated });
   };
 
@@ -715,6 +722,7 @@ export function VoucherPreviewDialog({
                   <DatePicker
                     value={voucherData.reservationDate}
                     onChange={(val) => setVoucherData({ ...voucherData, reservationDate: val })}
+                    disabled={!isAdminOrStaff}
                   />
                 </div>
                 <div className="space-y-2">
@@ -722,6 +730,7 @@ export function VoucherPreviewDialog({
                   <Input
                     value={voucherData.guestName}
                     onChange={(e) => setVoucherData({ ...voucherData, guestName: e.target.value })}
+                    disabled={!isAdminOrStaff}
                   />
                 </div>
                 <div className="space-y-2">
@@ -729,6 +738,7 @@ export function VoucherPreviewDialog({
                   <Input
                     value={voucherData.guestMobile}
                     onChange={(e) => setVoucherData({ ...voucherData, guestMobile: e.target.value })}
+                    disabled={!isAdminOrStaff}
                   />
                 </div>
                 <div className="space-y-2">
@@ -736,6 +746,7 @@ export function VoucherPreviewDialog({
                   <Input
                     value={voucherData.groupCode}
                     onChange={(e) => setVoucherData({ ...voucherData, groupCode: e.target.value })}
+                    disabled={!isAdminOrStaff}
                   />
                 </div>
                 <div className="space-y-2">
@@ -744,6 +755,7 @@ export function VoucherPreviewDialog({
                     type="number"
                     value={voucherData.paxCount}
                     onChange={(e) => setVoucherData({ ...voucherData, paxCount: parseInt(e.target.value) || 0 })}
+                    disabled={!isAdminOrStaff}
                   />
                 </div>
                 <div className="space-y-2">
@@ -752,11 +764,16 @@ export function VoucherPreviewDialog({
                     value={voucherData.vehicleType}
                     onChange={(e) => setVoucherData({ ...voucherData, vehicleType: e.target.value })}
                     placeholder="e.g. GMC, Hiace, Bus"
+                    disabled={!isAdminOrStaff}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Transport Company</Label>
-                  <Select value={selectedTransportCompanyId} onValueChange={setSelectedTransportCompanyId}>
+                  <Select 
+                    value={selectedTransportCompanyId} 
+                    onValueChange={setSelectedTransportCompanyId}
+                    disabled={!isAdminOrStaff}
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Transport Company" />
                     </SelectTrigger>
@@ -775,14 +792,16 @@ export function VoucherPreviewDialog({
             {/* Hotel Schedules */}
             <div className="space-y-4 p-4 border rounded-lg bg-white">
               <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-lg">Hotel Schedules</h3>
-                <Button type="button" size="sm" onClick={addHotel} variant="outline">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Hotel
-                </Button>
+                <h3 className="font-semibold text-lg">Hotel Schedules</h3>
+                {isAdminOrStaff && (
+                  <Button type="button" size="sm" onClick={addHotel} variant="outline">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Hotel
+                  </Button>
+                )}
               </div>
               {voucherData.hotelSchedules.length === 0 ? (
-                <p className="text-sm text-gray-500 py-4">No hotel bookings found. Click "Add Hotel" to add one.</p>
+                <p className="text-sm text-gray-500 py-4">No hotel bookings found. {isAdminOrStaff && 'Click "Add Hotel" to add one.'}</p>
               ) : (
                 <div className="overflow-x-auto -mx-4 px-4">
                   <Table>
@@ -794,7 +813,7 @@ export function VoucherPreviewDialog({
                         <TableHead className="w-32">Number of Days</TableHead>
                         <TableHead className="w-40">Check In</TableHead>
                         <TableHead className="w-40">Check Out</TableHead>
-                        <TableHead className="w-16">Action</TableHead>
+                        {isAdminOrStaff && <TableHead className="w-16">Action</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -813,15 +832,18 @@ export function VoucherPreviewDialog({
                                 value={hotel.cityId || ''}
                                 onValueChange={(value) => {
                                   const selectedCity = cities.find(c => c.id === value);
-                                  handleHotelScheduleChange(idx, 'cityId', value);
-                                  handleHotelScheduleChange(idx, 'city', selectedCity?.name || '');
-                                  handleHotelScheduleChange(idx, 'location', selectedCity?.name || '');
-                                  handleHotelScheduleChange(idx, 'hotelName', '');
-                                  // Clear hotelId when city changes
                                   const updated = [...voucherData.hotelSchedules];
-                                  (updated[idx] as any).hotelId = '';
+                                  updated[idx] = {
+                                    ...updated[idx],
+                                    cityId: value,
+                                    city: selectedCity?.name || '',
+                                    location: selectedCity?.name || '',
+                                    hotelName: '',
+                                    hotelId: ''
+                                  };
                                   setVoucherData({ ...voucherData, hotelSchedules: updated });
                                 }}
+                                disabled={!isAdminOrStaff}
                               >
                                 <SelectTrigger className="w-full">
                                   <SelectValue placeholder="Select City" />
@@ -841,14 +863,16 @@ export function VoucherPreviewDialog({
                                 onValueChange={(value) => {
                                   const selectedHotel = availableHotels.find(l => l.id === value);
                                   if (selectedHotel) {
-                                    handleHotelScheduleChange(idx, 'hotelName', selectedHotel.name);
-                                    // Store hotelId in the hotel object
                                     const updated = [...voucherData.hotelSchedules];
-                                    (updated[idx] as any).hotelId = value;
+                                    updated[idx] = {
+                                      ...updated[idx],
+                                      hotelName: selectedHotel.name,
+                                      hotelId: value
+                                    };
                                     setVoucherData({ ...voucherData, hotelSchedules: updated });
                                   }
                                 }}
-                                disabled={!hotel.cityId}
+                                disabled={!isAdminOrStaff || !hotel.cityId}
                               >
                                 <SelectTrigger className="w-full">
                                   <SelectValue placeholder={hotel.cityId ? "Select Hotel" : "Select city first"} />
@@ -874,6 +898,7 @@ export function VoucherPreviewDialog({
                               value={hotel.checkIn}
                               onChange={(val) => handleHotelScheduleChange(idx, 'checkIn', val)}
                               className="w-40"
+                              disabled={!isAdminOrStaff}
                             />
                           </TableCell>
                           <TableCell>
@@ -881,8 +906,10 @@ export function VoucherPreviewDialog({
                               value={hotel.checkOut}
                               onChange={(val) => handleHotelScheduleChange(idx, 'checkOut', val)}
                               className="w-40"
+                              disabled={!isAdminOrStaff}
                             />
                           </TableCell>
+                          {isAdminOrStaff && (
                             <TableCell>
                               <Button
                                 type="button"
@@ -893,6 +920,7 @@ export function VoucherPreviewDialog({
                                 <Trash2 className="h-4 w-4 text-primary" />
                               </Button>
                             </TableCell>
+                          )}
                         </TableRow>
                         );
                       })}
@@ -906,13 +934,15 @@ export function VoucherPreviewDialog({
             <div className="space-y-4 p-4 border rounded-lg bg-white">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-lg">Movement Details</h3>
-                <Button type="button" size="sm" onClick={addMovement} variant="outline">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Movement
-                </Button>
+                {isAdminOrStaff && (
+                  <Button type="button" size="sm" onClick={addMovement} variant="outline">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Movement
+                  </Button>
+                )}
               </div>
               {voucherData.movementDetails.length === 0 ? (
-                <p className="text-sm text-gray-500 py-4">No movement details found. Click "Add Movement" to add one.</p>
+                <p className="text-sm text-gray-500 py-4">No movement details found. {isAdminOrStaff && 'Click "Add Movement" to add one.'}</p>
               ) : (
                 <div className="overflow-x-auto -mx-4 px-4">
                   <Table>
@@ -930,7 +960,7 @@ export function VoucherPreviewDialog({
                         <TableHead className="min-w-[120px]">Vehicle No</TableHead>
                         <TableHead className="min-w-[100px]">Vehicle Type</TableHead>
                         <TableHead className="w-16">Bdr</TableHead>
-                        <TableHead className="w-16">Action</TableHead>
+                        {isAdminOrStaff && <TableHead className="w-16">Action</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -942,6 +972,7 @@ export function VoucherPreviewDialog({
                               value={movement.date}
                               onChange={(val) => handleMovementChange(idx, 'date', val)}
                               className="w-40"
+                              disabled={!isAdminOrStaff}
                             />
                           </TableCell>
                           <TableCell>
@@ -949,6 +980,7 @@ export function VoucherPreviewDialog({
                               value={movement.time}
                               onChange={(val) => handleMovementChange(idx, 'time', val)}
                               className="w-32"
+                              disabled={!isAdminOrStaff}
                             />
                           </TableCell>
                           <TableCell>
@@ -957,11 +989,17 @@ export function VoucherPreviewDialog({
                                 value={movement.fromCityId || ''}
                                 onValueChange={(value) => {
                                   const selectedCity = cities.find(c => c.id === value);
-                                  handleMovementChange(idx, 'fromCityId', value);
-                                  handleMovementChange(idx, 'from', selectedCity?.name || '');
-                                  handleMovementChange(idx, 'fromLocationId', '');
-                                  handleMovementChange(idx, 'fromLocation', '');
+                                  const updated = [...voucherData.movementDetails];
+                                  updated[idx] = {
+                                    ...updated[idx],
+                                    fromCityId: value,
+                                    from: selectedCity?.name || '',
+                                    fromLocationId: '',
+                                    fromLocation: ''
+                                  };
+                                  setVoucherData({ ...voucherData, movementDetails: updated });
                                 }}
+                                disabled={!isAdminOrStaff}
                               >
                                 <SelectTrigger className="w-full">
                                   <SelectValue placeholder="From City" />
@@ -986,10 +1024,15 @@ export function VoucherPreviewDialog({
                                 const cityKey = cityName.toLowerCase();
                                 const allLocations = [...(hotelsByCity.get(cityKey) || []), ...(airportsByCity.get(cityKey) || [])];
                                 const selectedLocation = allLocations.find(l => l.id === value);
-                                handleMovementChange(idx, 'fromLocationId', value);
-                                handleMovementChange(idx, 'fromLocation', selectedLocation?.name || '');
+                                const updated = [...voucherData.movementDetails];
+                                updated[idx] = {
+                                  ...updated[idx],
+                                  fromLocationId: value,
+                                  fromLocation: selectedLocation?.name || ''
+                                };
+                                setVoucherData({ ...voucherData, movementDetails: updated });
                               }}
-                              disabled={!movement.fromCityId}
+                              disabled={!isAdminOrStaff || !movement.fromCityId}
                             >
                               <SelectTrigger className="w-full">
                                 <SelectValue placeholder={movement.fromCityId ? "From Location" : "Select city first"} />
@@ -1022,11 +1065,17 @@ export function VoucherPreviewDialog({
                                 value={movement.toCityId || ''}
                                 onValueChange={(value) => {
                                   const selectedCity = cities.find(c => c.id === value);
-                                  handleMovementChange(idx, 'toCityId', value);
-                                  handleMovementChange(idx, 'to', selectedCity?.name || '');
-                                  handleMovementChange(idx, 'toLocationId', '');
-                                  handleMovementChange(idx, 'toLocation', '');
+                                  const updated = [...voucherData.movementDetails];
+                                  updated[idx] = {
+                                    ...updated[idx],
+                                    toCityId: value,
+                                    to: selectedCity?.name || '',
+                                    toLocationId: '',
+                                    toLocation: ''
+                                  };
+                                  setVoucherData({ ...voucherData, movementDetails: updated });
                                 }}
+                                disabled={!isAdminOrStaff}
                               >
                                 <SelectTrigger className="w-full">
                                   <SelectValue placeholder="To City" />
@@ -1051,10 +1100,15 @@ export function VoucherPreviewDialog({
                                 const cityKey = cityName.toLowerCase();
                                 const allLocations = [...(hotelsByCity.get(cityKey) || []), ...(airportsByCity.get(cityKey) || [])];
                                 const selectedLocation = allLocations.find(l => l.id === value);
-                                handleMovementChange(idx, 'toLocationId', value);
-                                handleMovementChange(idx, 'toLocation', selectedLocation?.name || '');
+                                const updated = [...voucherData.movementDetails];
+                                updated[idx] = {
+                                  ...updated[idx],
+                                  toLocationId: value,
+                                  toLocation: selectedLocation?.name || ''
+                                };
+                                setVoucherData({ ...voucherData, movementDetails: updated });
                               }}
-                              disabled={!movement.toCityId}
+                              disabled={!isAdminOrStaff || !movement.toCityId}
                             >
                               <SelectTrigger className="w-full">
                                 <SelectValue placeholder={movement.toCityId ? "To Location" : "Select city first"}>
@@ -1090,6 +1144,7 @@ export function VoucherPreviewDialog({
                               className="min-w-[120px] min-h-[60px] resize-none text-sm"
                               placeholder="Driver 1"
                               rows={2}
+                              disabled={!isAdminOrStaff}
                             />
                           </TableCell>
                           <TableCell className="p-2">
@@ -1099,6 +1154,7 @@ export function VoucherPreviewDialog({
                               className="min-w-[120px] min-h-[60px] resize-none text-sm"
                               placeholder="Driver 2"
                               rows={2}
+                              disabled={!isAdminOrStaff}
                             />
                           </TableCell>
                           <TableCell className="p-2">
@@ -1108,6 +1164,7 @@ export function VoucherPreviewDialog({
                               className="min-w-[120px] min-h-[60px] resize-none text-sm"
                               placeholder="Vehicle No"
                               rows={2}
+                              disabled={!isAdminOrStaff}
                             />
                           </TableCell>
                           <TableCell className="p-2">
@@ -1116,24 +1173,28 @@ export function VoucherPreviewDialog({
                               onChange={(e) => handleMovementChange(idx, 'vehicleType', e.target.value)}
                               className="min-w-[100px] text-sm"
                               placeholder="Type"
+                              disabled={!isAdminOrStaff}
                             />
                           </TableCell>
                           <TableCell>
                             <Checkbox
                               checked={!!movement.viaBdr}
                               onCheckedChange={(checked) => handleMovementChange(idx, 'viaBdr', !!checked)}
+                              disabled={!isAdminOrStaff}
                             />
                           </TableCell>
-                          <TableCell>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => removeMovement(idx)}
-                            >
-                              <Trash2 className="h-4 w-4 text-primary" />
-                            </Button>
-                          </TableCell>
+                          {isAdminOrStaff && (
+                            <TableCell>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => removeMovement(idx)}
+                              >
+                                <Trash2 className="h-4 w-4 text-primary" />
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
@@ -1177,6 +1238,7 @@ export function VoucherPreviewDialog({
                               value={flight.date}
                               onChange={(val) => handleFlightChange(idx, 'date', val)}
                               className="w-32"
+                              disabled={!isAdminOrStaff}
                             />
                           </TableCell>
                           <TableCell>
@@ -1184,6 +1246,7 @@ export function VoucherPreviewDialog({
                               value={flight.carrier}
                               onChange={(e) => handleFlightChange(idx, 'carrier', e.target.value.toUpperCase())}
                               className="h-8 w-16 text-[10px] font-bold text-slate-900 border-slate-200 bg-white"
+                              disabled={!isAdminOrStaff}
                             />
                           </TableCell>
                           <TableCell>
@@ -1194,6 +1257,7 @@ export function VoucherPreviewDialog({
                                 handleFlightChange(idx, 'number', formatted);
                               }}
                               className="h-8 w-16 text-[10px] font-bold text-slate-900 border-slate-200 bg-white"
+                              disabled={!isAdminOrStaff}
                             />
                           </TableCell>
                           <TableCell>
@@ -1202,9 +1266,12 @@ export function VoucherPreviewDialog({
                                 value={flight.arrivalAirportId || ''}
                                 onValueChange={(value) => {
                                   const selectedAirport = locations.find((loc: any) => loc.id === value && (loc.locationType || '').toUpperCase() === 'AIRPORT');
-                                  handleFlightChange(idx, 'arrivalAirportId', value);
-                                  handleFlightChange(idx, 'arrivalAirport', selectedAirport?.code || selectedAirport?.name || '');
+                                  handleFlightChange(idx, {
+                                    arrivalAirportId: value,
+                                    arrivalAirport: selectedAirport?.code || selectedAirport?.name || ''
+                                  });
                                 }}
+                                disabled={!isAdminOrStaff}
                               >
                                 <SelectTrigger className="h-8 w-24 text-[10px] font-bold text-slate-900 border-slate-200 bg-white">
                                   <SelectValue placeholder="Port" />
@@ -1224,9 +1291,12 @@ export function VoucherPreviewDialog({
                                 value={flight.departureAirportId || ''}
                                 onValueChange={(value) => {
                                   const selectedAirport = locations.find((loc: any) => loc.id === value && (loc.locationType || '').toUpperCase() === 'AIRPORT');
-                                  handleFlightChange(idx, 'departureAirportId', value);
-                                  handleFlightChange(idx, 'departureAirport', selectedAirport?.code || selectedAirport?.name || '');
+                                  handleFlightChange(idx, {
+                                    departureAirportId: value,
+                                    departureAirport: selectedAirport?.code || selectedAirport?.name || ''
+                                  });
                                 }}
+                                disabled={!isAdminOrStaff}
                               >
                                 <SelectTrigger className="h-8 w-24 text-[10px] font-bold text-slate-900 border-slate-200 bg-white">
                                   <SelectValue placeholder="Port" />
@@ -1251,6 +1321,7 @@ export function VoucherPreviewDialog({
                               value={formatTime(flight.etd)}
                               onChange={(val) => handleFlightChange(idx, 'etd', val)}
                               className="h-8 w-24 text-[10px] font-bold text-slate-900 border-slate-200 bg-white"
+                              disabled={!isAdminOrStaff}
                             />
                           </TableCell>
                           <TableCell>
@@ -1258,6 +1329,7 @@ export function VoucherPreviewDialog({
                               value={formatTime(flight.eta)}
                               onChange={(val) => handleFlightChange(idx, 'eta', val)}
                               className="h-8 w-24 text-[10px] font-bold text-slate-900 border-slate-200 bg-white"
+                              disabled={!isAdminOrStaff}
                             />
                           </TableCell>
                         </TableRow>
@@ -1306,7 +1378,7 @@ export function VoucherPreviewDialog({
                     <Select
                       value={routeTypeFilter}
                       onValueChange={(value) => setRouteTypeFilter(value as RouteType | 'all')}
-                      disabled={loadingRoutes}
+                      disabled={!isAdminOrStaff || loadingRoutes}
                     >
                       <SelectTrigger className="w-full border-gray-300">
                         <SelectValue placeholder="Select route type" />
@@ -1326,7 +1398,7 @@ export function VoucherPreviewDialog({
                     <Select
                       value={selectedRouteId || ''}
                       onValueChange={(value) => setSelectedRouteId(value || null)}
-                      disabled={loadingRoutes || filteredRoutes.length === 0}
+                      disabled={!isAdminOrStaff || loadingRoutes || filteredRoutes.length === 0}
                     >
                       <SelectTrigger className="w-full border-gray-300">
                         <SelectValue placeholder="Select a route" />
@@ -1408,7 +1480,7 @@ export function VoucherPreviewDialog({
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleTransportQuantityChange(transport.id, -1)}
-                                      disabled={quantity === 0}
+                                      disabled={!isAdminOrStaff || quantity === 0}
                                       className="h-7 w-7 p-0 border-gray-300 hover:bg-destructive/5 hover:border-red-300"
                                     >
                                       <Minus className="h-3 w-3" />
@@ -1422,6 +1494,7 @@ export function VoucherPreviewDialog({
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleTransportQuantityChange(transport.id, 1)}
+                                      disabled={!isAdminOrStaff}
                                       className="h-7 w-7 p-0 border-gray-300 hover:bg-destructive/5 hover:border-red-300"
                                     >
                                       <Plus className="h-3 w-3" />
@@ -1449,22 +1522,30 @@ export function VoucherPreviewDialog({
         </div>
 
         <DialogFooter className="px-6 pb-6 pt-4 border-t flex-shrink-0 bg-white">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleSubmit} 
-            disabled={submitting || voucherData.transportOptions.length === 0 || !selectedTransportCompanyId}
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              'Generate Voucher'
-            )}
-          </Button>
+          {!isAdminOrStaff ? (
+            <Button onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSubmit} 
+                disabled={submitting || voucherData.transportOptions.length === 0 || !selectedTransportCompanyId}
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  'Generate Voucher'
+                )}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

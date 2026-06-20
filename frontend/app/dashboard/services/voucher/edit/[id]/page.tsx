@@ -154,11 +154,18 @@ export default function EditVoucherPage() {
   };
 
   // Hotel schedule handlers
-  const updateHotelSchedule = (index: number, field: string, value: any) => {
+  const updateHotelSchedule = (index: number, updates: Record<string, any> | string, value?: any) => {
     const updated = [...hotelSchedules];
-    updated[index] = { ...updated[index], [field]: value };
-    if (field === 'checkIn' || field === 'checkOut') {
-      updated[index].days = calculateDays(updated[index].checkIn, updated[index].checkOut);
+    if (typeof updates === 'string') {
+      updated[index] = { ...updated[index], [updates]: value };
+      if (updates === 'checkIn' || updates === 'checkOut') {
+        updated[index].days = calculateDays(updated[index].checkIn, updated[index].checkOut);
+      }
+    } else {
+      updated[index] = { ...updated[index], ...updates };
+      if ('checkIn' in updates || 'checkOut' in updates) {
+        updated[index].days = calculateDays(updated[index].checkIn || '', updated[index].checkOut || '');
+      }
     }
     setHotelSchedules(updated);
   };
@@ -180,9 +187,13 @@ export default function EditVoucherPage() {
   };
 
   // Movement detail handlers
-  const updateMovement = (index: number, field: string, value: any) => {
+  const updateMovement = (index: number, updates: Record<string, any> | string, value?: any) => {
     const updated = [...movementDetails];
-    updated[index] = { ...updated[index], [field]: value };
+    if (typeof updates === 'string') {
+      updated[index] = { ...updated[index], [updates]: value };
+    } else {
+      updated[index] = { ...updated[index], ...updates };
+    }
     setMovementDetails(updated);
   };
 
@@ -402,10 +413,13 @@ export default function EditVoucherPage() {
                             <div>
                               <label className="text-xs text-gray-600 mb-1 block">City</label>
                               <Select 
-                                value={cities.find(c => c.name === hotel.location)?.id || ''} 
+                                value={cities.find(c => c.name?.toLowerCase() === hotel.location?.toLowerCase())?.id || ''} 
                                 onValueChange={(val) => {
                                   const city = cities.find(c => c.id === val);
-                                  updateHotelSchedule(index, 'location', city?.name || '');
+                                  updateHotelSchedule(index, {
+                                    location: city?.name || '',
+                                    hotelName: ''
+                                  });
                                 }}
                                 disabled={!isAdminOrStaff}
                               >
@@ -420,7 +434,7 @@ export default function EditVoucherPage() {
                             <div>
                               <label className="text-xs text-gray-600 mb-1 block">Hotel Name</label>
                               <Select 
-                                value={locationMasters.find(l => l.name === hotel.hotelName)?.id || ''} 
+                                value={locationMasters.find(l => l.name?.toLowerCase().trim() === hotel.hotelName?.toLowerCase().trim())?.id || ''} 
                                 onValueChange={(val) => {
                                   const loc = locationMasters.find(l => l.id === val);
                                   updateHotelSchedule(index, 'hotelName', loc?.name || '');
@@ -432,7 +446,7 @@ export default function EditVoucherPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   {locationMasters
-                                    .filter(l => l.locationType === 'HOTEL' && (!hotel.location || l.city === hotel.location || l.cityMaster?.name === hotel.location))
+                                    .filter(l => l.locationType === 'HOTEL' && (!hotel.location || l.city?.toLowerCase() === hotel.location.toLowerCase() || l.cityMaster?.name?.toLowerCase() === hotel.location.toLowerCase()))
                                     .map(l => (
                                       <SelectItem key={l.id} value={l.id}>{l.name} ({l.city})</SelectItem>
                                     ))}
@@ -536,9 +550,11 @@ export default function EditVoucherPage() {
                                   value={movement.fromLocationId || ''} 
                                   onValueChange={(val) => {
                                     const loc = locationMasters.find(l => l.id === val);
-                                    updateMovement(index, 'fromLocationId', loc?.id);
-                                    updateMovement(index, 'fromLocation', loc?.name || '');
-                                    updateMovement(index, 'from', loc?.city || '');
+                                    updateMovement(index, {
+                                      fromLocationId: loc?.id || '',
+                                      fromLocation: loc?.name || '',
+                                      from: loc?.city || ''
+                                    });
                                   }}
                                   disabled={!isAdminOrStaff}
                                 >
@@ -559,9 +575,11 @@ export default function EditVoucherPage() {
                                   value={movement.toLocationId || ''} 
                                   onValueChange={(val) => {
                                     const loc = locationMasters.find(l => l.id === val);
-                                    updateMovement(index, 'toLocationId', loc?.id);
-                                    updateMovement(index, 'toLocation', loc?.name || '');
-                                    updateMovement(index, 'to', loc?.city || '');
+                                    updateMovement(index, {
+                                      toLocationId: loc?.id || '',
+                                      toLocation: loc?.name || '',
+                                      to: loc?.city || ''
+                                    });
                                   }}
                                   disabled={!isAdminOrStaff}
                                 >

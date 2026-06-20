@@ -15,6 +15,7 @@ import DeleteConfirmationDialog from '@/components/DeleteConfirmationDialog';
 import { countryMasterAPI, cityMasterAPI } from '@/lib/api';
 import { Plus, Trash2, Download } from 'lucide-react';
 import { LocationMaster, LocationType, CreateLocationMasterRequest } from '@/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function LocationMasterPage() {
   const router = useRouter();
@@ -60,6 +61,8 @@ export default function LocationMasterPage() {
     setSearchTerm,
     setFilterLocationType: setHookFilterLocationType,
     filteredLocations,
+    pagination,
+    setPagination,
     createLocation,
     updateLocation,
     deleteLocation,
@@ -146,7 +149,8 @@ export default function LocationMasterPage() {
   // Sync filter state with hook
   useEffect(() => {
     setHookFilterLocationType(filterLocationType);
-  }, [filterLocationType, setHookFilterLocationType]); 
+    setPagination(prev => ({ ...prev, page: 1 }));
+  }, [filterLocationType, setHookFilterLocationType, setPagination]); 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -345,8 +349,14 @@ export default function LocationMasterPage() {
               searchTerm={searchTerm}
               filterLocationType={filterLocationType}
               selectedLocations={selectedLocations}
-              setSearchTerm={setSearchTerm}
-              onFilterChange={setFilterLocationType}
+              setSearchTerm={(val) => {
+                setSearchTerm(val);
+                setPagination(prev => ({ ...prev, page: 1 }));
+              }}
+              onFilterChange={(type) => {
+                setFilterLocationType(type);
+                setPagination(prev => ({ ...prev, page: 1 }));
+              }}
               onSelectLocation={handleSelectLocation}
               onSelectAll={handleSelectAll}
               onBulkDelete={handleBulkDeleteClick}
@@ -354,6 +364,61 @@ export default function LocationMasterPage() {
               onEditLocation={handleEdit}
               onToggleStatus={toggleLocationStatus}
             />
+
+            <div className="flex items-center justify-between mt-4 border-t pt-4">
+              <div className="flex items-center space-x-4">
+                <p className="text-sm text-gray-500">
+                  Showing {pagination.total > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} to{' '}
+                  {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
+                  {pagination.total} results
+                </p>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs text-gray-500">Show</span>
+                  <Select
+                    value={String(pagination.limit)}
+                    onValueChange={(val) => {
+                      const newLimit = parseInt(val);
+                      setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+                    }}
+                  >
+                    <SelectTrigger className="h-8 w-16 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-gray-500">per page</span>
+                </div>
+              </div>
+              
+              {pagination.totalPages > 1 && (
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                    disabled={pagination.page === 1}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm text-gray-600">
+                    Page {pagination.page} of {pagination.totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                    disabled={pagination.page === pagination.totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>

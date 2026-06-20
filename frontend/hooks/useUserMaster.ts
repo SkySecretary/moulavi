@@ -22,18 +22,35 @@ interface CreateUserRequest {
   isActive?: boolean;
 }
 
-export function useUserMaster() {
+export function useUserMaster(role: string = 'all') {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+  });
 
   const loadUsers = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await userAPI.getAll({ search: searchTerm });
+      const response = await userAPI.getAll({ 
+        search: searchTerm,
+        role: role !== 'all' ? role : undefined,
+        page: pagination.page,
+        limit: pagination.limit
+      });
       setUsers(response.data.users || []);
+      setPagination(response.data.pagination || {
+        page: 1,
+        limit: pagination.limit,
+        total: response.data.users?.length || 0,
+        totalPages: 1
+      });
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || 'Failed to load users';
       setError(errorMessage);
@@ -47,7 +64,6 @@ export function useUserMaster() {
   const createUser = async (data: CreateUserRequest) => {
     try {
       await userAPI.create(data);
-      // Don't show success toast here - parent component will handle it
       await loadUsers();
       return true;
     } catch (error: any) {
@@ -61,7 +77,6 @@ export function useUserMaster() {
   const updateUser = async (id: string, data: CreateUserRequest) => {
     try {
       await userAPI.update(id, data);
-      // Don't show success toast here - parent component will handle it
       await loadUsers();
       return true;
     } catch (error: any) {
@@ -75,7 +90,6 @@ export function useUserMaster() {
   const deleteUser = async (id: string) => {
     try {
       await userAPI.delete(id);
-      // Don't show success toast here - parent component will handle it
       await loadUsers();
       return true;
     } catch (error: any) {
@@ -86,15 +100,11 @@ export function useUserMaster() {
     }
   };
 
-  const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.role.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = users;
 
   useEffect(() => {
     loadUsers();
-  }, [searchTerm]);
+  }, [searchTerm, role, pagination.page, pagination.limit]);
 
   return {
     users,
@@ -103,6 +113,8 @@ export function useUserMaster() {
     searchTerm,
     setSearchTerm,
     filteredUsers,
+    pagination,
+    setPagination,
     createUser,
     updateUser,
     deleteUser,

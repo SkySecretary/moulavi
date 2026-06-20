@@ -191,10 +191,20 @@ export function extractS3KeyFromUrl(url: string): string | null {
     // AWS S3: https://bucket.s3.region.amazonaws.com/key or https://bucket.s3-region.amazonaws.com/key
     // DigitalOcean Spaces: https://bucket.region.digitaloceanspaces.com/key
     // The pathname is the key (starts with /)
-    const key = urlObj.pathname;
+    let key = urlObj.pathname;
     
     // Remove leading slash if present
-    return key.startsWith('/') ? key.substring(1) : key;
+    if (key.startsWith('/')) {
+      key = key.substring(1);
+    }
+
+    // Strip bucket name if it's in the path (path-style URLs like https://s3.amazonaws.com/bucket/key)
+    const bucketName = S3_CONFIG.BUCKET_NAME;
+    if (bucketName && key.startsWith(bucketName + '/')) {
+      key = key.substring(bucketName.length + 1);
+    }
+    
+    return key;
   } catch (error) {
     console.error('Error extracting S3 key from URL:', error);
     return null;

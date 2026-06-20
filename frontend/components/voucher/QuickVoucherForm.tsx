@@ -827,16 +827,20 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
     updated[index] = { ...updated[index], [field]: value };
     
     // When city changes, clear hotel selection (no prefill)
-    if (field === 'cityName') {
+    if (field === 'cityId') {
       updated[index].locationId = '';
-      updated[index].location = value || ''; // Set location to city name (CityMaster)
       updated[index].hotelName = '';
-      // Ensure cityId is set if we have the city
       if (value) {
-        const city = cities.find(c => c.name === value);
+        const city = cities.find(c => c.id === value);
         if (city) {
-          updated[index].cityId = city.id;
+          updated[index].cityName = city.name;
+          updated[index].city = city.name;
+          updated[index].location = city.name; // Set location to city name (CityMaster)
         }
+      } else {
+        updated[index].cityName = '';
+        updated[index].city = '';
+        updated[index].location = '';
       }
     }
     
@@ -966,8 +970,22 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
       if (location) {
         if (field === 'fromLocationId') {
           updated[index].fromLocation = location.name;
+          updated[index].from = location.city || location.cityMaster?.name || '';
+          updated[index].fromCityId = location.cityId || '';
         } else {
           updated[index].toLocation = location.name;
+          updated[index].to = location.city || location.cityMaster?.name || '';
+          updated[index].toCityId = location.cityId || '';
+        }
+      } else {
+        if (field === 'fromLocationId') {
+          updated[index].fromLocation = '';
+          updated[index].from = '';
+          updated[index].fromCityId = '';
+        } else {
+          updated[index].toLocation = '';
+          updated[index].to = '';
+          updated[index].toCityId = '';
         }
       }
     }

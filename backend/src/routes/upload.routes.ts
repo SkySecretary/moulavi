@@ -351,6 +351,58 @@ router.post(
   })
 );
 
+// GET /api/upload/view
+// Note: This endpoint is public so that HTML img tags and window.open can load static images.
+router.get(
+  '/view',
+  asyncHandler(async (req: any, res: Response) => {
+    const { path: filePath } = req.query;
+    if (!filePath || typeof filePath !== 'string') {
+      return res.status(400).json({ error: 'File path is required' });
+    }
+
+    const isS3File = filePath.startsWith('http://') || filePath.startsWith('https://');
+
+    if (isS3File && isS3Configured()) {
+      try {
+        const downloadUrl = await generateDownloadUrl(filePath);
+        return res.redirect(downloadUrl);
+      } catch (error) {
+        console.error('Error generating pre-signed URL for view:', error);
+        return res.status(500).json({ error: 'Failed to generate access URL' });
+      }
+    }
+
+    // Serve local file
+    let cleanPath = filePath;
+    if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
+      try {
+        const urlObj = new URL(cleanPath);
+        cleanPath = urlObj.pathname;
+      } catch (e) {}
+    }
+    
+    cleanPath = cleanPath.replace(/^\/?uploads\//, '');
+    
+    const localFilePath = path.join(__dirname, '../../uploads', cleanPath);
+    if (fs.existsSync(localFilePath)) {
+      return res.sendFile(localFilePath);
+    }
+
+    // Fallback to S3 if not found locally but S3 is configured
+    if (isS3Configured()) {
+      try {
+        const downloadUrl = await generateDownloadUrl(filePath);
+        return res.redirect(downloadUrl);
+      } catch (error) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+    }
+
+    return res.status(404).json({ error: 'File not found' });
+  })
+);
+
 // Get document
 router.get(
   '/:documentId',
@@ -384,7 +436,9 @@ router.get(
     }
     
     // Handle file download based on storage type
-    if (isS3Configured()) {
+    const isS3File = document.filePath.startsWith('http://') || document.filePath.startsWith('https://');
+    
+    if (isS3File && isS3Configured()) {
       // Generate presigned URL for S3 file
       try {
         const downloadUrl = await generateDownloadUrl(document.filePath);
@@ -402,6 +456,20 @@ router.get(
       // Serve local file
       if (fs.existsSync(document.filePath)) {
         res.download(document.filePath, document.fileName);
+      } else if (isS3Configured()) {
+        // Fallback: try S3
+        try {
+          const downloadUrl = await generateDownloadUrl(document.filePath);
+          res.json({
+            downloadUrl,
+            fileName: document.fileName,
+            fileSize: document.fileSize,
+            mimeType: document.mimeType
+          });
+        } catch (error) {
+          console.error('Error generating download URL for S3 fallback:', error);
+          res.status(404).json({ error: 'File not found' });
+        }
       } else {
         res.status(404).json({ error: 'File not found' });
       }
@@ -659,7 +727,9 @@ router.get(
     }
     
     // Handle file download based on storage type
-    if (isS3Configured()) {
+    const isS3File = document.filePath.startsWith('http://') || document.filePath.startsWith('https://');
+    
+    if (isS3File && isS3Configured()) {
       // Generate presigned URL for S3 file
       try {
         const downloadUrl = await generateDownloadUrl(document.filePath);
@@ -677,6 +747,20 @@ router.get(
       // Serve local file
       if (fs.existsSync(document.filePath)) {
         res.download(document.filePath, document.fileName);
+      } else if (isS3Configured()) {
+        // Fallback: try S3
+        try {
+          const downloadUrl = await generateDownloadUrl(document.filePath);
+          res.json({
+            downloadUrl,
+            fileName: document.fileName,
+            fileSize: document.fileSize,
+            mimeType: document.mimeType
+          });
+        } catch (error) {
+          console.error('Error generating download URL for S3 fallback:', error);
+          res.status(404).json({ error: 'File not found' });
+        }
       } else {
         res.status(404).json({ error: 'File not found' });
       }
@@ -749,3 +833,4 @@ router.get(
 );
 
 export default router;
+
