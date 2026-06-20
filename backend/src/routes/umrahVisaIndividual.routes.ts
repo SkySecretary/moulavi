@@ -16,7 +16,10 @@ import {
   uploadIndividual,
 } from './umrahVisa/shared';
 import { combineDateTime, splitDateTime } from '../utils/datetime';
-import { isS3Configured } from '../config/s3';
+import { isS3Configured, s3Client, S3_CONFIG, getEndpoint, extractS3KeyFromUrl } from '../config/s3';
+import { CopyObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import fs from 'fs';
+import path from 'path';
 import { generateBookingReference } from '../services/bookingService';
 
 const router = Router();
@@ -806,15 +809,69 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
         { field: 'nationalAddresses', type: 'national_address' }
       ];
 
-      splitDocFields.forEach(({ field, type, linkToPassenger }) => {
+      for (const { field, type, linkToPassenger } of splitDocFields) {
         const fieldFiles = files?.[field];
         if (fieldFiles && Array.isArray(fieldFiles)) {
-          fieldFiles.forEach((f, idx) => {
+          for (let idx = 0; idx < fieldFiles.length; idx++) {
+            const f = fieldFiles[idx];
+            let finalFilePath = isS3Configured() ? (f as any).location : f.path;
+            let finalFileName = f.originalname;
+
+            // Append passport number to passport copies and passenger photos
+            if ((field === 'passportCopies' || field === 'passengerPhotos') && passengers[idx]) {
+              const passportNo = passportNumbers[idx] || '';
+              if (passportNo) {
+                const ext = path.extname(f.originalname);
+                const baseName = path.basename(f.originalname, ext);
+                const newFileName = `${passportNo}_${baseName}${ext}`;
+
+                if (isS3Configured() && s3Client) {
+                  // S3 key copy and rename
+                  const oldKey = (f as any).key || extractS3KeyFromUrl((f as any).location);
+                  if (oldKey) {
+                    const newKey = `bookings/individual/${Date.now()}_${newFileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+                    try {
+                      const copySource = `${S3_CONFIG.BUCKET_NAME}/${oldKey}`;
+                      await s3Client.send(new CopyObjectCommand({
+                        Bucket: S3_CONFIG.BUCKET_NAME,
+                        CopySource: copySource,
+                        Key: newKey,
+                      }));
+                      
+                      await s3Client.send(new DeleteObjectCommand({
+                        Bucket: S3_CONFIG.BUCKET_NAME,
+                        Key: oldKey,
+                      }));
+
+                      const endpoint = getEndpoint() || `https://s3.${S3_CONFIG.REGION}.amazonaws.com`;
+                      finalFilePath = endpoint.includes('digitaloceanspaces.com')
+                        ? endpoint.replace('https://', `https://${S3_CONFIG.BUCKET_NAME}.`) + `/${newKey}`
+                        : `${endpoint}/${S3_CONFIG.BUCKET_NAME}/${newKey}`;
+                      finalFileName = newFileName;
+                    } catch (s3Error) {
+                      console.error('Error renaming S3 object:', s3Error);
+                    }
+                  }
+                } else {
+                  // Local file rename
+                  const uploadDir = path.dirname(f.path);
+                  const newPath = path.join(uploadDir, `${Date.now()}_${newFileName}`);
+                  try {
+                    fs.renameSync(f.path, newPath);
+                    finalFilePath = newPath;
+                    finalFileName = newFileName;
+                  } catch (fsError) {
+                    console.error('Error renaming local file:', fsError);
+                  }
+                }
+              }
+            }
+
             const docData: any = {
               bookingId: booking.id,
               documentType: type,
-              fileName: f.originalname,
-              filePath: isS3Configured() ? (f as any).location : f.path,
+              fileName: finalFileName,
+              filePath: finalFilePath,
               fileSize: f.size,
               mimeType: f.mimetype,
             };
@@ -824,9 +881,9 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
             }
 
             docsToCreate.push(docData);
-          });
+          }
         }
-      });
+      }
 
       if (docsToCreate.length > 0) {
         await tx.document.createMany({
