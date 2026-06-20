@@ -143,31 +143,69 @@ export default function AssignGroupPage() {
 
   const handleDownloadDocuments = async (booking: UmrahVisaBooking) => {
     if (!booking.id) return;
+    
+    const trackDownload = async () => {
+      try {
+        await umrahVisaAPI.downloadDocuments(booking.id!);
+        toast.success('Documents download tracked successfully!');
+        fetchBookings();
+      } catch (trackError: any) {
+        console.warn('Failed to track download:', trackError);
+      }
+    };
+
     try {
       toast.info('Downloading zip file...');
       
       const zipResponse = await umrahVisaAPI.downloadBookingZip(booking.id);
-      
-      if (zipResponse.data.downloadUrl) {
+      const blob = zipResponse.data;
+
+      if (blob.type === 'application/json') {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          try {
+            const result = JSON.parse(reader.result as string);
+            if (result.downloadUrl) {
+              const link = document.createElement('a');
+              link.href = result.downloadUrl;
+              link.download = result.fileName || `${booking.bookingReference || booking.id}-all-docs.zip`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              await trackDownload();
+            } else {
+              toast.error(result.error || 'Failed to download zip file');
+            }
+          } catch (e) {
+            toast.error('Failed to parse download response');
+          }
+        };
+        reader.readAsText(blob);
+      } else {
+        const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = zipResponse.data.downloadUrl;
-        link.download = zipResponse.data.fileName || 'documents.zip';
+        link.href = url;
+        
+        const contentDisposition = zipResponse.headers['content-disposition'];
+        let fileName = booking.bookingReference
+          ? `${booking.bookingReference}-all-docs.zip`
+          : `booking-documents-${booking.id}.zip`;
+          
+        if (contentDisposition) {
+          const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
+          if (fileNameMatch && fileNameMatch[1]) {
+            fileName = fileNameMatch[1];
+          }
+        }
+        
+        link.setAttribute('download', fileName);
         document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
-      } else {
-        toast.error('Download URL not available');
-        return;
+        
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        await trackDownload();
       }
-      
-      try {
-        await umrahVisaAPI.downloadDocuments(booking.id);
-      } catch (trackError: any) {
-        console.warn('Failed to track download:', trackError);
-      }
-      
-      toast.success('Documents downloaded successfully!');
-      fetchBookings();
     } catch (error: any) {
       console.error('Download error:', error);
       toast.error(error.response?.data?.error || error.message || 'Failed to download documents');

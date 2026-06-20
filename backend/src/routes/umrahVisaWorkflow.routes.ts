@@ -214,7 +214,95 @@ router.get('/:bookingId/download-zip', authenticate, async (req, res) => {
     });
 
     if (!zipDocument) {
-      return res.status(404).json({ error: 'Zip file not found for this booking' });
+      // Check if there are other documents for this booking
+      const documentCount = await prisma.document.count({
+        where: {
+          OR: [
+            { bookingId: bookingId },
+            { passenger: { bookingId: bookingId } }
+          ],
+          isDeleted: false,
+        },
+      });
+
+      if (documentCount === 0) {
+        return res.status(404).json({ error: 'Zip file not found for this booking' });
+      }
+
+      // Fallback: Dynamically generate and stream ZIP of all documents
+      const [booking, documents] = await Promise.all([
+        prisma.umrahVisaBooking.findUnique({
+          where: { id: bookingId },
+          select: { bookingReference: true }
+        }),
+        prisma.document.findMany({
+          where: {
+            OR: [
+              { bookingId: bookingId },
+              { passenger: { bookingId: bookingId } }
+            ],
+            isDeleted: false,
+          },
+          include: {
+            passenger: true
+          }
+        })
+      ]);
+
+      const archive = archiver('zip', {
+        zlib: { level: 9 }
+      });
+
+      const zipFileName = booking?.bookingReference 
+        ? `${booking.bookingReference}-all-docs.zip`
+        : `${bookingId}-all-docs.zip`;
+        
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="${zipFileName}"`);
+
+      archive.pipe(res);
+
+      archive.on('error', (err: any) => {
+        console.error('Archiver error:', err);
+        if (!res.headersSent) {
+          res.status(500).send({ error: 'Failed to create ZIP archive' });
+        }
+      });
+
+      for (const doc of documents) {
+        // Name passenger photos with their passport number if available
+        let fileName = doc.fileName;
+        if (doc.passenger) {
+          const cleanName = doc.passenger.fullName.replace(/[^a-zA-Z0-9]/g, '_');
+          const passportPart = doc.passenger.passportNumber ? `_${doc.passenger.passportNumber}` : '';
+          fileName = `${cleanName}${passportPart}_${doc.fileName}`;
+        }
+
+        if (isS3Configured() && s3Client) {
+          try {
+            const s3Key = extractS3KeyFromUrl(doc.filePath) || doc.filePath;
+            const command = new GetObjectCommand({
+              Bucket: S3_CONFIG.BUCKET_NAME,
+              Key: s3Key,
+            });
+            const response = await s3Client.send(command);
+            if (response.Body) {
+              archive.append(response.Body as Readable, { name: fileName });
+            }
+          } catch (s3Error) {
+            console.error(`Error fetching file from S3: ${doc.filePath}`, s3Error);
+          }
+        } else {
+          if (fs.existsSync(doc.filePath)) {
+            archive.file(doc.filePath, { name: fileName });
+          } else {
+            console.error(`Local file not found: ${doc.filePath}`);
+          }
+        }
+      }
+
+      await archive.finalize();
+      return;
     }
 
     // Handle file download based on storage type
