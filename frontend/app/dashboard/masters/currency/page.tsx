@@ -16,20 +16,7 @@ import CurrencyDeleteConfirmationModal from '@/components/currency/CurrencyDelet
 import CurrencyStatsCards from '@/components/currency/CurrencyStatsCards';
 import { Plus, Search, DollarSign } from 'lucide-react';
 
-interface CurrencyMaster {
-  id: string;
-  currencyCode: string;
-  currencyName: string;
-  symbol: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface CreateCurrencyMasterRequest {
-  currencyCode: string;
-  currencyName: string;
-  symbol: string;
-}
+import { CurrencyMaster, CreateCurrencyMasterRequest } from '@/types';
 
 export default function CurrencyMasterPage() {
   const router = useRouter();

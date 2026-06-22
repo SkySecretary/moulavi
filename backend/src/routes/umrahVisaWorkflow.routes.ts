@@ -9,6 +9,8 @@ import { sendIqamaConfirmationEmail } from '../services/emailService';
 import { VoucherPdfData } from '../types/voucher';
 import { isS3Configured, S3_CONFIG, generateDownloadUrl, s3Client, extractS3KeyFromUrl } from '../config/s3';
 import { combineDateTime } from '../utils/datetime';
+import { syncVoucherToBooking, syncBookingToVoucher } from '../utils/bookingVoucherSync';
+import { appendBookingAttachments } from '../utils/bookingPdfAttachments';
 import fs from 'fs';
 import path from 'path';
 const archiver = require('archiver');
@@ -1187,10 +1189,12 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
     // Create or update voucher (standalone, no booking connection)
     const voucher = await prisma.$transaction(async (tx) => {
       let voucherRecord;
-      
       if (existingVoucher) {
         // Update existing voucher with new group data
         const updateData: any = {
+          guestName: voucherData.guestName !== undefined ? voucherData.guestName : existingVoucher.guestName,
+          guestMobile: voucherData.guestMobile !== undefined ? voucherData.guestMobile : existingVoucher.guestMobile,
+          reservationDate: voucherData.reservationDate ? new Date(voucherData.reservationDate) : existingVoucher.reservationDate,
           groupCode,
           groupName: groupName || null,
           paxCount,
@@ -1207,6 +1211,11 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
           where: { id: existingVoucher.id },
           data: updateData,
         });
+
+        // Delete existing related records associated with this voucher so we can recreate them
+        await tx.voucherMovement.deleteMany({ where: { voucherId: existingVoucher.id } });
+        await tx.voucherHotel.deleteMany({ where: { voucherId: existingVoucher.id } });
+        await tx.voucherFlight.deleteMany({ where: { voucherId: existingVoucher.id } });
       } else {
         // Create new voucher
         const voucherDataToCreate: any = {
@@ -1232,128 +1241,113 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
         });
       }
 
-      // Only create movements, hotels, flights if this is a new voucher
-      // For existing vouchers, we only update groupCode, groupName, and paxCount
-      if (!existingVoucher) {
-        // Create movements, hotels, flights
-        // Generate route numbers when creating voucher (not in preview)
-        const movementCount = voucherData.movementDetails && Array.isArray(voucherData.movementDetails) 
-          ? voucherData.movementDetails.length 
-          : 0;
-        const routeNumbers = movementCount > 0 
-          ? await generateRouteNumbersForVoucher(movementCount)
-          : [];
+      // Create movements, hotels, flights for both new and updated vouchers
+      // Generate route numbers when creating voucher (not in preview)
+      const movementCount = voucherData.movementDetails && Array.isArray(voucherData.movementDetails) 
+        ? voucherData.movementDetails.length 
+        : 0;
+      const routeNumbers = movementCount > 0 
+        ? await generateRouteNumbersForVoucher(movementCount)
+        : [];
 
-        // Create VoucherMovement records
-        if (voucherData.movementDetails && Array.isArray(voucherData.movementDetails)) {
-              await Promise.all(
-            voucherData.movementDetails.map((movement: any, index: number) =>
-              tx.voucherMovement.create({
-                    data: {
-                  voucherId: voucherRecord.id,
-                  sr: movement.sr || index + 1,
-                  route: routeNumbers[index] || null, // Use generated route number
-                  date: movement.date ? (isNaN(new Date(movement.date).getTime()) ? new Date() : new Date(movement.date)) : new Date(),
-                  time: movement.time || '',
-                  from: movement.from || '',
-                  fromLocation: movement.fromLocation || '',
-                  fromLocationId: movement.fromLocationId || null,
-                  to: movement.to || '',
-                  toLocation: movement.toLocation || '',
-                  toLocationId: movement.toLocationId || null,
-                  driverDetails1: movement.driverDetails1 || null,
-                  driverDetails2: movement.driverDetails2 || null,
-                  vehicleNumber: movement.vehicleNumber || null,
-                  paxCount: movement.paxCount || null,
-                  price: movement.price ? parseFloat(movement.price) : null,
-                  vehicleType: movement.vehicleType || null,
-                    },
-                  })
-                )
-              );
-            }
+      // Create VoucherMovement records
+      if (voucherData.movementDetails && Array.isArray(voucherData.movementDetails)) {
+        await Promise.all(
+          voucherData.movementDetails.map((movement: any, index: number) =>
+            tx.voucherMovement.create({
+              data: {
+                voucherId: voucherRecord.id,
+                sr: movement.sr || index + 1,
+                route: movement.route || routeNumbers[index] || null, // Use route if present, else generate
+                date: movement.date ? (isNaN(new Date(movement.date).getTime()) ? new Date() : new Date(movement.date)) : new Date(),
+                time: movement.time || '',
+                from: movement.from || '',
+                fromLocation: movement.fromLocation || '',
+                fromLocationId: movement.fromLocationId || null,
+                to: movement.to || '',
+                toLocation: movement.toLocation || '',
+                toLocationId: movement.toLocationId || null,
+                driverDetails1: movement.driverDetails1 || null,
+                driverDetails2: movement.driverDetails2 || null,
+                vehicleNumber: movement.vehicleNumber || null,
+                paxCount: movement.paxCount || null,
+                price: movement.price ? parseFloat(movement.price) : null,
+                vehicleType: movement.vehicleType || null,
+              },
+            })
+          )
+        );
+      }
 
-        // Create VoucherHotel records
-        if (voucherData.hotelSchedules && Array.isArray(voucherData.hotelSchedules)) {
-          await Promise.all(
-            voucherData.hotelSchedules.map((hotel: any) => {
-              // Handle BRN: convert array to comma-separated string if needed
-              let brnValue: string | null = null;
-              if (hotel.brn) {
-                if (Array.isArray(hotel.brn)) {
-                  // If BRN is an array, join with comma or take first element
-                  brnValue = hotel.brn.length > 0 ? hotel.brn.join(', ') : null;
-                } else if (typeof hotel.brn === 'string') {
-                  brnValue = hotel.brn;
-                }
+      // Create VoucherHotel records
+      if (voucherData.hotelSchedules && Array.isArray(voucherData.hotelSchedules)) {
+        await Promise.all(
+          voucherData.hotelSchedules.map((hotel: any) => {
+            // Handle BRN: convert array to comma-separated string if needed
+            let brnValue: string | null = null;
+            if (hotel.brn) {
+              if (Array.isArray(hotel.brn)) {
+                brnValue = hotel.brn.length > 0 ? hotel.brn.join(', ') : null;
+              } else if (typeof hotel.brn === 'string') {
+                brnValue = hotel.brn;
               }
-              
-              return tx.voucherHotel.create({
-                    data: {
-                  voucherId: voucherRecord.id,
-                  number: hotel.number || 0,
-                  location: hotel.location || '',
-                  hotelName: hotel.hotelName || '',
-                  checkIn: hotel.checkIn ? (isNaN(new Date(hotel.checkIn).getTime()) ? new Date() : new Date(hotel.checkIn)) : new Date(),
-                  checkOut: hotel.checkOut ? (isNaN(new Date(hotel.checkOut).getTime()) ? new Date() : new Date(hotel.checkOut)) : new Date(),
-                  days: hotel.days || 0,
-                  brn: brnValue,
-                    },
-              });
-            })
-              );
             }
+            
+            return tx.voucherHotel.create({
+              data: {
+                voucherId: voucherRecord.id,
+                number: hotel.number || 0,
+                location: hotel.location || '',
+                hotelName: hotel.hotelName || '',
+                checkIn: hotel.checkIn ? (isNaN(new Date(hotel.checkIn).getTime()) ? new Date() : new Date(hotel.checkIn)) : new Date(),
+                checkOut: hotel.checkOut ? (isNaN(new Date(hotel.checkOut).getTime()) ? new Date() : new Date(hotel.checkOut)) : new Date(),
+                days: hotel.days || 0,
+                brn: brnValue,
+              },
+            });
+          })
+        );
+      }
 
-        // Create VoucherFlight records
-        if (voucherData.flightDetails && Array.isArray(voucherData.flightDetails)) {
-              await Promise.all(
-            voucherData.flightDetails.map((flight: any) => {
-              // For arrival (AA), airport is in arrivalAirport (or from as fallback)
-              // For departure (AD), airport is in departureAirport (or to as fallback)
-              const airport = flight.type === 'AA' 
-                ? (flight.arrivalAirport || flight.from || '')
-                : (flight.departureAirport || flight.to || '');
-              
-              return tx.voucherFlight.create({
-                    data: {
-                  voucherId: voucherRecord.id,
-                  type: String(flight.type || 'AA').substring(0, 10),
-                  carrier: String(flight.carrier || '').substring(0, 50),
-                  number: String(flight.number || '').substring(0, 50),
-                  date: flight.date ? (isNaN(new Date(flight.date).getTime()) ? new Date() : new Date(flight.date)) : new Date(),
-                  // Store airport in 'from' for AA, in 'to' for AD (for PDF display)
-                  from: flight.type === 'AA' ? String(airport).substring(0, 50) : 'JED',
-                  to: flight.type === 'AD' ? String(airport).substring(0, 50) : 'JED',
-                  etd: flight.etd ? String(flight.etd).substring(0, 20) : null,
-                  eta: flight.eta ? String(flight.eta).substring(0, 20) : null,
-                    },
-              });
-            })
-              );
-        }
-            }
+      // Create VoucherFlight records
+      if (voucherData.flightDetails && Array.isArray(voucherData.flightDetails)) {
+        await Promise.all(
+          voucherData.flightDetails.map((flight: any) => {
+            const airport = flight.type === 'AA' 
+              ? (flight.arrivalAirport || flight.from || '')
+              : (flight.departureAirport || flight.to || '');
+            
+            return tx.voucherFlight.create({
+              data: {
+                voucherId: voucherRecord.id,
+                type: String(flight.type || 'AA').substring(0, 10),
+                carrier: String(flight.carrier || '').substring(0, 50),
+                number: String(flight.number || '').substring(0, 50),
+                date: flight.date ? (isNaN(new Date(flight.date).getTime()) ? new Date() : new Date(flight.date)) : new Date(),
+                from: flight.type === 'AA' ? String(airport).substring(0, 50) : 'JED',
+                to: flight.type === 'AD' ? String(airport).substring(0, 50) : 'JED',
+                etd: flight.etd ? String(flight.etd).substring(0, 20) : null,
+                eta: flight.eta ? String(flight.eta).substring(0, 20) : null,
+              },
+            });
+          })
+        );
+      }
 
       // Update booking with voucher metadata
-      if (!existingVoucher) {
-        await tx.umrahVisaBooking.update({
-          where: { id: bookingId },
-                  data: {
-            voucherGeneratedAt: new Date(),
-            voucherGeneratedBy: user.id,
-          },
-        });
-      } else {
-        // For existing voucher, just update the timestamp
-        await tx.umrahVisaBooking.update({
-          where: { id: bookingId },
-                  data: {
-            voucherGeneratedAt: new Date(), // Update timestamp to reflect latest update
-                  },
-                });
-              }
+      await tx.umrahVisaBooking.update({
+        where: { id: bookingId },
+        data: {
+          voucherGeneratedAt: new Date(),
+          voucherGeneratedBy: user.id,
+        },
+      });
 
       // Sync status using helper (updates booking status + history)
       await syncBookingStatusInTx(bookingId, 'bill', user.id, existingVoucher ? 'Voucher updated with additional groups' : 'Voucher generated', tx);
+
+      // Re-sync Voucher -> Booking details in database
+      await syncVoucherToBooking(tx, voucherRecord.id);
 
       return voucherRecord.id;
     }, {
@@ -1717,7 +1711,10 @@ router.get('/:bookingId/generate-booking-pdf', authenticate, async (req, res) =>
     };
 
     // Generate PDF
-    const pdfBuffer = await generateVoucherPDF(pdfData);
+    let pdfBuffer = await generateVoucherPDF(pdfData);
+
+    // Merge attachments if this is an individual iqama booking
+    pdfBuffer = await appendBookingAttachments(bookingId, pdfBuffer);
 
     const fileName = `Voucher-${booking.bookingReference || booking.id.slice(0, 8)}.pdf`;
 
@@ -2046,6 +2043,10 @@ router.post('/:bookingId/hotel-bookings', authenticate, async (req, res) => {
       },
       include: { hotel: true, city: true },
     });
+
+    // Sync hotel booking changes to voucher
+    await syncBookingToVoucher(prisma, bookingId);
+
     res.json({ hotelBooking: created });
   } catch (error) {
     console.error('Error creating hotel booking:', error);
@@ -2057,7 +2058,19 @@ router.post('/:bookingId/hotel-bookings', authenticate, async (req, res) => {
 router.delete('/hotel-bookings/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.umrahHotelBooking.delete({ where: { id } });
+    
+    // Find hotel booking first to get bookingId
+    const hotelBooking = await prisma.umrahHotelBooking.findUnique({
+      where: { id },
+      select: { bookingId: true },
+    });
+    
+    if (hotelBooking) {
+      await prisma.umrahHotelBooking.delete({ where: { id } });
+      // Sync changes back to voucher
+      await syncBookingToVoucher(prisma, hotelBooking.bookingId);
+    }
+    
     res.json({ ok: true });
   } catch (error) {
     console.error('Error deleting hotel booking:', error);
@@ -2196,6 +2209,9 @@ router.patch('/:bookingId/movement-details', authenticate, async (req, res) => {
       orderBy: { travelDateTime: 'asc' },
     });
 
+    // Sync movements to voucher
+    await syncBookingToVoucher(prisma, bookingId);
+
     res.json({ movementDetails: refreshed });
   } catch (error) {
     console.error('Error updating movement details:', error);
@@ -2277,6 +2293,9 @@ router.post('/:bookingId/movement-details', authenticate, async (req, res) => {
       },
     });
 
+    // Sync movements to voucher
+    await syncBookingToVoucher(prisma, bookingId);
+
     res.json({ movementDetail: created });
   } catch (error) {
     console.error('Error creating movement detail:', error);
@@ -2288,7 +2307,19 @@ router.post('/:bookingId/movement-details', authenticate, async (req, res) => {
 router.delete('/movement-details/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.umrahMovementDetail.delete({ where: { id } });
+    
+    // Find movement first to get bookingId
+    const movement = await prisma.umrahMovementDetail.findUnique({
+      where: { id },
+      select: { bookingId: true },
+    });
+    
+    if (movement) {
+      await prisma.umrahMovementDetail.delete({ where: { id } });
+      // Sync changes back to voucher
+      await syncBookingToVoucher(prisma, movement.bookingId);
+    }
+    
     res.json({ ok: true });
   } catch (error) {
     console.error('Error deleting movement detail:', error);
@@ -2326,6 +2357,9 @@ router.patch('/booking/:id/group-number', authenticate, async (req, res) => {
       where: { id },
       data: updateData,
     });
+
+    // Sync booking metadata changes to voucher
+    await syncBookingToVoucher(prisma, id);
 
     res.json({ success: true, booking });
   } catch (error) {

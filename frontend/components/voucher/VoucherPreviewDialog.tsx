@@ -321,6 +321,8 @@ export function VoucherPreviewDialog({
           departureAirportId: fd.departureAirportId || '',
           departureAirport: fd.departureAirport || fd.to || '',
           date: fd.date ? toDisplayDate(fd.date) : '',
+          etd: fd.etd ? formatTime(fd.etd) : '',
+          eta: fd.eta ? formatTime(fd.eta) : '',
         })),
         transportOptions: (data.transportOptions || []) as TransportOption[],
       });

@@ -26,7 +26,8 @@ import {
   UserPlus,
   Download,
   Loader2,
-  Ticket
+  Ticket,
+  RotateCcw
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
@@ -58,6 +59,7 @@ export default function UmrahVisaPage() {
   // Dialog states
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const [viewArchived, setViewArchived] = useState(false);
 
   if (!user || !hasRole(['admin', 'staff'])) {
     return null;
@@ -65,7 +67,7 @@ export default function UmrahVisaPage() {
 
   useEffect(() => {
     fetchBookings(pagination.page);
-  }, [pagination.page, pagination.limit, searchQuery, selectedStatus, selectedVisaType, arrivalDateFrom, arrivalDateTo]);
+  }, [pagination.page, pagination.limit, searchQuery, selectedStatus, selectedVisaType, arrivalDateFrom, arrivalDateTo, viewArchived]);
 
   const fetchBookings = async (page = 1) => {
     try {
@@ -78,6 +80,7 @@ export default function UmrahVisaPage() {
         visaType: selectedVisaType === 'all' ? undefined : selectedVisaType,
         arrivalDateFrom,
         arrivalDateTo,
+        archived: viewArchived ? 'true' : 'false',
       };
       
       const response = await umrahVisaAPI.getBookings(params);
@@ -200,6 +203,26 @@ export default function UmrahVisaPage() {
     }
   };
 
+  const handleRestoreBooking = async (bookingId: string, partyName: string) => {
+    if (!confirm(`Are you sure you want to restore this booking for ${partyName}?`)) {
+      return;
+    }
+
+    try {
+      await umrahVisaAPI.restoreBooking(bookingId);
+      toast.success('Booking restored successfully');
+      fetchBookings();
+    } catch (error: any) {
+      console.error('Error restoring booking:', error);
+      toast.error(error?.response?.data?.error || 'Failed to restore booking');
+    }
+  };
+
+  const handleToggleArchived = (archived: boolean) => {
+    setViewArchived(archived);
+    setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
   const handleDownloadBookingPDF = async (booking: any) => {
     if (!booking.id) return;
     
@@ -285,6 +308,29 @@ export default function UmrahVisaPage() {
           <div className="p-4 lg:p-8">
           <Card>
               <CardContent className="space-y-4">
+                {/* Active/Archived Tabs */}
+                <div className="flex border-b pb-2 mt-4 gap-2">
+                  <button
+                    onClick={() => handleToggleArchived(false)}
+                    className={`pb-2 px-4 text-sm font-bold border-b-2 transition-all ${
+                      !viewArchived
+                        ? 'border-primary text-primary font-bold'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Active Bookings
+                  </button>
+                  <button
+                    onClick={() => handleToggleArchived(true)}
+                    className={`pb-2 px-4 text-sm font-bold border-b-2 transition-all ${
+                      viewArchived
+                        ? 'border-amber-600 text-amber-600 font-bold'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Archived Items (Deleted)
+                  </button>
+                </div>
                 {/* Search Bar and Filters */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
                   <div className="relative md:col-span-1">
@@ -426,63 +472,77 @@ export default function UmrahVisaPage() {
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
+                                <Button
+                                  size="sm"
+                                  variant="outline"
                                   onClick={() => router.push(`/dashboard/umrah-visa/visa-management/view/${booking.id}`)}
                                   className="flex items-center gap-1"
                                 >
                                   <Eye className="h-3 w-3" />
                                   View
                                 </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleDownloadBookingPDF(booking)}
-                                  disabled={downloadingId === booking.id}
-                                  className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200"
-                                >
-                                  {downloadingId === booking.id ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                  ) : (
-                                    <Download className="h-3 w-3" />
-                                  )}
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => router.push(`/dashboard/umrah-visa/visa-management/edit/${booking.id}`)}
-                                  className="flex items-center gap-1"
-                                  title="Edit Booking"
-                                >
-                                  <Edit className="h-3 w-3" />
-                                  Edit
-                                </Button>
-                                {booking.status === 'voucher' && (
+                                {viewArchived ? (
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => {
-                                      // Find the voucher associated with this booking if possible, 
-                                      // or redirect to voucher search with the reference
-                                      router.push(`/dashboard/services/voucher?search=${booking.bookingReference || ''}`);
-                                    }}
-                                    className="flex items-center gap-1 text-secondary border-secondary/20 hover:bg-secondary/5"
-                                    title="Go to Voucher Management"
+                                    onClick={() => handleRestoreBooking(booking.id, booking.party?.partyName || 'Unknown')}
+                                    className="flex items-center gap-1 text-amber-600 border-amber-200 hover:bg-amber-50"
                                   >
-                                    <Ticket className="h-3 w-3" />
-                                    Voucher
+                                    <RotateCcw className="h-3 w-3" />
+                                    Restore
                                   </Button>
+                                ) : (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleDownloadBookingPDF(booking)}
+                                      disabled={downloadingId === booking.id}
+                                      className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200"
+                                    >
+                                      {downloadingId === booking.id ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        <Download className="h-3 w-3" />
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => router.push(`/dashboard/umrah-visa/visa-management/edit/${booking.id}`)}
+                                      className="flex items-center gap-1"
+                                      title="Edit Booking"
+                                    >
+                                      <Edit className="h-3 w-3" />
+                                      Edit
+                                    </Button>
+                                    {booking.status === 'voucher' && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                          // Find the voucher associated with this booking if possible, 
+                                          // or redirect to voucher search with the reference
+                                          router.push(`/dashboard/services/voucher?search=${booking.bookingReference || ''}`);
+                                        }}
+                                        className="flex items-center gap-1 text-secondary border-secondary/20 hover:bg-secondary/5"
+                                        title="Go to Voucher Management"
+                                      >
+                                        <Ticket className="h-3 w-3" />
+                                        Voucher
+                                      </Button>
+                                    )}
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleDeleteBooking(booking.id, booking.party?.partyName || 'Unknown')}
+                                      className="text-primary hover:text-destructive hover:bg-destructive/5"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </>
                                 )}
-                            <Button
-                                  size="sm"
-                              variant="outline"
-                                  onClick={() => handleDeleteBooking(booking.id, booking.party?.partyName || 'Unknown')}
-                                  className="text-primary hover:text-destructive hover:bg-destructive/5"
-                            >
-                                  <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))

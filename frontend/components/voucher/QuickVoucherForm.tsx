@@ -34,6 +34,7 @@ interface HotelSchedule {
   number: number;
   cityId?: string;
   cityName?: string;
+  city?: string;
   locationId?: string;
   location: string;
   hotelName: string;

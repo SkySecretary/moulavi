@@ -56,12 +56,14 @@ export default function AddGroupNumberDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!groupNumber.trim()) {
+    const isGroupMode = booking?.bookingMode !== 'travel_details';
+    
+    if (isGroupMode && !groupNumber.trim()) {
       toast.error('Group number is required');
       return;
     }
     
-    if (!groupName.trim()) {
+    if (isGroupMode && !groupName.trim()) {
       toast.error('Group name is required');
       return;
     }
@@ -70,10 +72,10 @@ export default function AddGroupNumberDialog({
       setLoading(true);
       await umrahVisaAPI.updateGroupNumber(
         booking.id, 
-        groupNumber.trim(), 
-        groupName.trim(), 
-        brn.trim(),
-        umrahVisaProviderId
+        groupNumber.trim() || '', 
+        groupName.trim() || '', 
+        brn.trim() || '',
+        umrahVisaProviderId || ''
       );
       toast.success('Booking info updated successfully');
       onSuccess();
@@ -86,12 +88,17 @@ export default function AddGroupNumberDialog({
     }
   };
 
+  const isGroupMode = booking?.bookingMode !== 'travel_details';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {booking?.groupNumber ? 'Update Group Number' : 'Add Group Number'}
+            {isGroupMode 
+              ? (booking?.groupNumber ? 'Update Group Info' : 'Add Group Info')
+              : 'Update Booking Details'
+            }
           </DialogTitle>
         </DialogHeader>
         
@@ -101,7 +108,7 @@ export default function AddGroupNumberDialog({
               <Label htmlFor="groupNumber">
                 <div className="flex items-center">
                   <Hash className="h-4 w-4 mr-1" />
-                  Group Number *
+                  Group Number {isGroupMode ? '*' : '(Optional)'}
                 </div>
               </Label>
               <Input
@@ -110,7 +117,7 @@ export default function AddGroupNumberDialog({
                 onChange={(e) => setGroupNumber(e.target.value)}
                 placeholder="Enter group number"
                 disabled={loading}
-                required
+                required={isGroupMode}
               />
             </div>
             
@@ -118,7 +125,7 @@ export default function AddGroupNumberDialog({
               <Label htmlFor="groupName">
                 <div className="flex items-center">
                   <Users className="h-4 w-4 mr-1" />
-                  Group Name *
+                  Group Name {isGroupMode ? '*' : '(Optional)'}
                 </div>
               </Label>
               <Input
@@ -127,7 +134,7 @@ export default function AddGroupNumberDialog({
                 onChange={(e) => setGroupName(e.target.value)}
                 placeholder="Enter group name"
                 disabled={loading}
-                required
+                required={isGroupMode}
               />
             </div>
 

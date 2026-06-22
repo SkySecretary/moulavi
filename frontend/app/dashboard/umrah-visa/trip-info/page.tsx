@@ -41,6 +41,9 @@ export default function TripInfoPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [arrivalDateFrom, setArrivalDateFrom] = useState('');
   const [arrivalDateTo, setArrivalDateTo] = useState('');
+  const [departureDateFrom, setDepartureDateFrom] = useState('');
+  const [departureDateTo, setDepartureDateTo] = useState('');
+  const [pendingLoadBasis, setPendingLoadBasis] = useState<'arrival' | 'departure'>('arrival');
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -86,8 +89,17 @@ export default function TripInfoPage() {
 
   const handlePendingLoadClick = (date: string) => {
     // Set dates to filter for this specific day
-    setArrivalDateFrom(date);
-    setArrivalDateTo(date);
+    if (activeTab === 'iqama' && pendingLoadBasis === 'departure') {
+      setDepartureDateFrom(date);
+      setDepartureDateTo(date);
+      setArrivalDateFrom('');
+      setArrivalDateTo('');
+    } else {
+      setArrivalDateFrom(date);
+      setArrivalDateTo(date);
+      setDepartureDateFrom('');
+      setDepartureDateTo('');
+    }
     // Switch to pending subtab to see the results
     if (activeTab === 'iqama') {
       setIqamaSubTab('pending');
@@ -107,12 +119,13 @@ export default function TripInfoPage() {
     }
     fetchBookings(pagination.page);
     fetchPendingLoad();
-  }, [pagination.page, pagination.limit, searchQuery, arrivalDateFrom, arrivalDateTo, activeTab, iqamaSubTab, hotelSubTab]);
+  }, [pagination.page, pagination.limit, searchQuery, arrivalDateFrom, arrivalDateTo, departureDateFrom, departureDateTo, activeTab, iqamaSubTab, hotelSubTab, pendingLoadBasis]);
 
   const fetchPendingLoad = async () => {
     try {
       setIsLoadingLoad(true);
-      const response = await umrahVisaAPI.getPendingBrnLoad(activeTab);
+      const basis = activeTab === 'iqama' ? pendingLoadBasis : 'arrival';
+      const response = await umrahVisaAPI.getPendingBrnLoad(activeTab, basis);
       setPendingBrnLoad(response.data.stats || []);
     } catch (error) {
       console.error('Error fetching pending load:', error);
@@ -132,6 +145,8 @@ export default function TripInfoPage() {
       search: searchQuery,
       arrivalDateFrom: arrivalDateFrom,
       arrivalDateTo: arrivalDateTo,
+      departureDateFrom: departureDateFrom,
+      departureDateTo: departureDateTo,
       accommodationType: activeTab,
       status: ['group_assigned', 'voucher', 'bill'],
       tripStatus: tripStatus
@@ -180,6 +195,8 @@ export default function TripInfoPage() {
     if (key === 'search') setSearchQuery(value);
     else if (key === 'dateFrom') setArrivalDateFrom(value);
     else if (key === 'dateTo') setArrivalDateTo(value);
+    else if (key === 'depDateFrom') setDepartureDateFrom(value);
+    else if (key === 'depDateTo') setDepartureDateTo(value);
     
     setPagination(prev => ({ ...prev, page: 1 }));
   };
@@ -599,11 +616,44 @@ export default function TripInfoPage() {
               <div className="space-y-4">
                 <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-bold text-amber-800 uppercase tracking-wider flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4" />
-                      Pending BRN Load Summary
-                    </CardTitle>
-                    <CardDescription className="text-[10px] text-amber-600 font-medium"> Total mutammers in bookings without any hotel BRN saved (by arrival date)</CardDescription>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <div>
+                        <CardTitle className="text-sm font-bold text-amber-800 uppercase tracking-wider flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4" />
+                          Pending BRN Load Summary
+                        </CardTitle>
+                        <CardDescription className="text-[10px] text-amber-600 font-medium">
+                          {activeTab === 'iqama' && pendingLoadBasis === 'departure'
+                            ? "Total mutammers in iqama bookings without any hotel BRN saved (by departure date - total beds needed)"
+                            : "Total mutammers in bookings without any hotel BRN saved (by arrival date)"}
+                        </CardDescription>
+                      </div>
+                      
+                      {activeTab === 'iqama' && (
+                        <div className="flex items-center gap-1 bg-white/60 p-0.5 rounded-lg border border-amber-200/50 w-fit">
+                          <button
+                            onClick={() => setPendingLoadBasis('arrival')}
+                            className={`px-3 py-1 rounded-md text-[9px] font-black uppercase transition-all ${
+                              pendingLoadBasis === 'arrival'
+                                ? 'bg-amber-600 text-white shadow-sm'
+                                : 'text-amber-800 hover:bg-amber-100'
+                            }`}
+                          >
+                            Arrival Based
+                          </button>
+                          <button
+                            onClick={() => setPendingLoadBasis('departure')}
+                            className={`px-3 py-1 rounded-md text-[9px] font-black uppercase transition-all ${
+                              pendingLoadBasis === 'departure'
+                                ? 'bg-amber-600 text-white shadow-sm'
+                                : 'text-amber-800 hover:bg-amber-100'
+                            }`}
+                          >
+                            Departure Based
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent>
                     {isLoadingLoad ? (
@@ -633,7 +683,15 @@ export default function TripInfoPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-1 gap-4">
                 <div className="flex space-x-2">
                   <button
-                    onClick={() => { setActiveTab('iqama'); setPagination(p => ({...p, page: 1})); }}
+                    onClick={() => { 
+                      setActiveTab('iqama'); 
+                      setArrivalDateFrom('');
+                      setArrivalDateTo('');
+                      setDepartureDateFrom('');
+                      setDepartureDateTo('');
+                      setPendingLoadBasis('arrival');
+                      setPagination(p => ({...p, page: 1})); 
+                    }}
                     className={`px-6 py-2 text-sm font-black uppercase tracking-widest border-b-2 transition-colors ${
                       activeTab === 'iqama'
                         ? 'border-purple-600 text-purple-600'
@@ -643,7 +701,15 @@ export default function TripInfoPage() {
                     Iqama Trip
                   </button>
                   <button
-                    onClick={() => { setActiveTab('hotel'); setPagination(p => ({...p, page: 1})); }}
+                    onClick={() => { 
+                      setActiveTab('hotel'); 
+                      setArrivalDateFrom('');
+                      setArrivalDateTo('');
+                      setDepartureDateFrom('');
+                      setDepartureDateTo('');
+                      setPendingLoadBasis('arrival');
+                      setPagination(p => ({...p, page: 1})); 
+                    }}
                     className={`px-6 py-2 text-sm font-black uppercase tracking-widest border-b-2 transition-colors ${
                       activeTab === 'hotel'
                         ? 'border-emerald-600 text-emerald-600'
@@ -697,7 +763,7 @@ export default function TripInfoPage() {
               </div>
 
               {/* Search and Filters */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                   <Input
@@ -717,7 +783,16 @@ export default function TripInfoPage() {
                   value={arrivalDateTo}
                   onChange={(val) => handleFilterChange('dateTo', fromDisplayDate(val))}
                 />
-
+                <DatePicker
+                  placeholder="Departure Date From"
+                  value={departureDateFrom}
+                  onChange={(val) => handleFilterChange('depDateFrom', fromDisplayDate(val))}
+                />
+                <DatePicker
+                  placeholder="Departure Date To"
+                  value={departureDateTo}
+                  onChange={(val) => handleFilterChange('depDateTo', fromDisplayDate(val))}
+                />
               </div>
 
               {/* Table */}

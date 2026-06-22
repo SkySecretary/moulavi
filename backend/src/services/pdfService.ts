@@ -53,6 +53,12 @@ function formatTime(timeInput: any): string {
   
   const timeString = String(timeInput);
 
+  // If it contains "T" followed by HH:MM, extract it directly using regex
+  const tMatch = timeString.match(/T(\d{1,2}):(\d{2})/);
+  if (tMatch) {
+    return `${tMatch[1].padStart(2, '0')}:${tMatch[2]}`;
+  }
+
   // If it's already HH:mm or HH:mm:ss, just clean it and return
   const hmmmMatch = timeString.match(/^(\d{1,2}):(\d{2})/);
   if (hmmmMatch && !timeString.includes('T') && isNaN(Number(timeInput))) {

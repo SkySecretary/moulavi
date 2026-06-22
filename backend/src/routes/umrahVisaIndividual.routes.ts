@@ -16,6 +16,7 @@ import {
   uploadIndividual,
 } from './umrahVisa/shared';
 import { combineDateTime, splitDateTime } from '../utils/datetime';
+import { syncBookingToVoucher } from '../utils/bookingVoucherSync';
 import { isS3Configured, s3Client, S3_CONFIG, getEndpoint, extractS3KeyFromUrl } from '../config/s3';
 import { CopyObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import fs from 'fs';
@@ -1011,6 +1012,9 @@ router.patch('/:bookingId/travel-details', authenticate, async (req, res) => {
       },
     });
 
+    // Sync flight details back to voucher
+    await syncBookingToVoucher(prisma, bookingId);
+
     // Split datetime back to date and time for response (UI compatibility)
     const response = {
       ...travel,
@@ -1118,6 +1122,9 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
           });
         }
       }
+
+      // Sync hotel changes to voucher
+      await syncBookingToVoucher(prisma, bookingId);
 
       const refreshed = await prisma.umrahHotelBooking.findMany({
         where: { bookingId },

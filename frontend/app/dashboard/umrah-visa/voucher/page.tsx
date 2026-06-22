@@ -150,6 +150,7 @@ export default function VoucherPage() {
                       <TableHead className="w-[130px]">Visa Type</TableHead>
                       <TableHead className="w-[130px]">Reference</TableHead>
                       <TableHead className="w-[200px]">Group Details</TableHead>
+                      <TableHead className="w-[80px]">Qty</TableHead>
                       <TableHead className="w-[180px]">Party Name</TableHead>
                       <TableHead className="w-[150px]">Arrival Date</TableHead>
                       <TableHead className="w-[150px]">Status</TableHead>
@@ -159,11 +160,11 @@ export default function VoucherPage() {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8">Loading...</TableCell>
+                        <TableCell colSpan={8} className="text-center py-8">Loading...</TableCell>
                       </TableRow>
                     ) : bookingList.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-gray-500">No bookings found</TableCell>
+                        <TableCell colSpan={8} className="text-center py-8 text-gray-500">No bookings found</TableCell>
                       </TableRow>
                     ) : (
                       bookingList.map((booking) => (
@@ -183,6 +184,11 @@ export default function VoucherPage() {
                               <div className="font-semibold">{booking.groupNumber || 'N/A'}</div>
                               <div className="text-xs text-gray-500">{booking.groupName || 'No group'}</div>
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-bold text-xs">
+                              {booking.passengerCount || 0}
+                            </span>
                           </TableCell>
                           <TableCell>
                             <div className="font-medium">{booking.party?.partyName || 'N/A'}</div>

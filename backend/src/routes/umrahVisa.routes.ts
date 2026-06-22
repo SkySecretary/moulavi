@@ -17,11 +17,14 @@ router.get('/bookings', authenticate, async (req, res) => {
       search,
       arrivalDateFrom,
       arrivalDateTo,
+      departureDateFrom,
+      departureDateTo,
       bookingMode,
       accommodationType,
       visaType,
       sortBy = 'createdAt',
-      sortOrder = 'desc'
+      sortOrder = 'desc',
+      archived
     } = req.query;
     const pageNum = parseInt(page as string) || 1;
     const limitNum = parseInt(limit as string) || 10;
@@ -30,7 +33,9 @@ router.get('/bookings', authenticate, async (req, res) => {
     // Get the authenticated user
     const user = (req as any).user;
 
-    const where: any = {};
+    const where: any = {
+      isDeleted: archived === 'true'
+    };
     
     // If user is a party, automatically filter by their partyId
     if (user && user.role === 'party') {
@@ -92,6 +97,34 @@ router.get('/bookings', authenticate, async (req, res) => {
           }
         }
       };
+    }
+
+    // Date Filters (Departure Date)
+    if (departureDateFrom || departureDateTo) {
+      const fromDate = departureDateFrom ? new Date(departureDateFrom as string) : undefined;
+      if (fromDate) fromDate.setUTCHours(0, 0, 0, 0);
+      const toDate = departureDateTo ? new Date(departureDateTo as string) : undefined;
+      if (toDate) toDate.setUTCHours(23, 59, 59, 999);
+
+      if (where.travelDetails) {
+        where.travelDetails.some = {
+          ...where.travelDetails.some,
+          departureDateTime: {
+            ...(fromDate ? { gte: fromDate } : {}),
+            ...(toDate ? { lte: toDate } : {}),
+          }
+        };
+      } else {
+        where.travelDetails = {
+          some: {
+            isAlternate: false,
+            departureDateTime: {
+              ...(fromDate ? { gte: fromDate } : {}),
+              ...(toDate ? { lte: toDate } : {}),
+            }
+          }
+        };
+      }
     }
 
     // Create a separate where clause for stats that doesn't include the status filter
@@ -215,6 +248,7 @@ router.get('/missing-brn', authenticate, authorize('admin', 'staff', 'party'), a
       visaType: 'group_visa',
       accommodationType: 'hotel',
       status: { not: 'cancelled' },
+      isDeleted: false,
     };
 
     // If user is a party, automatically filter by their partyId
@@ -280,11 +314,40 @@ router.get('/missing-brn', authenticate, authorize('admin', 'staff', 'party'), a
       // 1. If it has NO hotel bookings at all, it's missing.
       if (!booking.hotelBookings || booking.hotelBookings.length === 0) return true;
 
-      // 2. It stays in the list if ANY of its hotels are missing a BRN
-      return booking.hotelBookings.some((hotel: any) => {
-        const hasBrn = hotel.brn && (Array.isArray(hotel.brn) ? hotel.brn.length > 0 : String(hotel.brn).trim() !== '');
-        return !hasBrn;
+      // Helper to check if BRN is populated
+      const isBrnFilled = (hotel: any) => {
+        return hotel.brn && (Array.isArray(hotel.brn) ? hotel.brn.length > 0 : String(hotel.brn).trim() !== '');
+      };
+
+      // Check if there are any Makkah/Madinah hotels defined
+      const hasMakkahHotel = booking.hotelBookings.some((hb: any) => {
+        const cityName = (hb.city?.name || '').toLowerCase();
+        return cityName.includes('makkah') || cityName.includes('mecca');
       });
+      const hasMadinahHotel = booking.hotelBookings.some((hb: any) => {
+        const cityName = (hb.city?.name || '').toLowerCase();
+        return cityName.includes('madinah') || cityName.includes('medina');
+      });
+
+      if (hasMakkahHotel || hasMadinahHotel) {
+        // Must have both Makkah and Madinah hotels filled
+        const makkahHotel = booking.hotelBookings.find((hb: any) => {
+          const cityName = (hb.city?.name || '').toLowerCase();
+          return cityName.includes('makkah') || cityName.includes('mecca');
+        });
+        const madinahHotel = booking.hotelBookings.find((hb: any) => {
+          const cityName = (hb.city?.name || '').toLowerCase();
+          return cityName.includes('madinah') || cityName.includes('medina');
+        });
+
+        const makkahOk = makkahHotel && isBrnFilled(makkahHotel);
+        const madinahOk = madinahHotel && isBrnFilled(madinahHotel);
+
+        return !(makkahOk && madinahOk);
+      } else {
+        // Fallback: stay in list if ANY hotel booking is missing BRN
+        return booking.hotelBookings.some((hotel: any) => !isBrnFilled(hotel));
+      }
     });
 
     // Sort by arrival date if possible, otherwise by ID
@@ -543,10 +606,12 @@ Moulavi Travel`;
 // GET /api/umrah-visa/stats/pending-brn-load - Get date-wise mutammer count for bookings without BRN
 router.get('/stats/pending-brn-load', authenticate, authorize('admin', 'staff'), async (req, res) => {
   try {
-    const { accommodationType = 'hotel' } = req.query;
+    const { accommodationType = 'hotel', basedOn = 'arrival' } = req.query;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
+    const isDeparture = basedOn === 'departure';
 
     const bookings = await prisma.umrahVisaBooking.findMany({
       where: {
@@ -558,9 +623,14 @@ router.get('/stats/pending-brn-load', authenticate, authorize('admin', 'staff'),
         travelDetails: {
           where: { 
             isAlternate: false,
-            arrivalDateTime: { gte: today }
+            ...(isDeparture 
+              ? { departureDateTime: { gte: today } }
+              : { arrivalDateTime: { gte: today } }
+            )
           },
-          orderBy: { arrivalDateTime: 'asc' },
+          orderBy: isDeparture 
+            ? { departureDateTime: 'asc' }
+            : { arrivalDateTime: 'asc' },
           take: 1
         },
         hotelBookings: {
@@ -575,10 +645,13 @@ router.get('/stats/pending-brn-load', authenticate, authorize('admin', 'staff'),
     const pendingLoadMap = new Map<string, number>();
 
     bookings.forEach((booking: any) => {
-      const arrivalDate = booking.travelDetails?.[0]?.arrivalDateTime;
-      if (!arrivalDate) return;
+      const travelDetail = booking.travelDetails?.[0];
+      if (!travelDetail) return;
 
-      const dateKey = arrivalDate.toISOString().split('T')[0];
+      const dateField = isDeparture ? travelDetail.departureDateTime : travelDetail.arrivalDateTime;
+      if (!dateField) return;
+
+      const dateKey = dateField.toISOString().split('T')[0];
 
       let hasAtLeastOneBrn = false;
       if (booking.accommodationType === 'hotel') {
@@ -908,16 +981,49 @@ router.delete('/booking/:id', authenticate, authorize('admin'), async (req, res)
       return res.status(404).json({ error: 'Booking not found' });
     }
 
-    // Delete the booking (related records will be deleted via Cascade if defined in schema, 
-    // or we might need to handle them manually if not)
-    await prisma.umrahVisaBooking.delete({
+    // Soft delete
+    await prisma.umrahVisaBooking.update({
       where: { id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
     });
 
     res.json({ message: 'Booking deleted successfully' });
   } catch (error) {
     console.error('Error deleting booking:', error);
     res.status(500).json({ error: 'Failed to delete booking' });
+  }
+});
+
+// PATCH /api/umrah-visa/booking/:id/restore - Restore a soft-deleted booking
+router.patch('/booking/:id/restore', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if booking exists
+    const booking = await prisma.umrahVisaBooking.findUnique({
+      where: { id },
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    // Restore booking
+    await prisma.umrahVisaBooking.update({
+      where: { id },
+      data: {
+        isDeleted: false,
+        deletedAt: null,
+      },
+    });
+
+    res.json({ message: 'Booking restored successfully', success: true });
+  } catch (error) {
+    console.error('Error restoring booking:', error);
+    res.status(500).json({ error: 'Failed to restore booking' });
   }
 });
 

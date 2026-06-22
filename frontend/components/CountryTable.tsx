@@ -73,97 +73,6 @@ export default function CountryTable({
     }
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-3">
-        {/* Search Skeleton */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <Skeleton className="h-10 flex-1" />
-        </div>
-
-        {/* Desktop Table Skeleton */}
-        <div className="hidden lg:block">
-          <div className="grid grid-cols-12 gap-4 p-3 bg-gray-50 rounded-lg">
-            <Skeleton className="col-span-1 h-4" />
-            <Skeleton className="col-span-3 h-4" />
-            <Skeleton className="col-span-2 h-4" />
-            <Skeleton className="col-span-2 h-4" />
-            <Skeleton className="col-span-2 h-4" />
-            <Skeleton className="col-span-2 h-4" />
-          </div>
-
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="grid grid-cols-12 gap-4 p-3 border rounded-lg">
-              <Skeleton className="col-span-1 h-4" />
-              <div className="col-span-3 space-y-2">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-3 w-24" />
-              </div>
-              <Skeleton className="col-span-2 h-4" />
-              <Skeleton className="col-span-2 h-6 w-16" />
-              <Skeleton className="col-span-2 h-6 w-12" />
-              <div className="col-span-2 flex gap-1">
-                <Skeleton className="h-8 w-8" />
-                <Skeleton className="h-8 w-8" />
-                <Skeleton className="h-8 w-8" />
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Mobile Card Skeleton */}
-        <div className="lg:hidden">
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-3">
-            <div className="flex items-center space-x-2">
-              <Skeleton className="h-4 w-4" />
-              <Skeleton className="h-4 w-24" />
-            </div>
-            <Skeleton className="h-3 w-16" />
-          </div>
-
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="border rounded-lg p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center space-x-3">
-                  <Skeleton className="h-4 w-4 mt-1" />
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-24" />
-                  </div>
-                </div>
-                <div className="flex gap-1">
-                  <Skeleton className="h-8 w-8" />
-                  <Skeleton className="h-8 w-8" />
-                  <Skeleton className="h-8 w-8" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Skeleton className="h-3 w-20" />
-                  <Skeleton className="h-3 w-16" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (countries.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <div className="text-gray-400 mb-4">
-          <MapPin className="h-12 w-12 mx-auto" />
-        </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No countries found</h3>
-        <p className="text-gray-500">
-          {searchTerm ? 'Try adjusting your search terms' : 'Get started by creating your first country'}
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-3">
       {/* Search */}
@@ -178,6 +87,87 @@ export default function CountryTable({
           />
         </div>
       </div>
+
+      {loading ? (
+        <div className="space-y-3">
+          {/* Desktop Table Skeleton */}
+          <div className="hidden lg:block">
+            <div className="grid grid-cols-12 gap-4 p-3 bg-gray-50 rounded-lg">
+              <Skeleton className="col-span-1 h-4" />
+              <Skeleton className="col-span-3 h-4" />
+              <Skeleton className="col-span-2 h-4" />
+              <Skeleton className="col-span-2 h-4" />
+              <Skeleton className="col-span-2 h-4" />
+              <Skeleton className="col-span-2 h-4" />
+            </div>
+
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="grid grid-cols-12 gap-4 p-3 border rounded-lg">
+                <Skeleton className="col-span-1 h-4" />
+                <div className="col-span-3 space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+                <Skeleton className="col-span-2 h-4" />
+                <Skeleton className="col-span-2 h-6 w-16" />
+                <Skeleton className="col-span-2 h-6 w-12" />
+                <div className="col-span-2 flex gap-1">
+                  <Skeleton className="h-8 w-8" />
+                  <Skeleton className="h-8 w-8" />
+                  <Skeleton className="h-8 w-8" />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Mobile Card Skeleton */}
+          <div className="lg:hidden">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-3">
+              <div className="flex items-center space-x-2">
+                <Skeleton className="h-4 w-4" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+              <Skeleton className="h-3 w-16" />
+            </div>
+
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="border rounded-lg p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <Skeleton className="h-4 w-4 mt-1" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    <Skeleton className="h-8 w-8" />
+                    <Skeleton className="h-8 w-8" />
+                    <Skeleton className="h-8 w-8" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : countries.length === 0 ? (
+        <div className="text-center py-12 border rounded-lg bg-white">
+          <div className="text-gray-400 mb-4">
+            <MapPin className="h-12 w-12 mx-auto" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No countries found</h3>
+          <p className="text-gray-500">
+            {searchTerm ? 'Try adjusting your search terms' : 'Get started by creating your first country'}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
 
       {/* Desktop Table View */}
       <div className="hidden lg:block">
@@ -362,6 +352,8 @@ export default function CountryTable({
           ))}
         </div>
       </div>
+      </div>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmationDialog

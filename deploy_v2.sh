@@ -16,6 +16,23 @@ SSH_CMD="ssh -i $SSH_KEY"
 
 echo "🚀 Starting optimized deployment to $SERVER_IP..."
 
+# Step 0: Local Build to ensure production files are compiled
+echo "🔨 Running local builds..."
+echo "📦 Building backend..."
+(cd backend && npm run build)
+if [ $? -ne 0 ]; then
+    echo "❌ Backend build failed! Aborting deployment."
+    exit 1
+fi
+
+echo "📦 Building frontend..."
+(cd frontend && npm run build)
+if [ $? -ne 0 ]; then
+    echo "❌ Frontend build failed! Aborting deployment."
+    exit 1
+fi
+
+
 # Step 1: Prep and Sync in one SSH ControlMaster context if possible, or just be very efficient.
 # We will create the release directory first.
 echo "📂 Creating release directory tree..."

@@ -201,6 +201,7 @@ export const umrahVisaAPI = {
     api.patch(`/umrah-visa/booking/${id}/group-number`, { groupNumber, groupName, brn, umrahVisaProviderId, transportCompanyId, passengerCount, partyId }),
   
   deleteBooking: (id: string) => api.delete(`/umrah-visa/booking/${id}`),
+  restoreBooking: (id: string) => api.patch(`/umrah-visa/booking/${id}/restore`),
   
   getTransportPricing: (params: any) => 
     api.get('/umrah-visa/transport-pricing', { params }),
@@ -253,8 +254,8 @@ export const umrahVisaAPI = {
   getAvailableActions: (bookingId: string) =>
     api.get(`/umrah-visa/${bookingId}/available-actions`),
 
-  getPendingBrnLoad: (accommodationType: 'hotel' | 'iqama') =>
-    api.get('/umrah-visa/stats/pending-brn-load', { params: { accommodationType } }),
+  getPendingBrnLoad: (accommodationType: 'hotel' | 'iqama', basedOn?: 'arrival' | 'departure') =>
+    api.get('/umrah-visa/stats/pending-brn-load', { params: { accommodationType, basedOn } }),
 
   updateTravelDetails: (id: string, data: any) => api.patch(`/umrah-visa/${id}/travel-details`, data),
 

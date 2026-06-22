@@ -41,7 +41,7 @@ export const BookingModeStep: React.FC<BookingModeStepProps> = ({
       }
     };
 
-    if (data.bookingMode === 'group_number') {
+    if (data.bookingMode) {
       loadUmrahVisaProviders();
     }
   }, [data.bookingMode]);
@@ -165,6 +165,30 @@ export const BookingModeStep: React.FC<BookingModeStepProps> = ({
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+          </div>
+        )}
+
+        {data.bookingMode === 'travel_details' && (
+          <div className="mt-6 p-6 rounded-2xl bg-gray-50/50 border border-secondary/10 space-y-4 animate-in zoom-in-95 duration-500">
+            <div className="space-y-1.5">
+              <Label htmlFor="umrahVisaProviderId" className="text-[10px] font-bold text-primary/60 uppercase ml-1">Umrah Visa Providing Company</Label>
+              <Select
+                value={data.umrahVisaProviderId || ''}
+                onValueChange={(value) => onChange({ umrahVisaProviderId: value })}
+                disabled={disabled || loadingProviders}
+              >
+                <SelectTrigger className="h-10 bg-white border-gray-100 rounded-lg font-bold text-primary focus:ring-secondary/20 shadow-sm text-xs">
+                  <SelectValue placeholder={loadingProviders ? "Loading..." : "Select provider (optional)"} />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-0 shadow-2xl p-1">
+                  {umrahVisaProviders.map((provider) => (
+                    <SelectItem key={provider.id} value={provider.id} className="font-bold text-[10px] p-2 hover:bg-primary/5 rounded-md transition-colors">
+                      {provider.partyName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         )}

@@ -7,6 +7,7 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { generateVoucherNumber, generateRouteNumbersForVoucher } from '../services/voucherService';
 import { sendMovementUpdateEmail } from '../services/emailService';
 import { sendMovementUpdateWhatsApp } from '../services/whatsappService';
+import { syncVoucherToBooking } from '../utils/bookingVoucherSync';
 
 const router = Router();
 
@@ -1347,6 +1348,9 @@ router.put(
         );
       }
 
+      // Sync Voucher edits back to the Booking in DB
+      await syncVoucherToBooking(tx, id);
+
       return updated;
     });
 
@@ -1424,6 +1428,9 @@ router.put(
         version: voucher.version + 1,
       },
     });
+
+    // Sync Voucher edits back to the Booking in DB
+    await syncVoucherToBooking(prisma, id);
 
     // Send movement update notification (email + WhatsApp)
     if (updatedMovement.driverDetails1 || updatedMovement.driverDetails2 || updatedMovement.vehicleNumber) {

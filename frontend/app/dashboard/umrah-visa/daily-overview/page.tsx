@@ -236,7 +236,7 @@ export default function DailyOverviewPage() {
       },
       margin: { top: 80, bottom: 40, left: 40, right: 40 },
       didDrawPage: (data) => {
-        const str = 'Page ' + doc.internal.getNumberOfPages();
+        const str = 'Page ' + (doc.internal as any).getNumberOfPages();
         doc.setFontSize(8);
         const pageSize = doc.internal.pageSize;
         const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
