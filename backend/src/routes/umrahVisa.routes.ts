@@ -616,7 +616,7 @@ router.get('/stats/pending-brn-load', authenticate, authorize('admin', 'staff'),
     const bookings = await prisma.umrahVisaBooking.findMany({
       where: {
         accommodationType: accommodationType as any,
-        status: { not: 'cancelled' },
+        status: { in: ['group_assigned', 'voucher', 'bill'] },
         tripStatus: 'pending',
       },
       include: {
