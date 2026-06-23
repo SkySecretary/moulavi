@@ -642,7 +642,21 @@ router.get('/stats/pending-brn-load', authenticate, authorize('admin', 'staff'),
       }
     });
 
-    const pendingLoadMap = new Map<string, number>();
+    const formatDateRangeLabel = (arrivalStr: Date, departureStr: Date) => {
+      const arrival = new Date(arrivalStr);
+      const departure = new Date(departureStr);
+      const arrDay = arrival.getDate();
+      const depDay = departure.getDate();
+      const arrMonth = arrival.toLocaleDateString('en-GB', { month: 'short' });
+      const depMonth = departure.toLocaleDateString('en-GB', { month: 'short' });
+      if (arrMonth === depMonth) {
+        return `${arrDay} - ${depDay} ${arrMonth}`;
+      } else {
+        return `${arrDay} ${arrMonth} - ${depDay} ${depMonth}`;
+      }
+    };
+
+    const pendingLoadMap = new Map<string, { date: string; count: number; breakdowns: Map<string, { rangeLabel: string; arrivalDate: string; departureDate: string; count: number }> }>();
 
     bookings.forEach((booking: any) => {
       const travelDetail = booking.travelDetails?.[0];
@@ -668,12 +682,41 @@ router.get('/stats/pending-brn-load', authenticate, authorize('admin', 'staff'),
 
       // Only count if it has NO BRNs at all
       if (!hasAtLeastOneBrn) {
-        pendingLoadMap.set(dateKey, (pendingLoadMap.get(dateKey) || 0) + booking.passengerCount);
+        if (!pendingLoadMap.has(dateKey)) {
+          pendingLoadMap.set(dateKey, {
+            date: dateKey,
+            count: 0,
+            breakdowns: new Map()
+          });
+        }
+
+        const entry = pendingLoadMap.get(dateKey)!;
+        entry.count += booking.passengerCount;
+
+        // Populate breakdown if it is a hotel booking
+        if (booking.accommodationType === 'hotel' && travelDetail.arrivalDateTime && travelDetail.departureDateTime) {
+          const rangeLabel = formatDateRangeLabel(travelDetail.arrivalDateTime, travelDetail.departureDateTime);
+          if (!entry.breakdowns.has(rangeLabel)) {
+            entry.breakdowns.set(rangeLabel, {
+              rangeLabel,
+              arrivalDate: travelDetail.arrivalDateTime.toISOString().split('T')[0],
+              departureDate: travelDetail.departureDateTime.toISOString().split('T')[0],
+              count: 0
+            });
+          }
+          entry.breakdowns.get(rangeLabel)!.count += booking.passengerCount;
+        }
       }
     });
 
-    const stats = Array.from(pendingLoadMap.entries())
-      .map(([date, count]) => ({ date, count }))
+    const stats = Array.from(pendingLoadMap.values())
+      .map(item => ({
+        date: item.date,
+        count: item.count,
+        breakdowns: item.breakdowns.size > 0 
+          ? Array.from(item.breakdowns.values()).sort((a, b) => a.rangeLabel.localeCompare(b.rangeLabel))
+          : undefined
+      }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
     res.json({ stats });

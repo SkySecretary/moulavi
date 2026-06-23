@@ -84,10 +84,14 @@ export default function TripInfoPage() {
     madinahBrn: string;
   }>>({});
 
-  const [pendingBrnLoad, setPendingBrnLoad] = useState<Array<{ date: string; count: number }>>([]);
+  const [pendingBrnLoad, setPendingBrnLoad] = useState<Array<{ 
+    date: string; 
+    count: number; 
+    breakdowns?: Array<{ rangeLabel: string; arrivalDate: string; departureDate: string; count: number }>;
+  }>>([]);
   const [isLoadingLoad, setIsLoadingLoad] = useState(false);
 
-  const handlePendingLoadClick = (date: string) => {
+  const handlePendingLoadClick = (date: string, departureDate?: string) => {
     // Set dates to filter for this specific day
     if (activeTab === 'iqama' && pendingLoadBasis === 'departure') {
       setDepartureDateFrom(date);
@@ -97,8 +101,13 @@ export default function TripInfoPage() {
     } else {
       setArrivalDateFrom(date);
       setArrivalDateTo(date);
-      setDepartureDateFrom('');
-      setDepartureDateTo('');
+      if (activeTab === 'hotel' && departureDate) {
+        setDepartureDateFrom(departureDate);
+        setDepartureDateTo(departureDate);
+      } else {
+        setDepartureDateFrom('');
+        setDepartureDateTo('');
+      }
     }
     // Switch to pending subtab to see the results
     if (activeTab === 'iqama') {
@@ -107,7 +116,12 @@ export default function TripInfoPage() {
       setHotelSubTab('pending');
     }
     setPagination(prev => ({ ...prev, page: 1 }));
-    toast.info(`Filtering for ${new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} pending load`);
+    
+    if (departureDate) {
+      toast.info(`Filtering for arrival: ${new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}, departure: ${new Date(departureDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`);
+    } else {
+      toast.info(`Filtering for ${new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} pending load`);
+    }
   };
 
   // ...
@@ -662,17 +676,54 @@ export default function TripInfoPage() {
                       <p className="text-xs text-gray-500 font-medium italic">No pending load found for this category.</p>
                     ) : (
                       <div className="flex flex-wrap gap-3">
-                        {pendingBrnLoad.map((item) => (
-                          <button 
-                            key={item.date} 
-                            onClick={() => handlePendingLoadClick(item.date)}
-                            className="flex flex-col items-center bg-white border border-amber-100 rounded-xl p-3 shadow-sm min-w-[100px] hover:border-amber-400 hover:shadow-md transition-all active:scale-95 text-center group"
-                          >
-                            <span className="text-[10px] font-black text-amber-600 uppercase tracking-tighter mb-1 group-hover:text-amber-700">{new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
-                            <span className="text-xl font-black text-secondary group-hover:scale-110 transition-transform">{item.count}</span>
-                            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mt-1">Pilgrims</span>
-                          </button>
-                        ))}
+                        {pendingBrnLoad.map((item) => {
+                          const hasBreakdowns = activeTab === 'hotel' && item.breakdowns && item.breakdowns.length > 0;
+                          
+                          if (hasBreakdowns) {
+                            return (
+                              <div 
+                                key={item.date} 
+                                className="flex flex-col bg-white border border-amber-100 rounded-xl p-3 shadow-sm min-w-[150px] transition-all text-center"
+                              >
+                                {/* Header (Arrival Date Filter) */}
+                                <div 
+                                  onClick={() => handlePendingLoadClick(item.date)}
+                                  className="w-full text-center border-b border-amber-100/70 pb-1.5 mb-1.5 cursor-pointer hover:text-amber-700 select-none group"
+                                >
+                                  <span className="text-[10px] font-black text-amber-600 uppercase tracking-tighter block group-hover:text-amber-700">{new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+                                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block">Total: {item.count} Pax</span>
+                                </div>
+                                
+                                {/* Breakdowns list */}
+                                <div className="w-full space-y-1 text-left">
+                                  {item.breakdowns?.map((b, idx) => (
+                                    <div 
+                                      key={idx}
+                                      onClick={() => handlePendingLoadClick(item.date, b.departureDate)}
+                                      className="flex items-center justify-between text-[9px] hover:bg-amber-100/50 px-1.5 py-1 rounded cursor-pointer transition-colors border border-transparent hover:border-amber-200/50"
+                                      title={`Filter by arrival ${new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} and departure ${new Date(b.departureDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`}
+                                    >
+                                      <span className="font-semibold text-gray-505 text-gray-500">{b.rangeLabel}</span>
+                                      <span className="font-black text-secondary bg-amber-100/60 px-1 py-0.5 rounded text-[8px]">{b.count} Pax</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <button 
+                              key={item.date} 
+                              onClick={() => handlePendingLoadClick(item.date)}
+                              className="flex flex-col items-center bg-white border border-amber-100 rounded-xl p-3 shadow-sm min-w-[100px] hover:border-amber-400 hover:shadow-md transition-all active:scale-95 text-center group"
+                            >
+                              <span className="text-[10px] font-black text-amber-600 uppercase tracking-tighter mb-1 group-hover:text-amber-700">{new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+                              <span className="text-xl font-black text-secondary group-hover:scale-110 transition-transform">{item.count}</span>
+                              <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mt-1">Pilgrims</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </CardContent>
