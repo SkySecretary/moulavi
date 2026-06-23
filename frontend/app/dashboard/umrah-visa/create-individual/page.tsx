@@ -180,6 +180,7 @@ function CreateIndividualContent() {
               <CardContent className="p-8 space-y-6">
                 <div className="space-y-2">
                   <Label className="text-[10px] font-bold text-primary/60 uppercase ml-1">Choose Partner Agency</Label>
+                  <SearchableSelect
                     options={parties.map(p => ({ value: p.id, label: p.partyName }))}
                     value={selectedPartyId}
                     onValueChange={(v) => { setSelectedPartyId(v); setCurrentStep(1); }}
