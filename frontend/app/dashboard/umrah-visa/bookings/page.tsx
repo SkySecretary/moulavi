@@ -398,6 +398,7 @@ export default function UmrahVisaPage() {
                         <TableHead className="w-[120px]">Visa Type</TableHead>
                         <TableHead className="w-[120px]">Reference</TableHead>
                         <TableHead className="w-[220px]">Party Details</TableHead>
+                        <TableHead className="w-[150px]">Umra Company</TableHead>
                         <TableHead className="w-[150px]">Group Details</TableHead>
                         <TableHead className="w-[120px]">Passengers</TableHead>
                         <TableHead className="w-[150px]">Travel Dates</TableHead>
@@ -408,11 +409,11 @@ export default function UmrahVisaPage() {
                     <TableBody>
                       {isLoading ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8">Loading...</TableCell>
+                          <TableCell colSpan={9} className="text-center py-8">Loading...</TableCell>
                         </TableRow>
                       ) : bookings.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8 text-gray-500">No bookings found</TableCell>
+                          <TableCell colSpan={9} className="text-center py-8 text-gray-500">No bookings found</TableCell>
                         </TableRow>
                       ) : (
                         bookings.map((booking) => (
@@ -443,6 +444,11 @@ export default function UmrahVisaPage() {
                               <div className="space-y-1">
                                 <div className="font-semibold text-gray-900">{booking.party?.partyName}</div>
                                 <div className="text-xs text-gray-500">{booking.party?.email}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-xs font-semibold text-gray-900">
+                                {booking.umrahVisaProvider?.partyName || 'N/A'}
                               </div>
                             </TableCell>
                             <TableCell>

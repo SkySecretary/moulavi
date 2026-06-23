@@ -54,6 +54,12 @@ interface UmrahVisaBooking {
     partyName: string;
     email: string;
   };
+  lastUpdatedByUser?: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  };
 }
 
 export default function PartyDashboardPage() {
@@ -494,6 +500,12 @@ export default function PartyDashboardPage() {
                                 </Badge>
                               )}
                               {getStatusBadge(booking.status)}
+                              {booking.lastUpdatedByUser?.role && 
+                               (booking.lastUpdatedByUser.role === 'admin' || booking.lastUpdatedByUser.role === 'staff') && (
+                                <Badge variant="outline" className="text-[10px] py-0 bg-indigo-50 border-indigo-200 text-indigo-700 font-extrabold uppercase tracking-wide">
+                                  Admin Booking
+                                </Badge>
+                              )}
                             </div>
                             <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-gray-500">
                               {booking.groupNumber && (

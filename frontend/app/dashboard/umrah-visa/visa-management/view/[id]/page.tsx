@@ -411,6 +411,17 @@ export default function ViewUmrahVisaBookingPage() {
       window.URL.revokeObjectURL(url);
       
       toast.success('All documents downloaded successfully!');
+
+      // Track download status if pending
+      if (booking?.status === 'pending' && (!booking?.documentsDownloadCount || booking?.documentsDownloadCount === 0)) {
+        try {
+          await umrahVisaAPI.downloadDocuments(bookingId);
+          toast.success('Status updated to Documents Downloaded');
+          await load();
+        } catch (trackError) {
+          console.warn('Failed to track download:', trackError);
+        }
+      }
     } catch (error: any) {
       console.error('Bulk download error:', error);
       

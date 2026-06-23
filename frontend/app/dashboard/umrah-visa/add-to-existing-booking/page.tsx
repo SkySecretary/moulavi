@@ -244,8 +244,8 @@ export default function AdminAddToExistingBookingPage() {
                     {loadingParties ? (
                       <div className="text-sm text-gray-500 py-4 text-center">Loading parties...</div>
                     ) : (
-                      <SearchableSelect
-                        options={parties.map(p => ({ value: p.id, label: `${p.partyName} (${p.email})` }))}
+                        <SearchableSelect
+                        options={parties.map(p => ({ value: p.id, label: p.partyName }))}
                         value={selectedPartyId}
                         onValueChange={(value) => {
                           setSelectedPartyId(value);

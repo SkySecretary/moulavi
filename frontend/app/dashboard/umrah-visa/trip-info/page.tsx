@@ -377,8 +377,8 @@ export default function TripInfoPage() {
       // Update trip status to completed
       await umrahVisaAPI.updateTripStatus(booking.id, 'completed');
       
-      // Also trigger mark-ready-for-voucher if it's still group_assigned
-      if (booking.status === 'group_assigned') {
+      // Also trigger mark-ready-for-voucher if it's still group_assigned (only for group bookings)
+      if (booking.status === 'group_assigned' && booking.visaType === 'group_visa') {
         await umrahVisaAPI.markReadyForVoucher(booking.id);
       }
       
