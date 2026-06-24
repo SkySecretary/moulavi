@@ -11,6 +11,17 @@ import { syncVoucherToBooking } from '../utils/bookingVoucherSync';
 
 const router = Router();
 
+const getClientBaseDate = (clientDate?: any): Date => {
+  let today = new Date();
+  if (clientDate) {
+    const parsed = new Date(clientDate as string);
+    if (!isNaN(parsed.getTime())) {
+      today = parsed;
+    }
+  }
+  return today;
+};
+
 // Get all vouchers with pagination and filters
 router.get(
   '/',
@@ -109,7 +120,8 @@ router.get(
   authorize('admin', 'staff', 'party'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const user = req.user!;
-    const today = new Date();
+    const { clientDate } = req.query;
+    const today = getClientBaseDate(clientDate);
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -169,12 +181,11 @@ router.get(
   authorize('admin', 'staff', 'party'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const user = req.user!;
-    const today = new Date();
+    const { from, to, page = '1', limit = '50', search = '', clientDate } = req.query;
+    const today = getClientBaseDate(clientDate);
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const { from, to, page = '1', limit = '50', search = '' } = req.query;
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
     const skip = (pageNum - 1) * limitNum;
@@ -283,13 +294,13 @@ router.get(
   authorize('admin', 'staff', 'party'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const user = req.user!;
-    const tomorrow = new Date();
+    const { from, to, page = '1', limit = '50', search = '', clientDate } = req.query;
+    const today = getClientBaseDate(clientDate);
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
     const dayAfterTomorrow = new Date(tomorrow);
     dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
-
-    const { from, to, page = '1', limit = '50', search = '' } = req.query;
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
     const skip = (pageNum - 1) * limitNum;
@@ -398,14 +409,13 @@ router.get(
   authorize('admin', 'staff', 'party'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const user = req.user!;
-    const today = new Date();
+    const { from, to, page = '1', limit = '50', search = '', clientDate } = req.query;
+    const today = getClientBaseDate(clientDate);
     today.setHours(0, 0, 0, 0);
     const dayAfterTomorrow = new Date(today);
     dayAfterTomorrow.setDate(today.getDate() + 2);
     const threeDaysFromNow = new Date(today);
     threeDaysFromNow.setDate(today.getDate() + 3);
-
-    const { from, to, page = '1', limit = '50', search = '' } = req.query;
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
     const skip = (pageNum - 1) * limitNum;
@@ -677,7 +687,8 @@ router.get(
   authorize('admin', 'staff', 'party'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const user = req.user!;
-    const today = new Date();
+    const { clientDate } = req.query;
+    const today = getClientBaseDate(clientDate);
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -745,9 +756,11 @@ router.get(
   authorize('admin', 'staff', 'party'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const user = req.user!;
-    const tomorrow = new Date();
+    const { clientDate } = req.query;
+    const today = getClientBaseDate(clientDate);
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
     const dayAfterTomorrow = new Date(tomorrow);
     dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
 
@@ -814,7 +827,8 @@ router.get(
   authorize('admin', 'staff', 'party'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const user = req.user!;
-    const today = new Date();
+    const { clientDate } = req.query;
+    const today = getClientBaseDate(clientDate);
     today.setHours(0, 0, 0, 0);
     const dayAfterTomorrow = new Date(today);
     dayAfterTomorrow.setDate(today.getDate() + 2);

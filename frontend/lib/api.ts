@@ -435,23 +435,26 @@ export const umrahVisaMasterAPI = {
 // Voucher API
 export const voucherAPI = {
   getAllVouchers: (params?: any) => api.get('/vouchers', { params }),
-  getVoucherStats: () => api.get('/vouchers/stats'),
-  getTodayMovements: (from?: string, to?: string) => {
+  getVoucherStats: (clientDate?: string) => api.get('/vouchers/stats', { params: { clientDate } }),
+  getTodayMovements: (from?: string, to?: string, clientDate?: string) => {
     const params: any = {};
     if (from) params.from = from;
     if (to) params.to = to;
+    if (clientDate) params.clientDate = clientDate;
     return api.get('/vouchers/movements/today', { params });
   },
-  getTomorrowMovements: (from?: string, to?: string) => {
+  getTomorrowMovements: (from?: string, to?: string, clientDate?: string) => {
     const params: any = {};
     if (from) params.from = from;
     if (to) params.to = to;
+    if (clientDate) params.clientDate = clientDate;
     return api.get('/vouchers/movements/tomorrow', { params });
   },
-  getAfterTomorrowMovements: (from?: string, to?: string) => {
+  getAfterTomorrowMovements: (from?: string, to?: string, clientDate?: string) => {
     const params: any = {};
     if (from) params.from = from;
     if (to) params.to = to;
+    if (clientDate) params.clientDate = clientDate;
     return api.get('/vouchers/movements/after-tomorrow', { params });
   },
   getMovementsByDate: (date: string, from?: string, to?: string) => {
@@ -461,9 +464,9 @@ export const voucherAPI = {
     return api.get('/vouchers/movements/by-date', { params });
   },
   getMovementFilterOptions: () => api.get('/vouchers/movements/filter-options'),
-  getTodayMovementStats: () => api.get('/vouchers/movements/stats/today'),
-  getTomorrowMovementStats: () => api.get('/vouchers/movements/stats/tomorrow'),
-  getAfterTomorrowMovementStats: () => api.get('/vouchers/movements/stats/after-tomorrow'),
+  getTodayMovementStats: (clientDate?: string) => api.get('/vouchers/movements/stats/today', { params: { clientDate } }),
+  getTomorrowMovementStats: (clientDate?: string) => api.get('/vouchers/movements/stats/tomorrow', { params: { clientDate } }),
+  getAfterTomorrowMovementStats: (clientDate?: string) => api.get('/vouchers/movements/stats/after-tomorrow', { params: { clientDate } }),
   getMovementStatsByDate: (date: string) => api.get('/vouchers/movements/stats/by-date', { params: { date } }),
 
   createQuickVoucher: (data: any) => api.post('/vouchers/quick', data),

@@ -51,6 +51,13 @@ import { useRef } from 'react';
 export default function VoucherServicePage() {
   const router = useRouter();
   const user = getUser();
+  const clientDateStr = (() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  })();
   const movementRef = useRef<HTMLDivElement>(null);
   
   // Tab States
@@ -134,7 +141,8 @@ export default function VoucherServicePage() {
           to, 
           page: movementPagination.page, 
           limit: movementPagination.limit,
-          search: movementSearch
+          search: movementSearch,
+          clientDate: clientDateStr
         }
       });
       setTodayMovements(response.data.movements);
@@ -157,7 +165,8 @@ export default function VoucherServicePage() {
           to, 
           page: movementPagination.page, 
           limit: movementPagination.limit,
-          search: movementSearch
+          search: movementSearch,
+          clientDate: clientDateStr
         }
       });
       setTomorrowMovements(response.data.movements);
@@ -180,7 +189,8 @@ export default function VoucherServicePage() {
           to, 
           page: movementPagination.page, 
           limit: movementPagination.limit,
-          search: movementSearch
+          search: movementSearch,
+          clientDate: clientDateStr
         }
       });
       setAfterTomorrowMovements(response.data.movements);
@@ -227,16 +237,16 @@ export default function VoucherServicePage() {
   const loadStats = async () => {
     try {
       setLoadingStats(true);
-      const response = await voucherAPI.getVoucherStats();
+      const response = await voucherAPI.getVoucherStats(clientDateStr);
       setStats(response.data);
       
-      const tStats = await voucherAPI.getTodayMovementStats();
+      const tStats = await voucherAPI.getTodayMovementStats(clientDateStr);
       setTodayStats(tStats.data);
       
-      const tomStats = await voucherAPI.getTomorrowMovementStats();
+      const tomStats = await voucherAPI.getTomorrowMovementStats(clientDateStr);
       setTomorrowStats(tomStats.data);
 
-      const afterTomStats = await voucherAPI.getAfterTomorrowMovementStats();
+      const afterTomStats = await voucherAPI.getAfterTomorrowMovementStats(clientDateStr);
       setAfterTomorrowStats(afterTomStats.data);
     } catch (error) {
       console.error('Error loading stats:', error);
