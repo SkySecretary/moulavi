@@ -20,22 +20,25 @@ function cleanFlightNumber(flightNum: string): { carrier: string; number: string
 function isAirportSimilar(nameDb: string | null | undefined, nameExcel: string | null | undefined): boolean {
   if (!nameDb || !nameExcel) return false;
   
-  const clean = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, ' ');
+  const cleanDb = nameDb.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const cleanExcel = nameExcel.toLowerCase().replace(/[^a-z0-9]/g, '');
   
-  const dbWords = clean(nameDb)
-    .split(/\s+/)
-    .filter(w => w.length > 2 && w !== 'airport' && w !== 'international' && w !== 'king');
-  
-  const excelWords = clean(nameExcel)
-    .split(/\s+/)
-    .filter(w => w.length > 2 && w !== 'airport' && w !== 'international' && w !== 'king');
-  
-  if (dbWords.length === 0 || excelWords.length === 0) {
-    // If one of them has no generic words, do a direct inclusion check
-    return nameDb.toLowerCase().includes(nameExcel.toLowerCase()) || nameExcel.toLowerCase().includes(nameDb.toLowerCase());
-  }
+  // Strip common words to compare core names if they contain them
+  const stripCommon = (s: string) => s.replace(/(airport|international|king|terminal)/g, '');
+  const coreDb = stripCommon(cleanDb);
+  const coreExcel = stripCommon(cleanExcel);
 
-  // If any key word (like 'jeddah', 'madinah', 'riyadh') matches, we count it as similar
+  if (coreDb.includes(coreExcel) || coreExcel.includes(coreDb)) {
+    return true;
+  }
+  
+  const cleanWords = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 2 && w !== 'airport' && w !== 'international' && w !== 'king');
+  
+  const dbWords = cleanWords(nameDb);
+  const excelWords = cleanWords(nameExcel);
+
   return dbWords.some(w => excelWords.includes(w)) || excelWords.some(w => dbWords.includes(w));
 }
 
@@ -43,20 +46,39 @@ function isAirportSimilar(nameDb: string | null | undefined, nameExcel: string |
 function parseExcelDate(dateVal: any, timeVal?: any): Date | null {
   if (!dateVal) return null;
   
-  let dateStr = '';
+  // 1. If Date object
   if (dateVal instanceof Date) {
-    dateStr = dateVal.toISOString().split('T')[0];
-  } else if (typeof dateVal === 'number') {
-    // Excel serial number
-    const dateObj = new Date(Math.round((dateVal - 25569) * 86400 * 1000));
-    dateStr = dateObj.toISOString().split('T')[0];
-  } else {
-    dateStr = String(dateVal).trim();
+    return dateVal;
   }
-  
+
+  // 2. If number (Excel serial)
+  if (typeof dateVal === 'number') {
+    const dateObj = new Date(Math.round((dateVal - 25569) * 86400 * 1000));
+    if (typeof timeVal === 'number') {
+      dateObj.setMilliseconds(dateObj.getMilliseconds() + Math.round(timeVal * 86400 * 1000));
+    }
+    return isNaN(dateObj.getTime()) ? null : dateObj;
+  }
+
+  // 3. String parsing
+  const dateStr = String(dateVal).trim();
+  const timeStr = timeVal ? String(timeVal).trim() : '';
+
+  let combinedStr = dateStr;
+  if (timeStr && !dateStr.includes(timeStr) && !dateStr.includes(':')) {
+    combinedStr = `${dateStr} ${timeStr}`;
+  }
+
+  const parsed = new Date(combinedStr);
+  if (!isNaN(parsed.getTime())) {
+    return parsed;
+  }
+
+  // 4. Fallback manual parsing if direct parsing fails
+  const cleanDateStr = dateStr.split(/\s+/)[0];
   let year = 0, month = 0, day = 0;
-  if (dateStr.includes('/')) {
-    const parts = dateStr.split('/');
+  if (cleanDateStr.includes('/')) {
+    const parts = cleanDateStr.split('/');
     if (parts[2]?.length === 4) {
       day = parseInt(parts[0], 10);
       month = parseInt(parts[1], 10) - 1;
@@ -66,8 +88,8 @@ function parseExcelDate(dateVal: any, timeVal?: any): Date | null {
       month = parseInt(parts[1], 10) - 1;
       day = parseInt(parts[2], 10);
     }
-  } else if (dateStr.includes('-')) {
-    const parts = dateStr.split('-');
+  } else if (cleanDateStr.includes('-')) {
+    const parts = cleanDateStr.split('-');
     if (parts[0]?.length === 4) {
       year = parseInt(parts[0], 10);
       month = parseInt(parts[1], 10) - 1;
@@ -79,19 +101,20 @@ function parseExcelDate(dateVal: any, timeVal?: any): Date | null {
   
   let hour = 0, minute = 0;
   if (timeVal) {
-    const timeStr = String(timeVal).trim();
+    const cleanTimeStr = String(timeVal).trim();
     if (typeof timeVal === 'number') {
       const totalSeconds = Math.round(timeVal * 86400);
       hour = Math.floor(totalSeconds / 3600);
       minute = Math.floor((totalSeconds % 3600) / 60);
     } else {
-      const matches = timeStr.match(/^(\d{1,2})[.:](\d{2})/);
+      const timeOnlyStr = cleanTimeStr.includes(' ') ? cleanTimeStr.split(/\s+/)[1] : cleanTimeStr;
+      const matches = timeOnlyStr.match(/^(\d{1,2})[.:](\d{2})/);
       if (matches) {
         hour = parseInt(matches[1], 10);
         minute = parseInt(matches[2], 10);
-      } else if (timeStr.length === 4 && !isNaN(Number(timeStr))) {
-        hour = parseInt(timeStr.substring(0, 2), 10);
-        minute = parseInt(timeStr.substring(2, 4), 10);
+      } else if (timeOnlyStr.length === 4 && !isNaN(Number(timeOnlyStr))) {
+        hour = parseInt(timeOnlyStr.substring(0, 2), 10);
+        minute = parseInt(timeOnlyStr.substring(2, 4), 10);
       }
     }
   }
@@ -333,8 +356,8 @@ export class NusukService {
       let skippedCount = 0;
 
       for (const row of rows) {
-        // Filter by External Agent Code (column "External Agent")
-        const rowAgentCode = String(getRowValue(row, ['External Agent', 'ExternalAgent', 'External Agent Code', 'Agent Code']) || '').trim();
+        // Filter by External Agent Code (column "External Agent" or "Agent Number")
+        const rowAgentCode = String(getRowValue(row, ['External Agent', 'ExternalAgent', 'External Agent Code', 'Agent Code', 'Agent Number', 'AgentNumber']) || '').trim();
         if (allowedAgentCodes.length > 0 && !allowedAgentCodes.includes(rowAgentCode)) {
           skippedCount++;
           continue;
@@ -349,28 +372,40 @@ export class NusukService {
 
       console.log(`[NUSUK SYNC] Grouped rows into ${Object.keys(rowsByGroup).length} distinct groups from Nusuk. Skipped ${skippedCount} rows belonging to other external agents.`);
 
-      // 2. Process each group
-      for (const [gNum, excelRows] of Object.entries(rowsByGroup)) {
-        // Find corresponding booking in database
-        const booking = await tx.umrahVisaBooking.findFirst({
-          where: {
-            groupNumber: gNum,
-            isDeleted: false
+      // Pre-fetch candidate active bookings with groupNumber to match them in memory
+      const candidateBookings = await tx.umrahVisaBooking.findMany({
+        where: {
+          isDeleted: false,
+          groupNumber: { not: null }
+        },
+        include: {
+          passengers: {
+            where: { isDeleted: false }
           },
-          include: {
-            passengers: {
-              where: { isDeleted: false }
-            },
-            travelDetails: {
-              where: { isAlternate: false },
-              include: {
-                arrivalAirport: true,
-                departureAirport: true
-              }
+          travelDetails: {
+            where: { isAlternate: false },
+            include: {
+              arrivalAirport: true,
+              departureAirport: true
             }
           }
-        });
+        }
+      });
 
+      // Build map of individual group number parts to booking
+      const bookingByGroupMap = new Map<string, typeof candidateBookings[0]>();
+      for (const b of candidateBookings) {
+        if (!b.groupNumber) continue;
+        const dbParts = b.groupNumber.split(/[\s,]+/).map(p => p.trim()).filter(Boolean);
+        for (const part of dbParts) {
+          bookingByGroupMap.set(part, b);
+        }
+      }
+
+      // 2. Process each group
+      for (const [gNum, excelRows] of Object.entries(rowsByGroup)) {
+        // Find corresponding booking in database candidate map
+        const booking = bookingByGroupMap.get(gNum);
         if (!booking) continue;
 
         processedBookingIds.add(booking.id);
@@ -388,17 +423,22 @@ export class NusukService {
           const mofaNumber = String(getRowValue(row, ['Mofa Number']) || '').trim();
           const entryDate = parseExcelDate(getRowValue(row, ['Entry Date']), getRowValue(row, ['Entry Time']));
           const exitDate = parseExcelDate(getRowValue(row, ['Exit Date']), getRowValue(row, ['Exit Time']));
-          const excelGender = String(getRowValue(row, ['Gender']) || '').trim().toLowerCase();
+          const excelGender = String(getRowValue(row, ['Gender', 'Type']) || '').trim().toLowerCase(); // Support Excel column named "Type" as fallback for Gender
           
           let gender: 'male' | 'female' | null = null;
           if (excelGender === 'male') gender = 'male';
           else if (excelGender === 'female') gender = 'female';
 
-          // Check if passenger exists by passport number under this booking
+          // Step 1: Check if passenger exists by passport number under this booking
           let passenger: any = currentPassengers.find(p => p.passportNumber?.toUpperCase() === passport);
 
+          // Step 2: If not found by passport number, find an existing passenger who doesn't have a passport number yet
           if (!passenger) {
-            // Create passenger record
+            passenger = currentPassengers.find(p => !p.passportNumber);
+          }
+
+          if (!passenger) {
+            // Step 3: Create passenger record if no empty slot/matching passenger was found
             passenger = await tx.umrahPassenger.create({
               data: {
                 bookingId: booking.id,
@@ -417,12 +457,13 @@ export class NusukService {
             currentPassengers.push(passenger);
             console.log(`[NUSUK SYNC] Created passenger ${mutamerName} (${passport}) for booking ${booking.bookingReference}`);
           } else {
-            // Update passenger details
+            // Step 4: Update passenger details in-place
             passenger = await tx.umrahPassenger.update({
               where: { id: passenger.id },
               data: {
                 fullName: mutamerName,
                 nationality,
+                passportNumber: passport,
                 passportExpiry,
                 visaNumber: visaNumber || null,
                 mofaNumber: mofaNumber || null,
@@ -442,7 +483,7 @@ export class NusukService {
           if (mainTravel) {
             const excelEntryDate = getRowValue(row, ['Entry Date', 'EntryDate']);
             const excelEntryTime = getRowValue(row, ['Entry Time', 'EntryTime']);
-            const excelEntryCarrierNum = getRowValue(row, ['Entry Carrier Number', 'EntryCarrierNumber', 'Entry Carrier']);
+            const excelEntryCarrierNum = getRowValue(row, ['Arrival Flight Number', 'ArrivalFlightNumber', 'Entry Carrier Number', 'EntryCarrierNumber', 'Entry Carrier']);
             const excelEntryPort = getRowValue(row, ['Entry Port Name', 'EntryPortName', 'Entry Port']);
 
             let entryMismatchDetails: any = null;
@@ -452,24 +493,27 @@ export class NusukService {
                 const dbF = cleanFlightNumber(mainTravel.arrivalFlightNumber);
                 const exF = cleanFlightNumber(excelEntryCarrierNum);
                 const sameCarrier = dbF.carrier && exF.carrier && dbF.carrier === exF.carrier;
+                const sameFlightNum = dbF.number && exF.number && parseInt(dbF.number, 10) === parseInt(exF.number, 10);
+                
+                const flightMismatch = !sameCarrier || !sameFlightNum;
                 const timeDiffMs = Math.abs(mainTravel.arrivalDateTime.getTime() - excelEntryDateTime.getTime());
                 const timeDiffHrs = timeDiffMs / (1000 * 60 * 60);
 
-                const flightOrTimeMismatch = !sameCarrier || timeDiffHrs >= 9;
+                const timeMismatch = timeDiffHrs >= 9;
                 const airportMismatch = !isAirportSimilar(mainTravel.arrivalAirport?.name, excelEntryPort);
 
-                if (flightOrTimeMismatch || airportMismatch) {
+                if (flightMismatch || timeMismatch || airportMismatch) {
                   entryMismatchDetails = {
                     mismatched: true,
                     dateTime: {
                       db: mainTravel.arrivalDateTime.toISOString(),
                       excel: excelEntryDateTime.toISOString(),
-                      mismatch: flightOrTimeMismatch
+                      mismatch: timeMismatch
                     },
                     flight: {
                       db: mainTravel.arrivalFlightNumber,
                       excel: String(excelEntryCarrierNum || '').trim(),
-                      mismatch: !sameCarrier
+                      mismatch: flightMismatch
                     },
                     port: {
                       db: mainTravel.arrivalAirport?.name || 'Not Configured',
@@ -483,7 +527,7 @@ export class NusukService {
 
             const excelExitDate = getRowValue(row, ['Exit Date', 'ExitDate']);
             const excelExitTime = getRowValue(row, ['Exit Time', 'ExitTime']);
-            const excelExitCarrierNum = getRowValue(row, ['Exit Carrier Number', 'ExitCarrierNumber', 'Exit Carrier']);
+            const excelExitCarrierNum = getRowValue(row, ['Departure Flight Number', 'DepartureFlightNumber', 'Exit Carrier Number', 'ExitCarrierNumber', 'Exit Carrier']);
             const excelExitPort = getRowValue(row, ['Exit Port', 'ExitPortName', 'ExitPort']);
 
             let exitMismatchDetails: any = null;
@@ -493,24 +537,27 @@ export class NusukService {
                 const dbFDep = cleanFlightNumber(mainTravel.departureFlightNumber);
                 const exFDep = cleanFlightNumber(excelExitCarrierNum);
                 const sameCarrierDep = dbFDep.carrier && exFDep.carrier && dbFDep.carrier === exFDep.carrier;
+                const sameFlightNumDep = dbFDep.number && exFDep.number && parseInt(dbFDep.number, 10) === parseInt(exFDep.number, 10);
+
+                const flightMismatchDep = !sameCarrierDep || !sameFlightNumDep;
                 const timeDiffMsDep = Math.abs(mainTravel.departureDateTime.getTime() - excelExitDateTime.getTime());
                 const timeDiffHrsDep = timeDiffMsDep / (1000 * 60 * 60);
 
-                const flightOrTimeMismatchDep = !sameCarrierDep || timeDiffHrsDep >= 9;
+                const timeMismatchDep = timeDiffHrsDep >= 9;
                 const airportMismatchDep = !isAirportSimilar(mainTravel.departureAirport?.name, excelExitPort);
 
-                if (flightOrTimeMismatchDep || airportMismatchDep) {
+                if (flightMismatchDep || timeMismatchDep || airportMismatchDep) {
                   exitMismatchDetails = {
                     mismatched: true,
                     dateTime: {
                       db: mainTravel.departureDateTime.toISOString(),
                       excel: excelExitDateTime.toISOString(),
-                      mismatch: flightOrTimeMismatchDep
+                      mismatch: timeMismatchDep
                     },
                     flight: {
                       db: mainTravel.departureFlightNumber,
                       excel: String(excelExitCarrierNum || '').trim(),
-                      mismatch: !sameCarrierDep
+                      mismatch: flightMismatchDep
                     },
                     port: {
                       db: mainTravel.departureAirport?.name || 'Not Configured',
