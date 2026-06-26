@@ -69,6 +69,8 @@ model Party {
   transportCompanyVouchers Voucher[]          @relation("TransportCompany")
   umrahCompanyVouchers     Voucher[]          @relation("UmrahCompany")
   partyVouchers            Voucher[]          @relation("VoucherParty")
+  complianceMetrics        SubAgentMetric?
+  complianceAuditLogs      ComplianceAuditLog[]
 
   @@index([email])
   @@index([partyName])
@@ -149,6 +151,7 @@ model UmrahPassenger {
   exitDate         DateTime?           @map("exit_date")
   visaNumber       String?             @map("visa_number")
   mofaNumber       String?             @map("mofa_number")
+  mutamerStatus    String?             @map("mutamer_status")
   createdAt        DateTime            @default(now()) @map("created_at")
   updatedAt        DateTime            @default(now()) @updatedAt @map("updated_at")
   deletedAt        DateTime?           @map("deleted_at")
@@ -889,6 +892,39 @@ model NusukMismatch {
   @@index([bookingId])
   @@index([passengerId])
   @@map("nusuk_mismatches")
+}
+
+model SubAgentMetric {
+  subAgentId          String           @id @map("sub_agent_id")
+  totalArrivals       Int              @map("total_arrivals")
+  totalDepartures     Int              @map("total_departures")
+  arrivalMismatches   Int              @map("arrival_mismatches")
+  departureMismatches Int              @map("departure_mismatches")
+  severeViolations    Int              @map("severe_violations")
+  weightedScore       Decimal          @map("weighted_score")
+  complianceStatus    ComplianceStatus @map("compliance_status")
+  updatedAt           DateTime         @default(now()) @updatedAt @map("updated_at")
+  subAgent            Party            @relation(fields: [subAgentId], references: [id], onDelete: Cascade)
+
+  @@map("sub_agent_metrics")
+}
+
+model ComplianceAuditLog {
+  id             String           @id @default(uuid())
+  subAgentId     String           @map("sub_agent_id")
+  previousStatus ComplianceStatus @map("previous_status")
+  newStatus      ComplianceStatus @map("new_status")
+  reasonSummary  String           @map("reason_summary")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  subAgent       Party            @relation(fields: [subAgentId], references: [id], onDelete: Cascade)
+
+  @@map("compliance_audit_logs")
+}
+
+enum ComplianceStatus {
+  GREEN
+  YELLOW
+  RED
 }
 
 

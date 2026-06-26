@@ -308,6 +308,38 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
       return res.status(400).json({ error: 'Party ID is required' });
     }
 
+    // Check compliance status constraints
+    try {
+      const metric = await prisma.subAgentMetric.findUnique({
+        where: { subAgentId: partyId }
+      });
+      if (metric) {
+        if (metric.complianceStatus === 'RED') {
+          return res.status(403).json({
+            error: 'Booking generation blocked: Sub-agent account is locked due to critical compliance violations (RED status).'
+          });
+        } else if (metric.complianceStatus === 'YELLOW') {
+          const startOfToday = new Date();
+          startOfToday.setHours(0, 0, 0, 0);
+          const count = await prisma.umrahVisaBooking.count({
+            where: {
+              partyId,
+              createdAt: { gte: startOfToday },
+              isDeleted: false
+            }
+          });
+          const limit = 3; // Daily individual limit under throttle
+          if (count >= limit) {
+            return res.status(429).json({
+              error: `Booking throttled: Daily capacity restricted to ${limit} bookings for YELLOW compliance status (current: ${count}).`
+            });
+          }
+        }
+      }
+    } catch (e: any) {
+      console.error('[COMPLIANCE INDIVIDUAL CHECK FAILED]', e.message);
+    }
+
     // Check if group number is unique system-wide (if provided)
     if (step1Data.bookingMode === 'group_number' && step1Data.groupNumber) {
       const existingBooking = await prisma.umrahVisaBooking.findFirst({

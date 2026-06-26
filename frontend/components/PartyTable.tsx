@@ -11,12 +11,19 @@ import { Search, Edit, Trash2, Eye, Download } from 'lucide-react';
 import { Party, PaginationInfo } from '@/types';
 import DeleteConfirmationDialog from './DeleteConfirmationDialog';
 
-const getComplianceStatus = (partyId: string) => {
-  // Deterministic dummy logic for now
-  const hash = partyId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  if (hash % 10 < 2) return { label: 'Non-Compliant', color: 'bg-primary', text: 'text-destructive', bg: 'bg-destructive/5' };
-  if (hash % 10 < 5) return { label: 'Observation', color: 'bg-yellow-500', text: 'text-yellow-700', bg: 'bg-yellow-50' };
-  return { label: 'Compliant', color: 'bg-green-500', text: 'text-green-700', bg: 'bg-green-50' };
+const getComplianceStatus = (party: Party) => {
+  const metrics = party.complianceMetrics;
+  if (!metrics) {
+    return { label: 'Compliant', color: 'bg-green-500', text: 'text-green-700', bg: 'bg-green-50' };
+  }
+  
+  if (metrics.complianceStatus === 'RED') {
+    return { label: 'Suspended (Red)', color: 'bg-red-500', text: 'text-red-700', bg: 'bg-red-50' };
+  }
+  if (metrics.complianceStatus === 'YELLOW') {
+    return { label: 'Throttled (Yellow)', color: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50' };
+  }
+  return { label: 'Compliant (Green)', color: 'bg-green-500', text: 'text-green-700', bg: 'bg-green-50' };
 };
 
 interface PartyTableProps {
@@ -82,23 +89,23 @@ export default function PartyTable({
       toast.success('Party deleted successfully!');
       onPartyDeleted();
       setDeleteDialog({ open: false, party: null, loading: false });
-    } catch (error) {
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to delete party');
       setDeleteDialog(prev => ({ ...prev, loading: false }));
-      // Error handling is done by the API interceptor
     }
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+      <div className="flex flex-col md:flex-row gap-4 justify-between">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
-            placeholder="Search by name, email, or contact..."
+            placeholder="Search parties..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-9 bg-white"
           />
         </div>
         <div className="flex gap-2">
@@ -114,14 +121,14 @@ export default function PartyTable({
             size="sm"
             onClick={() => onFilterChange('direct')}
           >
-            Direct
+            Direct Customers
           </Button>
           <Button
             variant={filterType === 'b2b' ? 'default' : 'outline'}
             size="sm"
             onClick={() => onFilterChange('b2b')}
           >
-            B2B
+            B2B Agents
           </Button>
         </div>
       </div>
@@ -250,7 +257,7 @@ export default function PartyTable({
 
         {/* Table Rows */}
         {parties.map((party) => {
-          const compliance = getComplianceStatus(party.id);
+          const compliance = getComplianceStatus(party);
           return (
             <div
               key={party.id}

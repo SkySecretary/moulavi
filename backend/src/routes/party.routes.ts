@@ -290,6 +290,7 @@ router.get(
         include: {
           accountCurrency: true,
           contacts: true,
+          complianceMetrics: true,
           documents: {
             where: { isDeleted: false }
           }
@@ -333,7 +334,8 @@ router.get(
     const party = await prisma.party.findUnique({
       where: { userId: req.user!.id },
       include: {
-        accountCurrency: true
+        accountCurrency: true,
+        complianceMetrics: true
       }
     });
     
@@ -416,7 +418,8 @@ router.get(
     const party = await prisma.party.findUnique({
       where: { id },
       include: {
-        accountCurrency: true
+        accountCurrency: true,
+        complianceMetrics: true
       }
     });
     

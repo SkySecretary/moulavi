@@ -80,14 +80,25 @@ router.post(
   })
 );
 
-// Get travel mismatches list
+// Get travel mismatches list with pagination and filters
 router.get(
   '/mismatches',
   authenticate,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const resolved = req.query.resolved === 'true';
-    const mismatches = await NusukService.getMismatches({ resolved });
-    res.json(mismatches);
+    const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
+    const mismatchType = req.query.mismatchType as string || 'all';
+    const partyId = req.query.partyId as string || 'all';
+
+    const result = await NusukService.getMismatches({
+      resolved,
+      page,
+      limit,
+      mismatchType,
+      partyId
+    });
+    res.json(result);
   })
 );
 
@@ -102,6 +113,71 @@ router.post(
       message: 'Mismatch resolved successfully',
       mismatch,
     });
+  })
+);
+
+// Recalculate compliance metrics manually
+router.post(
+  '/compliance/recalculate',
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    try {
+      const result = await NusukService.recalculateCompliance();
+      res.json(result);
+    } catch (error: any) {
+      console.error('[COMPLIANCE RECALCULATE ROUTE ERROR]', error);
+      res.status(400).json({
+        error: error.message || 'Recalculation failed',
+      });
+    }
+  })
+);
+
+// Get compliance summary stats
+router.get(
+  '/compliance/summary',
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const summary = await NusukService.getComplianceSummary();
+    res.json(summary);
+  })
+);
+
+// Get compliance active agent registry
+router.get(
+  '/compliance/agents',
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const registry = await NusukService.getComplianceAgents();
+    res.json(registry);
+  })
+);
+
+// Get compliance agent audit logs timeline
+router.get(
+  '/compliance/agents/:partyId/logs',
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { partyId } = req.params;
+    const logs = await NusukService.getComplianceAgentLogs(partyId);
+    res.json(logs);
+  })
+);
+
+// Override agent status (Throttle/Suspend/Unsuspend)
+router.post(
+  '/compliance/agents/:partyId/override',
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { partyId } = req.params;
+    const { status, reason } = req.body;
+    
+    if (!status || !['GREEN', 'YELLOW', 'RED'].includes(status)) {
+      return res.status(400).json({ error: 'Valid status override (GREEN, YELLOW, RED) is required.' });
+    }
+
+    await NusukService.overrideComplianceStatus(partyId, status, reason || 'No details provided');
+    res.json({ message: `Agent status overridden to ${status} successfully.` });
   })
 );
 

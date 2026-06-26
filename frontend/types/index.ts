@@ -68,6 +68,29 @@ export interface Party {
   updatedAt: string;
   contacts?: PartyContact[];
   documents?: PartyDocument[];
+  complianceMetrics?: SubAgentMetric;
+}
+
+export interface SubAgentMetric {
+  subAgentId: string;
+  totalArrivals: number;
+  totalDepartures: number;
+  arrivalMismatches: number;
+  departureMismatches: number;
+  severeViolations: number;
+  weightedScore: number;
+  complianceStatus: 'GREEN' | 'YELLOW' | 'RED';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ComplianceAuditLog {
+  id: string;
+  subAgentId: string;
+  previousStatus: 'GREEN' | 'YELLOW' | 'RED';
+  newStatus: 'GREEN' | 'YELLOW' | 'RED';
+  reasonSummary: string;
+  createdAt: string;
 }
 
 export interface CreatePartyRequest {

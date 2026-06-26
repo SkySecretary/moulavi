@@ -69,21 +69,39 @@ function parseExcelDate(dateVal: any, timeVal?: any): Date | null {
     combinedStr = `${dateStr} ${timeStr}`;
   }
 
+  // Replace narrow non-breaking space (u202f) and standard non-breaking space (u00a0) with regular space to prevent Invalid Date on some Node versions
+  combinedStr = combinedStr.replace(/[\u202f\u00a0]/g, ' ');
+
   const parsed = new Date(combinedStr);
   if (!isNaN(parsed.getTime())) {
     return parsed;
   }
 
   // 4. Fallback manual parsing if direct parsing fails
-  const cleanDateStr = dateStr.split(/\s+/)[0];
+  const cleanDateStr = dateStr.split(/[\s\u202f\u00a0]+/)[0];
   let year = 0, month = 0, day = 0;
   if (cleanDateStr.includes('/')) {
     const parts = cleanDateStr.split('/');
-    if (parts[2]?.length === 4) {
-      day = parseInt(parts[0], 10);
-      month = parseInt(parts[1], 10) - 1;
-      year = parseInt(parts[2], 10);
-    } else if (parts[0]?.length === 4) {
+    if (parts[2]) {
+      const cleanYear = parts[2].trim().split(/[\s\u202f\u00a0]+/)[0];
+      if (cleanYear.length === 4) {
+        const first = parseInt(parts[0], 10);
+        const second = parseInt(parts[1], 10);
+        if (first > 12) {
+          day = first;
+          month = second - 1;
+        } else if (second > 12) {
+          month = first - 1;
+          day = second;
+        } else {
+          // Default to US format (M/D/YYYY)
+          month = first - 1;
+          day = second;
+        }
+        year = parseInt(cleanYear, 10);
+      }
+    }
+    if (year === 0 && parts[0]?.length === 4) {
       year = parseInt(parts[0], 10);
       month = parseInt(parts[1], 10) - 1;
       day = parseInt(parts[2], 10);
@@ -107,7 +125,9 @@ function parseExcelDate(dateVal: any, timeVal?: any): Date | null {
       hour = Math.floor(totalSeconds / 3600);
       minute = Math.floor((totalSeconds % 3600) / 60);
     } else {
-      const timeOnlyStr = cleanTimeStr.includes(' ') ? cleanTimeStr.split(/\s+/)[1] : cleanTimeStr;
+      const timeOnlyStr = cleanTimeStr.includes(' ') || cleanTimeStr.includes('\u202f') || cleanTimeStr.includes('\u00a0')
+        ? cleanTimeStr.split(/[\s\u202f\u00a0]+/)[1]
+        : cleanTimeStr;
       const matches = timeOnlyStr.match(/^(\d{1,2})[.:](\d{2})/);
       if (matches) {
         hour = parseInt(matches[1], 10);
@@ -402,6 +422,27 @@ export class NusukService {
         }
       }
 
+      const subAgentStatsMap = new Map<string, {
+        totalArrivals: number;
+        totalDepartures: number;
+        arrivalMismatches: number;
+        departureMismatches: number;
+        severeViolations: number;
+      }>();
+
+      const getOrInitStats = (partyId: string) => {
+        if (!subAgentStatsMap.has(partyId)) {
+          subAgentStatsMap.set(partyId, {
+            totalArrivals: 0,
+            totalDepartures: 0,
+            arrivalMismatches: 0,
+            departureMismatches: 0,
+            severeViolations: 0
+          });
+        }
+        return subAgentStatsMap.get(partyId)!;
+      };
+
       // 2. Process each group
       for (const [gNum, excelRows] of Object.entries(rowsByGroup)) {
         // Find corresponding booking in database candidate map
@@ -419,8 +460,9 @@ export class NusukService {
           const mutamerName = String(getRowValue(row, ['Mutamer Name', 'MutamerName']) || 'Unknown Mutamer').trim();
           const nationality = String(getRowValue(row, ['Mutamer Nationality', 'Nationality']) || '').trim();
           const passportExpiry = parseExcelDate(getRowValue(row, ['Passport Expiry Date']));
-          const visaNumber = String(getRowValue(row, ['Visa Number']) || '').trim();
+                  const visaNumber = String(getRowValue(row, ['Visa Number']) || '').trim();
           const mofaNumber = String(getRowValue(row, ['Mofa Number']) || '').trim();
+          const mutamerStatus = String(getRowValue(row, ['Mutamer Status']) || '').trim();
           const entryDate = parseExcelDate(getRowValue(row, ['Entry Date']), getRowValue(row, ['Entry Time']));
           const exitDate = parseExcelDate(getRowValue(row, ['Exit Date']), getRowValue(row, ['Exit Time']));
           const excelGender = String(getRowValue(row, ['Gender', 'Type']) || '').trim().toLowerCase(); // Support Excel column named "Type" as fallback for Gender
@@ -448,6 +490,7 @@ export class NusukService {
                 passportExpiry,
                 visaNumber: visaNumber || null,
                 mofaNumber: mofaNumber || null,
+                mutamerStatus: mutamerStatus || null,
                 entryDate,
                 exitDate,
                 gender,
@@ -467,6 +510,7 @@ export class NusukService {
                 passportExpiry,
                 visaNumber: visaNumber || null,
                 mofaNumber: mofaNumber || null,
+                mutamerStatus: mutamerStatus || null,
                 entryDate,
                 exitDate,
                 gender
@@ -480,13 +524,15 @@ export class NusukService {
 
           // Compare travel details for this passenger against booking travel details
           const mainTravel = booking.travelDetails?.find((t: any) => !t.isAlternate);
+          let entryMismatchDetails: any = null;
+          let exitMismatchDetails: any = null;
+
           if (mainTravel) {
             const excelEntryDate = getRowValue(row, ['Entry Date', 'EntryDate']);
             const excelEntryTime = getRowValue(row, ['Entry Time', 'EntryTime']);
             const excelEntryCarrierNum = getRowValue(row, ['Arrival Flight Number', 'ArrivalFlightNumber', 'Entry Carrier Number', 'EntryCarrierNumber', 'Entry Carrier']);
             const excelEntryPort = getRowValue(row, ['Entry Port Name', 'EntryPortName', 'Entry Port']);
 
-            let entryMismatchDetails: any = null;
             if (excelEntryDate) {
               const excelEntryDateTime = parseExcelDate(excelEntryDate, excelEntryTime);
               if (excelEntryDateTime) {
@@ -530,7 +576,6 @@ export class NusukService {
             const excelExitCarrierNum = getRowValue(row, ['Departure Flight Number', 'DepartureFlightNumber', 'Exit Carrier Number', 'ExitCarrierNumber', 'Exit Carrier']);
             const excelExitPort = getRowValue(row, ['Exit Port', 'ExitPortName', 'ExitPort']);
 
-            let exitMismatchDetails: any = null;
             if (excelExitDate) {
               const excelExitDateTime = parseExcelDate(excelExitDate, excelExitTime);
               if (excelExitDateTime) {
@@ -589,6 +634,38 @@ export class NusukService {
               });
             }
           }
+
+          // Update compliance calculation stats in-memory
+          if (booking.partyId) {
+            const stats = getOrInitStats(booking.partyId);
+
+            const windowDays = 30;
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - windowDays);
+
+            const isArrivalInWindow = entryDate && entryDate >= thirtyDaysAgo;
+            const isDepartureInWindow = exitDate && exitDate >= thirtyDaysAgo;
+
+            if (isArrivalInWindow) {
+              stats.totalArrivals++;
+              if (entryMismatchDetails) {
+                stats.arrivalMismatches++;
+              }
+            }
+
+            if (isDepartureInWindow) {
+              stats.totalDepartures++;
+              if (exitMismatchDetails) {
+                stats.departureMismatches++;
+              }
+            }
+
+            const mutamerStatus = String(getRowValue(row, ['Mutamer Status']) || '');
+            const isSevere = mutamerStatus === 'Program Duration Exceeded' || mutamerStatus.toLowerCase().includes('runaway') || mutamerStatus.toLowerCase().includes('overstay');
+            if (isSevere && (isArrivalInWindow || isDepartureInWindow)) {
+              stats.severeViolations++;
+            }
+          }
         }
 
         // 3. Verify total passenger count
@@ -631,6 +708,96 @@ export class NusukService {
         });
       }
 
+      // 5.5 Recalculate and update SubAgentMetric & ComplianceAuditLog for ALL sub-agents (Parties)
+      const parties = await tx.party.findMany({
+        where: { isCustomer: true }
+      });
+
+      for (const party of parties) {
+        const stats = subAgentStatsMap.get(party.id) || {
+          totalArrivals: 0,
+          totalDepartures: 0,
+          arrivalMismatches: 0,
+          departureMismatches: 0,
+          severeViolations: 0
+        };
+
+        // Compute scores
+        const BUFFER_CONSTANT = 10;
+        const ARRIVAL_WEIGHT = 1.0;
+        const DEPARTURE_WEIGHT = 2.0;
+        const YELLOW_THRESHOLD = 0.02;
+        const RED_THRESHOLD = 0.05;
+
+        const R_A = stats.arrivalMismatches / (stats.totalArrivals + BUFFER_CONSTANT);
+        const R_D = stats.departureMismatches / (stats.totalDepartures + BUFFER_CONSTANT);
+        
+        const score = ((R_A * ARRIVAL_WEIGHT) + (R_D * DEPARTURE_WEIGHT)) / (ARRIVAL_WEIGHT + DEPARTURE_WEIGHT);
+
+        let complianceStatus: 'GREEN' | 'YELLOW' | 'RED' = 'GREEN';
+        if (score >= RED_THRESHOLD || stats.severeViolations > 0) {
+          complianceStatus = 'RED';
+        } else if (score >= YELLOW_THRESHOLD) {
+          complianceStatus = 'YELLOW';
+        }
+
+        // Check previous status for audit logging
+        const existingMetric = await tx.subAgentMetric.findUnique({
+          where: { subAgentId: party.id }
+        });
+
+        const previousStatus = existingMetric ? existingMetric.complianceStatus : 'GREEN';
+
+        // Upsert the metric
+        await tx.subAgentMetric.upsert({
+          where: { subAgentId: party.id },
+          create: {
+            subAgentId: party.id,
+            totalArrivals: stats.totalArrivals,
+            totalDepartures: stats.totalDepartures,
+            arrivalMismatches: stats.arrivalMismatches,
+            departureMismatches: stats.departureMismatches,
+            severeViolations: stats.severeViolations,
+            weightedScore: score,
+            complianceStatus: complianceStatus
+          },
+          update: {
+            totalArrivals: stats.totalArrivals,
+            totalDepartures: stats.totalDepartures,
+            arrivalMismatches: stats.arrivalMismatches,
+            departureMismatches: stats.departureMismatches,
+            severeViolations: stats.severeViolations,
+            weightedScore: score,
+            complianceStatus: complianceStatus
+          }
+        });
+
+        // Write audit log if status changed
+        if (previousStatus !== complianceStatus) {
+          let reasonSummary = '';
+          if (complianceStatus === 'RED') {
+            if (stats.severeViolations > 0) {
+              reasonSummary = `Status upgraded to RED. Severe violations: ${stats.severeViolations} overstays/runaways detected in the rolling 30-day window.`;
+            } else {
+              reasonSummary = `Score crossed RED threshold of ${RED_THRESHOLD} (Score: ${score.toFixed(4)}) with ${stats.arrivalMismatches} arrival and ${stats.departureMismatches} departure mismatches.`;
+            }
+          } else if (complianceStatus === 'YELLOW') {
+            reasonSummary = `Score crossed YELLOW threshold of ${YELLOW_THRESHOLD} (Score: ${score.toFixed(4)}) with ${stats.arrivalMismatches} arrival and ${stats.departureMismatches} departure mismatches.`;
+          } else {
+            reasonSummary = `Score returned to normal range (Score: ${score.toFixed(4)}). Operations restored to GREEN status.`;
+          }
+
+          await tx.complianceAuditLog.create({
+            data: {
+              subAgentId: party.id,
+              previousStatus: previousStatus as any,
+              newStatus: complianceStatus,
+              reasonSummary: reasonSummary
+            }
+          });
+        }
+      }
+
       // 6. Update setting metadata (last synced, is_valid status)
       await tx.nusukSetting.update({
         where: { id: settings.id },
@@ -650,35 +817,76 @@ export class NusukService {
     return syncResult;
   }
 
-  // Get active travel mismatches list
-  static async getMismatches(params?: { resolved?: boolean }) {
-    const isResolved = params?.resolved ?? false;
-    return await prisma.nusukMismatch.findMany({
-      where: { resolved: isResolved },
-      include: {
-        booking: {
-          select: {
-            id: true,
-            bookingReference: true,
-            groupNumber: true,
-            groupName: true,
-            status: true,
-            party: {
-              select: {
-                partyName: true
+  // Get active travel mismatches list with pagination and filters
+  static async getMismatches(params: {
+    resolved?: boolean;
+    page?: number;
+    limit?: number;
+    mismatchType?: string;
+    partyId?: string;
+  }) {
+    const isResolved = params.resolved ?? false;
+    const page = params.page ?? 1;
+    const limit = params.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const whereClause: any = {
+      resolved: isResolved
+    };
+
+    if (params.mismatchType && params.mismatchType !== 'all') {
+      whereClause.mismatchType = params.mismatchType;
+    }
+
+    if (params.partyId && params.partyId !== 'all') {
+      whereClause.booking = {
+        partyId: params.partyId
+      };
+    }
+
+    const [mismatches, totalCount] = await Promise.all([
+      prisma.nusukMismatch.findMany({
+        where: whereClause,
+        include: {
+          booking: {
+            select: {
+              id: true,
+              bookingReference: true,
+              groupNumber: true,
+              groupName: true,
+              status: true,
+              party: {
+                select: {
+                  partyName: true
+                }
               }
+            }
+          },
+          passenger: {
+            select: {
+              fullName: true,
+              passportNumber: true
             }
           }
         },
-        passenger: {
-          select: {
-            fullName: true,
-            passportNumber: true
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit
+      }),
+      prisma.nusukMismatch.count({
+        where: whereClause
+      })
+    ]);
+
+    return {
+      mismatches,
+      pagination: {
+        total: totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    };
   }
 
   // Resolve a travel mismatch
@@ -686,6 +894,303 @@ export class NusukService {
     return await prisma.nusukMismatch.update({
       where: { id },
       data: { resolved: true }
+    });
+  }
+
+  // Get compliance network summary metrics
+  static async getComplianceSummary() {
+    const totalCount = await prisma.party.count({
+      where: { isCustomer: true }
+    });
+
+    const metrics = await prisma.subAgentMetric.findMany();
+    const redCount = metrics.filter(m => m.complianceStatus === 'RED').length;
+    const yellowCount = metrics.filter(m => m.complianceStatus === 'YELLOW').length;
+
+    let totalArrivalMismatches = 0;
+    let totalDepartureMismatches = 0;
+    for (const m of metrics) {
+      totalArrivalMismatches += m.arrivalMismatches;
+      totalDepartureMismatches += m.departureMismatches;
+    }
+
+    let primaryRiskFactor = 'None';
+    if (totalArrivalMismatches > 0 || totalDepartureMismatches > 0) {
+      primaryRiskFactor = totalArrivalMismatches >= totalDepartureMismatches 
+        ? 'Arrival Port Mismatches' 
+        : 'Departure Flights Deviation';
+    }
+
+    return {
+      totalMonitoredAgents: totalCount,
+      activeSuspensions: redCount,
+      throttledAgents: yellowCount,
+      primaryRiskFactor
+    };
+  }
+
+  // Get active compliance registry list of sub-agents
+  static async getComplianceAgents() {
+    const parties = await prisma.party.findMany({
+      where: { isCustomer: true },
+      include: {
+        complianceMetrics: true
+      }
+    });
+
+    const registry = parties.map(p => {
+      const metrics = p.complianceMetrics || {
+        totalArrivals: 0,
+        totalDepartures: 0,
+        arrivalMismatches: 0,
+        departureMismatches: 0,
+        severeViolations: 0,
+        weightedScore: 0.0,
+        complianceStatus: 'GREEN'
+      };
+
+      let concernDetails = 'Mismatches within normal logistical tolerances.';
+      if (metrics.complianceStatus === 'RED') {
+        if (metrics.severeViolations > 0) {
+          concernDetails = `Severe Overstay: ${metrics.severeViolations} pilgrims overstayed program duration.`;
+        } else {
+          concernDetails = `Critical flight deviations: Score index reached ${(Number(metrics.weightedScore)).toFixed(4)}.`;
+        }
+      } else if (metrics.complianceStatus === 'YELLOW') {
+        concernDetails = `Warning threshold: ${metrics.arrivalMismatches} arrival delays and ${metrics.departureMismatches} departure mismatches.`;
+      }
+
+      return {
+        id: p.id,
+        partyName: p.partyName,
+        partyCode: p.partyCode || 'N/A',
+        totalArrivals: metrics.totalArrivals,
+        totalDepartures: metrics.totalDepartures,
+        arrivalMismatches: metrics.arrivalMismatches,
+        departureMismatches: metrics.departureMismatches,
+        severeViolations: metrics.severeViolations,
+        weightedScore: Number(metrics.weightedScore),
+        complianceStatus: metrics.complianceStatus,
+        concernDetails
+      };
+    });
+
+    const statusOrder = { RED: 0, YELLOW: 1, GREEN: 2 };
+    return registry.sort((a, b) => {
+      const orderA = statusOrder[a.complianceStatus as keyof typeof statusOrder];
+      const orderB = statusOrder[b.complianceStatus as keyof typeof statusOrder];
+      if (orderA !== orderB) return orderA - orderB;
+      return b.weightedScore - a.weightedScore;
+    });
+  }
+
+  // Get compliance audit log timeline for agent
+  static async getComplianceAgentLogs(partyId: string) {
+    return await prisma.complianceAuditLog.findMany({
+      where: { subAgentId: partyId },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  // Force override an agent's compliance status (Action)
+  static async overrideComplianceStatus(partyId: string, status: 'GREEN' | 'YELLOW' | 'RED', reason: string) {
+    const existing = await prisma.subAgentMetric.findUnique({
+      where: { subAgentId: partyId }
+    });
+
+    const previousStatus = existing ? existing.complianceStatus : 'GREEN';
+
+    await prisma.subAgentMetric.upsert({
+      where: { subAgentId: partyId },
+      create: {
+        subAgentId: partyId,
+        totalArrivals: 0,
+        totalDepartures: 0,
+        arrivalMismatches: 0,
+        departureMismatches: 0,
+        severeViolations: status === 'RED' ? 1 : 0,
+        weightedScore: status === 'RED' ? 0.06 : (status === 'YELLOW' ? 0.03 : 0.0),
+        complianceStatus: status
+      },
+      update: {
+        complianceStatus: status,
+        severeViolations: status === 'RED' ? 1 : undefined,
+        weightedScore: status === 'RED' ? 0.06 : (status === 'YELLOW' ? 0.03 : 0.0)
+      }
+    });
+
+    if (previousStatus !== status) {
+      await prisma.complianceAuditLog.create({
+        data: {
+          subAgentId: partyId,
+          previousStatus: previousStatus as any,
+          newStatus: status,
+          reasonSummary: `Manual override by Admin: ${reason}`
+        }
+      });
+    }
+  }
+
+  // Recalculate compliance metrics using local db data
+  static async recalculateCompliance() {
+    const windowDays = 30;
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - windowDays);
+
+    return await prisma.$transaction(async (tx) => {
+      // 1. Get all customer sub-agents (Parties)
+      const parties = await tx.party.findMany({
+        where: { isCustomer: true }
+      });
+
+      let updatedCount = 0;
+
+      for (const party of parties) {
+        // Query bookings and passengers for this sub-agent
+        const bookings = await tx.umrahVisaBooking.findMany({
+          where: {
+            partyId: party.id,
+            isDeleted: false
+          },
+          include: {
+            passengers: {
+              where: { isDeleted: false },
+              include: {
+                nusukMismatches: {
+                  where: { resolved: false }
+                }
+              }
+            }
+          }
+        });
+
+        let totalArrivals = 0;
+        let totalDepartures = 0;
+        let arrivalMismatches = 0;
+        let departureMismatches = 0;
+        let severeViolations = 0;
+
+        for (const booking of bookings) {
+          for (const passenger of booking.passengers) {
+            const entryDate = passenger.entryDate;
+            const exitDate = passenger.exitDate;
+
+            const isArrivalInWindow = entryDate && entryDate >= thirtyDaysAgo;
+            const isDepartureInWindow = exitDate && exitDate >= thirtyDaysAgo;
+
+            if (isArrivalInWindow) {
+              totalArrivals++;
+            }
+            if (isDepartureInWindow) {
+              totalDepartures++;
+            }
+
+            // Check unresolved mismatches
+            for (const mismatch of passenger.nusukMismatches) {
+              const mType = mismatch.mismatchType;
+              if (isArrivalInWindow && (mType === 'entry' || mType === 'both')) {
+                arrivalMismatches++;
+              }
+              if (isDepartureInWindow && (mType === 'exit' || mType === 'both')) {
+                departureMismatches++;
+              }
+            }
+
+            // Check severe violations
+            const mutamerStatus = passenger.mutamerStatus || '';
+            const isSevere = mutamerStatus === 'Program Duration Exceeded' || 
+              mutamerStatus.toLowerCase().includes('runaway') || 
+              mutamerStatus.toLowerCase().includes('overstay');
+
+            if (isSevere && (isArrivalInWindow || isDepartureInWindow)) {
+              severeViolations++;
+            }
+          }
+        }
+
+        // Compute compliance scores
+        const BUFFER_CONSTANT = 10;
+        const ARRIVAL_WEIGHT = 1.0;
+        const DEPARTURE_WEIGHT = 2.0;
+        const YELLOW_THRESHOLD = 0.02;
+        const RED_THRESHOLD = 0.05;
+
+        const R_A = arrivalMismatches / (totalArrivals + BUFFER_CONSTANT);
+        const R_D = departureMismatches / (totalDepartures + BUFFER_CONSTANT);
+        
+        const score = ((R_A * ARRIVAL_WEIGHT) + (R_D * DEPARTURE_WEIGHT)) / (ARRIVAL_WEIGHT + DEPARTURE_WEIGHT);
+
+        let complianceStatus: 'GREEN' | 'YELLOW' | 'RED' = 'GREEN';
+        if (score >= RED_THRESHOLD || severeViolations > 0) {
+          complianceStatus = 'RED';
+        } else if (score >= YELLOW_THRESHOLD) {
+          complianceStatus = 'YELLOW';
+        }
+
+        // Check previous status for audit logging
+        const existingMetric = await tx.subAgentMetric.findUnique({
+          where: { subAgentId: party.id }
+        });
+
+        const previousStatus = existingMetric ? existingMetric.complianceStatus : 'GREEN';
+
+        // Upsert the metric
+        await tx.subAgentMetric.upsert({
+          where: { subAgentId: party.id },
+          create: {
+            subAgentId: party.id,
+            totalArrivals,
+            totalDepartures,
+            arrivalMismatches,
+            departureMismatches,
+            severeViolations,
+            weightedScore: score,
+            complianceStatus
+          },
+          update: {
+            totalArrivals,
+            totalDepartures,
+            arrivalMismatches,
+            departureMismatches,
+            severeViolations,
+            weightedScore: score,
+            complianceStatus
+          }
+        });
+
+        // Write audit log if status changed
+        if (previousStatus !== complianceStatus) {
+          let reasonSummary = '';
+          if (complianceStatus === 'RED') {
+            if (severeViolations > 0) {
+              reasonSummary = `Status upgraded to RED. Severe violations: ${severeViolations} overstays/runaways detected in the rolling 30-day window.`;
+            } else {
+              reasonSummary = `Score crossed RED threshold of ${RED_THRESHOLD} (Score: ${score.toFixed(4)}) with ${arrivalMismatches} arrival and ${departureMismatches} departure mismatches.`;
+            }
+          } else if (complianceStatus === 'YELLOW') {
+            reasonSummary = `Score crossed YELLOW threshold of ${YELLOW_THRESHOLD} (Score: ${score.toFixed(4)}) with ${arrivalMismatches} arrival and ${departureMismatches} departure mismatches.`;
+          } else {
+            reasonSummary = `Score returned to normal range (Score: ${score.toFixed(4)}). Operations restored to GREEN status.`;
+          }
+
+          await tx.complianceAuditLog.create({
+            data: {
+              subAgentId: party.id,
+              previousStatus: previousStatus as any,
+              newStatus: complianceStatus,
+              reasonSummary: reasonSummary
+            }
+          });
+        }
+
+        updatedCount++;
+      }
+
+      return {
+        success: true,
+        recalculatedAgentsCount: updatedCount,
+        timestamp: new Date()
+      };
     });
   }
 }

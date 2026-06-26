@@ -8,11 +8,19 @@ import { Search, Mail, Phone, MapPin, Activity, UserPlus, Users, Edit3, ShieldCh
 import { Party, PaginationInfo } from '@/types';
 import { cn } from '@/lib/utils';
 
-const getComplianceStatus = (partyId: string) => {
-  const hash = partyId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  if (hash % 10 < 2) return { label: 'Audit Required', color: 'bg-orange-500', text: 'text-orange-700', bg: 'bg-orange-50' };
-  if (hash % 10 < 5) return { label: 'Standard', color: 'bg-secondary', text: 'text-secondary', bg: 'bg-secondary/10' };
-  return { label: 'Elite Partner', color: 'bg-primary', text: 'text-primary', bg: 'bg-primary/10' };
+const getComplianceStatus = (party: Party) => {
+  const metrics = party.complianceMetrics;
+  if (!metrics) {
+    return { label: 'Compliant', color: 'bg-green-500', text: 'text-green-700', bg: 'bg-green-50' };
+  }
+  
+  if (metrics.complianceStatus === 'RED') {
+    return { label: 'Suspended (Red)', color: 'bg-red-500', text: 'text-red-700', bg: 'bg-red-50' };
+  }
+  if (metrics.complianceStatus === 'YELLOW') {
+    return { label: 'Throttled (Yellow)', color: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50' };
+  }
+  return { label: 'Compliant (Green)', color: 'bg-green-500', text: 'text-green-700', bg: 'bg-green-50' };
 };
 
 export default function PartyList() {
@@ -96,7 +104,7 @@ export default function PartyList() {
       ) : (
         <div className="grid grid-cols-1 gap-6">
           {parties.map((party) => {
-            const compliance = getComplianceStatus(party.id);
+            const compliance = getComplianceStatus(party);
             return (
               <Card
                 key={party.id}
