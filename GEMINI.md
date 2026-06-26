@@ -41,10 +41,10 @@ npm run dev
 ```
 
 ### Deployment Workflow
-Due to server memory limitations, the frontend should be built locally before syncing:
-1.  **Local Build:** `cd frontend && npm run build`
-2.  **Sync:** `rsync -avz --exclude "node_modules" .next ... root@64.227.158.41:/var/www/umrasystem/`
-3.  **Restart:** `pm2 restart umrasystem-frontend`
+Due to server memory limitations, both the frontend and backend are compiled locally before uploading. Run the unified deployment script:
+```bash
+./deploy.sh
+```
 
 ## ⚠️ Critical Mandates
 - **No Sidebar:** The side menu has been intentionally removed. All navigation must reside in the Top Navbar (Main Apps) or the Settings page (Masters).

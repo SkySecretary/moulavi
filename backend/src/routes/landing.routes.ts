@@ -180,7 +180,7 @@ router.post('/register', async (req: Request, res: Response) => {
             email,
             password: hashedPassword,
             role: 'party',
-            isActive: true,
+            isActive: false,
             emailVerified: false
           }
         });

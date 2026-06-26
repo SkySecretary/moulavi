@@ -413,7 +413,7 @@ export default function ViewUmrahVisaBookingPage() {
       toast.success('All documents downloaded successfully!');
 
       // Track download status if pending
-      if (booking?.status === 'pending' && (!booking?.documentsDownloadCount || booking?.documentsDownloadCount === 0)) {
+      if (booking?.status === 'pending') {
         try {
           await umrahVisaAPI.downloadDocuments(bookingId);
           toast.success('Status updated to Documents Downloaded');

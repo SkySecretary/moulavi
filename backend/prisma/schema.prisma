@@ -118,6 +118,7 @@ model UmrahVisaBooking {
   transportBookings         UmrahTransportBooking[]
   travelDetails             UmrahTravelDetails[]
   brnUpdates                BrnUpdateHistory[]
+  nusukMismatches           NusukMismatch[]
   lastUpdatedByUser         User?                      @relation("BookingLastUpdatedBy", fields: [lastUpdatedBy], references: [id])
   documentsDownloadedByUser User?                      @relation("BookingDocumentsDownloadedBy", fields: [documentsDownloadedBy], references: [id])
   umrahVisaProvider         Party?                     @relation("UmrahVisaProvider", fields: [umrahVisaProviderId], references: [id])
@@ -158,6 +159,7 @@ model UmrahPassenger {
   phoneNumber      String?             @map("phone_number")
   bookingDocuments Document[]
   documents        PassengerDocument[]
+  nusukMismatches  NusukMismatch[]
   booking          UmrahVisaBooking    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@index([bookingId])
@@ -854,4 +856,39 @@ model BrnUpdateHistory {
   @@index([bookingId])
   @@map("brn_update_history")
 }
+
+model NusukSetting {
+  id                 String    @id @default(uuid())
+  token              String    @map("token")
+  activeEntityId     String    @default("525592") @map("active_entity_id")
+  activeEntityTypeId String    @default("32") @map("active_entity_type_id")
+  entityId           String    @default("525592") @map("entity_id")
+  checkByPassport    Boolean   @default(false) @map("check_by_passport")
+  externalAgentCodes String    @default("22282, 6655, 1001828") @map("external_agent_codes")
+  syncSchedule       String    @default("08:00, 20:00") @map("sync_schedule")
+  isValid            Boolean   @default(true) @map("is_valid")
+  lastSyncedAt       DateTime? @map("last_synced_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@map("nusuk_settings")
+}
+
+model NusukMismatch {
+  id            String           @id @default(uuid())
+  bookingId     String           @map("booking_id")
+  passengerId   String?          @map("passenger_id")
+  mismatchType  String           @map("mismatch_type") // 'entry', 'exit', 'both'
+  details       Json             @map("details") // JSON field containing arrays of mismatched items
+  resolved      Boolean          @default(false) @map("resolved")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @default(now()) @updatedAt @map("updated_at")
+  booking       UmrahVisaBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  passenger     UmrahPassenger?  @relation(fields: [passengerId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([passengerId])
+  @@map("nusuk_mismatches")
+}
+
 

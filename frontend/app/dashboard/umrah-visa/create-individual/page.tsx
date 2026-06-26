@@ -134,6 +134,14 @@ function CreateIndividualContent() {
     if (!selectedPartyId) { toast.error('Please select a party first'); return; }
     const validationError = validateCurrentStep();
     if (validationError) { toast.error(validationError); return; }
+    
+    if (bookingState.currentStep === 3 && bookingState.step3Data.accommodationType === 'iqama') {
+      const confirmed = window.confirm(
+        "Please verify that all Iqama details are correct. Incorrect information will directly affect visa issuance. Do you want to proceed?"
+      );
+      if (!confirmed) return;
+    }
+
     const success = await submitStep(bookingState.currentStep);
     if (success && bookingState.currentStep === 3 && !isJeddahOrMadinahAirport()) { setCurrentStep(6); return; }
     if (success && bookingState.currentStep === 6) router.push('/dashboard/umrah-visa/bookings');

@@ -6,24 +6,14 @@
 
 We now use a **Releases & Symlink** mechanism for safe deployments. This allows for instant rollbacks and zero-downtime updates.
 
-### 1. Local Build (Mandatory)
-Always build locally to prevent the server from running out of memory:
-```bash
-# Build Frontend
-cd frontend && npm install && npm run build
-
-# Build Backend
-cd ../backend && npm install && npm run build
-```
-
-### 2. Execute Deployment Script
-Run the provided `deploy.sh` from the project root. This script handles directory preparation, code upload, schema updates, and atomic switching.
+### 1. Execute Deployment Script
+Simply run the provided `deploy.sh` from the project root. This script will automatically compile both the backend and frontend locally (to save server memory), sync the files to the remote server, initialize shared databases, create symlinks, and restart the PM2 services.
 
 ```bash
 ./deploy.sh
 ```
 
-**Note:** You will be prompted for the root password for the server `64.227.158.41` multiple times during the process (or once if using SSH keys).
+**Note:** The script uses the deploy SSH key `/Users/awadnejil/.ssh/id_rsa_deploy` to authenticate with the server. Ensure this key is set up on your machine.
 
 ### 3. Verification
 Once completed, verify the status of the services on the server:

@@ -1,3 +1,4 @@
+import './config/env';
 import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -31,19 +32,7 @@ import cancellationRoutes from './routes/cancellation.routes';
 import notificationRoutes from './routes/notifications.routes';
 import landingRoutes from './routes/landing.routes';
 import umrahOperationalRoutes from './routes/umrahOperational.routes';
-
-// Load environment variables based on environment
-const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
-const envPath = path.join(__dirname, '..', envFile);
-const defaultEnvPath = path.join(__dirname, '..', '.env');
-
-if (fs.existsSync(envPath)) {
-  dotenv.config({ path: envPath });
-  console.log(`[SERVER] Loading environment from ${envFile}`);
-} else {
-  dotenv.config({ path: defaultEnvPath });
-  console.log(`[SERVER] Loading environment from .env (fallback)`);
-}
+import nusukRoutes from './routes/nusuk.routes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
@@ -138,6 +127,7 @@ app.use('/api/cancellation', cancellationRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/landing', landingRoutes);
 app.use('/api/umrah-visa/operational', umrahOperationalRoutes);
+app.use('/api/nusuk', nusukRoutes);
 
 // Error handlers
 app.use(notFoundHandler);
@@ -163,6 +153,58 @@ app.listen(PORT, () => {
     console.log(`💾 Auto-backup: Scheduled every 2 hours`);
   } catch (error: any) {
     console.warn(`⚠️  Auto-backup initialization failed: ${error.message}`);
+  }
+
+  // Initialize Nusuk Sync (Dynamic times based on settings)
+  try {
+    const { NusukService } = require('./services/nusukService');
+    let lastSyncMinute = '';
+    setInterval(async () => {
+      try {
+        const now = new Date();
+        const currentHrMin = now.toTimeString().substring(0, 5); // "HH:MM"
+        const currentMinKey = now.toISOString().substring(0, 16); // "YYYY-MM-DDTHH:mm"
+        
+        if (lastSyncMinute === currentMinKey) {
+          return;
+        }
+
+        const settings = await NusukService.getSettings();
+        if (!settings || !settings.token) return;
+
+        const scheduleTimes = settings.syncSchedule
+          ? settings.syncSchedule.split(',').map((t: string) => t.trim())
+          : ['08:00', '20:00'];
+
+        if (scheduleTimes.includes(currentHrMin)) {
+          lastSyncMinute = currentMinKey;
+          console.log(`[SERVER] Scheduled sync triggered at match: ${currentHrMin}`);
+          try {
+            await NusukService.triggerSync();
+            console.log(`[SERVER] Scheduled Nusuk mismatch synchronization completed.`);
+          } catch (error: any) {
+            console.warn(`⚠️  Scheduled Nusuk synchronization failed: ${error.message}`);
+          }
+        }
+      } catch (error: any) {
+        console.warn(`⚠️  Scheduled Nusuk sync checker encountered an error: ${error.message}`);
+      }
+    }, 60 * 1000);
+    
+    // Non-blocking sync shortly after server start
+    setTimeout(async () => {
+      console.log(`[SERVER] Running startup Nusuk mismatch synchronization...`);
+      try {
+        await NusukService.triggerSync();
+        console.log(`[SERVER] Startup Nusuk mismatch synchronization completed.`);
+      } catch (error: any) {
+        console.log(`ℹ️  Startup Nusuk synchronization bypassed or failed: ${error.message}`);
+      }
+    }, 5000);
+    
+    console.log(`🔄 Nusuk Sync: Dynamic checker running every minute`);
+  } catch (error: any) {
+    console.warn(`⚠️  Nusuk Sync initialization failed: ${error.message}`);
   }
 
   // Check S3 configuration

@@ -20,10 +20,12 @@ import {
   Clock,
   X,
   ExternalLink,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getUser, removeUser } from '@/lib/auth';
+import { nusukAPI } from '@/lib/api';
 import { authAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import { 
@@ -58,6 +60,19 @@ export default function Navbar() {
 
   const isAdminOrStaff = user?.role === 'admin' || user?.role === 'staff';
   const isParty = user?.role === 'party';
+  const [nusukTokenAlert, setNusukTokenAlert] = useState(false);
+
+  React.useEffect(() => {
+    if (user && (user.role === 'admin' || user.role === 'staff')) {
+      nusukAPI.getSettings()
+        .then(response => {
+          if (response.data && response.data.isValid === false) {
+            setNusukTokenAlert(true);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [user]);
 
   const mainTabs = isAdminOrStaff ? [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -76,6 +91,7 @@ export default function Navbar() {
   const appItems = isAdminOrStaff ? [
     { name: 'Assign Group', path: '/dashboard/umrah-visa/assign-group', icon: Users },
     { name: 'Missing BRN', path: '/dashboard/umrah-visa/missing-brn', icon: AlertCircle },
+    { name: 'Mismatched Travel', path: '/dashboard/umrah-visa/mismatched-travel', icon: AlertTriangle },
     { name: 'Vouchers (Umrah)', path: '/dashboard/umrah-visa/voucher', icon: Award },
     { name: 'Invoices', path: '/dashboard/umrah-visa/invoice', icon: FileText },
   ] : [
@@ -180,6 +196,16 @@ export default function Navbar() {
 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-2 md:space-x-4">
+            {isAdminOrStaff && nusukTokenAlert && (
+              <button
+                onClick={() => router.push('/dashboard/masters/nusuk')}
+                className="p-2 rounded-full text-red-600 hover:bg-red-50 hover:text-red-700 animate-pulse transition-colors"
+                title="Nusuk Authentication Failed! Click to fix."
+              >
+                <AlertTriangle className="h-5.5 w-5.5" />
+              </button>
+            )}
+
             <NotificationDropdown />
             
             <button

@@ -438,6 +438,7 @@ router.put(
     const {
       party_name,
       party_code,
+      email,
       contact_number,
       whatsapp_number,
       address,
@@ -476,12 +477,39 @@ router.put(
     }
     
     const updateData: any = {};
+
+    // Validate email changes
+    if (email !== undefined && email !== existingParty.email) {
+      if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) {
+        return res.status(400).json({ error: 'Please provide a valid email address' });
+      }
+
+      const anotherParty = await prisma.party.findUnique({
+        where: { email }
+      });
+      if (anotherParty) {
+        return res.status(400).json({ error: 'Another party with this email already exists' });
+      }
+
+      const existingUser = await prisma.user.findUnique({
+        where: { email }
+      });
+      if (existingUser && existingUser.id !== existingParty.userId) {
+        return res.status(400).json({ error: 'Another user account with this email already exists' });
+      }
+
+      updateData.email = email;
+    }
     
     // Handle login account creation if login_required is being enabled
     if (login_required !== undefined && login_required === true && !existingParty.userId) {
+      const userEmail = email || existingParty.email;
+      const userName = party_name || existingParty.partyName;
+      const userWhatsapp = whatsapp_number || existingParty.whatsappNumber;
+
       // Check if user with this email already exists
       const existingUser = await prisma.user.findUnique({
-        where: { email: existingParty.email }
+        where: { email: userEmail }
       });
       
       if (existingUser) {
@@ -494,8 +522,8 @@ router.put(
       
       const user = await prisma.user.create({
         data: {
-          name: existingParty.partyName,
-          email: existingParty.email,
+          name: userName,
+          email: userEmail,
           password: hashedPassword,
           role: 'party'
         }
@@ -508,11 +536,11 @@ router.put(
       // Send credentials email
       try {
         await sendCredentialsEmail(
-          existingParty.email,
-          existingParty.partyName,
-          existingParty.email,
+          userEmail,
+          userName,
+          userEmail,
           generatedPassword,
-          existingParty.whatsappNumber || undefined
+          userWhatsapp || undefined
         );
       } catch (error) {
         console.error('Failed to send credentials email:', error);
@@ -575,33 +603,43 @@ router.put(
     if (sms_notification !== undefined) updateData.smsNotification = sms_notification;
     if (marketing_notification !== undefined) updateData.marketingNotification = marketing_notification;
     
-    // Handle contacts update
-    if (contacts !== undefined && Array.isArray(contacts)) {
-      // Delete existing contacts and create new ones
-      await prisma.partyContact.deleteMany({
-        where: { partyId: id }
-      });
-      
-      if (contacts.length > 0) {
-        updateData.contacts = {
-          create: contacts.map((contact: any) => ({
-            contactName: contact.contact_name,
-            contactNumber: contact.contact_number,
-            department: contact.department || null
-          }))
-        };
+    // Handle updates in a transaction to sync Party and associated User account email atomically
+    const party = await prisma.$transaction(async (tx) => {
+      // If email changed and user account exists, update the user account email first
+      if (email !== undefined && email !== existingParty.email && existingParty.userId) {
+        await tx.user.update({
+          where: { id: existingParty.userId },
+          data: { email }
+        });
       }
-    }
-    
-    const party = await prisma.party.update({
-      where: { id },
-      data: updateData,
-      include: {
-        contacts: true,
-        documents: {
-          where: { isDeleted: false }
+
+      // Handle contacts update
+      if (contacts !== undefined && Array.isArray(contacts)) {
+        await tx.partyContact.deleteMany({
+          where: { partyId: id }
+        });
+        
+        if (contacts.length > 0) {
+          updateData.contacts = {
+            create: contacts.map((contact: any) => ({
+              contactName: contact.contact_name,
+              contactNumber: contact.contact_number,
+              department: contact.department || null
+            }))
+          };
         }
       }
+
+      return await tx.party.update({
+        where: { id },
+        data: updateData,
+        include: {
+          contacts: true,
+          documents: {
+            where: { isDeleted: false }
+          }
+        }
+      });
     });
     
     res.json({ party });

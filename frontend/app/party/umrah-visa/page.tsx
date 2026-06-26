@@ -103,6 +103,13 @@ export default function UmrahVisaNewPage() {
       return;
     }
 
+    if (bookingState.currentStep === 3 && bookingState.step3Data.accommodationType === 'iqama') {
+      const confirmed = window.confirm(
+        "Please verify that all Iqama details are correct. Incorrect information will directly affect visa issuance. Do you want to proceed?"
+      );
+      if (!confirmed) return;
+    }
+
     const success = await submitStep(bookingState.currentStep);
     
     // Special handling for step 3: Skip steps 4 and 5 if arrival airport is not Jeddah/Madinah

@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
-import { umrahVisaAPI } from '@/lib/api';
+import { umrahVisaAPI, nusukAPI } from '@/lib/api';
 import { UMRAH_VISA_STATUS_CONFIG, VISA_TYPE_CONFIG } from '@/lib/constants';
 import { DatePicker } from '@/components/ui/date-picker';
 import { fromDisplayDate, toDisplayDate, extractDateFromISO } from '@/lib/umrah/validation';
@@ -43,6 +43,7 @@ export default function UmrahVisaPage() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncingNusuk, setIsSyncingNusuk] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
@@ -58,6 +59,21 @@ export default function UmrahVisaPage() {
   
   // Dialog states
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+
+  const handleSyncNusuk = async () => {
+    try {
+      setIsSyncingNusuk(true);
+      toast.info('Triggering Nusuk report fetch and synchronization...');
+      await nusukAPI.triggerSync();
+      toast.success('Nusuk synchronization completed successfully!');
+      fetchBookings(pagination.page);
+    } catch (error: any) {
+      console.error('Nusuk manual sync failed:', error);
+      toast.error(error.response?.data?.error || error.message || 'Nusuk manual sync failed');
+    } finally {
+      setIsSyncingNusuk(false);
+    }
+  };
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [viewArchived, setViewArchived] = useState(false);
 
@@ -294,6 +310,25 @@ export default function UmrahVisaPage() {
               >
                 <UserPlus className="h-4 w-4" />
                 Add to Existing
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleSyncNusuk}
+                disabled={isSyncingNusuk}
+                className="flex items-center gap-2 font-bold bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 disabled:opacity-75"
+              >
+                {isSyncingNusuk ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+                    <span>Syncing...</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 text-indigo-600" />
+                    <span>Sync Nusuk</span>
+                  </>
+                )}
               </Button>
               <div className="w-px h-6 bg-gray-200 mx-1 hidden sm:block" />
               <Button onClick={() => fetchBookings()} variant="outline" size="sm" className="flex items-center gap-2 font-bold">

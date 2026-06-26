@@ -35,6 +35,7 @@ const masterItems = [
   { name: 'Expense Master', icon: Receipt, path: '/dashboard/masters/expense', category: 'Financial', description: 'Configure expense categories' },
   { name: 'Income Master', icon: TrendingUp, path: '/dashboard/masters/income', category: 'Financial', description: 'Configure income categories' },
   { name: 'Umrah Visa Master', icon: Calendar, path: '/dashboard/masters/umrah-visa', category: 'Services', description: 'Configure Umrah visa rules' },
+  { name: 'Nusuk API Integration', icon: SettingsIcon, path: '/dashboard/masters/nusuk', category: 'Services', description: 'Configure Nusuk authentication token and daily report synchronization' },
 ];
 
 const categories = ['General', 'Region', 'Financial', 'Transport', 'External', 'Services'];

@@ -478,3 +478,21 @@ export const voucherAPI = {
     api.post(`/vouchers/${voucherId}/movement/${movementIndex}/notify`),
 };
 
+// Nusuk Integration API
+export const nusukAPI = {
+  getSettings: () => api.get('/nusuk/settings'),
+  saveSettings: (data: {
+    token: string;
+    activeEntityId?: string;
+    activeEntityTypeId?: string;
+    entityId?: string;
+    checkByPassport?: boolean;
+    externalAgentCodes?: string;
+    syncSchedule?: string;
+  }) => api.post('/nusuk/settings', data),
+  triggerSync: () => api.post('/nusuk/sync'),
+  getMismatches: (params?: { resolved?: boolean }) => api.get('/nusuk/mismatches', { params }),
+  resolveMismatch: (id: string) => api.post(`/nusuk/mismatches/${id}/resolve`),
+};
+
+

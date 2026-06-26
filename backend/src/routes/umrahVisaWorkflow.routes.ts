@@ -445,15 +445,6 @@ router.post('/:bookingId/download-documents', authenticate, async (req, res) => 
       });
     }
 
-    // Check if documents have already been downloaded
-    if (booking.documentsDownloadCount > 0) {
-      return res.status(400).json({ 
-        error: 'Documents have already been downloaded. Please request admin permission for re-download.',
-        downloadCount: booking.documentsDownloadCount,
-        lastDownloadedBy: booking.documentsDownloadedBy,
-      });
-    }
-
     // Collect all documents
     const allDocuments = booking.passengers.flatMap(p => p.documents);
 
