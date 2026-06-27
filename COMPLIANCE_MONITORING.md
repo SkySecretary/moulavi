@@ -11,8 +11,8 @@ The Compliance Monitor watches sub-agents (B2B Parties) for logistical deviation
 ### 1. Understanding compliance status levels
 Each monitored sub-agent is assigned one of three compliance statuses:
 *   🟢 **Green (Compliant)**: The agent's travel discrepancies are within normal tolerances. They have full access to visa bookings.
-*   🟡 **Yellow (Throttled)**: Warning status. Logistical deviations have crossed the threshold ($2\%$). The agent may experience rate-limits or warnings during booking.
-*   🔴 **Red (Suspended)**: Critical status. Deviations have crossed the limit ($5\%$) or at least one pilgrim has overstayed their program duration/absconded. **The agent is locked out of submitting new bookings.**
+*   🟡 **Yellow (Throttled)**: Warning status. Logistical deviations have crossed the threshold (2%). The agent may experience rate-limits or warnings during booking.
+*   🔴 **Red (Suspended)**: Critical status. Deviations have crossed the limit (5%) or at least one pilgrim has overstayed their program duration/absconded. **The agent is locked out of submitting new bookings.**
 
 ### 2. Monitoring the Dashboard
 Go to **Settings (Gear Icon in Navbar)** $\rightarrow$ **Agent Compliance Audit** to access the compliance center.
@@ -81,33 +81,34 @@ Compliance statuses are updated whenever a **Nusuk Sync** occurs or when **Manua
 
 #### Step A: Filter rolling window
 Only check arrivals (`entryDate`) and departures (`exitDate`) within a rolling **30-day window**:
-$$\text{Window Start} = \text{Current Date} - 30\text{ days}$$
+Window Start = Current Date - 30 days
 
 #### Step B: Math Formula
 To calculate discrepancy rates, we apply smoothing weights to prevent agents with low volumes from being suspended due to a single administrative mismatch.
 
 Let:
-*   $A_m = \text{arrival mismatches inside window}$
-*   $A_{tot} = \text{total arrivals inside window}$
-*   $D_m = \text{departure mismatches inside window}$
-*   $D_{tot} = \text{total departures inside window}$
+*   Arrival Mismatches = count of unresolved entry discrepancies in the 30-day window
+*   Total Arrivals = count of all pilgrim arrivals in the 30-day window
+*   Departure Mismatches = count of unresolved exit discrepancies in the 30-day window
+*   Total Departures = count of all pilgrim departures in the 30-day window
 
 Calculate smoothed rates:
-$$R_A = \frac{A_m}{A_{tot} + 10}$$
-$$R_D = \frac{D_m}{D_{tot} + 10}$$
+*   Smoothed Arrival Mismatch Rate (R_A) = Arrival Mismatches / (Total Arrivals + 10)
+*   Smoothed Departure Mismatch Rate (R_D) = Departure Mismatches / (Total Departures + 10)
 
-*Note: The constant $+10$ in the denominator is a smoothing factor. An agent with only 1 pilgrim mismatch out of 1 total arrival gets $1 / 11 = 9\%$ discrepancy rate instead of a booking-blocking $100\%$ flag.*
+*Note: The constant "+ 10" in the denominator is a smoothing factor. An agent with only 1 pilgrim mismatch out of 1 total arrival gets 1 / 11 = 9% discrepancy rate instead of a booking-blocking 100% flag.*
 
 #### Step C: Weighted Index Calculation
 Since departure flight mismatches represent a higher operational risk (e.g. overstays), departure deviations are weighted twice as heavily as arrival deviations:
-$$\text{Weighted Score} = \frac{(R_A \times 1.0) + (R_D \times 2.0)}{1.0 + 2.0}$$
+Weighted Score = ((R_A * 1.0) + (R_D * 2.0)) / (1.0 + 2.0)
+               = ((R_A * 1.0) + (R_D * 2.0)) / 3.0
 
 #### Step D: Status Mapping Rules
-1.  **Severe Overstays override all scores**: If `severeViolations` $> 0$, status is automatically set to **RED**.
+1.  **Severe Overstays override all scores**: If `severeViolations` > 0, status is automatically set to **RED**.
     *   *Severe Violations* are triggered when pilgrim status matches `Program Duration Exceeded` or contains `runaway` / `overstay`.
-2.  **RED Threshold**: If $\text{Weighted Score} \ge 0.05$ ($5\%$) $\rightarrow$ status becomes **RED**.
-3.  **YELLOW Threshold**: If $\text{Weighted Score} \ge 0.02$ ($2\%$) $\rightarrow$ status becomes **YELLOW**.
-4.  Otherwise $\rightarrow$ status is **GREEN**.
+2.  **RED Threshold**: If Weighted Score >= 0.05 (5%) -> status becomes **RED**.
+3.  **YELLOW Threshold**: If Weighted Score >= 0.02 (2%) -> status becomes **YELLOW**.
+4.  Otherwise -> status is **GREEN**.
 
 ---
 
