@@ -876,6 +876,7 @@ export default function EditUmrahVisaBookingPage() {
                       }}
                       onAddBooking={addHotelBooking}
                       disabled={saving}
+                      hideInventory={booking?.visaType === 'group_visa'}
                     />
                   </div>
                 )}

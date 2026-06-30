@@ -164,6 +164,7 @@ interface AdditionalBrnsDialogProps {
   initialBrns?: { brnNumber: string; qty?: number; checkInDate: string; checkOutDate: string; }[];
   onSave: (brns: { brnNumber: string; qty?: number; checkInDate: string; checkOutDate: string; }[]) => void;
   disabled?: boolean;
+  hideInventory?: boolean;
 }
 
 const AdditionalBrnsDialog: React.FC<AdditionalBrnsDialogProps> = ({
@@ -174,8 +175,10 @@ const AdditionalBrnsDialog: React.FC<AdditionalBrnsDialogProps> = ({
   initialBrns = [],
   onSave,
   disabled = false,
+  hideInventory = false,
 }) => {
   const isDashboard = typeof window !== 'undefined' && window.location.pathname.includes('/dashboard');
+  const showInventory = isDashboard && !hideInventory;
   const [brns, setBrns] = useState<{ brnNumber: string; qty?: number; checkInDate: string; checkOutDate: string; }[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerRowIndex, setPickerRowIndex] = useState<number | null>(null);
@@ -237,7 +240,7 @@ const AdditionalBrnsDialog: React.FC<AdditionalBrnsDialogProps> = ({
                         disabled={disabled}
                         className="h-9 text-xs font-semibold flex-1"
                       />
-                      {isDashboard && (
+                      {showInventory && (
                         <Button
                           type="button"
                           variant="outline"
@@ -363,6 +366,7 @@ interface HotelBookingTableProps {
   arrivalDate?: string; // For date range validation
   departureDate?: string; // For date range validation
   onHotelsRefresh?: () => void; // Callback to refresh hotels after quick add
+  hideInventory?: boolean;
 }
 
 export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
@@ -379,8 +383,10 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
   arrivalDate,
   departureDate,
   onHotelsRefresh,
+  hideInventory = false,
 }) => {
   const isDashboard = typeof window !== 'undefined' && window.location.pathname.includes('/dashboard');
+  const showInventory = isDashboard && !hideInventory;
   // Store raw input values for BRN fields to preserve commas while typing
   const [brnInputs, setBrnInputs] = useState<{ [key: number]: string }>({});
   // Store raw input values for duration fields
@@ -400,8 +406,8 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
   React.useEffect(() => {
     const inputs: { [key: number]: string } = {};
     hotelBookings.forEach((booking, index) => {
-      if (booking.brn && booking.brn.length > 0) {
-        inputs[index] = booking.brn.join(', ');
+      if (booking.brn) {
+        inputs[index] = Array.isArray(booking.brn) ? booking.brn.join(', ') : booking.brn;
       } else if (!brnInputs[index]) {
         inputs[index] = '';
       }
@@ -672,7 +678,7 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                     <Input
                       type="text"
                       placeholder="BRN"
-                      value={brnInputs[index] ?? (booking.brn?.join(', ') || '')}
+                      value={brnInputs[index] ?? (Array.isArray(booking.brn) ? booking.brn.join(', ') : (booking.brn || ''))}
                       onChange={(e) => {
                         const inputValue = e.target.value;
                         setBrnInputs(prev => ({ ...prev, [index]: inputValue }));
@@ -682,7 +688,7 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                       className="h-10 text-sm flex-1"
                       disabled={disabled}
                     />
-                    {isDashboard && (
+                    {showInventory && (
                       <Button
                         type="button"
                         variant="outline"
@@ -699,7 +705,7 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                       </Button>
                     )}
                   </div>
-                  {isDashboard && booking.bedsQuantity && booking.brn && booking.brn.length > 0 && (
+                  {showInventory && booking.bedsQuantity && booking.brn && (Array.isArray(booking.brn) ? booking.brn.length > 0 : String(booking.brn).length > 0) && (
                     <div className="text-[10px] text-indigo-600 font-semibold mt-1">
                       Beds selected from inventory: <strong>{booking.bedsQuantity}</strong>
                     </div>
@@ -809,7 +815,7 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                 </div>
                 <div className="space-y-1">
                     <Label className="text-xs">BRN</Label>
-                    <Input value={brnInputs[index] ?? (booking.brn?.join(', ') || '')} onChange={(e) => { setBrnInputs({...brnInputs, [index]: e.target.value}); onUpdateBooking(index, 'brn', e.target.value.split(',').map(s => s.trim()).filter(Boolean)); }} />
+                    <Input value={brnInputs[index] ?? (Array.isArray(booking.brn) ? booking.brn.join(', ') : (booking.brn || ''))} onChange={(e) => { setBrnInputs({...brnInputs, [index]: e.target.value}); onUpdateBooking(index, 'brn', e.target.value.split(',').map(s => s.trim()).filter(Boolean)); }} />
                  </div>
                  <div className="space-y-1">
                     <Label className="text-xs">Additional BRNs</Label>
@@ -876,6 +882,7 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
           }
         }}
         disabled={disabled}
+        hideInventory={hideInventory}
       />
 
       {selectedHotelRowIndex !== null && hotelBookings[selectedHotelRowIndex] && (
