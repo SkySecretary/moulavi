@@ -70,6 +70,8 @@ export default function EditUmrahVisaBookingPage() {
   const [iqamaMadinahBrn, setIqamaMadinahBrn] = useState('');
   const [iqamaMakkahHotelId, setIqamaMakkahHotelId] = useState('');
   const [iqamaMadinahHotelId, setIqamaMadinahHotelId] = useState('');
+  const [iqamaMakkahCityId, setIqamaMakkahCityId] = useState('');
+  const [iqamaMadinahCityId, setIqamaMadinahCityId] = useState('');
   const [makkahBrnPickerOpen, setMakkahBrnPickerOpen] = useState(false);
   const [madinahBrnPickerOpen, setMadinahBrnPickerOpen] = useState(false);
 
@@ -98,11 +100,23 @@ export default function EditUmrahVisaBookingPage() {
   const madinahCity = useMemo(() => cities.find(c => c.name?.toLowerCase().includes('madinah') || c.name?.toLowerCase().includes('medina')), [cities]);
 
   useEffect(() => {
+    if (cities.length > 0 && !iqamaMakkahCityId) {
+      const makkahC = cities.find(c => c.name?.toLowerCase().includes('makkah') || c.name?.toLowerCase().includes('mecca'));
+      if (makkahC) setIqamaMakkahCityId(makkahC.id);
+    }
+    if (cities.length > 0 && !iqamaMadinahCityId) {
+      const madinahC = cities.find(c => c.name?.toLowerCase().includes('madinah') || c.name?.toLowerCase().includes('medina'));
+      if (madinahC) setIqamaMadinahCityId(madinahC.id);
+    }
+  }, [cities]);
+
+  useEffect(() => {
     if (hotels.length > 0) {
       if (iqamaMakkahHotelName && !iqamaMakkahHotelId) {
         const found = hotels.find((h: any) => h.name === iqamaMakkahHotelName || h.hotelName === iqamaMakkahHotelName);
         if (found) {
           setIqamaMakkahHotelId(found.id);
+          setIqamaMakkahCityId(found.cityId);
         } else {
           setIqamaMakkahHotelId('custom');
         }
@@ -111,6 +125,7 @@ export default function EditUmrahVisaBookingPage() {
         const found = hotels.find((h: any) => h.name === iqamaMadinahHotelName || h.hotelName === iqamaMadinahHotelName);
         if (found) {
           setIqamaMadinahHotelId(found.id);
+          setIqamaMadinahCityId(found.cityId);
         } else {
           setIqamaMadinahHotelId('custom');
         }
@@ -119,12 +134,11 @@ export default function EditUmrahVisaBookingPage() {
   }, [hotels, iqamaMakkahHotelName, iqamaMadinahHotelName]);
 
   const mappedLocationsForTable = useMemo(() => {
-    const locs = locationMasters.filter((l: any) => l.locationType === 'OTHERS' || l.locationType === 'HOTEL');
-    return locs.map((l: any) => ({
-      id: l.id,
-      destinationName: l.name || l.destinationName || ''
+    return cities.map((city: any) => ({
+      id: city.id,
+      destinationName: city.name
     }));
-  }, [locationMasters]);
+  }, [cities]);
 
   const mappedHotelsForTable = useMemo(() => {
     const hots = locationMasters.filter((l: any) => l.locationType === 'HOTEL');
@@ -371,7 +385,7 @@ export default function EditUmrahVisaBookingPage() {
             const location = locationMasters.find((l: any) => l.id === h.locationId);
             return {
               id: h.id,
-              cityId: location?.cityMaster?.id || h.cityId,
+              cityId: h.cityId || location?.cityMaster?.id || h.locationId,
               hotelId: h.hotelId,
               checkInDate: combineDateAndTime(h.checkInDate, '20:30'),
               checkOutDate: combineDateAndTime(h.checkOutDate, '20:30'),
@@ -392,7 +406,7 @@ export default function EditUmrahVisaBookingPage() {
           .map(h => {
             const location = locationMasters.find((l: any) => l.id === h.locationId);
             return {
-              cityId: location?.cityMaster?.id || h.cityId,
+              cityId: h.cityId || location?.cityMaster?.id || h.locationId,
               hotelId: h.hotelId,
               checkInDate: combineDateAndTime(h.checkInDate, '20:30'),
               checkOutDate: combineDateAndTime(h.checkOutDate, '20:30'),
@@ -583,9 +597,13 @@ export default function EditUmrahVisaBookingPage() {
     setPassengers(prev => prev.map((p, i) => i === index ? { ...p, [field]: value } : p));
   };
 
-  const getHotelsForLocation = (locationId: string) => {
-    if (!locationId) return hotels;
-    const location = locationMasters.find((l: any) => l.id === locationId);
+  const getHotelsForLocation = (cityId: string) => {
+    if (!cityId) return hotels;
+    const hasCity = hotels.some((h: any) => h.cityId === cityId);
+    if (hasCity) {
+      return hotels.filter((h: any) => h.cityId === cityId);
+    }
+    const location = locationMasters.find((l: any) => l.id === cityId);
     if (location?.cityMaster?.id) {
       return hotels.filter((h: any) => h.cityId === location.cityMaster?.id);
     }
@@ -933,6 +951,28 @@ export default function EditUmrahVisaBookingPage() {
                     <div className="col-span-1 sm:col-span-2 mt-4 pt-4 border-t border-gray-200">
                       <h4 className="text-sm font-bold text-gray-700 mb-4">Iqama Hotel Details (For Reference & Copy All)</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Makkah City Selector */}
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Makkah City</label>
+                          <Select 
+                            value={iqamaMakkahCityId} 
+                            onValueChange={(val) => {
+                              setIqamaMakkahCityId(val);
+                              setIqamaMakkahHotelId('');
+                              setIqamaMakkahHotelName('');
+                            }}
+                          >
+                            <SelectTrigger className="w-full h-10 text-xs">
+                              <SelectValue placeholder="Select City" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {cities.map((city) => (
+                                <SelectItem key={city.id} value={city.id}>{city.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
                         {/* Makkah Hotel Selector */}
                         <div className="space-y-1">
                           <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Makkah Hotel</label>
@@ -955,7 +995,7 @@ export default function EditUmrahVisaBookingPage() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="custom">-- Custom/Other Hotel --</SelectItem>
-                              {hotels.filter(h => h.cityId === makkahCity?.id).map((h) => (
+                              {hotels.filter(h => h.cityId === iqamaMakkahCityId).map((h) => (
                                 <SelectItem key={h.id} value={h.id}>{h.name || h.hotelName}</SelectItem>
                               ))}
                             </SelectContent>
@@ -988,7 +1028,7 @@ export default function EditUmrahVisaBookingPage() {
                         </div>
 
                         {iqamaMakkahHotelId === 'custom' && (
-                          <div className="space-y-1 sm:col-span-2">
+                          <div className="space-y-1">
                             <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Custom Makkah Hotel Name</label>
                             <Input 
                               value={iqamaMakkahHotelName} 
@@ -997,6 +1037,28 @@ export default function EditUmrahVisaBookingPage() {
                             />
                           </div>
                         )}
+
+                        {/* Madinah City Selector */}
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Madinah City</label>
+                          <Select 
+                            value={iqamaMadinahCityId} 
+                            onValueChange={(val) => {
+                              setIqamaMadinahCityId(val);
+                              setIqamaMadinahHotelId('');
+                              setIqamaMadinahHotelName('');
+                            }}
+                          >
+                            <SelectTrigger className="w-full h-10 text-xs">
+                              <SelectValue placeholder="Select City" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {cities.map((city) => (
+                                <SelectItem key={city.id} value={city.id}>{city.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
 
                         {/* Madinah Hotel Selector */}
                         <div className="space-y-1">
@@ -1020,7 +1082,7 @@ export default function EditUmrahVisaBookingPage() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="custom">-- Custom/Other Hotel --</SelectItem>
-                              {hotels.filter(h => h.cityId === madinahCity?.id).map((h) => (
+                              {hotels.filter(h => h.cityId === iqamaMadinahCityId).map((h) => (
                                 <SelectItem key={h.id} value={h.id}>{h.name || h.hotelName}</SelectItem>
                               ))}
                             </SelectContent>
@@ -1053,7 +1115,7 @@ export default function EditUmrahVisaBookingPage() {
                         </div>
 
                         {iqamaMadinahHotelId === 'custom' && (
-                          <div className="space-y-1 sm:col-span-2">
+                          <div className="space-y-1">
                             <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Custom Madinah Hotel Name</label>
                             <Input 
                               value={iqamaMadinahHotelName} 
