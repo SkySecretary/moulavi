@@ -1161,6 +1161,13 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
         },
       });
 
+      try {
+        const { InventoryService } = require('../services/inventoryService');
+        await InventoryService.recalculateAll();
+      } catch (err) {
+        console.error('Failed to recalculate inventories on iqama accommodation patch:', err);
+      }
+
       return res.json({ sponsorIqamaDetails: sponsorIqama });
     } else if (booking.accommodationType === 'hotel') {
       // Update hotel bookings
