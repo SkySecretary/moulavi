@@ -1077,7 +1077,7 @@ router.post('/group/add-to-existing-booking', authenticate, uploadGroup.fields([
           hasTransportation: existingBooking.hasTransportation,
           status: 'group_assigned',
           brn: existingBooking.brn,
-          tripStatus: existingBooking.tripStatus,
+          tripStatus: 'pending',
           hasMultipleGroup: false
         }
       });
@@ -1252,6 +1252,29 @@ router.post('/group/add-to-existing-booking', authenticate, uploadGroup.fields([
           lastUpdatedBy: user.id,
         },
       });
+
+      // 8.5. If a voucher is already generated for the original booking, update it
+      const existingVoucher = await tx.voucher.findFirst({
+        where: { bookingId: existingBookingId }
+      });
+      if (existingVoucher) {
+        const updatedGroupCode = existingVoucher.groupCode 
+          ? `${existingVoucher.groupCode}, ${newGroupNumber}` 
+          : newGroupNumber;
+        const updatedGroupName = existingVoucher.groupName 
+          ? `${existingVoucher.groupName}, ${newGroupName}` 
+          : newGroupName;
+        await tx.voucher.update({
+          where: { id: existingVoucher.id },
+          data: {
+            paxCount: {
+              increment: passengerCount
+            },
+            groupCode: updatedGroupCode,
+            groupName: updatedGroupName
+          }
+        });
+      }
 
       return { booking: updatedBooking, duplicateBooking };
     }, {
