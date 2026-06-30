@@ -35,6 +35,7 @@ import { UMRAH_VISA_STATUS_CONFIG } from '@/lib/constants';
 import { DatePicker } from '@/components/ui/date-picker';
 import { fromDisplayDate } from '@/lib/umrah/validation';
 import { PickBrnInventoryDialog } from '@/components/umrah-booking/components/HotelBookingTable';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function TripInfoPage() {
   const router = useRouter();
@@ -104,6 +105,7 @@ export default function TripInfoPage() {
   const [makkahBrnPickerOpen, setMakkahBrnPickerOpen] = useState(false);
   const [madinahBrnPickerOpen, setMadinahBrnPickerOpen] = useState(false);
   const [activePickerBookingId, setActivePickerBookingId] = useState<string | null>(null);
+  const [activeHotelEditBookingId, setActiveHotelEditBookingId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadMasters = async () => {
@@ -1378,199 +1380,34 @@ export default function TripInfoPage() {
                                     </div>
                                   </div>
 
-                                  {/* New Editable Hotel/BRN Fields */}
-                                  <div className="space-y-3">
-                                    <div className="grid grid-cols-2 gap-3">
-                                      {/* Hotel 1 (defaults to Makkah) */}
-                                      <div className="space-y-1 border border-purple-100 p-2 rounded bg-purple-50/30">
-                                        <label className="text-[10px] font-bold text-purple-700 block uppercase">Hotel 1</label>
-                                        
-                                        {/* City Select */}
-                                        <Select
-                                          value={editingIqama[booking.id!]?.makkahCityId || ''}
-                                          onValueChange={(val) => setEditingIqama({
-                                            ...editingIqama,
-                                            [booking.id!]: { 
-                                              ...editingIqama[booking.id!], 
-                                              makkahCityId: val,
-                                              makkahHotelId: '',
-                                              makkahHotelName: ''
-                                            }
-                                          })}
-                                        >
-                                          <SelectTrigger className="w-full h-8 text-[10px] bg-white">
-                                            <SelectValue placeholder="City" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {cities.map((city) => (
-                                              <SelectItem key={city.id} value={city.id} className="text-[10px]">{city.name}</SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-
-                                        {/* Hotel Select */}
-                                        <Select
-                                          value={editingIqama[booking.id!]?.makkahHotelId || ''}
-                                          onValueChange={(val) => {
-                                            const selectedH = hotels.find(h => h.id === val);
-                                            setEditingIqama({
-                                              ...editingIqama,
-                                              [booking.id!]: { 
-                                                ...editingIqama[booking.id!], 
-                                                makkahHotelId: val,
-                                                makkahHotelName: val === 'custom' ? '' : (selectedH?.name || selectedH?.hotelName || '')
-                                              }
-                                            });
-                                          }}
-                                        >
-                                          <SelectTrigger className="w-full h-8 text-[10px] bg-white">
-                                            <SelectValue placeholder="Hotel" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value="custom" className="text-[10px]">-- Custom Hotel Name --</SelectItem>
-                                            {hotels.filter(h => h.cityId === editingIqama[booking.id!]?.makkahCityId).map((h) => (
-                                              <SelectItem key={h.id} value={h.id} className="text-[10px]">{h.name || h.hotelName}</SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-
-                                        {/* Custom Hotel Input */}
-                                        {editingIqama[booking.id!]?.makkahHotelId === 'custom' && (
-                                          <Input
-                                            placeholder="Custom Hotel Name"
-                                            value={editingIqama[booking.id!]?.makkahHotelName || ''}
-                                            onChange={(e) => setEditingIqama({
-                                              ...editingIqama,
-                                              [booking.id!]: { ...editingIqama[booking.id!], makkahHotelName: e.target.value }
-                                            })}
-                                            className="h-8 text-[10px] px-2 bg-white"
-                                          />
-                                        )}
-
-                                        {/* BRN Picker Input */}
-                                        <div className="flex gap-1 items-center">
-                                          <Input
-                                            placeholder="BRN or Agreement No"
-                                            value={editingIqama[booking.id!]?.makkahBrn || ''}
-                                            onChange={(e) => setEditingIqama({
-                                              ...editingIqama,
-                                              [booking.id!]: { ...editingIqama[booking.id!], makkahBrn: e.target.value }
-                                            })}
-                                            className="h-8 text-[10px] px-2 flex-1 bg-white"
-                                          />
-                                          {editingIqama[booking.id!]?.makkahHotelId && editingIqama[booking.id!]?.makkahHotelId !== 'custom' && (
-                                            <Button
-                                              type="button"
-                                              variant="outline"
-                                              size="icon"
-                                              onClick={() => {
-                                                setActivePickerBookingId(booking.id!);
-                                                setMakkahBrnPickerOpen(true);
-                                              }}
-                                              className="h-8 w-8 p-0 border-purple-200 text-purple-600 hover:bg-purple-50 shrink-0 bg-white"
-                                              title="Pick from Inventory"
-                                            >
-                                              <Database className="h-3.5 w-3.5" />
-                                            </Button>
-                                          )}
-                                        </div>
-                                      </div>
-
-                                      {/* Hotel 2 (defaults to Madinah) */}
-                                      <div className="space-y-1 border border-purple-100 p-2 rounded bg-purple-50/30">
-                                        <label className="text-[10px] font-bold text-purple-700 block uppercase">Hotel 2</label>
-                                        
-                                        {/* City Select */}
-                                        <Select
-                                          value={editingIqama[booking.id!]?.madinahCityId || ''}
-                                          onValueChange={(val) => setEditingIqama({
-                                            ...editingIqama,
-                                            [booking.id!]: { 
-                                              ...editingIqama[booking.id!], 
-                                              madinahCityId: val,
-                                              madinahHotelId: '',
-                                              madinahHotelName: ''
-                                            }
-                                          })}
-                                        >
-                                          <SelectTrigger className="w-full h-8 text-[10px] bg-white">
-                                            <SelectValue placeholder="City" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {cities.map((city) => (
-                                              <SelectItem key={city.id} value={city.id} className="text-[10px]">{city.name}</SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-
-                                        {/* Hotel Select */}
-                                        <Select
-                                          value={editingIqama[booking.id!]?.madinahHotelId || ''}
-                                          onValueChange={(val) => {
-                                            const selectedH = hotels.find(h => h.id === val);
-                                            setEditingIqama({
-                                              ...editingIqama,
-                                              [booking.id!]: { 
-                                                ...editingIqama[booking.id!], 
-                                                madinahHotelId: val,
-                                                madinahHotelName: val === 'custom' ? '' : (selectedH?.name || selectedH?.hotelName || '')
-                                              }
-                                            });
-                                          }}
-                                        >
-                                          <SelectTrigger className="w-full h-8 text-[10px] bg-white">
-                                            <SelectValue placeholder="Hotel" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value="custom" className="text-[10px]">-- Custom Hotel Name --</SelectItem>
-                                            {hotels.filter(h => h.cityId === editingIqama[booking.id!]?.madinahCityId).map((h) => (
-                                              <SelectItem key={h.id} value={h.id} className="text-[10px]">{h.name || h.hotelName}</SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-
-                                        {/* Custom Hotel Input */}
-                                        {editingIqama[booking.id!]?.madinahHotelId === 'custom' && (
-                                          <Input
-                                            placeholder="Custom Hotel Name"
-                                            value={editingIqama[booking.id!]?.madinahHotelName || ''}
-                                            onChange={(e) => setEditingIqama({
-                                              ...editingIqama,
-                                              [booking.id!]: { ...editingIqama[booking.id!], madinahHotelName: e.target.value }
-                                            })}
-                                            className="h-8 text-[10px] px-2 bg-white"
-                                          />
-                                        )}
-
-                                        {/* BRN Picker Input */}
-                                        <div className="flex gap-1 items-center">
-                                          <Input
-                                            placeholder="BRN or Agreement No"
-                                            value={editingIqama[booking.id!]?.madinahBrn || ''}
-                                            onChange={(e) => setEditingIqama({
-                                              ...editingIqama,
-                                              [booking.id!]: { ...editingIqama[booking.id!], madinahBrn: e.target.value }
-                                            })}
-                                            className="h-8 text-[10px] px-2 flex-1 bg-white"
-                                          />
-                                          {editingIqama[booking.id!]?.madinahHotelId && editingIqama[booking.id!]?.madinahHotelId !== 'custom' && (
-                                            <Button
-                                              type="button"
-                                              variant="outline"
-                                              size="icon"
-                                              onClick={() => {
-                                                setActivePickerBookingId(booking.id!);
-                                                setMadinahBrnPickerOpen(true);
-                                              }}
-                                              className="h-8 w-8 p-0 border-purple-200 text-purple-600 hover:bg-purple-50 shrink-0 bg-white"
-                                              title="Pick from Inventory"
-                                            >
-                                              <Database className="h-3.5 w-3.5" />
-                                            </Button>
-                                          )}
-                                        </div>
+                                  {/* Current Saved/Edited Hotel & BRN Info */}
+                                  <div className="space-y-1.5 text-[10px] text-gray-600 bg-purple-50/50 p-2 rounded border border-purple-100">
+                                    <div>
+                                      <span className="font-semibold text-purple-700 block text-[9px] uppercase">Hotel 1</span>
+                                      <div className="pl-1">
+                                        <span className="font-medium text-gray-800">{editingIqama[booking.id!]?.makkahHotelName || 'Not Set'}</span>
+                                        <span className="text-gray-500 block">BRN: {editingIqama[booking.id!]?.makkahBrn || 'N/A'}</span>
                                       </div>
                                     </div>
+                                    <div className="mt-1">
+                                      <span className="font-semibold text-purple-700 block text-[9px] uppercase">Hotel 2</span>
+                                      <div className="pl-1">
+                                        <span className="font-medium text-gray-800">{editingIqama[booking.id!]?.madinahHotelName || 'Not Set'}</span>
+                                        <span className="text-gray-500 block">BRN: {editingIqama[booking.id!]?.madinahBrn || 'N/A'}</span>
+                                      </div>
+                                    </div>
+                                    
+                                    {currentStatus === 'pending' && (
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => setActiveHotelEditBookingId(booking.id!)}
+                                        className="w-full mt-2 h-7 text-[10px] text-purple-700 border-purple-200 hover:bg-purple-100/50 bg-white"
+                                      >
+                                        Edit Hotels & BRNs
+                                      </Button>
+                                    )}
                                   </div>
                                 </div>
                               ) : (
@@ -1921,6 +1758,248 @@ export default function TripInfoPage() {
             setActivePickerBookingId(null);
           }}
         />
+      )}
+
+      {activeHotelEditBookingId && (
+        <Dialog open={!!activeHotelEditBookingId} onOpenChange={(open) => { if (!open) setActiveHotelEditBookingId(null); }}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Edit Hotel & BRN Information</DialogTitle>
+              <DialogDescription>
+                Update Hotel 1 and Hotel 2 accommodation reference and BRN agreements.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              {/* Hotel 1 (defaults to Makkah) */}
+              <div className="space-y-3 border border-purple-100 p-3 rounded-lg bg-purple-50/30">
+                <label className="text-xs font-bold text-purple-700 block uppercase">Hotel 1</label>
+                
+                {/* City Select */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">City</label>
+                  <Select
+                    value={editingIqama[activeHotelEditBookingId]?.makkahCityId || ''}
+                    onValueChange={(val) => setEditingIqama({
+                      ...editingIqama,
+                      [activeHotelEditBookingId]: { 
+                        ...editingIqama[activeHotelEditBookingId], 
+                        makkahCityId: val,
+                        makkahHotelId: '',
+                        makkahHotelName: ''
+                      }
+                    })}
+                  >
+                    <SelectTrigger className="w-full bg-white">
+                      <SelectValue placeholder="Select City" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cities.map((city) => (
+                        <SelectItem key={city.id} value={city.id}>{city.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Hotel Select */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">Hotel</label>
+                  <Select
+                    value={editingIqama[activeHotelEditBookingId]?.makkahHotelId || ''}
+                    onValueChange={(val) => {
+                      const selectedH = hotels.find(h => h.id === val);
+                      setEditingIqama({
+                        ...editingIqama,
+                        [activeHotelEditBookingId]: { 
+                          ...editingIqama[activeHotelEditBookingId], 
+                          makkahHotelId: val,
+                          makkahHotelName: val === 'custom' ? '' : (selectedH?.name || selectedH?.hotelName || '')
+                        }
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="w-full bg-white">
+                      <SelectValue placeholder="Select Hotel" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="custom">-- Custom Hotel Name --</SelectItem>
+                      {hotels.filter(h => h.cityId === editingIqama[activeHotelEditBookingId]?.makkahCityId).map((h) => (
+                        <SelectItem key={h.id} value={h.id}>{h.name || h.hotelName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Custom Hotel Input */}
+                {editingIqama[activeHotelEditBookingId]?.makkahHotelId === 'custom' && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-700">Custom Hotel Name</label>
+                    <Input
+                      placeholder="Enter Hotel Name"
+                      value={editingIqama[activeHotelEditBookingId]?.makkahHotelName || ''}
+                      onChange={(e) => setEditingIqama({
+                        ...editingIqama,
+                        [activeHotelEditBookingId]: { ...editingIqama[activeHotelEditBookingId], makkahHotelName: e.target.value }
+                      })}
+                      className="bg-white"
+                    />
+                  </div>
+                )}
+
+                {/* BRN Picker Input */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">BRN / Agreement No</label>
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      placeholder="Enter BRN or Agreement No"
+                      value={editingIqama[activeHotelEditBookingId]?.makkahBrn || ''}
+                      onChange={(e) => setEditingIqama({
+                        ...editingIqama,
+                        [activeHotelEditBookingId]: { ...editingIqama[activeHotelEditBookingId], makkahBrn: e.target.value }
+                      })}
+                      className="flex-1 bg-white"
+                    />
+                    {editingIqama[activeHotelEditBookingId]?.makkahHotelId && editingIqama[activeHotelEditBookingId]?.makkahHotelId !== 'custom' && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          setActivePickerBookingId(activeHotelEditBookingId);
+                          setMakkahBrnPickerOpen(true);
+                        }}
+                        className="border-purple-200 text-purple-600 hover:bg-purple-50 shrink-0 bg-white"
+                        title="Pick from Inventory"
+                      >
+                        <Database className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Hotel 2 (defaults to Madinah) */}
+              <div className="space-y-3 border border-purple-100 p-3 rounded-lg bg-purple-50/30">
+                <label className="text-xs font-bold text-purple-700 block uppercase">Hotel 2</label>
+                
+                {/* City Select */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">City</label>
+                  <Select
+                    value={editingIqama[activeHotelEditBookingId]?.madinahCityId || ''}
+                    onValueChange={(val) => setEditingIqama({
+                      ...editingIqama,
+                      [activeHotelEditBookingId]: { 
+                        ...editingIqama[activeHotelEditBookingId], 
+                        madinahCityId: val,
+                        madinahHotelId: '',
+                        madinahHotelName: ''
+                      }
+                    })}
+                  >
+                    <SelectTrigger className="w-full bg-white">
+                      <SelectValue placeholder="Select City" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cities.map((city) => (
+                        <SelectItem key={city.id} value={city.id}>{city.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Hotel Select */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">Hotel</label>
+                  <Select
+                    value={editingIqama[activeHotelEditBookingId]?.madinahHotelId || ''}
+                    onValueChange={(val) => {
+                      const selectedH = hotels.find(h => h.id === val);
+                      setEditingIqama({
+                        ...editingIqama,
+                        [activeHotelEditBookingId]: { 
+                          ...editingIqama[activeHotelEditBookingId], 
+                          madinahHotelId: val,
+                          madinahHotelName: val === 'custom' ? '' : (selectedH?.name || selectedH?.hotelName || '')
+                        }
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="w-full bg-white">
+                      <SelectValue placeholder="Select Hotel" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="custom">-- Custom Hotel Name --</SelectItem>
+                      {hotels.filter(h => h.cityId === editingIqama[activeHotelEditBookingId]?.madinahCityId).map((h) => (
+                        <SelectItem key={h.id} value={h.id}>{h.name || h.hotelName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Custom Hotel Input */}
+                {editingIqama[activeHotelEditBookingId]?.madinahHotelId === 'custom' && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-700">Custom Hotel Name</label>
+                    <Input
+                      placeholder="Enter Hotel Name"
+                      value={editingIqama[activeHotelEditBookingId]?.madinahHotelName || ''}
+                      onChange={(e) => setEditingIqama({
+                        ...editingIqama,
+                        [activeHotelEditBookingId]: { ...editingIqama[activeHotelEditBookingId], madinahHotelName: e.target.value }
+                      })}
+                      className="bg-white"
+                    />
+                  </div>
+                )}
+
+                {/* BRN Picker Input */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">BRN / Agreement No</label>
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      placeholder="Enter BRN or Agreement No"
+                      value={editingIqama[activeHotelEditBookingId]?.madinahBrn || ''}
+                      onChange={(e) => setEditingIqama({
+                        ...editingIqama,
+                        [activeHotelEditBookingId]: { ...editingIqama[activeHotelEditBookingId], madinahBrn: e.target.value }
+                      })}
+                      className="flex-1 bg-white"
+                    />
+                    {editingIqama[activeHotelEditBookingId]?.madinahHotelId && editingIqama[activeHotelEditBookingId]?.madinahHotelId !== 'custom' && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          setActivePickerBookingId(activeHotelEditBookingId);
+                          setMadinahBrnPickerOpen(true);
+                        }}
+                        className="border-purple-200 text-purple-600 hover:bg-purple-50 shrink-0 bg-white"
+                        title="Pick from Inventory"
+                      >
+                        <Database className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setActiveHotelEditBookingId(null)}>Cancel</Button>
+              <Button 
+                onClick={async () => {
+                  await handleUpdateIqamaHotel(activeHotelEditBookingId);
+                  setActiveHotelEditBookingId(null);
+                }}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                Save changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
       </div>
     </div>

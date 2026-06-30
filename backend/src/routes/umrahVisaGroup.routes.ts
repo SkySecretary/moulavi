@@ -415,13 +415,18 @@ router.post('/group/create-booking', authenticate, uploadGroup.fields([
       return null;
     };
 
-    // Generate unique booking reference
-    const bookingReference = await generateBookingReference();
+    // Save everything in a single transaction with automatic retry on booking reference collision
+    let result: any = null;
+    let attempts = 0;
+    const maxAttempts = 5;
 
-    // Save everything in a single transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Create UmrahVisaBooking directly with partyId (group visa, always hotel, status = group_assigned)
-      const booking = await tx.umrahVisaBooking.create({
+    while (attempts < maxAttempts) {
+      try {
+        const bookingReference = await generateBookingReference();
+
+        result = await prisma.$transaction(async (tx) => {
+          // 1. Create UmrahVisaBooking directly with partyId (group visa, always hotel, status = group_assigned)
+          const booking = await tx.umrahVisaBooking.create({
         data: {
           partyId: partyId,
           bookingReference,
@@ -845,11 +850,23 @@ router.post('/group/create-booking', authenticate, uploadGroup.fields([
         },
       });
 
-      return { booking, travelDetails, passengers: passengerRecords };
-    }, {
-      maxWait: 10000,  // 10 seconds max wait
-      timeout: 30000,  // 30 seconds timeout
-    });
+          return { booking, travelDetails, passengers: passengerRecords };
+        }, {
+          maxWait: 15000,
+          timeout: 45000,
+        });
+
+        break;
+      } catch (error: any) {
+        if (error.code === 'P2002' && error.meta?.target?.includes('booking_reference')) {
+          attempts++;
+          if (attempts >= maxAttempts) throw error;
+          await new Promise(resolve => setTimeout(resolve, 100 * attempts));
+          continue;
+        }
+        throw error;
+      }
+    }
 
     res.status(201).json({
       message: 'Group Umrah visa booking completed successfully',
