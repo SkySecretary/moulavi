@@ -23,16 +23,18 @@ import {
   AlertCircle,
   Download,
   Loader2,
-  Check
+  Check,
+  Database
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
 import { UmrahVisaBooking, UmrahVisaStatus } from '@/types';
-import { umrahVisaAPI, uploadAPI } from '@/lib/api';
+import { umrahVisaAPI, uploadAPI, cityMasterAPI, locationMasterAPI } from '@/lib/api';
 import { UMRAH_VISA_STATUS_CONFIG } from '@/lib/constants';
 import { DatePicker } from '@/components/ui/date-picker';
 import { fromDisplayDate } from '@/lib/umrah/validation';
+import { PickBrnInventoryDialog } from '@/components/umrah-booking/components/HotelBookingTable';
 
 export default function TripInfoPage() {
   const router = useRouter();
@@ -85,7 +87,78 @@ export default function TripInfoPage() {
     makkahBrn: string;
     madinahHotelName: string;
     madinahBrn: string;
+    makkahHotelId?: string;
+    madinahHotelId?: string;
+    makkahCityId?: string;
+    madinahCityId?: string;
   }>>({});
+
+  // Master data for inventory selection
+  const [cities, setCities] = useState<any[]>([]);
+  const [hotels, setHotels] = useState<any[]>([]);
+  const [locationMasters, setLocationMasters] = useState<any[]>([]);
+  const [makkahCity, setMakkahCity] = useState<any>(null);
+  const [madinahCity, setMadinahCity] = useState<any>(null);
+
+  // States to open picker dialogs
+  const [makkahBrnPickerOpen, setMakkahBrnPickerOpen] = useState(false);
+  const [madinahBrnPickerOpen, setMadinahBrnPickerOpen] = useState(false);
+  const [activePickerBookingId, setActivePickerBookingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadMasters = async () => {
+      try {
+        const [citiesRes, locationsRes] = await Promise.all([
+          cityMasterAPI.getActive(),
+          locationMasterAPI.getActive()
+        ]);
+        const citiesList = citiesRes.data?.cityMasters || citiesRes.data || [];
+        setCities(citiesList);
+        const locations = locationsRes.data?.locationMasters || locationsRes.data || [];
+        setLocationMasters(locations);
+        const hotelList = locations.filter((loc: any) => loc.locationType === 'HOTEL');
+        setHotels(hotelList);
+        
+        const makkah = citiesList.find((c: any) => c.name?.toLowerCase().includes('makkah') || c.name?.toLowerCase().includes('mecca'));
+        setMakkahCity(makkah);
+        const madinah = citiesList.find((c: any) => c.name?.toLowerCase().includes('madinah') || c.name?.toLowerCase().includes('medina'));
+        setMadinahCity(madinah);
+      } catch (err) {
+        console.error('Failed to load master data in trip info:', err);
+      }
+    };
+    loadMasters();
+  }, []);
+
+  useEffect(() => {
+    if (hotels.length > 0 && Object.keys(editingIqama).length > 0) {
+      // Check if any row needs mapping
+      const needsMapping = Object.values(editingIqama).some(
+        row => (row.makkahHotelName && !row.makkahHotelId) || (row.madinahHotelName && !row.madinahHotelId) || !row.makkahCityId || !row.madinahCityId
+      );
+      if (!needsMapping) return;
+
+      setEditingIqama(prev => {
+        const updated = { ...prev };
+        for (const bookingId of Object.keys(updated)) {
+          const row = { ...updated[bookingId] };
+          
+          if (!row.makkahCityId) {
+            const found = hotels.find((h: any) => h.name === row.makkahHotelName || h.hotelName === row.makkahHotelName);
+            row.makkahCityId = found?.cityId || makkahCity?.id || '';
+            row.makkahHotelId = found?.id || (row.makkahHotelName ? 'custom' : '');
+          }
+          if (!row.madinahCityId) {
+            const found = hotels.find((h: any) => h.name === row.madinahHotelName || h.hotelName === row.madinahHotelName);
+            row.madinahCityId = found?.cityId || madinahCity?.id || '';
+            row.madinahHotelId = found?.id || (row.madinahHotelName ? 'custom' : '');
+          }
+          updated[bookingId] = row;
+        }
+        return updated;
+      });
+    }
+  }, [hotels, makkahCity, madinahCity, editingIqama]);
 
   const [pendingBrnLoad, setPendingBrnLoad] = useState<Array<{ 
     date: string; 
@@ -1306,49 +1379,196 @@ export default function TripInfoPage() {
                                   </div>
 
                                   {/* New Editable Hotel/BRN Fields */}
-                                  <div className="space-y-2">
-                                    <div className="grid grid-cols-2 gap-2">
-                                      <div className="space-y-1">
-                                        <label className="text-[10px] font-semibold text-purple-700">Makkah Hotel</label>
-                                        <Input
-                                          placeholder="Makkah Hotel"
-                                          value={editingIqama[booking.id!]?.makkahHotelName || ''}
-                                          onChange={(e) => setEditingIqama({
+                                  <div className="space-y-3">
+                                    <div className="grid grid-cols-2 gap-3">
+                                      {/* Hotel 1 (defaults to Makkah) */}
+                                      <div className="space-y-1 border border-purple-100 p-2 rounded bg-purple-50/30">
+                                        <label className="text-[10px] font-bold text-purple-700 block uppercase">Hotel 1</label>
+                                        
+                                        {/* City Select */}
+                                        <Select
+                                          value={editingIqama[booking.id!]?.makkahCityId || ''}
+                                          onValueChange={(val) => setEditingIqama({
                                             ...editingIqama,
-                                            [booking.id!]: { ...editingIqama[booking.id!], makkahHotelName: e.target.value }
+                                            [booking.id!]: { 
+                                              ...editingIqama[booking.id!], 
+                                              makkahCityId: val,
+                                              makkahHotelId: '',
+                                              makkahHotelName: ''
+                                            }
                                           })}
-                                          className="h-7 text-[10px] px-2"
-                                        />
-                                        <Input
-                                          placeholder="Makkah BRN"
-                                          value={editingIqama[booking.id!]?.makkahBrn || ''}
-                                          onChange={(e) => setEditingIqama({
-                                            ...editingIqama,
-                                            [booking.id!]: { ...editingIqama[booking.id!], makkahBrn: e.target.value }
-                                          })}
-                                          className="h-7 text-[10px] px-2"
-                                        />
+                                        >
+                                          <SelectTrigger className="w-full h-8 text-[10px] bg-white">
+                                            <SelectValue placeholder="City" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {cities.map((city) => (
+                                              <SelectItem key={city.id} value={city.id} className="text-[10px]">{city.name}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+
+                                        {/* Hotel Select */}
+                                        <Select
+                                          value={editingIqama[booking.id!]?.makkahHotelId || ''}
+                                          onValueChange={(val) => {
+                                            const selectedH = hotels.find(h => h.id === val);
+                                            setEditingIqama({
+                                              ...editingIqama,
+                                              [booking.id!]: { 
+                                                ...editingIqama[booking.id!], 
+                                                makkahHotelId: val,
+                                                makkahHotelName: val === 'custom' ? '' : (selectedH?.name || selectedH?.hotelName || '')
+                                              }
+                                            });
+                                          }}
+                                        >
+                                          <SelectTrigger className="w-full h-8 text-[10px] bg-white">
+                                            <SelectValue placeholder="Hotel" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="custom" className="text-[10px]">-- Custom Hotel Name --</SelectItem>
+                                            {hotels.filter(h => h.cityId === editingIqama[booking.id!]?.makkahCityId).map((h) => (
+                                              <SelectItem key={h.id} value={h.id} className="text-[10px]">{h.name || h.hotelName}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+
+                                        {/* Custom Hotel Input */}
+                                        {editingIqama[booking.id!]?.makkahHotelId === 'custom' && (
+                                          <Input
+                                            placeholder="Custom Hotel Name"
+                                            value={editingIqama[booking.id!]?.makkahHotelName || ''}
+                                            onChange={(e) => setEditingIqama({
+                                              ...editingIqama,
+                                              [booking.id!]: { ...editingIqama[booking.id!], makkahHotelName: e.target.value }
+                                            })}
+                                            className="h-8 text-[10px] px-2 bg-white"
+                                          />
+                                        )}
+
+                                        {/* BRN Picker Input */}
+                                        <div className="flex gap-1 items-center">
+                                          <Input
+                                            placeholder="BRN or Agreement No"
+                                            value={editingIqama[booking.id!]?.makkahBrn || ''}
+                                            onChange={(e) => setEditingIqama({
+                                              ...editingIqama,
+                                              [booking.id!]: { ...editingIqama[booking.id!], makkahBrn: e.target.value }
+                                            })}
+                                            className="h-8 text-[10px] px-2 flex-1 bg-white"
+                                          />
+                                          {editingIqama[booking.id!]?.makkahHotelId && editingIqama[booking.id!]?.makkahHotelId !== 'custom' && (
+                                            <Button
+                                              type="button"
+                                              variant="outline"
+                                              size="icon"
+                                              onClick={() => {
+                                                setActivePickerBookingId(booking.id!);
+                                                setMakkahBrnPickerOpen(true);
+                                              }}
+                                              className="h-8 w-8 p-0 border-purple-200 text-purple-600 hover:bg-purple-50 shrink-0 bg-white"
+                                              title="Pick from Inventory"
+                                            >
+                                              <Database className="h-3.5 w-3.5" />
+                                            </Button>
+                                          )}
+                                        </div>
                                       </div>
-                                      <div className="space-y-1">
-                                        <label className="text-[10px] font-semibold text-purple-700">Madinah Hotel</label>
-                                        <Input
-                                          placeholder="Madinah Hotel"
-                                          value={editingIqama[booking.id!]?.madinahHotelName || ''}
-                                          onChange={(e) => setEditingIqama({
+
+                                      {/* Hotel 2 (defaults to Madinah) */}
+                                      <div className="space-y-1 border border-purple-100 p-2 rounded bg-purple-50/30">
+                                        <label className="text-[10px] font-bold text-purple-700 block uppercase">Hotel 2</label>
+                                        
+                                        {/* City Select */}
+                                        <Select
+                                          value={editingIqama[booking.id!]?.madinahCityId || ''}
+                                          onValueChange={(val) => setEditingIqama({
                                             ...editingIqama,
-                                            [booking.id!]: { ...editingIqama[booking.id!], madinahHotelName: e.target.value }
+                                            [booking.id!]: { 
+                                              ...editingIqama[booking.id!], 
+                                              madinahCityId: val,
+                                              madinahHotelId: '',
+                                              madinahHotelName: ''
+                                            }
                                           })}
-                                          className="h-7 text-[10px] px-2"
-                                        />
-                                        <Input
-                                          placeholder="Madinah BRN"
-                                          value={editingIqama[booking.id!]?.madinahBrn || ''}
-                                          onChange={(e) => setEditingIqama({
-                                            ...editingIqama,
-                                            [booking.id!]: { ...editingIqama[booking.id!], madinahBrn: e.target.value }
-                                          })}
-                                          className="h-7 text-[10px] px-2"
-                                        />
+                                        >
+                                          <SelectTrigger className="w-full h-8 text-[10px] bg-white">
+                                            <SelectValue placeholder="City" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {cities.map((city) => (
+                                              <SelectItem key={city.id} value={city.id} className="text-[10px]">{city.name}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+
+                                        {/* Hotel Select */}
+                                        <Select
+                                          value={editingIqama[booking.id!]?.madinahHotelId || ''}
+                                          onValueChange={(val) => {
+                                            const selectedH = hotels.find(h => h.id === val);
+                                            setEditingIqama({
+                                              ...editingIqama,
+                                              [booking.id!]: { 
+                                                ...editingIqama[booking.id!], 
+                                                madinahHotelId: val,
+                                                madinahHotelName: val === 'custom' ? '' : (selectedH?.name || selectedH?.hotelName || '')
+                                              }
+                                            });
+                                          }}
+                                        >
+                                          <SelectTrigger className="w-full h-8 text-[10px] bg-white">
+                                            <SelectValue placeholder="Hotel" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="custom" className="text-[10px]">-- Custom Hotel Name --</SelectItem>
+                                            {hotels.filter(h => h.cityId === editingIqama[booking.id!]?.madinahCityId).map((h) => (
+                                              <SelectItem key={h.id} value={h.id} className="text-[10px]">{h.name || h.hotelName}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+
+                                        {/* Custom Hotel Input */}
+                                        {editingIqama[booking.id!]?.madinahHotelId === 'custom' && (
+                                          <Input
+                                            placeholder="Custom Hotel Name"
+                                            value={editingIqama[booking.id!]?.madinahHotelName || ''}
+                                            onChange={(e) => setEditingIqama({
+                                              ...editingIqama,
+                                              [booking.id!]: { ...editingIqama[booking.id!], madinahHotelName: e.target.value }
+                                            })}
+                                            className="h-8 text-[10px] px-2 bg-white"
+                                          />
+                                        )}
+
+                                        {/* BRN Picker Input */}
+                                        <div className="flex gap-1 items-center">
+                                          <Input
+                                            placeholder="BRN or Agreement No"
+                                            value={editingIqama[booking.id!]?.madinahBrn || ''}
+                                            onChange={(e) => setEditingIqama({
+                                              ...editingIqama,
+                                              [booking.id!]: { ...editingIqama[booking.id!], madinahBrn: e.target.value }
+                                            })}
+                                            className="h-8 text-[10px] px-2 flex-1 bg-white"
+                                          />
+                                          {editingIqama[booking.id!]?.madinahHotelId && editingIqama[booking.id!]?.madinahHotelId !== 'custom' && (
+                                            <Button
+                                              type="button"
+                                              variant="outline"
+                                              size="icon"
+                                              onClick={() => {
+                                                setActivePickerBookingId(booking.id!);
+                                                setMadinahBrnPickerOpen(true);
+                                              }}
+                                              className="h-8 w-8 p-0 border-purple-200 text-purple-600 hover:bg-purple-50 shrink-0 bg-white"
+                                              title="Pick from Inventory"
+                                            >
+                                              <Database className="h-3.5 w-3.5" />
+                                            </Button>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
@@ -1651,7 +1871,57 @@ export default function TripInfoPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
+      </div>
+
+      {makkahBrnPickerOpen && activePickerBookingId && editingIqama[activePickerBookingId]?.makkahHotelId && (
+        <PickBrnInventoryDialog
+          isOpen={makkahBrnPickerOpen}
+          onClose={() => {
+            setMakkahBrnPickerOpen(false);
+            setActivePickerBookingId(null);
+          }}
+          hotelId={editingIqama[activePickerBookingId].makkahHotelId!}
+          hotelName={editingIqama[activePickerBookingId].makkahHotelName}
+          onSelect={(brnNumber, qty) => {
+            if (activePickerBookingId) {
+              setEditingIqama(prev => ({
+                ...prev,
+                [activePickerBookingId]: {
+                  ...prev[activePickerBookingId],
+                  makkahBrn: brnNumber
+                }
+              }));
+            }
+            setMakkahBrnPickerOpen(false);
+            setActivePickerBookingId(null);
+          }}
+        />
+      )}
+
+      {madinahBrnPickerOpen && activePickerBookingId && editingIqama[activePickerBookingId]?.madinahHotelId && (
+        <PickBrnInventoryDialog
+          isOpen={madinahBrnPickerOpen}
+          onClose={() => {
+            setMadinahBrnPickerOpen(false);
+            setActivePickerBookingId(null);
+          }}
+          hotelId={editingIqama[activePickerBookingId].madinahHotelId!}
+          hotelName={editingIqama[activePickerBookingId].madinahHotelName}
+          onSelect={(brnNumber, qty) => {
+            if (activePickerBookingId) {
+              setEditingIqama(prev => ({
+                ...prev,
+                [activePickerBookingId]: {
+                  ...prev[activePickerBookingId],
+                  madinahBrn: brnNumber
+                }
+              }));
+            }
+            setMadinahBrnPickerOpen(false);
+            setActivePickerBookingId(null);
+          }}
+        />
+      )}
       </div>
     </div>
   );
