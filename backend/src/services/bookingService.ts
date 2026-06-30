@@ -18,7 +18,8 @@ export async function generateBookingReference(): Promise<string> {
     // Find the latest booking reference for today
     const lastBooking = await prisma.umrahVisaBooking.findFirst({
       where: {
-        bookingReference: { startsWith: prefix }
+        bookingReference: { startsWith: prefix },
+        isDuplicate: false
       },
       orderBy: {
         bookingReference: 'desc',

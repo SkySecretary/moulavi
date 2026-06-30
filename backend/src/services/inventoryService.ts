@@ -50,6 +50,48 @@ export class InventoryService {
         consumedBeds += consumedInBookingRow;
       }
 
+      // 3. Count beds from Iqama (UmrahSponserIqamaDetails) records for this hotel and BRN
+      const hotel = await prisma.locationMaster.findUnique({
+        where: { id: hotelId },
+        select: { name: true }
+      });
+      const hotelName = hotel?.name;
+
+      if (hotelName) {
+        const iqamaDetails = await prisma.umrahSponserIqamaDetails.findMany({
+          where: {
+            booking: {
+              isDeleted: false
+            },
+            OR: [
+              {
+                makkahBrn: brnNumber,
+                makkahHotelName: {
+                  contains: hotelName
+                }
+              },
+              {
+                madinahBrn: brnNumber,
+                madinahHotelName: {
+                  contains: hotelName
+                }
+              }
+            ]
+          },
+          include: {
+            booking: {
+              select: {
+                passengerCount: true
+              }
+            }
+          }
+        });
+
+        for (const iq of iqamaDetails) {
+          consumedBeds += iq.booking.passengerCount || 0;
+        }
+      }
+
       const inventory = await prisma.hotelInventory.findUnique({
         where: {
           hotelId_brnNumber: {
