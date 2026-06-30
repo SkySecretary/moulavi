@@ -73,7 +73,7 @@ router.post(
   authenticate,
   authorize('admin', 'staff'),
   asyncHandler(async (req: any, res: Response) => {
-    const { hotelId, brnNumber, totalBeds } = req.body;
+    const { hotelId, brnNumber, totalBeds, checkInDate, checkOutDate } = req.body;
 
     if (!hotelId || !brnNumber || totalBeds === undefined || totalBeds === null) {
       return res.status(400).json({ error: 'hotelId, brnNumber, and totalBeds are required' });
@@ -112,7 +112,9 @@ router.post(
         hotelId,
         brnNumber,
         totalBeds: bedsCount,
-        availableBeds: bedsCount
+        availableBeds: bedsCount,
+        checkInDate: checkInDate ? new Date(checkInDate) : null,
+        checkOutDate: checkOutDate ? new Date(checkOutDate) : null,
       },
       include: {
         hotel: true
@@ -130,7 +132,7 @@ router.put(
   authorize('admin', 'staff'),
   asyncHandler(async (req: any, res: Response) => {
     const { id } = req.params;
-    const { totalBeds, availableBeds, brnNumber } = req.body;
+    const { totalBeds, availableBeds, brnNumber, checkInDate, checkOutDate } = req.body;
 
     const inventory = await prisma.hotelInventory.findUnique({
       where: { id }
@@ -143,6 +145,14 @@ router.put(
     const data: any = {};
     if (brnNumber !== undefined) {
       data.brnNumber = brnNumber;
+    }
+
+    if (checkInDate !== undefined) {
+      data.checkInDate = checkInDate ? new Date(checkInDate) : null;
+    }
+
+    if (checkOutDate !== undefined) {
+      data.checkOutDate = checkOutDate ? new Date(checkOutDate) : null;
     }
 
     if (totalBeds !== undefined) {

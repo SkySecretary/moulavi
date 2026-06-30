@@ -946,6 +946,8 @@ model HotelInventory {
   brnNumber     String         @map("brn_number")
   totalBeds     Int            @map("total_beds")
   availableBeds Int            @map("available_beds")
+  checkInDate   DateTime?      @map("checkin_date")
+  checkOutDate  DateTime?      @map("checkout_date")
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at")
   hotel         LocationMaster @relation(fields: [hotelId], references: [id], onDelete: Cascade)

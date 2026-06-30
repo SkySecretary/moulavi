@@ -99,6 +99,11 @@ const PickBrnInventoryDialog: React.FC<PickBrnInventoryDialogProps> = ({
                       <p className="text-[10px] text-gray-500">
                         Beds: {inv.availableBeds} available / {inv.totalBeds} total
                       </p>
+                      {(inv.checkInDate || inv.checkOutDate) && (
+                        <p className="text-[9px] text-indigo-600 font-medium mt-0.5">
+                          Dates: {inv.checkInDate ? toDisplayDate(inv.checkInDate.split('T')[0]) : 'N/A'} - {inv.checkOutDate ? toDisplayDate(inv.checkOutDate.split('T')[0]) : 'N/A'}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <Input
@@ -170,6 +175,7 @@ const AdditionalBrnsDialog: React.FC<AdditionalBrnsDialogProps> = ({
   onSave,
   disabled = false,
 }) => {
+  const isDashboard = typeof window !== 'undefined' && window.location.pathname.includes('/dashboard');
   const [brns, setBrns] = useState<{ brnNumber: string; qty?: number; checkInDate: string; checkOutDate: string; }[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerRowIndex, setPickerRowIndex] = useState<number | null>(null);
@@ -221,7 +227,7 @@ const AdditionalBrnsDialog: React.FC<AdditionalBrnsDialogProps> = ({
             <div className="space-y-3">
               {brns.map((b, idx) => (
                 <div key={idx} className="grid grid-cols-12 gap-2 items-center border p-3 rounded-xl bg-gray-50/50">
-                  <div className="col-span-4 space-y-1">
+                  <div className="col-span-3 space-y-1">
                     <Label className="text-[10px] font-bold text-gray-500 uppercase">BRN Number *</Label>
                     <div className="flex gap-1.5 items-center">
                       <Input
@@ -231,20 +237,22 @@ const AdditionalBrnsDialog: React.FC<AdditionalBrnsDialogProps> = ({
                         disabled={disabled}
                         className="h-9 text-xs font-semibold flex-1"
                       />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={disabled || !hotelId}
-                        onClick={() => {
-                          setPickerRowIndex(idx);
-                          setPickerOpen(true);
-                        }}
-                        className="h-9 w-9 p-0 border-indigo-200 text-indigo-600 hover:bg-indigo-50"
-                        title="Pick from Inventory"
-                      >
-                        <Database className="h-4 w-4" />
-                      </Button>
+                      {isDashboard && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={disabled || !hotelId}
+                          onClick={() => {
+                            setPickerRowIndex(idx);
+                            setPickerOpen(true);
+                          }}
+                          className="h-9 w-9 p-0 border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                          title="Pick from Inventory"
+                        >
+                          <Database className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                   <div className="col-span-2 space-y-1">
@@ -259,7 +267,7 @@ const AdditionalBrnsDialog: React.FC<AdditionalBrnsDialogProps> = ({
                       className="h-9 text-xs font-semibold w-full"
                     />
                   </div>
-                  <div className="col-span-2 space-y-1">
+                  <div className="col-span-3 space-y-1">
                     <Label className="text-[10px] font-bold text-gray-500 uppercase">Check-in</Label>
                     <DatePicker
                       value={b.checkInDate}
@@ -325,8 +333,13 @@ const AdditionalBrnsDialog: React.FC<AdditionalBrnsDialogProps> = ({
             hotelName={hotelName}
             onSelect={(brn, qty) => {
               if (pickerRowIndex !== null) {
-                updateRow(pickerRowIndex, 'brnNumber', brn);
-                updateRow(pickerRowIndex, 'qty', qty);
+                const updated = [...brns];
+                updated[pickerRowIndex] = {
+                  ...updated[pickerRowIndex],
+                  brnNumber: brn,
+                  qty: qty
+                };
+                setBrns(updated);
               }
             }}
           />
@@ -367,6 +380,7 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
   departureDate,
   onHotelsRefresh,
 }) => {
+  const isDashboard = typeof window !== 'undefined' && window.location.pathname.includes('/dashboard');
   // Store raw input values for BRN fields to preserve commas while typing
   const [brnInputs, setBrnInputs] = useState<{ [key: number]: string }>({});
   // Store raw input values for duration fields
@@ -668,21 +682,28 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                       className="h-10 text-sm flex-1"
                       disabled={disabled}
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={disabled || !booking.hotelId}
-                      onClick={() => {
-                        setSelectedHotelRowIndex(index);
-                        setRowBrnPickerOpen(true);
-                      }}
-                      className="h-10 w-10 p-0 border-indigo-200 text-indigo-600 hover:bg-indigo-50 shrink-0"
-                      title="Pick from Inventory"
-                    >
-                      <Database className="h-4 w-4" />
-                    </Button>
+                    {isDashboard && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={disabled || !booking.hotelId}
+                        onClick={() => {
+                          setSelectedHotelRowIndex(index);
+                          setRowBrnPickerOpen(true);
+                        }}
+                        className="h-10 w-10 p-0 border-indigo-200 text-indigo-600 hover:bg-indigo-50 shrink-0"
+                        title="Pick from Inventory"
+                      >
+                        <Database className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
+                  {isDashboard && booking.bedsQuantity && booking.brn && booking.brn.length > 0 && (
+                    <div className="text-[10px] text-indigo-600 font-semibold mt-1">
+                      Beds selected from inventory: <strong>{booking.bedsQuantity}</strong>
+                    </div>
+                  )}
                   {booking.additionalBrns && booking.additionalBrns.length > 0 && (
                     <div className="mt-1.5 flex flex-wrap gap-1 max-w-[280px]">
                       {booking.additionalBrns.map((sub, sidx) => (

@@ -13,6 +13,7 @@ import { getUser } from '@/lib/auth';
 import { hotelInventoryAPI, locationMasterAPI, cityMasterAPI } from '@/lib/api';
 import { Plus, Trash2, Edit2, Search, Building2, RefreshCw, Layers } from 'lucide-react';
 import DeleteConfirmationDialog from '@/components/DeleteConfirmationDialog';
+import { toDisplayDate } from '@/lib/umrah/validation';
 
 export default function HotelInventoryPage() {
   const router = useRouter();
@@ -28,6 +29,9 @@ export default function HotelInventoryPage() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCityId, setFilterCityId] = useState<string>('all');
+  const [filterHotelId, setFilterHotelId] = useState<string>('all');
+  const [filterCheckIn, setFilterCheckIn] = useState('');
+  const [filterCheckOut, setFilterCheckOut] = useState('');
 
   // Master options
   const [cities, setCities] = useState<any[]>([]);
@@ -45,6 +49,8 @@ export default function HotelInventoryPage() {
   const [brnNumber, setBrnNumber] = useState('');
   const [totalBeds, setTotalBeds] = useState('');
   const [availableBeds, setAvailableBeds] = useState('');
+  const [checkInDate, setCheckInDate] = useState('');
+  const [checkOutDate, setCheckOutDate] = useState('');
 
   // Load initial data
   const loadInitialData = async () => {
@@ -89,10 +95,20 @@ export default function HotelInventoryPage() {
         brn.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesCity = filterCityId === 'all' || inv.hotel?.cityId === filterCityId;
+      const matchesHotel = filterHotelId === 'all' || inv.hotelId === filterHotelId;
 
-      return matchesSearch && matchesCity;
+      const matchesCheckIn = !filterCheckIn || (inv.checkInDate && inv.checkInDate.split('T')[0] === filterCheckIn);
+      const matchesCheckOut = !filterCheckOut || (inv.checkOutDate && inv.checkOutDate.split('T')[0] === filterCheckOut);
+
+      return matchesSearch && matchesCity && matchesHotel && matchesCheckIn && matchesCheckOut;
     });
-  }, [inventories, searchTerm, filterCityId]);
+  }, [inventories, searchTerm, filterCityId, filterHotelId, filterCheckIn, filterCheckOut]);
+
+  // Dropdown options for hotels in filter
+  const filteredHotelsForFilter = useMemo(() => {
+    if (filterCityId === 'all') return hotels;
+    return hotels.filter((h) => h.cityId === filterCityId);
+  }, [hotels, filterCityId]);
 
   // Dropdown options for hotels based on selected city in Form
   const filteredHotelsForForm = useMemo(() => {
@@ -108,6 +124,8 @@ export default function HotelInventoryPage() {
     setBrnNumber('');
     setTotalBeds('');
     setAvailableBeds('');
+    setCheckInDate('');
+    setCheckOutDate('');
     setIsFormOpen(true);
   };
 
@@ -119,6 +137,8 @@ export default function HotelInventoryPage() {
     setBrnNumber(inv.brnNumber);
     setTotalBeds(String(inv.totalBeds));
     setAvailableBeds(String(inv.availableBeds));
+    setCheckInDate(inv.checkInDate ? inv.checkInDate.split('T')[0] : '');
+    setCheckOutDate(inv.checkOutDate ? inv.checkOutDate.split('T')[0] : '');
     setIsFormOpen(true);
   };
 
@@ -141,6 +161,8 @@ export default function HotelInventoryPage() {
       hotelId: selectedHotelId,
       brnNumber: brnNumber.trim(),
       totalBeds: totalBedsNum,
+      checkInDate: checkInDate || null,
+      checkOutDate: checkOutDate || null,
     };
 
     try {
@@ -234,8 +256,10 @@ export default function HotelInventoryPage() {
           <CardContent className="pt-6">
             <div className="flex justify-between items-center">
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Total Active BRNs</p>
-                <h3 className="text-3xl font-extrabold text-secondary mt-1">{inventories.length}</h3>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Active BRNs with stock</p>
+                <h3 className="text-3xl font-extrabold text-secondary mt-1">
+                  {inventories.filter(inv => inv.availableBeds > 0).length} <span className="text-sm font-normal text-gray-400">/ {inventories.length}</span>
+                </h3>
               </div>
               <Building2 className="h-10 w-10 text-primary/40" />
             </div>
@@ -276,32 +300,89 @@ export default function HotelInventoryPage() {
         <CardHeader className="pb-3 border-b border-gray-50">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <CardTitle className="text-lg font-bold text-secondary">Hotel Lot Inventories</CardTitle>
-            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-              {/* Search */}
-              <div className="relative flex-1 sm:w-64">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search hotel or BRN..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 h-9"
-                />
-              </div>
+            <div className="flex items-center gap-2">
+              {(searchTerm || filterCityId !== 'all' || filterHotelId !== 'all' || filterCheckIn || filterCheckOut) && (
+                <Button 
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilterCityId('all');
+                    setFilterHotelId('all');
+                    setFilterCheckIn('');
+                    setFilterCheckOut('');
+                  }}
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 text-xs font-semibold text-indigo-600 hover:bg-indigo-50"
+                >
+                  Reset Filters
+                </Button>
+              )}
+            </div>
+          </div>
 
-              {/* City filter */}
-              <Select value={filterCityId} onValueChange={setFilterCityId}>
-                <SelectTrigger className="w-full sm:w-44 h-9">
-                  <SelectValue placeholder="Filter by City" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Cities</SelectItem>
-                  {cities.map((city) => (
-                    <SelectItem key={city.id} value={city.id}>
-                      {city.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {/* Advanced Search & Filtering Controls */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 mt-4">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search BRN..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 h-9 text-xs"
+              />
+            </div>
+
+            {/* City filter */}
+            <Select value={filterCityId} onValueChange={(val) => { setFilterCityId(val); setFilterHotelId('all'); }}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="All Cities" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Cities</SelectItem>
+                {cities.map((city) => (
+                  <SelectItem key={city.id} value={city.id}>
+                    {city.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Hotel filter */}
+            <Select value={filterHotelId} onValueChange={setFilterHotelId}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="All Hotels" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Hotels</SelectItem>
+                {filteredHotelsForFilter.map((hotel) => (
+                  <SelectItem key={hotel.id} value={hotel.id}>
+                    {hotel.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Check-in Date filter */}
+            <div className="relative">
+              <Input
+                type="date"
+                value={filterCheckIn}
+                onChange={(e) => setFilterCheckIn(e.target.value)}
+                className="h-9 text-xs text-gray-500"
+                title="Filter by Check-in Date"
+              />
+            </div>
+
+            {/* Check-out Date filter */}
+            <div className="relative">
+              <Input
+                type="date"
+                value={filterCheckOut}
+                onChange={(e) => setFilterCheckOut(e.target.value)}
+                className="h-9 text-xs text-gray-500"
+                title="Filter by Check-out Date"
+              />
             </div>
           </div>
         </CardHeader>
@@ -339,8 +420,13 @@ export default function HotelInventoryPage() {
                           {inv.hotel?.city || 'N/A'}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-center font-mono text-xs font-bold text-gray-800">
-                        {inv.brnNumber}
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="font-mono text-xs font-bold text-gray-800">{inv.brnNumber}</div>
+                        {(inv.checkInDate || inv.checkOutDate) && (
+                          <div className="text-[10px] text-indigo-600 font-medium mt-0.5">
+                            ({inv.checkInDate ? toDisplayDate(inv.checkInDate.split('T')[0]) : 'N/A'} - {inv.checkOutDate ? toDisplayDate(inv.checkOutDate.split('T')[0]) : 'N/A'})
+                          </div>
+                        )}
                       </td>
                       <td className="py-3.5 px-4 text-center font-bold text-gray-700">{inv.totalBeds}</td>
                       <td className="py-3.5 px-4 text-center">
@@ -466,6 +552,28 @@ export default function HotelInventoryPage() {
                 onChange={(e) => setTotalBeds(e.target.value)}
                 required
               />
+            </div>
+
+            {/* Dates */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="checkInDate" className="text-xs font-bold text-gray-600 uppercase">Check-in Date</Label>
+                <Input
+                  id="checkInDate"
+                  type="date"
+                  value={checkInDate}
+                  onChange={(e) => setCheckInDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="checkOutDate" className="text-xs font-bold text-gray-600 uppercase">Check-out Date</Label>
+                <Input
+                  id="checkOutDate"
+                  type="date"
+                  value={checkOutDate}
+                  onChange={(e) => setCheckOutDate(e.target.value)}
+                />
+              </div>
             </div>
 
             {/* Available Beds (Only shown on Edit) */}
