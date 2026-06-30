@@ -33,6 +33,7 @@ import notificationRoutes from './routes/notifications.routes';
 import landingRoutes from './routes/landing.routes';
 import umrahOperationalRoutes from './routes/umrahOperational.routes';
 import nusukRoutes from './routes/nusuk.routes';
+import hotelInventoryRoutes from './routes/hotelInventory.routes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
@@ -128,6 +129,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/landing', landingRoutes);
 app.use('/api/umrah-visa/operational', umrahOperationalRoutes);
 app.use('/api/nusuk', nusukRoutes);
+app.use('/api/hotel-inventories', hotelInventoryRoutes);
 
 // Error handlers
 app.use(notFoundHandler);
@@ -199,6 +201,15 @@ app.listen(PORT, () => {
         console.log(`[SERVER] Startup Nusuk mismatch synchronization completed.`);
       } catch (error: any) {
         console.log(`ℹ️  Startup Nusuk synchronization bypassed or failed: ${error.message}`);
+      }
+      
+      console.log(`[SERVER] Running startup Hotel Inventory beds recalculation...`);
+      try {
+        const { InventoryService } = require('./services/inventoryService');
+        await InventoryService.recalculateAll();
+        console.log(`[SERVER] Startup Hotel Inventory beds recalculation completed.`);
+      } catch (error: any) {
+        console.warn(`⚠️  Startup Hotel Inventory recalculation failed: ${error.message}`);
       }
     }, 5000);
     

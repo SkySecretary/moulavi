@@ -358,6 +358,7 @@ model LocationMaster {
   movementDetailsFrom UmrahMovementDetail[] @relation("MovementFromLocation")
   arrivalFlights      UmrahTravelDetails[]  @relation("ArrivalAirport")
   departureFlights    UmrahTravelDetails[]  @relation("DepartureAirport")
+  inventories         HotelInventory[]
 
   @@unique([code, locationType])
   @@index([code])
@@ -936,6 +937,22 @@ enum ComplianceStatus {
   GREEN
   YELLOW
   RED
+}
+
+model HotelInventory {
+  id            String         @id @default(uuid())
+  hotelId       String         @map("hotel_id")
+  brnNumber     String         @map("brn_number")
+  totalBeds     Int            @map("total_beds")
+  availableBeds Int            @map("available_beds")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at")
+  hotel         LocationMaster @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, brnNumber])
+  @@index([hotelId])
+  @@index([brnNumber])
+  @@map("hotel_inventories")
 }
 
 

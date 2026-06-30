@@ -36,6 +36,7 @@ const masterItems = [
   { name: 'Expense Master', icon: Receipt, path: '/dashboard/masters/expense', category: 'Financial', description: 'Configure expense categories' },
   { name: 'Income Master', icon: TrendingUp, path: '/dashboard/masters/income', category: 'Financial', description: 'Configure income categories' },
   { name: 'Umrah Visa Master', icon: Calendar, path: '/dashboard/masters/umrah-visa', category: 'Services', description: 'Configure Umrah visa rules' },
+  { name: 'Hotel Inventory Master', icon: Building2, path: '/dashboard/masters/hotel-inventory', category: 'Services', description: 'Manage BRN inventory allocation and available beds' },
   { name: 'Nusuk API Integration', icon: SettingsIcon, path: '/dashboard/masters/nusuk', category: 'Services', description: 'Configure Nusuk authentication token and daily report synchronization' },
 ];
 

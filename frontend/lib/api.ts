@@ -372,6 +372,14 @@ export const userRoleMasterAPI = {
   toggleStatus: (id: string) => api.patch(`/user-role-masters/${id}/toggle-status`),
 };
 
+export const hotelInventoryAPI = {
+  create: (data: { hotelId: string; brnNumber: string; totalBeds: number }) => api.post('/hotel-inventories', data),
+  getAll: (params?: { cityId?: string; hotelId?: string }) => api.get('/hotel-inventories', { params }),
+  getAvailable: (hotelId: string) => api.get('/hotel-inventories/available', { params: { hotelId } }),
+  update: (id: string, data: { totalBeds?: number; availableBeds?: number; brnNumber?: string }) => api.put(`/hotel-inventories/${id}`, data),
+  delete: (id: string) => api.delete(`/hotel-inventories/${id}`),
+};
+
 export const locationMasterAPI = {
   create: (data: any) => api.post('/location-masters', data),
   getAll: (params?: any) => api.get('/location-masters', { params }),

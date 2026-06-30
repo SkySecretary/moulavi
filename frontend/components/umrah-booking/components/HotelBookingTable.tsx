@@ -3,17 +3,132 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Hotel, Plus, Search, Trash2 } from 'lucide-react';
+import { Hotel, Plus, Search, Trash2, Database } from 'lucide-react';
 import { HotelBooking, Location, Hotel as HotelType } from '@/lib/umrah/types';
 import { QuickAddHotelDialog } from './QuickAddHotelDialog';
 import { toDisplayDate, fromDisplayDate } from '@/lib/umrah/validation';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { hotelInventoryAPI } from '@/lib/api';
+import { toast } from 'sonner';
+
+interface PickBrnInventoryDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  hotelId: string;
+  hotelName: string;
+  onSelect: (brn: string) => void;
+}
+
+const PickBrnInventoryDialog: React.FC<PickBrnInventoryDialogProps> = ({
+  isOpen,
+  onClose,
+  hotelId,
+  hotelName,
+  onSelect,
+}) => {
+  const [inventories, setInventories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+
+  React.useEffect(() => {
+    if (isOpen && hotelId) {
+      setLoading(true);
+      hotelInventoryAPI
+        .getAvailable(hotelId)
+        .then((res) => {
+          setInventories(res.data || []);
+        })
+        .catch((err) => {
+          console.error('Failed to load available BRNs:', err);
+          toast.error('Failed to load available BRNs');
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }
+  }, [isOpen, hotelId]);
+
+  const filtered = inventories.filter((inv) =>
+    inv.brnNumber.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-md bg-white p-6 rounded-2xl shadow-xl">
+        <DialogHeader>
+          <DialogTitle className="text-lg font-bold text-gray-900 uppercase">
+            Select BRN from Inventory
+          </DialogTitle>
+          <div className="text-xs text-gray-500 block mt-1">
+            Available lots for hotel: <strong className="text-gray-700">{hotelName}</strong>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-4 my-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search BRN..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 h-9 text-xs"
+            />
+          </div>
+
+          <div className="max-h-[250px] overflow-y-auto space-y-2 pr-1">
+            {loading ? (
+              <div className="text-center py-6 text-xs text-gray-400">
+                Loading available lots...
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-6 text-xs text-gray-400">
+                No available BRN lots found for this hotel.
+              </div>
+            ) : (
+              filtered.map((inv) => (
+                <div
+                  key={inv.id}
+                  className="flex items-center justify-between p-2.5 border rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div>
+                    <p className="text-xs font-mono font-bold text-gray-800">{inv.brnNumber}</p>
+                    <p className="text-[10px] text-gray-500">
+                      Beds: {inv.availableBeds} available / {inv.totalBeds} total
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      onSelect(inv.brnNumber);
+                      onClose();
+                    }}
+                    className="h-7 text-[10px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
+                  >
+                    Select
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose} className="h-9 text-xs">
+            Cancel
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 interface AdditionalBrnsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   hotelName: string;
+  hotelId: string;
   initialBrns?: { brnNumber: string; checkInDate: string; checkOutDate: string; }[];
   onSave: (brns: { brnNumber: string; checkInDate: string; checkOutDate: string; }[]) => void;
   disabled?: boolean;
@@ -23,11 +138,14 @@ const AdditionalBrnsDialog: React.FC<AdditionalBrnsDialogProps> = ({
   isOpen,
   onClose,
   hotelName,
+  hotelId,
   initialBrns = [],
   onSave,
   disabled = false,
 }) => {
   const [brns, setBrns] = useState<{ brnNumber: string; checkInDate: string; checkOutDate: string; }[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerRowIndex, setPickerRowIndex] = useState<number | null>(null);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -78,13 +196,29 @@ const AdditionalBrnsDialog: React.FC<AdditionalBrnsDialogProps> = ({
                 <div key={idx} className="grid grid-cols-12 gap-2 items-center border p-3 rounded-xl bg-gray-50/50">
                   <div className="col-span-5 space-y-1">
                     <Label className="text-[10px] font-bold text-gray-500 uppercase">BRN Number *</Label>
-                    <Input
-                      placeholder="e.g. BRN12345"
-                      value={b.brnNumber}
-                      onChange={(e) => updateRow(idx, 'brnNumber', e.target.value)}
-                      disabled={disabled}
-                      className="h-9 text-xs font-semibold w-full"
-                    />
+                    <div className="flex gap-1.5 items-center">
+                      <Input
+                        placeholder="e.g. BRN12345"
+                        value={b.brnNumber}
+                        onChange={(e) => updateRow(idx, 'brnNumber', e.target.value)}
+                        disabled={disabled}
+                        className="h-9 text-xs font-semibold flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={disabled || !hotelId}
+                        onClick={() => {
+                          setPickerRowIndex(idx);
+                          setPickerOpen(true);
+                        }}
+                        className="h-9 w-9 p-0 border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                        title="Pick from Inventory"
+                      >
+                        <Database className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="col-span-3 space-y-1">
                     <Label className="text-[10px] font-bold text-gray-500 uppercase">Check-in</Label>
@@ -140,6 +274,23 @@ const AdditionalBrnsDialog: React.FC<AdditionalBrnsDialogProps> = ({
             Save BRNs
           </Button>
         </DialogFooter>
+
+        {pickerRowIndex !== null && (
+          <PickBrnInventoryDialog
+            isOpen={pickerOpen}
+            onClose={() => {
+              setPickerOpen(false);
+              setPickerRowIndex(null);
+            }}
+            hotelId={hotelId}
+            hotelName={hotelName}
+            onSelect={(brn) => {
+              if (pickerRowIndex !== null) {
+                updateRow(pickerRowIndex, 'brnNumber', brn);
+              }
+            }}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -189,6 +340,7 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
   // Additional BRNs dialog state
   const [isBrnDialogOpen, setIsBrnDialogOpen] = useState(false);
   const [selectedHotelRowIndex, setSelectedHotelRowIndex] = useState<number | null>(null);
+  const [rowBrnPickerOpen, setRowBrnPickerOpen] = useState(false);
 
   // Initialize BRN inputs from booking data
   React.useEffect(() => {
@@ -454,19 +606,35 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                   />
                 </td>
                 <td className="border border-gray-200 p-3">
-                  <Input
-                    type="text"
-                    placeholder="BRN"
-                    value={brnInputs[index] ?? (booking.brn?.join(', ') || '')}
-                    onChange={(e) => {
-                      const inputValue = e.target.value;
-                      setBrnInputs(prev => ({ ...prev, [index]: inputValue }));
-                      const brnArray = inputValue.split(',').map(brn => brn.trim()).filter(brn => brn.length > 0);
-                      onUpdateBooking(index, 'brn', brnArray);
-                    }}
-                    className="w-full h-10 text-sm"
-                    disabled={disabled}
-                  />
+                  <div className="flex gap-1.5 items-center">
+                    <Input
+                      type="text"
+                      placeholder="BRN"
+                      value={brnInputs[index] ?? (booking.brn?.join(', ') || '')}
+                      onChange={(e) => {
+                        const inputValue = e.target.value;
+                        setBrnInputs(prev => ({ ...prev, [index]: inputValue }));
+                        const brnArray = inputValue.split(',').map(brn => brn.trim()).filter(brn => brn.length > 0);
+                        onUpdateBooking(index, 'brn', brnArray);
+                      }}
+                      className="h-10 text-sm flex-1"
+                      disabled={disabled}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={disabled || !booking.hotelId}
+                      onClick={() => {
+                        setSelectedHotelRowIndex(index);
+                        setRowBrnPickerOpen(true);
+                      }}
+                      className="h-10 w-10 p-0 border-indigo-200 text-indigo-600 hover:bg-indigo-50 shrink-0"
+                      title="Pick from Inventory"
+                    >
+                      <Database className="h-4 w-4" />
+                    </Button>
+                  </div>
                   {booking.additionalBrns && booking.additionalBrns.length > 0 && (
                     <div className="mt-1.5 flex flex-wrap gap-1 max-w-[280px]">
                       {booking.additionalBrns.map((sub, sidx) => (
@@ -602,6 +770,11 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
           setIsBrnDialogOpen(false);
           setSelectedHotelRowIndex(null);
         }}
+        hotelId={
+          selectedHotelRowIndex !== null && hotelBookings[selectedHotelRowIndex]
+            ? hotelBookings[selectedHotelRowIndex].hotelId || ''
+            : ''
+        }
         hotelName={
           selectedHotelRowIndex !== null && hotelBookings[selectedHotelRowIndex]
             ? hotels.find(h => h.id === hotelBookings[selectedHotelRowIndex].hotelId)?.name || 
@@ -621,6 +794,28 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
         }}
         disabled={disabled}
       />
+
+      {selectedHotelRowIndex !== null && hotelBookings[selectedHotelRowIndex] && (
+        <PickBrnInventoryDialog
+          isOpen={rowBrnPickerOpen}
+          onClose={() => {
+            setRowBrnPickerOpen(false);
+            setSelectedHotelRowIndex(null);
+          }}
+          hotelId={hotelBookings[selectedHotelRowIndex].hotelId || ''}
+          hotelName={
+            hotels.find(h => h.id === hotelBookings[selectedHotelRowIndex].hotelId)?.name || 
+            hotels.find(h => h.id === hotelBookings[selectedHotelRowIndex].hotelId)?.hotelName || 
+            'Selected Hotel'
+          }
+          onSelect={(brn) => {
+            if (selectedHotelRowIndex !== null) {
+              setBrnInputs(prev => ({ ...prev, [selectedHotelRowIndex]: brn }));
+              onUpdateBooking(selectedHotelRowIndex, 'brn', [brn]);
+            }
+          }}
+        />
+      )}
     </>
   );
 };

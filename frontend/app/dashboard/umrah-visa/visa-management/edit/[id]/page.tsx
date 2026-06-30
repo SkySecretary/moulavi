@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getUser, hasRole } from '@/lib/auth';
 import { umrahVisaAPI, umrahVisaMasterAPI, locationMasterAPI, cityMasterAPI, transportMasterAPI, transportRouteMasterAPI, partyAPI } from '@/lib/api';
@@ -13,6 +13,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { MovementsTable } from '@/components/umrah-booking/components/MovementsTable';
+import { HotelBookingTable } from '@/components/umrah-booking/components/HotelBookingTable';
 import { Calendar, Plane, Users, Building, MapPin, Mail, ArrowLeft, Clock, DollarSign, Route, Truck, X, Plus, Save } from 'lucide-react';
 import { Movement, LocationMaster } from '@/lib/umrah/types';
 import { TimePicker } from '@/components/ui/time-picker';
@@ -88,6 +89,23 @@ export default function EditUmrahVisaBookingPage() {
   const [vehicleTypes, setVehicleTypes] = useState<any[]>([]);
   const [umrahCompanies, setUmrahCompanies] = useState<any[]>([]);
   const [transportCompanies, setTransportCompanies] = useState<any[]>([]);
+
+  const mappedLocationsForTable = useMemo(() => {
+    const locs = locationMasters.filter((l: any) => l.locationType === 'OTHERS' || l.locationType === 'HOTEL');
+    return locs.map((l: any) => ({
+      id: l.id,
+      destinationName: l.name || l.destinationName || ''
+    }));
+  }, [locationMasters]);
+
+  const mappedHotelsForTable = useMemo(() => {
+    const hots = locationMasters.filter((l: any) => l.locationType === 'HOTEL');
+    return hots.map((h: any) => ({
+      id: h.id,
+      name: h.name || h.hotelName || '',
+      cityId: h.cityId
+    }));
+  }, [locationMasters]);
 
   useEffect(() => {
     if (!user || !hasRole(['admin', 'staff'])) {
@@ -845,38 +863,20 @@ export default function EditUmrahVisaBookingPage() {
                   <div className="flex-1"><p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Type</p><Select value={accommodationType} onValueChange={(val: any) => setAccommodationType(val)}><SelectTrigger className="w-40"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="hotel">Hotel</SelectItem><SelectItem value="iqama">Iqama</SelectItem></SelectContent></Select></div>
                 </div>
                 {accommodationType === 'hotel' && (
-                  <div className="space-y-4">
-                    <div className="flex justify-end"><Button type="button" variant="outline" onClick={addHotelBooking}><Plus className="h-4 w-4 mr-1" /> Add Hotel Booking</Button></div>
-                    {hotelBookings.length === 0 ? (<div className="text-center py-8 bg-gray-50 rounded-lg"><Building className="h-10 w-10 text-gray-300 mx-auto mb-2" /><p className="text-sm text-gray-600">No hotel bookings found</p></div>) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full border-collapse border border-gray-200 rounded-lg overflow-hidden">
-                          <thead><tr className="bg-gray-50"><th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">Location</th><th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">Hotel Name</th><th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">Check-In</th><th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">Check-Out</th><th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700">BRN</th><th className="border border-gray-200 p-3 text-center text-sm font-medium text-gray-700">Action</th></tr></thead>
-                          <tbody>
-                            {hotelBookings.map((h: any, idx: number) => (
-                              <tr key={h.id || idx} className="hover:bg-gray-50">
-                                <td className="border border-gray-200 p-3"><Select value={h.locationId || ''} onValueChange={(val) => updateHotelBooking(idx, 'locationId', val)}><SelectTrigger className="w-full"><SelectValue placeholder="Select location" /></SelectTrigger><SelectContent>{locations.filter((l: any) => l.locationType === 'OTHERS').map((loc: any) => (<SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>))}</SelectContent></Select></td>
-                                <td className="border border-gray-200 p-3"><Select value={h.hotelId || ''} onValueChange={(val) => updateHotelBooking(idx, 'hotelId', val)}><SelectTrigger className="w-full"><SelectValue placeholder="Select hotel" /></SelectTrigger><SelectContent>{getHotelsForLocation(h.locationId).map((hotel: any) => (<SelectItem key={hotel.id} value={hotel.id}>{hotel.name}</SelectItem>))}</SelectContent></Select></td>
-                                <td className="border border-gray-200 p-3"><DatePicker value={h.checkInDate} onChange={(val) => updateHotelBooking(idx, 'checkInDate', val)} /></td>
-                                <td className="border border-gray-200 p-3"><DatePicker value={h.checkOutDate} onChange={(val) => updateHotelBooking(idx, 'checkOutDate', val)} /></td>
-                                <td className="border border-gray-200 p-3">
-                                  <Input 
-                                    value={Array.isArray(h.brn) ? h.brn.join(', ') : (h.brn || '')} 
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      // If it contains commas, store as array for consistency with creation flow
-                                      const brnValue = val.includes(',') ? val.split(',').map(s => s.trim()).filter(Boolean) : val;
-                                      updateHotelBooking(idx, 'brn', brnValue);
-                                    }} 
-                                    placeholder="BRN" 
-                                  />
-                                </td>
-                                <td className="border border-gray-200 p-3 text-center"><Button type="button" variant="ghost" size="sm" onClick={() => removeHotelBooking(h.id, idx)} className="text-primary hover:text-destructive"><X className="h-4 w-4" /></Button></td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                  <div className="mt-4 space-y-4">
+                    <HotelBookingTable
+                      hotelBookings={hotelBookings}
+                      locations={mappedLocationsForTable}
+                      hotels={mappedHotelsForTable}
+                      getHotelsForLocation={getHotelsForLocation}
+                      onUpdateBooking={updateHotelBooking}
+                      onRemoveBooking={(idx) => {
+                        const bookingToRemove = hotelBookings[idx];
+                        removeHotelBooking(bookingToRemove.id, idx);
+                      }}
+                      onAddBooking={addHotelBooking}
+                      disabled={saving}
+                    />
                   </div>
                 )}
                 {accommodationType === 'iqama' && (
