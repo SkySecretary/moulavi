@@ -26,25 +26,28 @@ export class InventoryService {
       const targetBrn = brnNumber.trim().toUpperCase();
 
       for (const hb of hotelBookings) {
-        let usesBrn = false;
+        let consumedInBookingRow = 0;
         
+        // 1. Check main BRN
         if (hb.brn) {
           const brnList = Array.isArray(hb.brn) ? hb.brn : [hb.brn];
           if (brnList.some((b: any) => String(b).trim().toUpperCase() === targetBrn)) {
-            usesBrn = true;
+            // Use bedsQuantity if set, otherwise fallback to passengerCount
+            consumedInBookingRow += (hb as any).bedsQuantity || hb.booking.passengerCount || 0;
           }
         }
 
-        if (!usesBrn && hb.additionalBrns) {
-          const additionalList = Array.isArray(hb.additionalBrns) ? hb.additionalBrns : [];
-          if (additionalList.some((sub: any) => sub && sub.brnNumber && String(sub.brnNumber).trim().toUpperCase() === targetBrn)) {
-            usesBrn = true;
+        // 2. Check additional sub-BRNs
+        if (hb.additionalBrns) {
+          const additionalList = (Array.isArray(hb.additionalBrns) ? hb.additionalBrns : []) as any[];
+          for (const sub of additionalList) {
+            if (sub && sub.brnNumber && String(sub.brnNumber).trim().toUpperCase() === targetBrn) {
+              consumedInBookingRow += parseInt(sub.qty, 10) || 0;
+            }
           }
         }
 
-        if (usesBrn) {
-          consumedBeds += hb.booking.passengerCount || 0;
-        }
+        consumedBeds += consumedInBookingRow;
       }
 
       const inventory = await prisma.hotelInventory.findUnique({

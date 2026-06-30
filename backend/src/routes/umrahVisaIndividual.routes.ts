@@ -1156,6 +1156,7 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
               checkOutDate: parseSafeDate(h.checkOutDate) || undefined,
               brn: h.brn ?? undefined,
               additionalBrns: h.additionalBrns ? (h.additionalBrns as any) : undefined,
+              bedsQuantity: h.bedsQuantity !== undefined ? (h.bedsQuantity !== null ? parseInt(h.bedsQuantity, 10) : null) : undefined,
             },
           });
         }

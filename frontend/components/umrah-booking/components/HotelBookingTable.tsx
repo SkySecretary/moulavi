@@ -17,7 +17,7 @@ interface PickBrnInventoryDialogProps {
   onClose: () => void;
   hotelId: string;
   hotelName: string;
-  onSelect: (brn: string) => void;
+  onSelect: (brn: string, qty: number) => void;
 }
 
 const PickBrnInventoryDialog: React.FC<PickBrnInventoryDialogProps> = ({
@@ -30,6 +30,7 @@ const PickBrnInventoryDialog: React.FC<PickBrnInventoryDialogProps> = ({
   const [inventories, setInventories] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [quantities, setQuantities] = useState<{ [key: string]: string }>({});
 
   React.useEffect(() => {
     if (isOpen && hotelId) {
@@ -86,30 +87,56 @@ const PickBrnInventoryDialog: React.FC<PickBrnInventoryDialogProps> = ({
                 No available BRN lots found for this hotel.
               </div>
             ) : (
-              filtered.map((inv) => (
-                <div
-                  key={inv.id}
-                  className="flex items-center justify-between p-2.5 border rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div>
-                    <p className="text-xs font-mono font-bold text-gray-800">{inv.brnNumber}</p>
-                    <p className="text-[10px] text-gray-500">
-                      Beds: {inv.availableBeds} available / {inv.totalBeds} total
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => {
-                      onSelect(inv.brnNumber);
-                      onClose();
-                    }}
-                    className="h-7 text-[10px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
+              filtered.map((inv) => {
+                const qtyVal = quantities[inv.id] ?? '1';
+                return (
+                  <div
+                    key={inv.id}
+                    className="flex items-center justify-between p-2.5 border rounded-lg hover:bg-gray-50 transition-colors"
                   >
-                    Select
-                  </Button>
-                </div>
-              ))
+                    <div>
+                      <p className="text-xs font-mono font-bold text-gray-800">{inv.brnNumber}</p>
+                      <p className="text-[10px] text-gray-500">
+                        Beds: {inv.availableBeds} available / {inv.totalBeds} total
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min="1"
+                        max={inv.availableBeds}
+                        value={qtyVal}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setQuantities(prev => ({ ...prev, [inv.id]: val }));
+                        }}
+                        className="h-8 w-16 text-center text-xs p-1"
+                        placeholder="Qty"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => {
+                          const parsedQty = parseInt(qtyVal, 10);
+                          if (isNaN(parsedQty) || parsedQty <= 0) {
+                            toast.error('Please enter a valid quantity');
+                            return;
+                          }
+                          if (parsedQty > inv.availableBeds) {
+                            toast.error(`Only ${inv.availableBeds} beds available in this lot`);
+                            return;
+                          }
+                          onSelect(inv.brnNumber, parsedQty);
+                          onClose();
+                        }}
+                        className="h-8 text-[10px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
+                      >
+                        Select
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
@@ -129,8 +156,8 @@ interface AdditionalBrnsDialogProps {
   onClose: () => void;
   hotelName: string;
   hotelId: string;
-  initialBrns?: { brnNumber: string; checkInDate: string; checkOutDate: string; }[];
-  onSave: (brns: { brnNumber: string; checkInDate: string; checkOutDate: string; }[]) => void;
+  initialBrns?: { brnNumber: string; qty?: number; checkInDate: string; checkOutDate: string; }[];
+  onSave: (brns: { brnNumber: string; qty?: number; checkInDate: string; checkOutDate: string; }[]) => void;
   disabled?: boolean;
 }
 
@@ -143,7 +170,7 @@ const AdditionalBrnsDialog: React.FC<AdditionalBrnsDialogProps> = ({
   onSave,
   disabled = false,
 }) => {
-  const [brns, setBrns] = useState<{ brnNumber: string; checkInDate: string; checkOutDate: string; }[]>([]);
+  const [brns, setBrns] = useState<{ brnNumber: string; qty?: number; checkInDate: string; checkOutDate: string; }[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerRowIndex, setPickerRowIndex] = useState<number | null>(null);
 
@@ -154,14 +181,14 @@ const AdditionalBrnsDialog: React.FC<AdditionalBrnsDialogProps> = ({
   }, [isOpen]);
 
   const addRow = () => {
-    setBrns([...brns, { brnNumber: '', checkInDate: '', checkOutDate: '' }]);
+    setBrns([...brns, { brnNumber: '', qty: 1, checkInDate: '', checkOutDate: '' }]);
   };
 
   const removeRow = (idx: number) => {
     setBrns(brns.filter((_, i) => i !== idx));
   };
 
-  const updateRow = (idx: number, field: 'brnNumber' | 'checkInDate' | 'checkOutDate', value: string) => {
+  const updateRow = (idx: number, field: 'brnNumber' | 'qty' | 'checkInDate' | 'checkOutDate', value: any) => {
     const updated = [...brns];
     updated[idx] = { ...updated[idx], [field]: value };
     setBrns(updated);
@@ -194,7 +221,7 @@ const AdditionalBrnsDialog: React.FC<AdditionalBrnsDialogProps> = ({
             <div className="space-y-3">
               {brns.map((b, idx) => (
                 <div key={idx} className="grid grid-cols-12 gap-2 items-center border p-3 rounded-xl bg-gray-50/50">
-                  <div className="col-span-5 space-y-1">
+                  <div className="col-span-4 space-y-1">
                     <Label className="text-[10px] font-bold text-gray-500 uppercase">BRN Number *</Label>
                     <div className="flex gap-1.5 items-center">
                       <Input
@@ -220,7 +247,19 @@ const AdditionalBrnsDialog: React.FC<AdditionalBrnsDialogProps> = ({
                       </Button>
                     </div>
                   </div>
-                  <div className="col-span-3 space-y-1">
+                  <div className="col-span-2 space-y-1">
+                    <Label className="text-[10px] font-bold text-gray-500 uppercase">Beds Qty</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder="Qty"
+                      value={b.qty ?? ''}
+                      onChange={(e) => updateRow(idx, 'qty', e.target.value ? parseInt(e.target.value, 10) : '')}
+                      disabled={disabled}
+                      className="h-9 text-xs font-semibold w-full"
+                    />
+                  </div>
+                  <div className="col-span-2 space-y-1">
                     <Label className="text-[10px] font-bold text-gray-500 uppercase">Check-in</Label>
                     <DatePicker
                       value={b.checkInDate}
@@ -284,9 +323,10 @@ const AdditionalBrnsDialog: React.FC<AdditionalBrnsDialogProps> = ({
             }}
             hotelId={hotelId}
             hotelName={hotelName}
-            onSelect={(brn) => {
+            onSelect={(brn, qty) => {
               if (pickerRowIndex !== null) {
                 updateRow(pickerRowIndex, 'brnNumber', brn);
+                updateRow(pickerRowIndex, 'qty', qty);
               }
             }}
           />
@@ -437,6 +477,9 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
             <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700 min-w-[300px]">
               BRN
             </th>
+            <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700 w-28">
+              Beds Qty
+            </th>
             <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700 w-44">
               Additional BRNs
             </th>
@@ -449,7 +492,7 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
         </thead>
         <tbody>
           {hotelBookings.map((booking, index) => {
-            const hotelsForLocation = getHotelsForLocation(booking.cityId);
+            const hotelsForLocation = getHotelsForLocation(booking.cityId || (booking as any).locationId);
             const filteredHotels = hotelsForLocation.filter(h => 
               !hotelSearch[index] || 
               (h.name || h.hotelName || '').toLowerCase().includes(hotelSearch[index].toLowerCase())
@@ -462,8 +505,13 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                 </td>
                 <td className="border border-gray-200 p-3">
                   <Select
-                    value={booking.cityId || undefined}
-                    onValueChange={(value) => onUpdateBooking(index, 'cityId', value)}
+                    value={booking.cityId || (booking as any).locationId || undefined}
+                    onValueChange={(value) => {
+                      onUpdateBooking(index, 'cityId', value);
+                      if ((booking as any).locationId !== undefined) {
+                        onUpdateBooking(index, 'locationId' as any, value);
+                      }
+                    }}
                     disabled={disabled}
                   >
                     <SelectTrigger className="w-full h-11 text-sm font-medium">
@@ -485,7 +533,7 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                     <Select
                       value={booking.hotelId || undefined}
                       onValueChange={(value) => onUpdateBooking(index, 'hotelId', value)}
-                      disabled={disabled || !booking.cityId}
+                      disabled={disabled || !(booking.cityId || (booking as any).locationId)}
                     >
                       <SelectTrigger className="w-full h-11 text-sm font-medium">
                         <SelectValue placeholder="Select hotel" />
@@ -639,11 +687,25 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                     <div className="mt-1.5 flex flex-wrap gap-1 max-w-[280px]">
                       {booking.additionalBrns.map((sub, sidx) => (
                         <span key={sidx} className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[9px] font-semibold border border-indigo-100/80">
-                          {sub.brnNumber} ({sub.checkInDate || 'N/A'} - {sub.checkOutDate || 'N/A'})
+                          {sub.brnNumber} (Qty: {sub.qty || 1}, {sub.checkInDate || 'N/A'} - {sub.checkOutDate || 'N/A'})
                         </span>
                       ))}
                     </div>
                   )}
+                </td>
+                <td className="border border-gray-200 p-3">
+                  <Input
+                    type="number"
+                    min="1"
+                    placeholder="Beds"
+                    value={booking.bedsQuantity ?? ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      onUpdateBooking(index, 'bedsQuantity' as any, val ? parseInt(val, 10) : null);
+                    }}
+                    className="w-full h-10 text-sm font-semibold"
+                    disabled={disabled}
+                  />
                 </td>
                 <td className="border border-gray-200 p-3">
                   <Button
@@ -808,10 +870,11 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
             hotels.find(h => h.id === hotelBookings[selectedHotelRowIndex].hotelId)?.hotelName || 
             'Selected Hotel'
           }
-          onSelect={(brn) => {
+          onSelect={(brn, qty) => {
             if (selectedHotelRowIndex !== null) {
               setBrnInputs(prev => ({ ...prev, [selectedHotelRowIndex]: brn }));
               onUpdateBooking(selectedHotelRowIndex, 'brn', [brn]);
+              onUpdateBooking(selectedHotelRowIndex, 'bedsQuantity' as any, qty);
             }
           }}
         />
