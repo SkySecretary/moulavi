@@ -1397,7 +1397,7 @@ export default function TripInfoPage() {
                                       </div>
                                     </div>
                                     
-                                    {currentStatus === 'pending' && (
+                                    {(booking.status || 'pending') === 'pending' && (
                                       <Button
                                         type="button"
                                         size="sm"
