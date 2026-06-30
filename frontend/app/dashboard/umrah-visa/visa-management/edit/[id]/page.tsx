@@ -391,6 +391,7 @@ export default function EditUmrahVisaBookingPage() {
               checkOutDate: combineDateAndTime(h.checkOutDate, '20:30'),
               brn: h.brn,
               additionalBrns: h.additionalBrns,
+              bedsQuantity: h.bedsQuantity,
             };
           });
 
@@ -412,6 +413,7 @@ export default function EditUmrahVisaBookingPage() {
               checkOutDate: combineDateAndTime(h.checkOutDate, '20:30'),
               brn: h.brn,
               additionalBrns: h.additionalBrns,
+              bedsQuantity: h.bedsQuantity,
             };
           })
           .filter(h => h.cityId && h.hotelId);

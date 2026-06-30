@@ -477,8 +477,12 @@ export default function TripInfoPage() {
       text += iqamaInfo;
     }
 
+    const isIndividual = booking.visaType !== 'group_visa';
+    const hotel1Label = isIndividual ? 'Makkah Hotel' : 'Hotel 1';
+    const hotel2Label = isIndividual ? 'Madinah Hotel' : 'Hotel 2';
+
     if (makkahHotelName !== 'N/A') {
-      text += `🏨 *Hotel 1:* ${makkahHotelName}\n`;
+      text += `🏨 *${hotel1Label}:* ${makkahHotelName}\n`;
       text += `📄 *Agreement No.:* ${makkahBrn}\n`;
       if (booking.accommodationType === 'hotel') {
         text += `📅 *Check-in:* ${makkahCheckIn}\n`;
@@ -488,7 +492,7 @@ export default function TripInfoPage() {
     }
 
     if (madinahHotelName !== 'N/A') {
-      text += `🏨 *Hotel 2:* ${madinahHotelName}\n`;
+      text += `🏨 *${hotel2Label}:* ${madinahHotelName}\n`;
       text += `📄 *Agreement No.:* ${madinahBrn}\n`;
       if (booking.accommodationType === 'hotel') {
         text += `📅 *Check-in:* ${madinahCheckIn}\n`;
@@ -1305,9 +1309,9 @@ export default function TripInfoPage() {
                                   <div className="space-y-2">
                                     <div className="grid grid-cols-2 gap-2">
                                       <div className="space-y-1">
-                                        <label className="text-[10px] font-semibold text-purple-700">Hotel 1</label>
+                                        <label className="text-[10px] font-semibold text-purple-700">Makkah Hotel</label>
                                         <Input
-                                          placeholder="Hotel 1"
+                                          placeholder="Makkah Hotel"
                                           value={editingIqama[booking.id!]?.makkahHotelName || ''}
                                           onChange={(e) => setEditingIqama({
                                             ...editingIqama,
@@ -1316,7 +1320,7 @@ export default function TripInfoPage() {
                                           className="h-7 text-[10px] px-2"
                                         />
                                         <Input
-                                          placeholder="BRN 1"
+                                          placeholder="Makkah BRN"
                                           value={editingIqama[booking.id!]?.makkahBrn || ''}
                                           onChange={(e) => setEditingIqama({
                                             ...editingIqama,
@@ -1326,9 +1330,9 @@ export default function TripInfoPage() {
                                         />
                                       </div>
                                       <div className="space-y-1">
-                                        <label className="text-[10px] font-semibold text-purple-700">Hotel 2</label>
+                                        <label className="text-[10px] font-semibold text-purple-700">Madinah Hotel</label>
                                         <Input
-                                          placeholder="Hotel 2"
+                                          placeholder="Madinah Hotel"
                                           value={editingIqama[booking.id!]?.madinahHotelName || ''}
                                           onChange={(e) => setEditingIqama({
                                             ...editingIqama,
@@ -1337,7 +1341,7 @@ export default function TripInfoPage() {
                                           className="h-7 text-[10px] px-2"
                                         />
                                         <Input
-                                          placeholder="BRN 2"
+                                          placeholder="Madinah BRN"
                                           value={editingIqama[booking.id!]?.madinahBrn || ''}
                                           onChange={(e) => setEditingIqama({
                                             ...editingIqama,
@@ -1354,13 +1358,17 @@ export default function TripInfoPage() {
                                   {booking.hotelBookings && booking.hotelBookings.length > 0 ? (
                                     booking.hotelBookings.map((hotelBooking: any, index: number) => {
                                       const totalHotels = booking.hotelBookings?.length || 0;
+                                      const isMakkah = (hotelBooking.city?.name || '').toLowerCase().includes('makkah');
+                                      const isMadinah = (hotelBooking.city?.name || '').toLowerCase().includes('madinah');
                                       return (
                                       <div 
                                         key={hotelBooking.id || index} 
                                         className={`${index > 0 ? 'border-t pt-2 mt-2' : ''}`}
                                       >
-                                        <div className="font-medium text-gray-900 mb-1">
-                                          Hotel {totalHotels > 1 ? `${index + 1}` : ''}
+                                        <div className="font-semibold text-purple-700 mb-1">
+                                          {booking.visaType !== 'group_visa'
+                                            ? (isMakkah ? 'Makkah Hotel' : isMadinah ? 'Madinah Hotel' : `Hotel ${index + 1}`)
+                                            : `Hotel ${totalHotels > 1 ? `${index + 1}` : ''}`}
                                         </div>
                                         <div className="space-y-0.5">
                                           <div className="flex items-center gap-1">

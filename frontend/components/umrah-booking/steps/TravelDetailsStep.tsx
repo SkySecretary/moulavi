@@ -213,6 +213,7 @@ export const TravelDetailsStep: React.FC<TravelDetailsStepProps> = ({
                   showAddButton={false}
                   arrivalDate={arrivalDate || data.arrivalDate}
                   departureDate={departureDate || data.departureDate}
+                  hideInventory={isGroupBooking}
                 />
               </div>
             )}

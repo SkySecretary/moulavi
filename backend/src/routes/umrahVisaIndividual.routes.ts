@@ -605,6 +605,9 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
                   additionalBrns: hotel.additionalBrns && Array.isArray(hotel.additionalBrns) && hotel.additionalBrns.length > 0
                     ? hotel.additionalBrns as any
                     : null,
+                  bedsQuantity: hotel.bedsQuantity !== undefined && hotel.bedsQuantity !== null 
+                    ? parseInt(hotel.bedsQuantity, 10) 
+                    : null,
                 },
               });
             })
