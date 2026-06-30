@@ -32,6 +32,12 @@ The system supports "Alternate Info" for all bookings. This allows users to stor
 - **Implementation:** Data is stored in the same tables as main info but differentiated by the `isAlternate: true` flag.
 - **Frontend:** Managed via the "Manage Alternate Info" dialog in the Booking View page.
 
+### Concurrency, Inventory & Suffix Calculations
+1. **Unique Reference Retry Loop:** Booking creation (`/create-booking` and `/group/create-booking`) is protected via transaction-level retry loops against unique constraint collisions on `booking_reference` under concurrency.
+2. **Sequential Suffix Checks:** Adding groups to existing bookings sequentially searches the database for the next free suffix ID (accounting for soft-deleted records) to prevent collision crashes.
+3. **Iqama Bed Reductions:** Inventory calculations sum up allocations in both `UmrahHotelBooking` and `UmrahSponserIqamaDetails` tables, recalculating available slot capacity dynamically whenever booking accommodation details are patched.
+4. **Dialog Hotel Selector:** The Trip Info iqama hotel editing inputs are encapsulated in a premium Dialog modal, optimizing table spacing.
+
 ## 🛠️ Operational Commands
 
 ### Local Development
@@ -52,4 +58,4 @@ Due to server memory limitations, both the frontend and backend are compiled loc
 - **Disk Space:** PM2 logs on this server can grow rapidly (e.g., `wa.linalapro`). Use `pm2 flush` if builds fail with `SIGBUS`.
 
 ---
-*Last updated: April 10, 2026*
+*Last updated: June 30, 2026*
