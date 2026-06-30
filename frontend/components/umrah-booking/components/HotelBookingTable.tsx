@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { hotelInventoryAPI } from '@/lib/api';
 import { toast } from 'sonner';
 
-interface PickBrnInventoryDialogProps {
+export interface PickBrnInventoryDialogProps {
   isOpen: boolean;
   onClose: () => void;
   hotelId: string;
@@ -20,7 +20,7 @@ interface PickBrnInventoryDialogProps {
   onSelect: (brn: string, qty: number) => void;
 }
 
-const PickBrnInventoryDialog: React.FC<PickBrnInventoryDialogProps> = ({
+export const PickBrnInventoryDialog: React.FC<PickBrnInventoryDialogProps> = ({
   isOpen,
   onClose,
   hotelId,

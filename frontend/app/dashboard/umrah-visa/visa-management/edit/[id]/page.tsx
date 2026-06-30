@@ -13,8 +13,8 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { MovementsTable } from '@/components/umrah-booking/components/MovementsTable';
-import { HotelBookingTable } from '@/components/umrah-booking/components/HotelBookingTable';
-import { Calendar, Plane, Users, Building, MapPin, Mail, ArrowLeft, Clock, DollarSign, Route, Truck, X, Plus, Save } from 'lucide-react';
+import { HotelBookingTable, PickBrnInventoryDialog } from '@/components/umrah-booking/components/HotelBookingTable';
+import { Calendar, Plane, Users, Building, MapPin, Mail, ArrowLeft, Clock, DollarSign, Route, Truck, X, Plus, Save, Database } from 'lucide-react';
 import { Movement, LocationMaster } from '@/lib/umrah/types';
 import { TimePicker } from '@/components/ui/time-picker';
 import { formatTransportRoute } from '@/lib/utils';
@@ -68,6 +68,10 @@ export default function EditUmrahVisaBookingPage() {
   const [iqamaMakkahBrn, setIqamaMakkahBrn] = useState('');
   const [iqamaMadinahHotelName, setIqamaMadinahHotelName] = useState('');
   const [iqamaMadinahBrn, setIqamaMadinahBrn] = useState('');
+  const [iqamaMakkahHotelId, setIqamaMakkahHotelId] = useState('');
+  const [iqamaMadinahHotelId, setIqamaMadinahHotelId] = useState('');
+  const [makkahBrnPickerOpen, setMakkahBrnPickerOpen] = useState(false);
+  const [madinahBrnPickerOpen, setMadinahBrnPickerOpen] = useState(false);
 
 
   // Transportation
@@ -89,6 +93,30 @@ export default function EditUmrahVisaBookingPage() {
   const [vehicleTypes, setVehicleTypes] = useState<any[]>([]);
   const [umrahCompanies, setUmrahCompanies] = useState<any[]>([]);
   const [transportCompanies, setTransportCompanies] = useState<any[]>([]);
+
+  const makkahCity = useMemo(() => cities.find(c => c.name?.toLowerCase().includes('makkah') || c.name?.toLowerCase().includes('mecca')), [cities]);
+  const madinahCity = useMemo(() => cities.find(c => c.name?.toLowerCase().includes('madinah') || c.name?.toLowerCase().includes('medina')), [cities]);
+
+  useEffect(() => {
+    if (hotels.length > 0) {
+      if (iqamaMakkahHotelName && !iqamaMakkahHotelId) {
+        const found = hotels.find((h: any) => h.name === iqamaMakkahHotelName || h.hotelName === iqamaMakkahHotelName);
+        if (found) {
+          setIqamaMakkahHotelId(found.id);
+        } else {
+          setIqamaMakkahHotelId('custom');
+        }
+      }
+      if (iqamaMadinahHotelName && !iqamaMadinahHotelId) {
+        const found = hotels.find((h: any) => h.name === iqamaMadinahHotelName || h.hotelName === iqamaMadinahHotelName);
+        if (found) {
+          setIqamaMadinahHotelId(found.id);
+        } else {
+          setIqamaMadinahHotelId('custom');
+        }
+      }
+    }
+  }, [hotels, iqamaMakkahHotelName, iqamaMadinahHotelName]);
 
   const mappedLocationsForTable = useMemo(() => {
     const locs = locationMasters.filter((l: any) => l.locationType === 'OTHERS' || l.locationType === 'HOTEL');
@@ -905,10 +933,135 @@ export default function EditUmrahVisaBookingPage() {
                     <div className="col-span-1 sm:col-span-2 mt-4 pt-4 border-t border-gray-200">
                       <h4 className="text-sm font-bold text-gray-700 mb-4">Iqama Hotel Details (For Reference & Copy All)</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1"><label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Makkah Hotel Name</label><Input value={iqamaMakkahHotelName} onChange={(e) => setIqamaMakkahHotelName(e.target.value)} placeholder="e.g., ANWAR AL SALAH" /></div>
-                        <div className="space-y-1"><label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Makkah BRN</label><Input value={iqamaMakkahBrn} onChange={(e) => setIqamaMakkahBrn(e.target.value)} placeholder="BRN or Agreement No" /></div>
-                        <div className="space-y-1"><label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Madinah Hotel Name</label><Input value={iqamaMadinahHotelName} onChange={(e) => setIqamaMadinahHotelName(e.target.value)} placeholder="e.g., Dalla Taiba" /></div>
-                        <div className="space-y-1"><label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Madinah BRN</label><Input value={iqamaMadinahBrn} onChange={(e) => setIqamaMadinahBrn(e.target.value)} placeholder="BRN or Agreement No" /></div>
+                        {/* Makkah Hotel Selector */}
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Makkah Hotel</label>
+                          <Select 
+                            value={iqamaMakkahHotelId} 
+                            onValueChange={(val) => {
+                              setIqamaMakkahHotelId(val);
+                              if (val === 'custom') {
+                                setIqamaMakkahHotelName('');
+                              } else {
+                                const selectedH = hotels.find(h => h.id === val);
+                                if (selectedH) {
+                                  setIqamaMakkahHotelName(selectedH.name || selectedH.hotelName || '');
+                                }
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="w-full h-10 text-xs">
+                              <SelectValue placeholder="Select Makkah Hotel" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="custom">-- Custom/Other Hotel --</SelectItem>
+                              {hotels.filter(h => h.cityId === makkahCity?.id).map((h) => (
+                                <SelectItem key={h.id} value={h.id}>{h.name || h.hotelName}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Makkah BRN Selector */}
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Makkah BRN</label>
+                          <div className="flex gap-1.5 items-center">
+                            <Input 
+                              value={iqamaMakkahBrn} 
+                              onChange={(e) => setIqamaMakkahBrn(e.target.value)} 
+                              placeholder="BRN or Agreement No" 
+                              className="flex-1"
+                            />
+                            {iqamaMakkahHotelId && iqamaMakkahHotelId !== 'custom' && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setMakkahBrnPickerOpen(true)}
+                                className="h-10 w-10 p-0 border-indigo-200 text-indigo-600 hover:bg-indigo-50 shrink-0"
+                                title="Pick from Inventory"
+                              >
+                                <Database className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        {iqamaMakkahHotelId === 'custom' && (
+                          <div className="space-y-1 sm:col-span-2">
+                            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Custom Makkah Hotel Name</label>
+                            <Input 
+                              value={iqamaMakkahHotelName} 
+                              onChange={(e) => setIqamaMakkahHotelName(e.target.value)} 
+                              placeholder="Type custom hotel name" 
+                            />
+                          </div>
+                        )}
+
+                        {/* Madinah Hotel Selector */}
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Madinah Hotel</label>
+                          <Select 
+                            value={iqamaMadinahHotelId} 
+                            onValueChange={(val) => {
+                              setIqamaMadinahHotelId(val);
+                              if (val === 'custom') {
+                                setIqamaMadinahHotelName('');
+                              } else {
+                                const selectedH = hotels.find(h => h.id === val);
+                                if (selectedH) {
+                                  setIqamaMadinahHotelName(selectedH.name || selectedH.hotelName || '');
+                                }
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="w-full h-10 text-xs">
+                              <SelectValue placeholder="Select Madinah Hotel" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="custom">-- Custom/Other Hotel --</SelectItem>
+                              {hotels.filter(h => h.cityId === madinahCity?.id).map((h) => (
+                                <SelectItem key={h.id} value={h.id}>{h.name || h.hotelName}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Madinah BRN Selector */}
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Madinah BRN</label>
+                          <div className="flex gap-1.5 items-center">
+                            <Input 
+                              value={iqamaMadinahBrn} 
+                              onChange={(e) => setIqamaMadinahBrn(e.target.value)} 
+                              placeholder="BRN or Agreement No" 
+                              className="flex-1"
+                            />
+                            {iqamaMadinahHotelId && iqamaMadinahHotelId !== 'custom' && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setMadinahBrnPickerOpen(true)}
+                                className="h-10 w-10 p-0 border-indigo-200 text-indigo-600 hover:bg-indigo-50 shrink-0"
+                                title="Pick from Inventory"
+                              >
+                                <Database className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        {iqamaMadinahHotelId === 'custom' && (
+                          <div className="space-y-1 sm:col-span-2">
+                            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Custom Madinah Hotel Name</label>
+                            <Input 
+                              value={iqamaMadinahHotelName} 
+                              onChange={(e) => setIqamaMadinahHotelName(e.target.value)} 
+                              placeholder="Type custom hotel name" 
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -951,6 +1104,32 @@ export default function EditUmrahVisaBookingPage() {
           </div>
         )}
       </div>
+
+      {makkahBrnPickerOpen && iqamaMakkahHotelId && (
+        <PickBrnInventoryDialog
+          isOpen={makkahBrnPickerOpen}
+          onClose={() => setMakkahBrnPickerOpen(false)}
+          hotelId={iqamaMakkahHotelId}
+          hotelName={iqamaMakkahHotelName}
+          onSelect={(brnNumber, qty) => {
+            setIqamaMakkahBrn(brnNumber);
+            setMakkahBrnPickerOpen(false);
+          }}
+        />
+      )}
+
+      {madinahBrnPickerOpen && iqamaMadinahHotelId && (
+        <PickBrnInventoryDialog
+          isOpen={madinahBrnPickerOpen}
+          onClose={() => setMadinahBrnPickerOpen(false)}
+          hotelId={iqamaMadinahHotelId}
+          hotelName={iqamaMadinahHotelName}
+          onSelect={(brnNumber, qty) => {
+            setIqamaMadinahBrn(brnNumber);
+            setMadinahBrnPickerOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }
