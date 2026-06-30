@@ -1048,21 +1048,18 @@ router.post('/group/add-to-existing-booking', authenticate, uploadGroup.fields([
     const result = await prisma.$transaction(async (tx) => {
       // Calculate duplicate booking reference with suffix (e.g. UB-260612-052-01)
       const parentRef = existingBooking.bookingReference || `UB-${existingBookingId.slice(0, 8)}`;
-      const duplicateCount = await tx.umrahVisaBooking.count({
-        where: {
-          OR: [
-            { id: existingBookingId },
-            {
-              bookingReference: {
-                startsWith: `${parentRef}-`
-              }
-            }
-          ],
-          isDeleted: false
-        }
-      });
-      const suffix = String(duplicateCount).padStart(2, '0');
-      const duplicateBookingReference = `${parentRef}-${suffix}`;
+      let suffixNum = 1;
+      let duplicateBookingReference = `${parentRef}-${String(suffixNum).padStart(2, '0')}`;
+      
+      // Find the first available suffix that does not exist in the DB (even if deleted)
+      while (true) {
+        const existing = await tx.umrahVisaBooking.findFirst({
+          where: { bookingReference: duplicateBookingReference }
+        });
+        if (!existing) break;
+        suffixNum++;
+        duplicateBookingReference = `${parentRef}-${String(suffixNum).padStart(2, '0')}`;
+      }
 
       // 1. Create duplicate booking (internal duplicate) only in Group assigned status
       const duplicateBooking = await tx.umrahVisaBooking.create({
