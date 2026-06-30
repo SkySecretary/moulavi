@@ -760,7 +760,9 @@ router.post('/:bookingId/mark-ready-for-voucher', authenticate, async (req, res)
     // If hasTransportation = true → voucher (needs transport voucher)
     // If hasTransportation = false → bill (no transport, skip voucher)
     let nextStatus: 'voucher' | 'bill';
-    if (booking.hasTransportation) {
+    if (booking.isDuplicate) {
+      nextStatus = 'bill';
+    } else if (booking.hasTransportation) {
       nextStatus = 'voucher';
     } else {
       nextStatus = 'bill';
@@ -2009,7 +2011,7 @@ router.delete('/transport-bookings/:id', authenticate, async (req, res) => {
 router.post('/:bookingId/hotel-bookings', authenticate, async (req, res) => {
   try {
     const { bookingId } = req.params;
-    const { cityId, hotelId, checkInDate, checkOutDate } = req.body || {};
+    const { cityId, hotelId, checkInDate, checkOutDate, brn, additionalBrns } = req.body || {};
     
     // Verify booking exists and has hotel accommodation type
     const booking = await prisma.umrahVisaBooking.findUnique({
@@ -2032,6 +2034,8 @@ router.post('/:bookingId/hotel-bookings', authenticate, async (req, res) => {
         hotelId,
         checkInDate: checkInDate ? new Date(checkInDate) : new Date(),
         checkOutDate: checkOutDate ? new Date(checkOutDate) : new Date(),
+        brn: brn ?? null,
+        additionalBrns: additionalBrns ? (additionalBrns as any) : null,
       },
       include: { hotel: true, city: true },
     });

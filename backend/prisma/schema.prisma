@@ -57,6 +57,9 @@ model Party {
   aadhaarNumber            String?            @map("aadhaar_number")
   supplierServiceTypes     Json?              @map("supplier_service_types")
   logoPath                 String?            @map("logo_path")
+  nusukEntityId            String?            @map("nusuk_entity_id")
+  nusukActiveEntityId      String?            @map("nusuk_active_entity_id")
+  nusukActiveEntityTypeId  String?            @map("nusuk_active_entity_type_id")
   user                     User?              @relation("PartyUser", fields: [userId], references: [id])
   creator                  User               @relation("CreatedBy", fields: [createdBy], references: [id])
   accountCurrency          CurrencyMaster     @relation(fields: [accountCurrencyId], references: [id])
@@ -107,6 +110,7 @@ model UmrahVisaBooking {
   lastUpdatedBy             String?                    @map("last_updated_by")
   hasMultipleGroup          Boolean                    @default(false) @map("has_multiple_group")
   multipleGroupDetails      Json?                      @map("multiple_group_details")
+  isDuplicate               Boolean                    @default(false) @map("is_duplicate")
   bookingReference          String?                    @unique @map("booking_reference")
   brn                       String?                    @map("brn")
   tripStatus                TripStatus                 @default(pending) @map("trip_status")
@@ -119,6 +123,7 @@ model UmrahVisaBooking {
   sponsorIqamaDetails       UmrahSponserIqamaDetails[]
   transportBookings         UmrahTransportBooking[]
   travelDetails             UmrahTravelDetails[]
+  vouchers                  Voucher[]
   brnUpdates                BrnUpdateHistory[]
   nusukMismatches           NusukMismatch[]
   lastUpdatedByUser         User?                      @relation("BookingLastUpdatedBy", fields: [lastUpdatedBy], references: [id])
@@ -152,6 +157,9 @@ model UmrahPassenger {
   visaNumber       String?             @map("visa_number")
   mofaNumber       String?             @map("mofa_number")
   mutamerStatus    String?             @map("mutamer_status")
+  currentlyInKingdom String?             @map("currently_in_kingdom")
+  borderNumber       String?             @map("border_number")
+  visaIssueDate      DateTime?           @map("visa_issue_date")
   createdAt        DateTime            @default(now()) @map("created_at")
   updatedAt        DateTime            @default(now()) @updatedAt @map("updated_at")
   deletedAt        DateTime?           @map("deleted_at")
@@ -454,6 +462,7 @@ model UmrahHotelBooking {
   checkInDate  DateTime         @map("checkin_date")
   checkOutDate DateTime         @map("checkout_date")
   brn          Json?            @map("brn")
+  additionalBrns Json?            @map("additional_brns")
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @default(now()) @updatedAt @map("updated_at")
   booking      UmrahVisaBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
@@ -587,6 +596,7 @@ model Voucher {
   umrahCompany        Party?            @relation("UmrahCompany", fields: [umrahCompanyId], references: [id])
   party               Party?            @relation("VoucherParty", fields: [partyId], references: [id])
   generatedByUser     User              @relation("VoucherGeneratedBy", fields: [generatedBy], references: [id])
+  booking             UmrahVisaBooking? @relation(fields: [bookingId], references: [id])
 
   @@index([voucherNumber])
   @@index([generatedAt])
@@ -861,18 +871,19 @@ model BrnUpdateHistory {
 }
 
 model NusukSetting {
-  id                 String    @id @default(uuid())
-  token              String    @map("token")
-  activeEntityId     String    @default("525592") @map("active_entity_id")
-  activeEntityTypeId String    @default("32") @map("active_entity_type_id")
-  entityId           String    @default("525592") @map("entity_id")
-  checkByPassport    Boolean   @default(false) @map("check_by_passport")
-  externalAgentCodes String    @default("22282, 6655, 1001828") @map("external_agent_codes")
-  syncSchedule       String    @default("08:00, 20:00") @map("sync_schedule")
-  isValid            Boolean   @default(true) @map("is_valid")
-  lastSyncedAt       DateTime? @map("last_synced_at")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
+  id                      String    @id @default(uuid())
+  token                   String    @map("token")
+  activeEntityId          String    @default("525592") @map("active_entity_id")
+  activeEntityTypeId      String    @default("32") @map("active_entity_type_id")
+  entityId                String    @default("525592") @map("entity_id")
+  selectedUmrahCompanyIds String?   @map("selected_umrah_company_ids")
+  checkByPassport         Boolean   @default(false) @map("check_by_passport")
+  externalAgentCodes      String    @default("22282, 6655, 1001828") @map("external_agent_codes")
+  syncSchedule            String    @default("08:00, 20:00") @map("sync_schedule")
+  isValid                 Boolean   @default(true) @map("is_valid")
+  lastSyncedAt            DateTime? @map("last_synced_at")
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @default(now()) @updatedAt @map("updated_at")
 
   @@map("nusuk_settings")
 }

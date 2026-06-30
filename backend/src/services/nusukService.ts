@@ -5,15 +5,27 @@ import puppeteer from 'puppeteer';
 
 // Utility to clean and extract carrier and numbers from flight number
 function cleanFlightNumber(flightNum: string): { carrier: string; number: string } {
-  const clean = (flightNum || '').replace(/\s+/g, '').toUpperCase();
-  const match = clean.match(/^([A-Z]{2,3})(\d+)$/);
-  if (match) {
-    return { carrier: match[1], number: match[2] };
+  const clean = (flightNum || '').replace(/[\s-]/g, '').toUpperCase();
+  
+  // Try 3-letter carrier followed by digits (e.g. UAE012)
+  const match3 = clean.match(/^([A-Z]{3})(\d+)$/);
+  if (match3) {
+    return { carrier: match3[1], number: String(parseInt(match3[2], 10)) };
   }
-  // Fallback: extract letters and numbers
-  const letters = clean.replace(/[^A-Z]/g, '');
-  const digits = clean.replace(/[^0-9]/g, '');
-  return { carrier: letters, number: digits };
+  
+  // Try 2-char alphanumeric carrier followed by digits (e.g. 6E0065, WY123)
+  const match2 = clean.match(/^([A-Z0-9]{2})(\d+)$/);
+  if (match2) {
+    return { carrier: match2[1], number: String(parseInt(match2[2], 10)) };
+  }
+  
+  // Fallback: split by trailing digits
+  const matchFallback = clean.match(/^([A-Z0-9]+?)(\d+)$/);
+  if (matchFallback) {
+    return { carrier: matchFallback[1], number: String(parseInt(matchFallback[2], 10)) };
+  }
+  
+  return { carrier: clean, number: '' };
 }
 
 // Utility for generous airport name matching
@@ -183,6 +195,7 @@ export class NusukService {
     activeEntityId?: string;
     activeEntityTypeId?: string;
     entityId?: string;
+    selectedUmrahCompanyIds?: string;
     checkByPassport?: boolean;
     externalAgentCodes?: string;
     syncSchedule?: string;
@@ -196,6 +209,7 @@ export class NusukService {
           activeEntityId: data.activeEntityId ?? existing.activeEntityId,
           activeEntityTypeId: data.activeEntityTypeId ?? existing.activeEntityTypeId,
           entityId: data.entityId ?? existing.entityId,
+          selectedUmrahCompanyIds: data.selectedUmrahCompanyIds ?? existing.selectedUmrahCompanyIds,
           checkByPassport: data.checkByPassport ?? existing.checkByPassport,
           externalAgentCodes: data.externalAgentCodes ?? existing.externalAgentCodes,
           syncSchedule: data.syncSchedule ?? existing.syncSchedule,
@@ -209,6 +223,7 @@ export class NusukService {
           activeEntityId: data.activeEntityId ?? '525592',
           activeEntityTypeId: data.activeEntityTypeId ?? '32',
           entityId: data.entityId ?? '525592',
+          selectedUmrahCompanyIds: data.selectedUmrahCompanyIds ?? '',
           checkByPassport: data.checkByPassport ?? false,
           externalAgentCodes: data.externalAgentCodes ?? '22282, 6655, 1001828',
           syncSchedule: data.syncSchedule ?? '08:00, 20:00',
@@ -218,15 +233,26 @@ export class NusukService {
     }
   }
 
-  // Fetch report from Nusuk and process travel detail discrepancies
-  static async triggerSync() {
-    const settings = await prisma.nusukSetting.findFirst();
-    if (!settings || !settings.token) {
-      throw new Error('Nusuk integration is not configured. Please supply a valid Bearer token in Settings.');
+  // Run synchronization for a single entity
+  static async triggerSyncSingle(partyId: string | undefined, settings: any) {
+    let activeEntityId = settings.activeEntityId;
+    let activeEntityTypeId = settings.activeEntityTypeId;
+    let entityId = settings.entityId;
+    let companyName = "Default Settings";
+
+    if (partyId) {
+      const party = await prisma.party.findUnique({ where: { id: partyId } });
+      if (party) {
+        companyName = party.partyName;
+        if (party.nusukEntityId) entityId = party.nusukEntityId;
+        if (party.nusukActiveEntityId) activeEntityId = party.nusukActiveEntityId;
+        if (party.nusukActiveEntityTypeId) activeEntityTypeId = party.nusukActiveEntityTypeId;
+      }
     }
 
     let excelBuffer: Buffer;
     
+    console.log(`[NUSUK SYNC] Syncing entity: ${companyName} (Entity ID: ${entityId}, Active Entity ID: ${activeEntityId}, Active Entity Type ID: ${activeEntityTypeId})`);
     console.log('[NUSUK SYNC] Launching headless browser to sync from Nusuk...');
     const browser = await puppeteer.launch({
       headless: true,
@@ -252,13 +278,24 @@ export class NusukService {
         }
       });
 
+      // Enable request interception to block heavy assets and speed up page load
+      await page.setRequestInterception(true);
+      page.on('request', (req) => {
+        const type = req.resourceType();
+        if (type === 'image' || type === 'stylesheet' || type === 'font' || type === 'media') {
+          req.abort();
+        } else {
+          req.continue();
+        }
+      });
+
       // Set standard browser user agent
       await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36');
       
       console.log('[NUSUK SYNC] Establishing referrer page context...');
       await page.goto('https://masar.nusuk.sa/', {
-        waitUntil: 'networkidle2',
-        timeout: 30000
+        waitUntil: 'domcontentloaded',
+        timeout: 20000
       });
 
       console.log('[NUSUK SYNC] Querying report export from page context...');
@@ -364,9 +401,8 @@ export class NusukService {
     const processedBookingIds = new Set<string>();
     const mismatchesToCreate: any[] = [];
 
-    // Database transactional update
-    const syncResult = await prisma.$transaction(async (tx) => {
-      // 1. Group the Excel rows by Group Number
+    // Group the Excel rows by Group Number
+    // Filter rows by allowed external agent codes if configured in settings
       // Filter rows by allowed external agent codes if configured in settings
       const allowedAgentCodes = settings.externalAgentCodes
         ? settings.externalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean)
@@ -393,7 +429,7 @@ export class NusukService {
       console.log(`[NUSUK SYNC] Grouped rows into ${Object.keys(rowsByGroup).length} distinct groups from Nusuk. Skipped ${skippedCount} rows belonging to other external agents.`);
 
       // Pre-fetch candidate active bookings with groupNumber to match them in memory
-      const candidateBookings = await tx.umrahVisaBooking.findMany({
+      const candidateBookings = await prisma.umrahVisaBooking.findMany({
         where: {
           isDeleted: false,
           groupNumber: { not: null }
@@ -411,6 +447,66 @@ export class NusukService {
           }
         }
       });
+
+      // A. Clean up any duplicate unresolved mismatches in the database first for these candidate bookings
+      const bookingIds = candidateBookings.map(b => b.id);
+      if (bookingIds.length > 0) {
+        const allActiveMismatches = await prisma.nusukMismatch.findMany({
+          where: { 
+            bookingId: { in: bookingIds },
+            resolved: false 
+          },
+          orderBy: { createdAt: 'asc' }
+        });
+        const seenActive = new Set<string>();
+        const idsToDelete: string[] = [];
+        for (const m of allActiveMismatches) {
+          const detailsObj = m.details ? (m.details as any) : {};
+          const passport = String(detailsObj.passportNumber || '').trim().toUpperCase();
+          const key = m.passengerId 
+            ? `pax-${m.passengerId}` 
+            : `passport-${passport}-${m.bookingId}`;
+          if (seenActive.has(key)) {
+            idsToDelete.push(m.id);
+          } else {
+            seenActive.add(key);
+          }
+        }
+        if (idsToDelete.length > 0) {
+          await prisma.nusukMismatch.deleteMany({
+            where: { id: { in: idsToDelete } }
+          });
+          console.log(`[NUSUK SYNC] Cleaned up ${idsToDelete.length} duplicate active mismatches from DB.`);
+        }
+      }
+
+      // B. Pre-load previously resolved mismatches for these candidate bookings so we ignore them during sync
+      const resolvedMismatches = bookingIds.length > 0 
+        ? await prisma.nusukMismatch.findMany({
+            where: {
+              bookingId: { in: bookingIds },
+              resolved: true
+            },
+            select: {
+              passengerId: true,
+              details: true,
+              bookingId: true
+            }
+          })
+        : [];
+
+      const resolvedKeys = new Set<string>();
+      for (const m of resolvedMismatches) {
+        if (m.passengerId) {
+          resolvedKeys.add(`pax-${m.passengerId}`);
+        } else {
+          const detailsObj = m.details ? (m.details as any) : {};
+          const passportNum = String(detailsObj.passportNumber || '').trim().toUpperCase();
+          if (passportNum) {
+            resolvedKeys.add(`passport-${passportNum}-${m.bookingId}`);
+          }
+        }
+      }
 
       // Build map of individual group number parts to booking
       const bookingByGroupMap = new Map<string, typeof candidateBookings[0]>();
@@ -463,6 +559,9 @@ export class NusukService {
                   const visaNumber = String(getRowValue(row, ['Visa Number']) || '').trim();
           const mofaNumber = String(getRowValue(row, ['Mofa Number']) || '').trim();
           const mutamerStatus = String(getRowValue(row, ['Mutamer Status']) || '').trim();
+          const currentlyInKingdom = String(getRowValue(row, ['Currently in Kingdom', 'CurrentlyInKingdom']) || 'No').trim();
+          const borderNumber = String(getRowValue(row, ['Border Number', 'BorderNumber']) || '').trim();
+          const visaIssueDate = parseExcelDate(getRowValue(row, ['Visa Issue Date', 'VisaIssueDate']));
           const entryDate = parseExcelDate(getRowValue(row, ['Entry Date']), getRowValue(row, ['Entry Time']));
           const exitDate = parseExcelDate(getRowValue(row, ['Exit Date']), getRowValue(row, ['Exit Time']));
           const excelGender = String(getRowValue(row, ['Gender', 'Type']) || '').trim().toLowerCase(); // Support Excel column named "Type" as fallback for Gender
@@ -481,7 +580,7 @@ export class NusukService {
 
           if (!passenger) {
             // Step 3: Create passenger record if no empty slot/matching passenger was found
-            passenger = await tx.umrahPassenger.create({
+            passenger = await prisma.umrahPassenger.create({
               data: {
                 bookingId: booking.id,
                 fullName: mutamerName,
@@ -491,6 +590,9 @@ export class NusukService {
                 visaNumber: visaNumber || null,
                 mofaNumber: mofaNumber || null,
                 mutamerStatus: mutamerStatus || null,
+                currentlyInKingdom: currentlyInKingdom || null,
+                borderNumber: borderNumber || null,
+                visaIssueDate: visaIssueDate || null,
                 entryDate,
                 exitDate,
                 gender,
@@ -501,7 +603,7 @@ export class NusukService {
             console.log(`[NUSUK SYNC] Created passenger ${mutamerName} (${passport}) for booking ${booking.bookingReference}`);
           } else {
             // Step 4: Update passenger details in-place
-            passenger = await tx.umrahPassenger.update({
+            passenger = await prisma.umrahPassenger.update({
               where: { id: passenger.id },
               data: {
                 fullName: mutamerName,
@@ -511,6 +613,9 @@ export class NusukService {
                 visaNumber: visaNumber || null,
                 mofaNumber: mofaNumber || null,
                 mutamerStatus: mutamerStatus || null,
+                currentlyInKingdom: currentlyInKingdom || null,
+                borderNumber: borderNumber || null,
+                visaIssueDate: visaIssueDate || null,
                 entryDate,
                 exitDate,
                 gender
@@ -620,18 +725,26 @@ export class NusukService {
               else if (entryMismatchDetails) mismatchType = 'entry';
               else if (exitMismatchDetails) mismatchType = 'exit';
 
-              mismatchesToCreate.push({
-                bookingId: booking.id,
-                passengerId: passenger.id,
-                mismatchType,
-                details: {
-                  mutamerName,
-                  passportNumber: passport,
-                  groupNumber: gNum,
-                  entry: entryMismatchDetails,
-                  exit: exitMismatchDetails
-                }
-              });
+              const mismatchKey = passenger.id 
+                ? `pax-${passenger.id}` 
+                : `passport-${passport}-${booking.id}`;
+
+              if (resolvedKeys.has(mismatchKey)) {
+                console.log(`[NUSUK SYNC] Ignoring mismatch for passenger ${mutamerName} (${passport}) as it was previously resolved.`);
+              } else {
+                mismatchesToCreate.push({
+                  bookingId: booking.id,
+                  passengerId: passenger.id,
+                  mismatchType,
+                  details: {
+                    mutamerName,
+                    passportNumber: passport,
+                    groupNumber: gNum,
+                    entry: entryMismatchDetails,
+                    exit: exitMismatchDetails
+                  }
+                });
+              }
             }
           }
 
@@ -687,7 +800,7 @@ export class NusukService {
 
       // 4. Delete unresolved mismatches for the bookings that were parsed
       if (processedBookingIds.size > 0) {
-        await tx.nusukMismatch.deleteMany({
+        await prisma.nusukMismatch.deleteMany({
           where: {
             bookingId: { in: Array.from(processedBookingIds) },
             resolved: false
@@ -695,9 +808,22 @@ export class NusukService {
         });
       }
 
-      // 5. Create newly detected mismatches
+      // 5. Create newly detected mismatches (deduplicated)
+      const uniqueMismatches: any[] = [];
+      const seenMismatches = new Set<string>();
+
       for (const item of mismatchesToCreate) {
-        await tx.nusukMismatch.create({
+        const key = item.passengerId 
+          ? `pax-${item.passengerId}` 
+          : `passport-${item.details.passportNumber || ''}-${item.bookingId}`;
+        if (!seenMismatches.has(key)) {
+          seenMismatches.add(key);
+          uniqueMismatches.push(item);
+        }
+      }
+
+      for (const item of uniqueMismatches) {
+        await prisma.nusukMismatch.create({
           data: {
             bookingId: item.bookingId,
             passengerId: item.passengerId,
@@ -709,7 +835,7 @@ export class NusukService {
       }
 
       // 5.5 Recalculate and update SubAgentMetric & ComplianceAuditLog for ALL sub-agents (Parties)
-      const parties = await tx.party.findMany({
+      const parties = await prisma.party.findMany({
         where: { isCustomer: true }
       });
 
@@ -742,14 +868,14 @@ export class NusukService {
         }
 
         // Check previous status for audit logging
-        const existingMetric = await tx.subAgentMetric.findUnique({
+        const existingMetric = await prisma.subAgentMetric.findUnique({
           where: { subAgentId: party.id }
         });
 
         const previousStatus = existingMetric ? existingMetric.complianceStatus : 'GREEN';
 
         // Upsert the metric
-        await tx.subAgentMetric.upsert({
+        await prisma.subAgentMetric.upsert({
           where: { subAgentId: party.id },
           create: {
             subAgentId: party.id,
@@ -787,7 +913,7 @@ export class NusukService {
             reasonSummary = `Score returned to normal range (Score: ${score.toFixed(4)}). Operations restored to GREEN status.`;
           }
 
-          await tx.complianceAuditLog.create({
+          await prisma.complianceAuditLog.create({
             data: {
               subAgentId: party.id,
               previousStatus: previousStatus as any,
@@ -799,7 +925,7 @@ export class NusukService {
       }
 
       // 6. Update setting metadata (last synced, is_valid status)
-      await tx.nusukSetting.update({
+      await prisma.nusukSetting.update({
         where: { id: settings.id },
         data: {
           lastSyncedAt: new Date(),
@@ -807,14 +933,51 @@ export class NusukService {
         }
       });
 
-      return {
+      const syncResult = {
         mismatchesCount: mismatchesToCreate.length,
         syncedAt: new Date()
       };
-    });
 
-    console.log(`[NUSUK SYNC] Completed mismatch synchronization. Found ${syncResult.mismatchesCount} active discrepancies.`);
-    return syncResult;
+      console.log(`[NUSUK SYNC] Completed mismatch synchronization. Found ${syncResult.mismatchesCount} active discrepancies.`);
+      return syncResult;
+  }
+
+  // Fetch report from Nusuk and process travel detail discrepancies for selected entities
+  static async triggerSync(partyId?: string) {
+    const settings = await prisma.nusukSetting.findFirst();
+    if (!settings || !settings.token) {
+      throw new Error('Nusuk integration is not configured. Please supply a valid Bearer token in Settings.');
+    }
+
+    if (partyId) {
+      // Sync only the requested entity
+      return await this.triggerSyncSingle(partyId, settings);
+    }
+
+    // Otherwise, loop over all selected Umrah Companies
+    const selectedIds = settings.selectedUmrahCompanyIds
+      ? settings.selectedUmrahCompanyIds.split(',').map(id => id.trim()).filter(Boolean)
+      : [];
+
+    if (selectedIds.length > 0) {
+      let totalMismatches = 0;
+      for (const id of selectedIds) {
+        console.log(`[NUSUK SYNC] Starting sync for company party ID: ${id}`);
+        try {
+          const res = await this.triggerSyncSingle(id, settings);
+          totalMismatches += res.mismatchesCount;
+        } catch (err: any) {
+          console.error(`[NUSUK SYNC] Failed to sync for party ID ${id}: ${err.message}`);
+        }
+      }
+      return {
+        mismatchesCount: totalMismatches,
+        syncedAt: new Date()
+      };
+    } else {
+      // Fallback to default credentials from settings
+      return await this.triggerSyncSingle(undefined, settings);
+    }
   }
 
   // Get active travel mismatches list with pagination and filters
@@ -824,15 +987,16 @@ export class NusukService {
     limit?: number;
     mismatchType?: string;
     partyId?: string;
+    search?: string;
   }) {
-    const isResolved = params.resolved ?? false;
     const page = params.page ?? 1;
     const limit = params.limit ?? 10;
     const skip = (page - 1) * limit;
 
-    const whereClause: any = {
-      resolved: isResolved
-    };
+    const whereClause: any = {};
+    if (params.resolved !== undefined) {
+      whereClause.resolved = params.resolved;
+    }
 
     if (params.mismatchType && params.mismatchType !== 'all') {
       whereClause.mismatchType = params.mismatchType;
@@ -842,6 +1006,22 @@ export class NusukService {
       whereClause.booking = {
         partyId: params.partyId
       };
+    }
+
+    if (params.search) {
+      const searchVal = params.search.trim();
+      whereClause.OR = [
+        {
+          booking: {
+            bookingReference: { contains: searchVal }
+          }
+        },
+        {
+          passenger: {
+            passportNumber: { contains: searchVal }
+          }
+        }
+      ];
     }
 
     const [mismatches, totalCount] = await Promise.all([
@@ -1192,5 +1372,240 @@ export class NusukService {
         timestamp: new Date()
       };
     });
+  }
+
+  // Get dashboard metrics for compliance dashboard
+  static async getComplianceDashboard(role: string, partyId?: string) {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const yesterdayStart = new Date();
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+    yesterdayStart.setHours(0, 0, 0, 0);
+
+    const yesterdayEnd = new Date(todayStart);
+
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+
+    // Filters for mismatches
+    const baseFilter: any = { resolved: false };
+    if (role === 'customer' && partyId) {
+      baseFilter.booking = { partyId };
+    }
+
+    // Counts
+    const todayCount = await prisma.nusukMismatch.count({
+      where: {
+        ...baseFilter,
+        createdAt: { gte: todayStart }
+      }
+    });
+
+    const yesterdayCount = await prisma.nusukMismatch.count({
+      where: {
+        ...baseFilter,
+        createdAt: {
+          gte: yesterdayStart,
+          lt: yesterdayEnd
+        }
+      }
+    });
+
+    const monthCount = await prisma.nusukMismatch.count({
+      where: {
+        ...baseFilter,
+        createdAt: { gte: monthStart }
+      }
+    });
+
+    if (role !== 'customer') {
+      // Admin dashboard
+      // Fetch latest 5 active mismatches
+      const recentMismatches = await prisma.nusukMismatch.findMany({
+        where: { resolved: false },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        include: {
+          booking: {
+            select: {
+              bookingReference: true,
+              party: {
+                select: {
+                  partyName: true
+                }
+              }
+            }
+          },
+          passenger: {
+            select: {
+              fullName: true
+            }
+          }
+        }
+      });
+
+      // Calculate visa stats
+      const systemPassengers = await prisma.umrahPassenger.count({
+        where: { isDeleted: false }
+      });
+      const nusukPassengers = await prisma.umrahPassenger.count({
+        where: {
+          isDeleted: false,
+          OR: [
+            { mofaNumber: { not: null } },
+            { visaNumber: { not: null } }
+          ]
+        }
+      });
+      const visasIssued = await prisma.umrahPassenger.count({
+        where: {
+          isDeleted: false,
+          visaNumber: { not: null }
+        }
+      });
+      const passengersInKSA = await prisma.umrahPassenger.count({
+        where: {
+          isDeleted: false,
+          OR: [
+            { currentlyInKingdom: 'Yes' },
+            {
+              entryDate: { not: null },
+              exitDate: null
+            }
+          ]
+        }
+      });
+      const passengersToArrive = await prisma.umrahPassenger.count({
+        where: {
+          isDeleted: false,
+          visaNumber: { not: null },
+          entryDate: null,
+          OR: [
+            { currentlyInKingdom: null },
+            { currentlyInKingdom: { not: 'Yes' } }
+          ]
+        }
+      });
+
+      return {
+        todayCount,
+        yesterdayCount,
+        recentMismatches: recentMismatches.map(m => {
+          const detailsObj = m.details ? (m.details as any) : {};
+          return {
+            id: m.id,
+            bookingReference: m.booking.bookingReference,
+            partyName: m.booking.party.partyName,
+            mismatchType: m.mismatchType,
+            mutamerName: m.passenger?.fullName || detailsObj.mutamerName || 'Count Discrepancy',
+            createdAt: m.createdAt
+          };
+        }),
+        visaSummary: {
+          systemPassengers,
+          nusukPassengers,
+          visasIssued,
+          passengersInKSA,
+          passengersToArrive
+        }
+      };
+    } else {
+      // Customer dashboard
+      // Fetch compliance score / rank
+      const metrics = await prisma.subAgentMetric.findUnique({
+        where: { subAgentId: partyId }
+      }) || {
+        totalArrivals: 0,
+        totalDepartures: 0,
+        arrivalMismatches: 0,
+        departureMismatches: 0,
+        severeViolations: 0,
+        weightedScore: 0,
+        complianceStatus: 'GREEN'
+      };
+
+      // Fetch all active mismatches for this customer (with full details)
+      const myMismatches = await prisma.nusukMismatch.findMany({
+        where: {
+          resolved: false,
+          booking: { partyId }
+        },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          booking: {
+            select: {
+              id: true,
+              bookingReference: true,
+              groupNumber: true,
+              groupName: true,
+              status: true,
+              travelDetails: {
+                where: { isAlternate: false },
+                include: {
+                  arrivalAirport: true,
+                  departureAirport: true
+                }
+              }
+            }
+          },
+          passenger: {
+            select: {
+              id: true,
+              fullName: true,
+              passportNumber: true
+            }
+          }
+        }
+      });
+
+      // Calculate advice
+      let advice = "Your compliance ranking is GREEN. Keep maintaining accurate flight details to avoid portal issues.";
+      
+      if (metrics.complianceStatus !== 'GREEN' || metrics.severeViolations > 0) {
+        advice = `Your compliance ranking is ${metrics.complianceStatus}. Fix your active discrepancies to prevent Nusuk penalties.`;
+        if (metrics.severeViolations > 0) {
+          advice += ` Notice: You have ${metrics.severeViolations} severe overstay/runaway records. Please contact administration immediately.`;
+        } else {
+          // Score reduction advice
+          const currentScore = Number(metrics.weightedScore || 0);
+          if (currentScore >= 0.02) {
+            advice += ` To improve your score to GREEN (< 0.02), resolve at least ${Math.max(1, Math.ceil((currentScore - 0.019) * 15))} active flight mismatches.`;
+          }
+        }
+      }
+
+      // Query historical counts to calculate real Accuracy
+      const totalAllMismatches = await prisma.nusukMismatch.count({
+        where: {
+          booking: { partyId }
+        }
+      });
+      const resolvedMismatchesCount = await prisma.nusukMismatch.count({
+        where: {
+          resolved: true,
+          booking: { partyId }
+        }
+      });
+
+      const totalFlights = (metrics.totalArrivals || 0) + (metrics.totalDepartures || 0);
+      let accuracy = 100;
+      if (totalFlights > 0) {
+        accuracy = Math.max(0, Math.round(100 - (totalAllMismatches / totalFlights) * 100));
+      }
+
+      return {
+        todayCount,
+        yesterdayCount,
+        monthCount,
+        metrics,
+        myMismatches,
+        advice,
+        accuracy,
+        totalAllMismatches,
+        resolvedMismatchesCount
+      };
+    }
   }
 }

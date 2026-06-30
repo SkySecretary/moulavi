@@ -321,12 +321,18 @@ export default function EditUmrahVisaBookingPage() {
       if (accommodationType === 'hotel') {
         const hotelBookingsToUpdate = hotelBookings
           .filter(h => h.id && !h.id.startsWith('new-'))
-          .map(h => ({
-            id: h.id,
-            checkInDate: combineDateAndTime(h.checkInDate, '20:30'),
-            checkOutDate: combineDateAndTime(h.checkOutDate, '20:30'),
-            brn: h.brn,
-          }));
+          .map(h => {
+            const location = locationMasters.find((l: any) => l.id === h.locationId);
+            return {
+              id: h.id,
+              cityId: location?.cityMaster?.id || h.cityId,
+              hotelId: h.hotelId,
+              checkInDate: combineDateAndTime(h.checkInDate, '20:30'),
+              checkOutDate: combineDateAndTime(h.checkOutDate, '20:30'),
+              brn: h.brn,
+              additionalBrns: h.additionalBrns,
+            };
+          });
 
         if (hotelBookingsToUpdate.length > 0) {
           await umrahVisaAPI.updateAccommodation(bookingId, {
@@ -345,6 +351,7 @@ export default function EditUmrahVisaBookingPage() {
               checkInDate: combineDateAndTime(h.checkInDate, '20:30'),
               checkOutDate: combineDateAndTime(h.checkOutDate, '20:30'),
               brn: h.brn,
+              additionalBrns: h.additionalBrns,
             };
           })
           .filter(h => h.cityId && h.hotelId);

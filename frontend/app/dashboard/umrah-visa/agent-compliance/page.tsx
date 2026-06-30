@@ -171,13 +171,12 @@ export default function AgentCompliancePage() {
       setLoadingLogs(false);
     }
 
-    // 2. Load active mismatches for batch detection / port inconsistencies
+    // 2. Load mismatches for batch detection / port inconsistencies
     setLoadingMismatches(true);
     try {
       const response = await nusukAPI.getMismatches({
         partyId: agentId,
-        resolved: false,
-        limit: 100 // fetch up to 100 active mismatches to analyze
+        limit: 100 // fetch up to 100 mismatches to analyze
       });
       const mismatches = response.data?.mismatches || [];
       setAgentMismatches(mismatches);
@@ -191,13 +190,14 @@ export default function AgentCompliancePage() {
     }
   };
 
-  const analyzeAnomalies = (mismatches: ActiveMismatch[]) => {
+  const analyzeAnomalies = (mismatches: any[]) => {
     // A. Batch pattern: multiple arrival mismatches on exact same entry flight and date
     const batchMap: Record<string, { flight: string; date: string; count: number }> = {};
     // B. Port inconsistencies: expected vs actual ports mismatch counts
     const portMap: Record<string, { expected: string; actual: string; count: number }> = {};
 
     for (const item of mismatches) {
+      if (item.resolved) continue; // Only analyze active unresolved anomalies
       const details = item.details;
       
       // 1. Group entry flights & dates
@@ -653,6 +653,66 @@ export default function AgentCompliancePage() {
                             <p className="text-gray-600 leading-normal text-[10px]">{log.reasonSummary}</p>
                           </div>
                         ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Agency Mismatched Travel Listing */}
+                  <div className="space-y-3 pt-4 border-t">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5 justify-between">
+                      <div className="flex items-center gap-1">
+                        <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                        Mismatched Travel Listing
+                      </div>
+                      <span className="text-[10px] font-bold text-gray-500 bg-slate-100 border px-1.5 py-0.5 rounded-full font-mono">
+                        {agentMismatches.length} Total
+                      </span>
+                    </h4>
+
+                    {loadingMismatches ? (
+                      <div className="text-[11px] text-gray-400 animate-pulse">Loading listings...</div>
+                    ) : agentMismatches.length === 0 ? (
+                      <div className="text-[11px] text-gray-400 italic text-center py-2">No travel mismatches found for this agent.</div>
+                    ) : (
+                      <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                        {agentMismatches.map((item: any) => {
+                          const detailsObj = item.details || {};
+                          return (
+                            <div key={item.id} className="p-2.5 rounded-lg border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition text-[11px]">
+                              <div className="flex items-center justify-between font-mono font-bold text-indigo-650 mb-1">
+                                <span>{item.booking?.bookingReference || 'N/A'}</span>
+                                <Badge className={`text-[9px] py-0 px-1 font-bold ${item.resolved ? 'bg-green-50 text-green-700 hover:bg-green-50 border-green-200' : 'bg-rose-50 text-rose-700 hover:bg-rose-50 border-rose-200'}`}>
+                                  {item.resolved ? 'Resolved' : 'Active'}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center justify-between text-gray-700 font-semibold mb-1">
+                                <span className="truncate max-w-[150px]">{item.passenger?.fullName || detailsObj.mutamerName || 'Count Discrepancy'}</span>
+                                <span className="text-[9px] uppercase text-gray-400">
+                                  {item.mismatchType === 'entry' && 'Arrival'}
+                                  {item.mismatchType === 'exit' && 'Departure'}
+                                  {item.mismatchType === 'both' && 'Arr & Dep'}
+                                  {item.mismatchType === 'pax_count' && 'Count'}
+                                </span>
+                              </div>
+                              
+                              {/* Port/Flight errors */}
+                              {item.mismatchType !== 'pax_count' && (
+                                <div className="space-y-0.5 mt-1 bg-white p-1.5 rounded border text-[10px] text-gray-600 font-medium">
+                                  {detailsObj.entry?.mismatched && (
+                                    <div>
+                                      <span className="font-bold text-rose-600">Arr:</span> DB {detailsObj.entry.flight?.db || 'N/A'} vs Nusuk {detailsObj.entry.flight?.excel || 'N/A'}
+                                    </div>
+                                  )}
+                                  {detailsObj.exit?.mismatched && (
+                                    <div>
+                                      <span className="font-bold text-rose-600">Dep:</span> DB {detailsObj.exit.flight?.db || 'N/A'} vs Nusuk {detailsObj.exit.flight?.excel || 'N/A'}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>

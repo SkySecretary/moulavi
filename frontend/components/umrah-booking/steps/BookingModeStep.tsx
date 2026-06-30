@@ -159,7 +159,7 @@ export const BookingModeStep: React.FC<BookingModeStepProps> = ({
                   <SelectContent className="rounded-xl border-0 shadow-2xl p-1">
                     {umrahVisaProviders.map((provider) => (
                       <SelectItem key={provider.id} value={provider.id} className="font-bold text-[10px] p-2 hover:bg-primary/5 rounded-md transition-colors">
-                        {provider.partyName}
+                        {provider.partyCode || provider.partyName}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -184,7 +184,7 @@ export const BookingModeStep: React.FC<BookingModeStepProps> = ({
                 <SelectContent className="rounded-xl border-0 shadow-2xl p-1">
                   {umrahVisaProviders.map((provider) => (
                     <SelectItem key={provider.id} value={provider.id} className="font-bold text-[10px] p-2 hover:bg-primary/5 rounded-md transition-colors">
-                      {provider.partyName}
+                      {provider.partyCode || provider.partyName}
                     </SelectItem>
                   ))}
                 </SelectContent>

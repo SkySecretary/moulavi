@@ -10,8 +10,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getUser, hasRole } from '@/lib/auth';
-import { umrahVisaAPI } from '@/lib/api';
+import { umrahVisaAPI, nusukAPI } from '@/lib/api';
 import { PartyLayout } from '@/components/layouts/PartyLayout';
+import Link from 'next/link';
 import { 
   Plus, 
   FileText, 
@@ -35,7 +36,9 @@ import {
   TrendingUp,
   Activity,
   Download,
-  Loader2
+  Loader2,
+  AlertTriangle,
+  AlertCircle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -84,7 +87,17 @@ export default function PartyDashboardPage() {
     pending: 0,
     completed: 0,
   });
+  const [complianceData, setComplianceData] = useState<any>(null);
   const loadingRef = useRef(false);
+
+  const loadCompliance = async () => {
+    try {
+      const complianceRes = await nusukAPI.getComplianceDashboard();
+      setComplianceData(complianceRes.data);
+    } catch (error) {
+      console.error('Failed to load compliance details:', error);
+    }
+  };
 
   // Initialize on mount
   useEffect(() => {
@@ -164,6 +177,7 @@ export default function PartyDashboardPage() {
   useEffect(() => {
     if (!mounted || !user || !hasRole('party')) return;
     loadBookings();
+    loadCompliance();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, user, pagination.page, pagination.limit, searchTerm, statusFilter, dateFrom, dateTo]);
 
@@ -323,6 +337,19 @@ export default function PartyDashboardPage() {
       </div>
 
       <div className="p-6 lg:p-8 space-y-8">
+        {/* Mismatched Travel Compliance High Priority Notice */}
+        {complianceData && complianceData.myMismatches && complianceData.myMismatches.length > 0 && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-xl flex items-start gap-3 shadow-sm animate-pulse">
+            <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-sm font-bold text-red-850 uppercase tracking-wide">High Priority: Mismatched Travel Action Required</h4>
+              <p className="text-xs text-red-700 font-semibold mt-1">
+                You have {complianceData.myMismatches.length} active travel detail discrepancies. Please update flight/passport info immediately before pilgrim departure dates to avoid Nusuk Portal penalties.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Stats Overview */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           <StatsCard 
@@ -351,34 +378,212 @@ export default function PartyDashboardPage() {
           />
         </div>
 
-        {/* Agency Performance Monitoring */}
-        <Card className="border-none shadow-md overflow-hidden bg-white">
-          <CardHeader className="border-b border-gray-50 flex flex-row items-center justify-between py-4">
-            <div>
-              <CardTitle className="text-lg font-bold text-secondary">Agency Compliance Level</CardTitle>
-              <p className="text-xs text-gray-400">Based on data submission accuracy and timeliness</p>
-            </div>
-            <div className="flex items-center gap-2">
-               <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded border border-green-100">Level: Compliant</span>
-            </div>
-          </CardHeader>
-          <CardContent className="p-6">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <PerformanceMetric 
-                  label="Trip Information Accuracy" 
-                  percentage={94} 
-                  description="Percentage of bookings approved without data correction" 
-                  icon={Shield}
-                />
-                <PerformanceMetric 
-                  label="On-Time Submission Rate" 
-                  percentage={89} 
-                  description="Trip details provided > 48h before arrival" 
-                  icon={Clock}
-                />
-             </div>
-          </CardContent>
-        </Card>
+        {/* Compliance Dashboard Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column: Compliance Score & Status */}
+          <Card className="border-none shadow-md overflow-hidden bg-white rounded-xl col-span-1">
+            <CardHeader className="border-b border-gray-50 py-4">
+              <CardTitle className="text-md font-bold text-secondary flex items-center gap-2">
+                <Shield className="h-5 w-5 text-indigo-600" />
+                Compliance Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              {/* Compliance rank meter */}
+              <div className="text-center py-4 bg-slate-50/50 rounded-2xl border border-slate-100">
+                <div className="text-xs text-gray-400 font-bold uppercase tracking-wider">Current Status</div>
+                <div className="mt-2 flex items-center justify-center">
+                  {complianceData?.metrics?.complianceStatus === 'RED' ? (
+                    <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-black bg-rose-50 text-rose-600 border border-rose-100 uppercase tracking-wide shadow-sm animate-pulse">
+                      <XCircle className="h-4 w-4 mr-2" /> Critical Risk (RED)
+                    </span>
+                  ) : complianceData?.metrics?.complianceStatus === 'YELLOW' ? (
+                    <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-black bg-amber-50 text-amber-600 border border-amber-100 uppercase tracking-wide shadow-sm">
+                      <AlertTriangle className="h-4 w-4 mr-2" /> Warning (YELLOW)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-black bg-green-50 text-green-600 border border-green-100 uppercase tracking-wide shadow-sm">
+                      <CheckCircle className="h-4 w-4 mr-2" /> Compliant (GREEN)
+                    </span>
+                  )}
+                </div>
+                
+                {/* Visual Gauge representation */}
+                <div className="mt-6 px-4">
+                  <div className="relative h-2.5 w-full bg-slate-200 rounded-full overflow-hidden flex">
+                    <div className="h-full bg-green-500 w-1/3 border-r border-white"></div>
+                    <div className="h-full bg-yellow-500 w-1/3 border-r border-white"></div>
+                    <div className="h-full bg-red-500 w-1/3"></div>
+                    
+                    {/* Floating indicator marker */}
+                    <div 
+                      className="absolute top-1/2 -translate-y-1/2 h-4 w-4 rounded-full border-2 border-white bg-slate-900 shadow-md transition-all duration-700"
+                      style={{ 
+                        left: complianceData?.metrics?.complianceStatus === 'RED' 
+                          ? '83%' 
+                          : complianceData?.metrics?.complianceStatus === 'YELLOW' 
+                          ? '50%' 
+                          : '16%' 
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[9px] font-bold text-gray-400 mt-2 uppercase tracking-wider">
+                    <span>Compliant</span>
+                    <span>Throttled</span>
+                    <span>Suspended</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Compliance score advice info box */}
+              <div className="p-3.5 bg-indigo-50/50 border border-indigo-100/50 rounded-xl">
+                <h5 className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                  <AlertCircle className="h-4 w-4 text-indigo-600 shrink-0" />
+                  Compliance Advice
+                </h5>
+                <p className="text-xs text-indigo-800 leading-relaxed font-medium">
+                  {complianceData?.advice || "Loading advice..."}
+                </p>
+              </div>
+
+              {/* Data Accuracy Matrix */}
+              <div className="space-y-3.5 pt-3 border-t">
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-slate-800 font-bold uppercase tracking-wider">Data Accuracy Rate</span>
+                  <span className="font-extrabold text-indigo-650 text-sm">
+                    {complianceData?.accuracy ?? 100}%
+                  </span>
+                </div>
+                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                  <div 
+                    className="h-full bg-indigo-600 transition-all duration-1000"
+                    style={{ width: `${complianceData?.accuracy ?? 100}%` }}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 pt-2 text-[11px]">
+                  <div className="bg-slate-50/50 p-2.5 rounded-lg border">
+                    <span className="text-gray-400 font-bold uppercase tracking-wide block text-[9px]">Resolved Mismatches</span>
+                    <strong className="text-green-600 font-extrabold text-sm">{complianceData?.resolvedMismatchesCount ?? 0}</strong>
+                  </div>
+                  <div className="bg-slate-50/50 p-2.5 rounded-lg border">
+                    <span className="text-gray-400 font-bold uppercase tracking-wide block text-[9px]">Active Mismatches</span>
+                    <strong className="text-rose-600 font-extrabold text-sm">{complianceData?.myMismatches?.length ?? 0}</strong>
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-dashed">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500 font-bold uppercase tracking-wider">Monitored Arrivals:</span>
+                    <span className="font-bold text-slate-800">
+                      {complianceData?.metrics?.arrivalMismatches ?? 0} / {complianceData?.metrics?.totalArrivals ?? 0} mismatches
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500 font-bold uppercase tracking-wider">Monitored Departures:</span>
+                    <span className="font-bold text-slate-800">
+                      {complianceData?.metrics?.departureMismatches ?? 0} / {complianceData?.metrics?.totalDepartures ?? 0} mismatches
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500 font-bold uppercase tracking-wider">Severe Violations:</span>
+                    <span className={`font-bold ${complianceData?.metrics?.severeViolations > 0 ? 'text-red-600 font-black' : 'text-slate-800'}`}>
+                      {complianceData?.metrics?.severeViolations ?? 0} records
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Right Column (Col-span 2): My Active Discrepancies */}
+          <Card className="border-none shadow-md overflow-hidden bg-white rounded-xl col-span-1 lg:col-span-2">
+            <CardHeader className="border-b border-gray-50 py-4 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-md font-bold text-secondary flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-500" />
+                  Discrepancy Action List
+                </CardTitle>
+                <p className="text-xs text-gray-400">Review flight details flagged by the Nusuk sync report</p>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <div className="bg-slate-50 border rounded px-2.5 py-1 text-gray-500 font-semibold">
+                  Today: <span className="text-rose-600 font-bold">{complianceData?.todayCount ?? 0}</span>
+                </div>
+                <div className="bg-slate-50 border rounded px-2.5 py-1 text-gray-500 font-semibold">
+                  Month: <span className="text-slate-700 font-bold">{complianceData?.monthCount ?? 0}</span>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-4 max-h-[360px] overflow-y-auto pr-1">
+                {complianceData?.myMismatches && complianceData.myMismatches.length > 0 ? (
+                  complianceData.myMismatches.map((item: any) => (
+                    <div key={item.id} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-1.5 flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-bold text-indigo-600 font-mono">{item.booking.bookingReference}</span>
+                          <span className="text-[10px] font-mono text-gray-400">• Detected {new Date(item.createdAt).toLocaleDateString()}</span>
+                          <Badge className="bg-rose-50 text-rose-700 border-rose-200 text-[9px] font-bold py-0.5 px-2">
+                            {item.mismatchType === 'entry' && 'Arrival Mismatch'}
+                            {item.mismatchType === 'exit' && 'Departure Mismatch'}
+                            {item.mismatchType === 'both' && 'Arrival & Departure'}
+                            {item.mismatchType === 'pax_count' && 'Count Mismatch'}
+                          </Badge>
+                        </div>
+                        
+                        <div className="text-xs font-semibold text-gray-800">
+                          Passenger: <span className="text-slate-900 font-bold">{item.passenger?.fullName || item.details.mutamerName || 'Count Discrepancy'}</span> 
+                          {item.passenger?.passportNumber && <span className="text-[10px] font-mono text-gray-400 ml-1">({item.passenger.passportNumber})</span>}
+                        </div>
+                        
+                        {/* Display specific error fields comparisons */}
+                        {item.mismatchType !== 'pax_count' && (
+                          <div className="text-[11px] text-gray-600 leading-tight space-y-0.5 bg-white p-2 rounded-lg border border-slate-100 shadow-sm max-w-xl">
+                            {item.details.entry?.mismatched && (
+                              <div>
+                                <span className="font-bold text-rose-600">Arrival Error:</span> DB flight{' '}
+                                <span className="font-semibold text-slate-800">{item.details.entry.flight?.db || 'N/A'}</span> vs Nusuk{' '}
+                                <span className="font-semibold text-rose-700 bg-rose-50 px-1 rounded">{item.details.entry.flight?.excel || 'N/A'}</span>
+                              </div>
+                            )}
+                            {item.details.exit?.mismatched && (
+                              <div>
+                                <span className="font-bold text-rose-600">Departure Error:</span> DB flight{' '}
+                                <span className="font-semibold text-slate-800">{item.details.exit.flight?.db || 'N/A'}</span> vs Nusuk{' '}
+                                <span className="font-semibold text-rose-700 bg-rose-50 px-1 rounded">{item.details.exit.flight?.excel || 'N/A'}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {item.mismatchType === 'pax_count' && (
+                          <div className="text-[11px] text-slate-600 bg-white p-2 rounded-lg border border-slate-100 shadow-sm">
+                            <span className="font-bold text-rose-600">Passenger Count Deviation:</span> Expected{' '}
+                            <strong className="text-slate-800">{item.details.expected}</strong> but Nusuk report contains{' '}
+                            <strong className="text-rose-700">{item.details.actual}</strong> processed records.
+                          </div>
+                        )}
+                      </div>
+
+                      <Link href={`/party/umrah-visa/view/${item.bookingId}`} target="_blank" passHref>
+                        <Button size="sm" variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 shrink-0 font-bold text-xs h-9">
+                          Correct Info
+                        </Button>
+                      </Link>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-12 flex flex-col items-center justify-center">
+                    <CheckCircle className="h-10 w-10 text-green-500 mb-2" />
+                    <h5 className="text-sm font-bold text-slate-800">All Clear!</h5>
+                    <p className="text-xs text-gray-500 max-w-xs mt-1">No active travel discrepancies found for your bookings.</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* All Applications */}
         <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
@@ -524,7 +729,7 @@ export default function PartyDashboardPage() {
                               </span>
                               <div className="flex items-center gap-1 bg-primary/10 text-secondary px-1.5 py-0.5 rounded text-[10px] font-bold">
                                 <Activity className="h-3 w-3" />
-                                {Math.floor(Math.random() * 15) + 85}% Info Accuracy
+                                {complianceData?.accuracy ?? 100}% Info Accuracy
                               </div>
                             </div>
                           </div>

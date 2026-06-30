@@ -76,7 +76,7 @@ export default function PartyMasterPage() {
   };
 
   const handleViewParty = (party: Party) => {
-    setViewingParty(party);
+    router.push(`/dashboard/masters/party/${party.id}`);
   };
 
   const handleCloseDialog = () => {

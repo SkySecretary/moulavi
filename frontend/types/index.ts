@@ -62,6 +62,9 @@ export interface Party {
   smsNotification: boolean;
   marketingNotification: boolean;
   logoPath?: string;
+  nusukEntityId?: string;
+  nusukActiveEntityId?: string;
+  nusukActiveEntityTypeId?: string;
   userId?: string;
   createdBy: string;
   createdAt: string;

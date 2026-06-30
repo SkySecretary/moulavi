@@ -138,6 +138,12 @@ router.get('/bookings', authenticate, async (req, res) => {
         take: limitNum,
         orderBy: { [sortBy as string]: sortOrder },
         include: {
+          vouchers: {
+            select: {
+              id: true,
+              voucherNumber: true,
+            },
+          },
           party: {
             select: {
               id: true,
@@ -212,8 +218,16 @@ router.get('/bookings', authenticate, async (req, res) => {
       stats[s] = statusCounts[i];
     });
 
+    const mappedBookings = bookings.map((b: any) => {
+      const { vouchers, ...rest } = b;
+      return {
+        ...rest,
+        voucher: vouchers && vouchers.length > 0 ? vouchers[0] : null,
+      };
+    });
+
     res.json({
-      bookings,
+      bookings: mappedBookings,
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -236,22 +250,23 @@ router.get('/missing-brn', authenticate, authorize('admin', 'staff', 'party'), a
       page = '1', 
       limit = '50', 
       arrivalDateFrom,
-      arrivalDateTo
+      arrivalDateTo,
+      partyId
     } = req.query;
     const pageNum = parseInt(page as string) || 1;
     const limitNum = parseInt(limit as string) || 50;
     const skip = (pageNum - 1) * limitNum;
-
+ 
     // Get the authenticated user
     const user = (req as any).user;
-
+ 
     const where: any = {
       visaType: 'group_visa',
       accommodationType: 'hotel',
       status: { not: 'cancelled' },
       isDeleted: false,
     };
-
+ 
     // If user is a party, automatically filter by their partyId
     if (user && user.role === 'party') {
       const userParty = await prisma.party.findUnique({
@@ -267,6 +282,8 @@ router.get('/missing-brn', authenticate, authorize('admin', 'staff', 'party'), a
           pagination: { page: pageNum, limit: limitNum, total: 0, totalPages: 0 },
         });
       }
+    } else if (partyId) {
+      where.partyId = partyId as string;
     }
 
     // Date Filters (Arrival Date)
@@ -1752,6 +1769,229 @@ router.patch('/:bookingId/alternate-info', authenticate, async (req, res) => {
   } catch (error: any) {
     console.error('Error updating alternate info:', error);
     res.status(500).json({ error: 'Failed to update alternate info', message: error.message });
+  }
+});
+
+// POST /api/umrah-visa/:bookingId/recreate - Recreate booking for selected passengers with new travel details
+router.post('/:bookingId/recreate', authenticate, authorize('admin', 'staff'), async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { 
+      passengerIds, 
+      arrivalDateTime, 
+      departureDateTime, 
+      arrivalAirportId, 
+      arrivalFlightNumber, 
+      departureAirportId, 
+      departureFlightNumber, 
+      brn,
+      transportCompanyId,
+      umrahVisaProviderId,
+      partyId,
+      hotels,
+      movements
+    } = req.body;
+
+    if (!passengerIds || !Array.isArray(passengerIds) || passengerIds.length === 0) {
+      return res.status(400).json({ error: 'At least one passenger must be selected' });
+    }
+
+    // Find parent booking
+    const parentBooking = await prisma.umrahVisaBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        passengers: {
+          where: { isDeleted: false }
+        },
+        travelDetails: {
+          where: { isAlternate: false }
+        }
+      }
+    });
+
+    if (!parentBooking) {
+      return res.status(404).json({ error: 'Parent booking not found' });
+    }
+
+    const parentTravel = parentBooking.travelDetails?.[0];
+    if (!parentTravel) {
+      return res.status(400).json({ error: 'Parent booking travel details are missing' });
+    }
+
+    // Verify all passengerIds belong to parent booking
+    const parentPassengerIds = parentBooking.passengers.map(p => p.id);
+    const isValidPassengers = passengerIds.every(id => parentPassengerIds.includes(id));
+    if (!isValidPassengers) {
+      return res.status(400).json({ error: 'Some selected passengers do not belong to this booking' });
+    }
+
+    // Prepare Travel details variables mapping required schema properties
+    const finalArrivalDateTime = arrivalDateTime ? new Date(arrivalDateTime) : parentTravel.arrivalDateTime;
+    const finalDepartureDateTime = departureDateTime ? new Date(departureDateTime) : parentTravel.departureDateTime;
+    const finalArrivalAirportId = arrivalAirportId || parentTravel.arrivalAirportId;
+    const finalArrivalFlightNumber = arrivalFlightNumber || parentTravel.arrivalFlightNumber;
+    const finalDepartureAirportId = departureAirportId || parentTravel.departureAirportId;
+    const finalDepartureFlightNumber = departureFlightNumber || parentTravel.departureFlightNumber;
+
+    const { generateBookingReference } = await import('../services/bookingService');
+    const newBookingReference = await generateBookingReference();
+
+    // Start a transaction to copy booking data and move passengers
+    const newBooking = await prisma.$transaction(async (tx) => {
+      // 1. Create the new booking
+      const created = await tx.umrahVisaBooking.create({
+        data: {
+          partyId: partyId || parentBooking.partyId,
+          groupNumber: parentBooking.groupNumber,
+          groupName: parentBooking.groupName,
+          passengerCount: passengerIds.length,
+          status: parentBooking.status,
+          umrahVisaProviderId: umrahVisaProviderId || parentBooking.umrahVisaProviderId,
+          transportCompanyId: transportCompanyId || parentBooking.transportCompanyId,
+          accommodationType: parentBooking.accommodationType,
+          visaType: parentBooking.visaType,
+          hasTransportation: parentBooking.hasTransportation,
+          bookingReference: newBookingReference,
+          brn: brn || parentBooking.brn,
+          tripStatus: parentBooking.tripStatus
+        }
+      });
+
+      // 2. Create Travel Details for new booking
+      await tx.umrahTravelDetails.create({
+        data: {
+          bookingId: created.id,
+          arrivalDateTime: finalArrivalDateTime,
+          departureDateTime: finalDepartureDateTime,
+          arrivalAirportId: finalArrivalAirportId,
+          arrivalFlightNumber: finalArrivalFlightNumber,
+          departureAirportId: finalDepartureAirportId,
+          departureFlightNumber: finalDepartureFlightNumber,
+          brn: brn || parentTravel.brn,
+          isAlternate: false
+        }
+      });
+
+      // 3. Move selected passengers to the new booking
+      await tx.umrahPassenger.updateMany({
+        where: { id: { in: passengerIds } },
+        data: { bookingId: created.id }
+      });
+
+      // 4. Update passenger count on the parent booking
+      await tx.umrahVisaBooking.update({
+        where: { id: parentBooking.id },
+        data: {
+          passengerCount: {
+            decrement: passengerIds.length
+          }
+        }
+      });
+
+      // 5. Copy sponsor/iqama details if accommodationType is iqama
+      if (parentBooking.accommodationType === 'iqama') {
+        const parentIqama = await tx.umrahSponserIqamaDetails.findMany({
+          where: { bookingId: parentBooking.id }
+        });
+        for (const iq of parentIqama) {
+          await tx.umrahSponserIqamaDetails.create({
+            data: {
+              bookingId: created.id,
+              isAlternate: iq.isAlternate,
+              iqamaNumber: iq.iqamaNumber,
+              iqamaSponserName: iq.iqamaSponserName,
+              sponserDob: iq.sponserDob,
+              sponserMobileNumber: iq.sponserMobileNumber,
+              sponserNationalShortAddress: iq.sponserNationalShortAddress,
+              makkahHotelName: iq.makkahHotelName,
+              makkahBrn: iq.makkahBrn,
+              madinahHotelName: iq.madinahHotelName,
+              madinahBrn: iq.madinahBrn,
+              confirmationImagePath: iq.confirmationImagePath
+            }
+          });
+        }
+      }
+
+      // 6. Create hotel bookings (either from payload or fall back to copying parent hotels)
+      if (hotels && Array.isArray(hotels)) {
+        for (const h of hotels) {
+          await tx.umrahHotelBooking.create({
+            data: {
+              bookingId: created.id,
+              cityId: h.cityId,
+              hotelId: h.hotelId,
+              checkInDate: new Date(h.checkInDate),
+              checkOutDate: new Date(h.checkOutDate),
+              brn: h.brn ?? undefined,
+              isAlternate: h.isAlternate || false
+            }
+          });
+        }
+      } else {
+        const parentHotels = await tx.umrahHotelBooking.findMany({
+          where: { bookingId: parentBooking.id }
+        });
+        for (const h of parentHotels) {
+          await tx.umrahHotelBooking.create({
+            data: {
+              bookingId: created.id,
+              cityId: h.cityId,
+              hotelId: h.hotelId,
+              checkInDate: h.checkInDate,
+              checkOutDate: h.checkOutDate,
+              brn: h.brn ?? undefined,
+              isAlternate: h.isAlternate
+            }
+          });
+        }
+      }
+
+      // 7. Create movement details (either from payload or fall back to copying parent movements)
+      if (movements && Array.isArray(movements)) {
+        for (const m of movements) {
+          await tx.umrahMovementDetail.create({
+            data: {
+              bookingId: created.id,
+              travelDateTime: new Date(m.travelDateTime),
+              fromCityId: m.fromCityId,
+              fromLocationId: m.fromLocationId,
+              toCityId: m.toCityId,
+              toLocationId: m.toLocationId,
+              isAlternate: m.isAlternate || false
+            }
+          });
+        }
+      } else {
+        const parentMovements = await tx.umrahMovementDetail.findMany({
+          where: { bookingId: parentBooking.id }
+        });
+        for (const m of parentMovements) {
+          await tx.umrahMovementDetail.create({
+            data: {
+              bookingId: created.id,
+              travelDateTime: m.travelDateTime,
+              fromCityId: m.fromCityId,
+              fromLocationId: m.fromLocationId,
+              toCityId: m.toCityId,
+              toLocationId: m.toLocationId,
+              isAlternate: m.isAlternate
+            }
+          });
+        }
+      }
+
+      return created;
+    });
+
+    res.json({
+      message: 'Booking recreated successfully',
+      bookingId: newBooking.id,
+      bookingReference: newBooking.bookingReference
+    });
+  } catch (error: any) {
+    console.error('Error recreating booking:', error);
+    res.status(500).json({ error: error.message || 'Failed to recreate booking' });
   }
 });
 

@@ -85,6 +85,14 @@ export const PartyLayout: React.FC<PartyLayoutProps> = ({
       href: '/party/dashboard',
       isActive: pathname === '/party/dashboard',
     },
+    {
+      id: 'bookings',
+      label: 'My Bookings',
+      description: 'Manage all your bookings',
+      icon: FileText,
+      href: '/party/bookings',
+      isActive: pathname === '/party/bookings',
+    },
   ];
 
   const umrahVisaItems = [

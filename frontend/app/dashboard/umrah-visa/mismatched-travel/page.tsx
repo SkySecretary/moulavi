@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
 import { nusukAPI, partyAPI } from '@/lib/api';
+import { SearchableSelect } from '@/components/ui/searchable-select';
+import { Input } from '@/components/ui/input';
 import {
   AlertTriangle,
   RefreshCw,
@@ -27,7 +29,8 @@ import {
   Building2,
   Filter,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Search
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -94,6 +97,10 @@ export default function MismatchedTravelPage() {
   const [mismatches, setMismatches] = useState<MismatchItem[]>([]);
   const [filter, setFilter] = useState<'active' | 'resolved'>('active');
   
+  // Search query & debounced search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  
   // Pagination & Filtering state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -109,6 +116,15 @@ export default function MismatchedTravelPage() {
   
   // Expanded rows tracking
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const loadAgencies = async () => {
     try {
@@ -129,7 +145,8 @@ export default function MismatchedTravelPage() {
         page: currentPage,
         limit: pageSize,
         mismatchType: mismatchType,
-        partyId: selectedAgency
+        partyId: selectedAgency,
+        search: debouncedSearch || undefined
       });
       
       const data = response.data || { mismatches: [], pagination: { total: 0, page: 1, limit: pageSize, totalPages: 1 } };
@@ -152,12 +169,12 @@ export default function MismatchedTravelPage() {
     loadAgencies();
   }, []);
 
-  // Reload mismatches when filters or pages change
+  // Reload mismatches when filters, search query or pages change
   useEffect(() => {
     if (user) {
       loadMismatches();
     }
-  }, [filter, currentPage, pageSize, mismatchType, selectedAgency]);
+  }, [filter, currentPage, pageSize, mismatchType, selectedAgency, debouncedSearch]);
 
   const handleSync = async () => {
     try {
@@ -292,8 +309,19 @@ export default function MismatchedTravelPage() {
           </div>
 
           {/* Filters Bar */}
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <div className="flex items-center gap-1.5 bg-gray-50 border rounded-lg px-2 py-1.5">
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <div className="relative flex items-center bg-gray-50 border rounded-lg px-2.5 py-1.5 w-full sm:max-w-[240px] shadow-sm">
+              <Search className="h-3.5 w-3.5 text-gray-400 mr-1.5 shrink-0" />
+              <Input
+                type="text"
+                placeholder="Search Booking No or Passport..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-5 w-full border-none bg-transparent p-0 text-xs text-gray-800 placeholder-gray-400 focus-visible:ring-0 shadow-none focus-visible:outline-none"
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-gray-50 border rounded-lg px-2.5 py-1.5 shadow-sm">
               <Filter className="h-3.5 w-3.5 text-gray-400" />
               <span className="text-gray-500 font-medium">Type:</span>
               <select
@@ -309,21 +337,23 @@ export default function MismatchedTravelPage() {
               </select>
             </div>
 
-            <div className="flex items-center gap-1.5 bg-gray-50 border rounded-lg px-2 py-1.5">
-              <Building2 className="h-3.5 w-3.5 text-gray-400" />
-              <span className="text-gray-500 font-medium">Agency:</span>
-              <select
+            <div className="flex items-center gap-1.5 bg-gray-50 border rounded-lg px-2.5 py-1.5 shadow-sm min-w-[200px] max-w-[280px]">
+              <Building2 className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+              <span className="text-gray-500 font-medium whitespace-nowrap">Agency:</span>
+              <SearchableSelect
+                options={[
+                  { value: 'all', label: 'All Agencies' },
+                  ...agencies.map((agency) => ({
+                    value: agency.id,
+                    label: agency.partyName
+                  }))
+                ]}
                 value={selectedAgency}
-                onChange={(e) => { setSelectedAgency(e.target.value); setCurrentPage(1); }}
-                className="bg-transparent border-none text-gray-800 font-semibold focus:outline-none cursor-pointer max-w-[180px]"
-              >
-                <option value="all">All Agencies</option>
-                {agencies.map((agency) => (
-                  <option key={agency.id} value={agency.id}>
-                    {agency.partyName}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(val) => { setSelectedAgency(val); setCurrentPage(1); }}
+                placeholder="All Agencies"
+                searchPlaceholder="Search agency..."
+                className="h-5 border-none bg-transparent hover:bg-transparent p-0 text-xs font-bold text-gray-800 shadow-none flex items-center justify-between focus-visible:ring-0 focus:ring-0 w-full"
+              />
             </div>
           </div>
         </div>
@@ -408,7 +438,7 @@ export default function MismatchedTravelPage() {
                           </td>
                           <td className="p-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-1.5">
-                              <Link href={`/dashboard/umrah-visa/visa-management/edit/${item.bookingId}`} passHref>
+                              <Link href={`/dashboard/umrah-visa/visa-management/edit/${item.bookingId}`} target="_blank" passHref>
                                 <Button variant="outline" size="sm" className="h-7 px-2 text-[10px] bg-white">
                                   <Eye className="h-3 w-3 mr-1" />
                                   Booking

@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Plane, Users, Building, MapPin, Mail, CheckCircle, ArrowLeft, Clock, DollarSign, Route, Truck, ArrowRight, Download, Info } from 'lucide-react';
 import { ManageAlternateInfoDialog } from '@/components/umrah-booking/components/ManageAlternateInfoDialog';
+import { RecreateBookingDialog } from '@/components/umrah-booking/components/RecreateBookingDialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { formatTransportRoute, getFileUrl } from '@/lib/utils';
 
 export default function ViewUmrahVisaBookingPage() {
@@ -25,6 +27,8 @@ export default function ViewUmrahVisaBookingPage() {
   const [downloadingAll, setDownloadingAll] = useState(false);
   const [downloadingConfirmation, setDownloadingConfirmation] = useState(false);
   const [showAltInfoDialog, setShowAltInfoDialog] = useState(false);
+  const [showRecreateDialog, setShowRecreateDialog] = useState(false);
+  const [selectedPassengerIds, setSelectedPassengerIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!user || !hasRole(['admin', 'staff'])) {
@@ -476,6 +480,8 @@ export default function ViewUmrahVisaBookingPage() {
     }
   };
 
+  const isSyncDone = booking?.passengers?.some((p: any) => p.passportNumber || p.visaNumber || p.mofaNumber || p.mutamerStatus);
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-gray-50 min-h-screen">
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
@@ -500,6 +506,17 @@ export default function ViewUmrahVisaBookingPage() {
                 </Badge>
               )}
               
+              {isSyncDone && (
+                <Button 
+                  onClick={() => setShowRecreateDialog(true)}
+                  disabled={selectedPassengerIds.length === 0}
+                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-sm"
+                >
+                  <Users className="h-4 w-4" />
+                  Recreate Booking ({selectedPassengerIds.length})
+                </Button>
+              )}
+
               <Button 
                 variant="outline" 
                 onClick={() => setShowAltInfoDialog(true)}
@@ -665,10 +682,25 @@ export default function ViewUmrahVisaBookingPage() {
                   {(booking.passengers || []).map((p: any) => (
                     <div 
                       key={p.id} 
-                      className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
+                      className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow relative"
                     >
+                      {isSyncDone && (
+                        <div className="absolute top-4 right-4 z-10">
+                          <Checkbox
+                            id={`pax-${p.id}`}
+                            checked={selectedPassengerIds.includes(p.id)}
+                            onCheckedChange={(checked) => {
+                              setSelectedPassengerIds(prev => 
+                                checked 
+                                  ? [...prev, p.id] 
+                                  : prev.filter(id => id !== p.id)
+                              );
+                            }}
+                          />
+                        </div>
+                      )}
                       <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
+                        <div className="flex-1 pr-6">
                           <h3 className="font-bold text-gray-900 text-base mb-2">
                             {p.fullName || 'N/A'}
                           </h3>
@@ -707,6 +739,19 @@ export default function ViewUmrahVisaBookingPage() {
           load();
         }}
       />
+
+      {isSyncDone && (
+        <RecreateBookingDialog
+          isOpen={showRecreateDialog}
+          onClose={() => setShowRecreateDialog(false)}
+          booking={booking}
+          selectedPassengerIds={selectedPassengerIds}
+          onSuccess={() => {
+            setSelectedPassengerIds([]);
+            load();
+          }}
+        />
+      )}
     </div>
   );
 }

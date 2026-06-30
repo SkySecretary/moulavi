@@ -510,7 +510,7 @@ router.post('/group/create-booking', authenticate, uploadGroup.fields([
               throw new Error(`Invalid checkOutDate: ${hotel.checkOutDate}`);
             }
 
-            return tx.umrahHotelBooking.create({
+             return tx.umrahHotelBooking.create({
               data: {
                 bookingId: booking.id,
                 cityId: cityId,
@@ -519,6 +519,9 @@ router.post('/group/create-booking', authenticate, uploadGroup.fields([
                 checkOutDate,
                 brn: hotel.brn && Array.isArray(hotel.brn) && hotel.brn.length > 0 
                   ? hotel.brn 
+                  : null,
+                additionalBrns: hotel.additionalBrns && Array.isArray(hotel.additionalBrns) && hotel.additionalBrns.length > 0
+                  ? hotel.additionalBrns as any
                   : null,
               },
             });
@@ -880,7 +883,16 @@ router.post('/group/create-booking', authenticate, uploadGroup.fields([
 });
 
 // POST /api/umrah-visa/group/add-to-existing-booking - Add new group to existing booking
-router.post('/group/add-to-existing-booking', authenticate, uploadGroup.single('panCardZipFile'), async (req, res) => {
+router.post('/group/add-to-existing-booking', authenticate, uploadGroup.fields([
+  { name: 'panCardZipFile', maxCount: 1 },
+  { name: 'passportCopies', maxCount: 100 },
+  { name: 'passengerPhotos', maxCount: 100 },
+  { name: 'panCardCopies', maxCount: 100 },
+  { name: 'iqamaCopies', maxCount: 100 },
+  { name: 'onwardTickets', maxCount: 100 },
+  { name: 'returnTickets', maxCount: 100 },
+  { name: 'nationalAddresses', maxCount: 100 }
+]), async (req, res) => {
   try {
     const user = (req as any).user;
     const isAdminOrStaff = user.role === 'admin' || user.role === 'staff';
@@ -965,32 +977,43 @@ router.post('/group/add-to-existing-booking', authenticate, uploadGroup.single('
       return res.status(400).json({ error: 'Passenger count must be between 1 and 50' });
     }
 
-    // Validate ZIP file upload
-    const zipFile = req.file;
-    if (!zipFile) {
+    // Check if group number already used or exists in database
+    const groupNumberExists = await prisma.umrahVisaBooking.findFirst({
+      where: {
+        groupNumber: {
+          contains: newGroupNumber
+        },
+        isDeleted: false
+      }
+    });
+    if (groupNumberExists) {
       return res.status(400).json({ 
-        error: 'PAN card ZIP file is required. Please upload a ZIP file containing all PAN cards for the group.' 
+        error: `Group number "${newGroupNumber}" already used or exists in database. Please enter a unique group number.` 
       });
-    }
-
-    // Validate ZIP file type
-    const isValidZip = zipFile.mimetype === 'application/zip' || 
-                       zipFile.mimetype === 'application/x-zip-compressed' ||
-                       zipFile.originalname.toLowerCase().endsWith('.zip');
-    if (!isValidZip) {
-      return res.status(400).json({ error: 'Invalid file type. Please upload a ZIP file (.zip)' });
     }
 
     // Check if existing booking exists and belongs to the party
     const existingBooking = await prisma.umrahVisaBooking.findUnique({
       where: { id: existingBookingId },
       include: {
-        passengers: true,
-        travelDetails: true,
-        hotelBookings: true,
-        sponsorIqamaDetails: true,
-        transportBookings: true,
-        movementDetails: true,
+        passengers: {
+          where: { isDeleted: false }
+        },
+        travelDetails: {
+          where: { isAlternate: false }
+        },
+        hotelBookings: {
+          where: { isAlternate: false }
+        },
+        sponsorIqamaDetails: {
+          where: { isAlternate: false }
+        },
+        transportBookings: {
+          where: { isAlternate: false }
+        },
+        movementDetails: {
+          where: { isAlternate: false }
+        },
       },
     });
 
@@ -1002,84 +1025,213 @@ router.post('/group/add-to-existing-booking', authenticate, uploadGroup.single('
       return res.status(403).json({ error: 'You do not have permission to modify this booking' });
     }
 
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+
     // Process in transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Parse existing multipleGroupDetails or create new array
+      // Calculate duplicate booking reference with suffix (e.g. UB-260612-052-01)
+      const parentRef = existingBooking.bookingReference || `UB-${existingBookingId.slice(0, 8)}`;
+      const duplicateCount = await tx.umrahVisaBooking.count({
+        where: {
+          OR: [
+            { id: existingBookingId },
+            {
+              bookingReference: {
+                startsWith: `${parentRef}-`
+              }
+            }
+          ],
+          isDeleted: false
+        }
+      });
+      const suffix = String(duplicateCount).padStart(2, '0');
+      const duplicateBookingReference = `${parentRef}-${suffix}`;
+
+      // 1. Create duplicate booking (internal duplicate) only in Group assigned status
+      const duplicateBooking = await tx.umrahVisaBooking.create({
+        data: {
+          isDuplicate: true,
+          partyId: existingBooking.partyId,
+          bookingReference: duplicateBookingReference,
+          groupNumber: newGroupNumber,
+          groupName: newGroupName,
+          passengerCount: passengerCount,
+          umrahVisaProviderId: existingBooking.umrahVisaProviderId,
+          transportCompanyId: existingBooking.transportCompanyId,
+          accommodationType: existingBooking.accommodationType,
+          visaType: existingBooking.visaType,
+          hasTransportation: existingBooking.hasTransportation,
+          status: 'group_assigned',
+          brn: existingBooking.brn,
+          tripStatus: existingBooking.tripStatus,
+          hasMultipleGroup: false
+        }
+      });
+
+      // 2. Upload and associate all uploaded documents with this duplicate booking
+      const docsToCreate: any[] = [];
+      const fileFieldsList = [
+        'panCardZipFile',
+        'passportCopies',
+        'passengerPhotos',
+        'panCardCopies',
+        'iqamaCopies',
+        'onwardTickets',
+        'returnTickets',
+        'nationalAddresses'
+      ];
+
+      if (files) {
+        for (const fieldName of fileFieldsList) {
+          const fieldFiles = files[fieldName];
+          if (fieldFiles && Array.isArray(fieldFiles)) {
+            for (const f of fieldFiles) {
+              const filePath = isS3Configured() ? (f as any).location : f.path;
+              let dbType = fieldName;
+              if (fieldName === 'panCardZipFile') dbType = 'pan_card_zip';
+              else if (fieldName === 'passportCopies') dbType = 'passport_copies';
+              else if (fieldName === 'passengerPhotos') dbType = 'passenger_photos';
+              else if (fieldName === 'panCardCopies') dbType = 'pan_card_copies';
+              else if (fieldName === 'iqamaCopies') dbType = 'iqama_copies';
+              else if (fieldName === 'onwardTickets') dbType = 'onward_tickets';
+              else if (fieldName === 'returnTickets') dbType = 'return_tickets';
+              else if (fieldName === 'nationalAddresses') dbType = 'national_addresses';
+
+              docsToCreate.push({
+                bookingId: duplicateBooking.id,
+                documentType: dbType,
+                fileName: f.originalname,
+                filePath: filePath,
+                fileSize: f.size,
+                mimeType: f.mimetype,
+              });
+            }
+          }
+        }
+      }
+
+      if (docsToCreate.length > 0) {
+        await tx.document.createMany({
+          data: docsToCreate,
+        });
+      }
+
+      // 3. Create passengers for duplicate booking
+      const newPassengers = Array(passengerCount).fill(null).map((_, index) => ({
+        bookingId: duplicateBooking.id,
+        fullName: `${newGroupName} - Passenger ${index + 1}`,
+        isLeadPassenger: index === 0,
+      }));
+      for (const passenger of newPassengers) {
+        await tx.umrahPassenger.create({
+          data: passenger
+        });
+      }
+
+      // 4. Copy travel details
+      for (const t of existingBooking.travelDetails) {
+        await tx.umrahTravelDetails.create({
+          data: {
+            bookingId: duplicateBooking.id,
+            arrivalDateTime: t.arrivalDateTime,
+            arrivalFlightNumber: t.arrivalFlightNumber,
+            arrivalAirportId: t.arrivalAirportId,
+            departureDateTime: t.departureDateTime,
+            departureFlightNumber: t.departureFlightNumber,
+            departureAirportId: t.departureAirportId,
+            brn: t.brn,
+            isAlternate: false
+          }
+        });
+      }
+
+      // 5. Copy hotel bookings
+      for (const h of existingBooking.hotelBookings) {
+        await tx.umrahHotelBooking.create({
+          data: {
+            bookingId: duplicateBooking.id,
+            cityId: h.cityId,
+            hotelId: h.hotelId,
+            checkInDate: h.checkInDate,
+            checkOutDate: h.checkOutDate,
+            brn: h.brn as any,
+            additionalBrns: h.additionalBrns as any,
+            isAlternate: false
+          }
+        });
+      }
+
+      // 6. Copy movement details
+      for (const m of existingBooking.movementDetails) {
+        await tx.umrahMovementDetail.create({
+          data: {
+            bookingId: duplicateBooking.id,
+            travelDateTime: m.travelDateTime,
+            fromCityId: m.fromCityId,
+            fromLocationId: m.fromLocationId,
+            toCityId: m.toCityId,
+            toLocationId: m.toLocationId,
+            isAlternate: false
+          }
+        });
+      }
+
+      // 7. Copy sponsor/iqama details
+      for (const iq of existingBooking.sponsorIqamaDetails) {
+        await tx.umrahSponserIqamaDetails.create({
+          data: {
+            bookingId: duplicateBooking.id,
+            isAlternate: false,
+            iqamaNumber: iq.iqamaNumber,
+            iqamaSponserName: iq.iqamaSponserName,
+            sponserDob: iq.sponserDob,
+            sponserMobileNumber: iq.sponserMobileNumber,
+            sponserNationalShortAddress: iq.sponserNationalShortAddress,
+            makkahHotelName: iq.makkahHotelName,
+            makkahBrn: iq.makkahBrn,
+            madinahHotelName: iq.madinahHotelName,
+            madinahBrn: iq.madinahBrn,
+            confirmationImagePath: iq.confirmationImagePath
+          }
+        });
+      }
+
+      // 8. Update original booking details (multiple groups & passenger count) WITHOUT status transition!
       let multipleGroupDetails: any[] = [];
-      
       if (existingBooking.hasMultipleGroup && existingBooking.multipleGroupDetails) {
         multipleGroupDetails = Array.isArray(existingBooking.multipleGroupDetails) 
           ? existingBooking.multipleGroupDetails 
           : [];
       } else {
-        // First time adding a group - move existing group to array
         if (existingBooking.groupNumber && existingBooking.groupName) {
           multipleGroupDetails.push({
             groupNumber: existingBooking.groupNumber,
             groupName: existingBooking.groupName,
             passengerCount: existingBooking.passengerCount,
-            documentId: null, // Original booking's document if any
+            documentId: null,
           });
         }
       }
 
-      // Upload ZIP file and create Document record
-      const filePath = isS3Configured() ? (zipFile as any).location : zipFile.path;
-      const document = await tx.document.create({
-        data: {
-          bookingId: existingBookingId,
-          documentType: 'pan_card_zip',
-          fileName: zipFile.originalname,
-          filePath: filePath, // S3 URL or local path
-          fileSize: zipFile.size,
-          mimeType: zipFile.mimetype,
-        },
-      });
-
-      // Add new group to multipleGroupDetails
       multipleGroupDetails.push({
         groupNumber: newGroupNumber,
         groupName: newGroupName,
         passengerCount: passengerCount,
-        documentId: document.id,
+        documentId: null,
       });
 
-      // Calculate total passenger count
       const totalPassengerCount = multipleGroupDetails.reduce(
         (sum, group) => sum + group.passengerCount, 
         0
       );
+      const combinedGroupNumbers = multipleGroupDetails.map(g => g.groupNumber).join(', ');
+      const combinedGroupNames = multipleGroupDetails.map(g => g.groupName).join(', ');
 
-      // Create comma-separated group numbers and names for display
-      const combinedGroupNumbers = multipleGroupDetails
-        .map(g => g.groupNumber)
-        .join(', ');
-      const combinedGroupNames = multipleGroupDetails
-        .map(g => g.groupName)
-        .join(', ');
-
-      // Create passengers for new group (like group booking)
-      const newPassengers = Array(passengerCount).fill(null).map((_, index) => ({
-        bookingId: existingBookingId,
-        fullName: newGroupName || `Passenger ${index + 1}`,
-        isLeadPassenger: index === 0 && existingBooking.passengers.length === 0,
-      }));
-
-      // Create passenger records
-      await Promise.all(
-        newPassengers.map(passenger =>
-          tx.umrahPassenger.create({
-            data: passenger,
-          })
-        )
-      );
-
-      // Update existing booking
       const updatedBooking = await tx.umrahVisaBooking.update({
         where: { id: existingBookingId },
         data: {
           hasMultipleGroup: true,
-          multipleGroupDetails: multipleGroupDetails,
+           multipleGroupDetails: multipleGroupDetails as any,
           groupNumber: combinedGroupNumbers,
           groupName: combinedGroupNames,
           passengerCount: totalPassengerCount,
@@ -1087,38 +1239,28 @@ router.post('/group/add-to-existing-booking', authenticate, uploadGroup.single('
         },
       });
 
-      // Update status to group_assigned using sync function
-      await syncBookingStatusInTx(
-        existingBookingId,
-        'group_assigned',
-        user.id,
-        'Group added to existing booking',
-        tx
-      );
-
-      return { booking: updatedBooking, document };
+      return { booking: updatedBooking, duplicateBooking };
     }, {
-      maxWait: 10000,  // 10 seconds max wait
-      timeout: 30000,  // 30 seconds timeout
+      maxWait: 15000,
+      timeout: 45000,
     });
 
     res.status(200).json({
-      message: 'Group added to existing booking successfully',
+      message: 'Group added to existing booking successfully and internal duplicate booking created',
       data: {
         bookingId: result.booking.id,
+        duplicateBookingId: result.duplicateBooking.id,
         passengerCount: result.booking.passengerCount,
-        status: 'group_assigned',
+        status: result.booking.status,
       },
     });
-  } catch (error) {
-    // Handle multer errors
-    // File size limit removed as per user requirement
+  } catch (error: any) {
     if (error instanceof multer.MulterError) {
       return res.status(400).json({ error: error.message });
     }
     
     console.error('Error adding group to existing booking:', error);
-    res.status(500).json({ error: 'Failed to add group to existing booking' });
+    res.status(500).json({ error: error.message || 'Failed to add group to existing booking' });
   }
 });
 

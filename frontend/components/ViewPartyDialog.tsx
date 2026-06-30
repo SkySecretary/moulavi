@@ -295,6 +295,26 @@ export default function ViewPartyDialog({
                         </Badge>
                       ))}
                     </div>
+
+                    {party.supplierServiceTypes.includes('umrah_service') && (
+                      <div className="mt-3 p-2 bg-slate-50 border border-slate-100 rounded-lg space-y-1.5 text-xs">
+                        <div className="font-semibold text-slate-700">Nusuk Settings</div>
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                          <div>
+                            <span className="text-slate-500">Entity ID:</span>{' '}
+                            <span className="font-mono text-slate-800">{party.nusukEntityId || '—'}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500">Active ID:</span>{' '}
+                            <span className="font-mono text-slate-800">{party.nusukActiveEntityId || '—'}</span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-slate-500">Active Type ID:</span>{' '}
+                            <span className="font-mono text-slate-800">{party.nusukActiveEntityTypeId || '—'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
                 

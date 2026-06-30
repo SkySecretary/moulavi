@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
-import { partyAPI, umrahVisaAPI } from '@/lib/api';
-import { Users, FileText, TrendingUp, Activity, PlusCircle, Globe, Calendar, Clock, Shield, Award } from 'lucide-react';
+import { partyAPI, umrahVisaAPI, nusukAPI } from '@/lib/api';
+import { Users, FileText, TrendingUp, Activity, PlusCircle, Globe, Calendar, Clock, Shield, Award, CheckCircle2, Plane } from 'lucide-react';
 import CreatePartyDialog from '@/components/CreatePartyDialog';
 import PartyList from '@/components/PartyList';
 import { DashboardStats } from '@/types';
@@ -21,6 +21,26 @@ export default function DashboardPage() {
     totalServices: 0,
     pendingServices: 0,
   });
+  const [complianceData, setComplianceData] = useState<{
+    todayCount: number;
+    yesterdayCount: number;
+    recentMismatches: Array<{
+      id: string;
+      bookingReference: string;
+      partyName: string;
+      mismatchType: 'entry' | 'exit' | 'both' | 'pax_count';
+      mutamerName: string;
+      createdAt: string;
+    }>;
+    visaSummary?: {
+      systemPassengers: number;
+      nusukPassengers: number;
+      visasIssued: number;
+      passengersInKSA: number;
+      passengersToArrive: number;
+    };
+  } | null>(null);
+  const [adminFilter, setAdminFilter] = useState<'all' | 'arrival' | 'departure'>('all');
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -31,13 +51,14 @@ export default function DashboardPage() {
 
     const loadStats = async () => {
       try {
-        const [partiesRes, bookingsRes, pendingBookingsRes] = await Promise.all([
+        const [partiesRes, bookingsRes, pendingBookingsRes, complianceRes] = await Promise.all([
           partyAPI.getAll({ limit: 1 }),
           umrahVisaAPI.getBookings({ limit: 1 }),
           umrahVisaAPI.getBookings({ 
             status: ['pending', 'documents_downloaded', 'group_assigned'],
             limit: 1 
           }),
+          nusukAPI.getComplianceDashboard()
         ]);
 
         setStats({
@@ -45,6 +66,8 @@ export default function DashboardPage() {
           totalServices: bookingsRes.data.pagination.total,
           pendingServices: pendingBookingsRes.data.pagination.total,
         });
+
+        setComplianceData(complianceRes.data);
       } catch (error) {
         setStats({
           totalParties: 0,
@@ -154,50 +177,146 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* Platform Performance Monitoring */}
+        {/* Nusuk Visa & Arrival Summary Stats Grid */}
+        <div className="space-y-3">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Nusuk Visa & Arrival Summary</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatsCard 
+              title="Pilgrims (System / Nusuk)" 
+              value={`${complianceData?.visaSummary?.systemPassengers ?? 0} / ${complianceData?.visaSummary?.nusukPassengers ?? 0}`} 
+              icon={Users} 
+              description="Applications in System vs Synced"
+              color="text-indigo-650"
+              bgColor="bg-indigo-50"
+            />
+            <StatsCard 
+              title="Visas Issued" 
+              value={complianceData?.visaSummary?.visasIssued ?? 0} 
+              icon={CheckCircle2} 
+              description="Visas active in Nusuk"
+              color="text-emerald-650"
+              bgColor="bg-emerald-50"
+            />
+            <StatsCard 
+              title="Pilgrims in KSA" 
+              value={complianceData?.visaSummary?.passengersInKSA ?? 0} 
+              icon={Globe} 
+              description="Present in the Kingdom"
+              color="text-teal-650"
+              bgColor="bg-teal-50"
+            />
+            <StatsCard 
+              title="Expected to Arrive" 
+              value={complianceData?.visaSummary?.passengersToArrive ?? 0} 
+              icon={Plane} 
+              description="Visas printed, not in KSA yet"
+              color="text-blue-650"
+              bgColor="bg-blue-50"
+            />
+          </div>
+        </div>
+
+        {/* Expanded Nusuk Compliance & Discrepancies Hub */}
         <Card className="border-none shadow-xl shadow-gray-200/50 overflow-hidden bg-white rounded-3xl">
-          <CardHeader className="border-b border-gray-50 flex flex-row items-center justify-between py-6 px-8">
+          <CardHeader className="border-b border-gray-50 flex flex-col sm:flex-row sm:items-center justify-between py-6 px-8 gap-4">
             <div>
-              <CardTitle className="text-xl font-black text-secondary uppercase tracking-tight">Platform Performance</CardTitle>
-              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Real-time accuracy & submission metrics</p>
+              <CardTitle className="text-xl font-black text-secondary uppercase tracking-tight">Nusuk Compliance & Mismatches</CardTitle>
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Discrepancies detected between system bookings and Nusuk records</p>
             </div>
-            <div className="flex items-center gap-2">
-               <span className="text-[10px] font-black text-green-600 bg-green-50 px-3 py-1.5 rounded-full border border-green-100 uppercase tracking-tighter">High Accuracy Level</span>
+            <div className="flex items-center gap-4">
+              <select 
+                value={adminFilter}
+                onChange={(e) => setAdminFilter(e.target.value as any)}
+                className="text-xs font-bold text-indigo-650 border border-slate-200 rounded-xl px-3 py-1.5 bg-white cursor-pointer focus:outline-none"
+              >
+                <option value="all">All Mismatches</option>
+                <option value="arrival">Arrival Mismatches</option>
+                <option value="departure">Departure Mismatches</option>
+              </select>
             </div>
           </CardHeader>
           <CardContent className="p-8">
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-                <PerformanceMetric 
-                  label="On-Time Submissions" 
-                  percentage={92} 
-                  description="Trip info submitted > 48h before arrival" 
-                  icon={Clock}
-                />
-                <PerformanceMetric 
-                  label="Information Accuracy" 
-                  percentage={88} 
-                  description="Bookings approved without correction" 
-                  icon={Shield}
-                />
-                <PerformanceMetric 
-                  label="Document Completion" 
-                  percentage={95} 
-                  description="All required passenger documents verified" 
-                  icon={Award}
-                />
-             </div>
-             <div className="mt-12 p-6 bg-gray-50 rounded-3xl flex items-center justify-between border border-gray-100">
-                <div className="flex items-center gap-6">
-                   <div className="h-14 w-14 rounded-2xl bg-primary/20 flex items-center justify-center shadow-inner">
-                      <TrendingUp className="h-7 w-7 text-secondary" />
-                   </div>
-                   <div>
-                      <p className="text-lg font-black text-secondary uppercase tracking-tight">Performance Insight</p>
-                      <p className="text-sm text-gray-500 font-medium">Submission speed has improved by <span className="text-green-600 font-bold">12%</span> compared to last month. Data accuracy remains stable.</p>
-                   </div>
+             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                {/* Statistics panel */}
+                <div className="lg:col-span-1 flex flex-row lg:flex-col gap-4 justify-center">
+                  <div className="flex-1 bg-rose-50/70 border border-rose-100 p-6 rounded-2xl text-center shadow-sm">
+                    <div className="text-[10px] font-black text-rose-550 uppercase tracking-widest">Today's Mismatches</div>
+                    <div className="text-4xl font-black text-rose-700 mt-2">{complianceData?.todayCount ?? 0}</div>
+                    <p className="text-[9px] text-rose-450 mt-1 font-bold">Requires urgent verification</p>
+                  </div>
+                  <div className="flex-1 bg-amber-50/70 border border-amber-100 p-6 rounded-2xl text-center shadow-sm">
+                    <div className="text-[10px] font-black text-amber-550 uppercase tracking-widest">Yesterday's Mismatches</div>
+                    <div className="text-4xl font-black text-amber-700 mt-2">{complianceData?.yesterdayCount ?? 0}</div>
+                    <p className="text-[9px] text-amber-450 mt-1 font-bold">Unresolved discrepancy list</p>
+                  </div>
                 </div>
-                <Button variant="outline" size="sm" className="font-black text-xs border-primary text-secondary hover:bg-primary/10 rounded-xl px-6 h-10 uppercase tracking-widest">
-                   View Details
+
+                {/* Table list panel */}
+                <div className="lg:col-span-3">
+                  <div className="rounded-2xl border border-slate-100 overflow-hidden bg-slate-50/30">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 text-slate-500 font-bold GFM uppercase text-[9px] tracking-wider border-b border-slate-100">
+                          <th className="py-3 px-4">Booking Ref</th>
+                          <th className="py-3 px-4">Mutamer Name</th>
+                          <th className="py-3 px-4">Agency Name</th>
+                          <th className="py-3 px-4 text-center">Type</th>
+                          <th className="py-3 px-4 text-right">Detected</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {complianceData?.recentMismatches && complianceData.recentMismatches
+                          .filter(m => {
+                            if (adminFilter === 'arrival') return m.mismatchType === 'entry' || m.mismatchType === 'both';
+                            if (adminFilter === 'departure') return m.mismatchType === 'exit' || m.mismatchType === 'both';
+                            return true;
+                          })
+                          .slice(0, 5)
+                          .map((m) => (
+                            <tr key={m.id} className="border-b border-slate-150 hover:bg-slate-50/50 transition">
+                              <td className="py-3.5 px-4 font-mono font-bold text-indigo-650">{m.bookingReference}</td>
+                              <td className="py-3.5 px-4 font-semibold text-slate-800">{m.mutamerName}</td>
+                              <td className="py-3.5 px-4 text-gray-500">{m.partyName}</td>
+                              <td className="py-3.5 px-4 text-center">
+                                <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-tight ${
+                                  m.mismatchType === 'entry' ? 'bg-indigo-50 text-indigo-650' :
+                                  m.mismatchType === 'exit' ? 'bg-emerald-50 text-emerald-650' :
+                                  m.mismatchType === 'both' ? 'bg-purple-50 text-purple-650' : 'bg-amber-50 text-amber-650'
+                                }`}>
+                                  {m.mismatchType === 'entry' && 'Arrival'}
+                                  {m.mismatchType === 'exit' && 'Departure'}
+                                  {m.mismatchType === 'both' && 'Arr & Dep'}
+                                  {m.mismatchType === 'pax_count' && 'Count'}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4 text-right text-gray-400 font-mono text-[10px]">
+                                {new Date(m.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                              </td>
+                            </tr>
+                          ))}
+                        {(!complianceData || !complianceData.recentMismatches || complianceData.recentMismatches.filter(m => {
+                          if (adminFilter === 'arrival') return m.mismatchType === 'entry' || m.mismatchType === 'both';
+                          if (adminFilter === 'departure') return m.mismatchType === 'exit' || m.mismatchType === 'both';
+                          return true;
+                        }).length === 0) && (
+                          <tr>
+                            <td colSpan={5} className="text-center py-10 text-gray-400 font-bold text-[10px] uppercase tracking-wider">
+                              No active mismatches found matching the criteria.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+             </div>
+             
+             <div className="mt-6 flex justify-end">
+                <Button 
+                  onClick={() => router.push('/dashboard/umrah-visa/mismatched-travel')}
+                  className="bg-secondary hover:bg-secondary/90 text-primary font-black text-xs uppercase tracking-widest h-11 px-8 rounded-xl"
+                >
+                  Go to Mismatched Travel Directory
                 </Button>
              </div>
           </CardContent>
@@ -274,21 +393,7 @@ export default function DashboardPage() {
                </CardContent>
             </Card>
 
-            <Card className="border-none shadow-xl shadow-gray-200/50 rounded-3xl">
-               <CardHeader className="px-8 pt-8">
-                  <CardTitle className="text-lg font-black text-secondary uppercase tracking-tight">Compliance</CardTitle>
-               </CardHeader>
-               <CardContent className="px-8 pb-8">
-                  <div className="space-y-6">
-                     <ComplianceRow label="Compliant" count={12} color="bg-green-500" percentage={75} />
-                     <ComplianceRow label="Observation" count={3} color="bg-yellow-500" percentage={18} />
-                     <ComplianceRow label="Non-Compliant" count={1} color="bg-primary" percentage={7} />
-                     <div className="pt-4 border-t text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
-                        Based on timely trip info & document updates
-                     </div>
-                  </div>
-               </CardContent>
-            </Card>
+
           </div>
         </div>
       </div>

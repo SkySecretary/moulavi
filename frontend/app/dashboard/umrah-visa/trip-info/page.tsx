@@ -22,7 +22,8 @@ import {
   Copy,
   AlertCircle,
   Download,
-  Loader2
+  Loader2,
+  Check
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
@@ -44,6 +45,7 @@ export default function TripInfoPage() {
   const [departureDateFrom, setDepartureDateFrom] = useState('');
   const [departureDateTo, setDepartureDateTo] = useState('');
   const [pendingLoadBasis, setPendingLoadBasis] = useState<'arrival' | 'departure'>('arrival');
+  const [pendingBookingsCount, setPendingBookingsCount] = useState(0);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -54,6 +56,7 @@ export default function TripInfoPage() {
   const [iqamaSubTab, setIqamaSubTab] = useState<'pending' | 'hosting' | 'completed'>('pending');
   const [hotelSubTab, setHotelSubTab] = useState<'pending' | 'completed'>('pending');
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [markingCompletedId, setMarkingCompletedId] = useState<string | null>(null);
 
   const handleDownloadBookingPDF = async (booking: any) => {
     if (!booking.id) return;
@@ -126,6 +129,15 @@ export default function TripInfoPage() {
 
   // ...
 
+  const fetchPendingCount = async () => {
+    try {
+      const res = await umrahVisaAPI.getBookings({ status: 'pending', limit: '1' });
+      setPendingBookingsCount(res.data?.pagination?.total || 0);
+    } catch (err) {
+      console.error('Error fetching pending count:', err);
+    }
+  };
+
   useEffect(() => {
     if (!user || !hasRole(['admin', 'staff'])) {
       router.push('/');
@@ -133,6 +145,7 @@ export default function TripInfoPage() {
     }
     fetchBookings(pagination.page);
     fetchPendingLoad();
+    fetchPendingCount();
   }, [pagination.page, pagination.limit, searchQuery, arrivalDateFrom, arrivalDateTo, departureDateFrom, departureDateTo, activeTab, iqamaSubTab, hotelSubTab, pendingLoadBasis]);
 
   const fetchPendingLoad = async () => {
@@ -373,6 +386,7 @@ export default function TripInfoPage() {
     if (!booking.id) return;
 
     try {
+      setMarkingCompletedId(booking.id);
       toast.info('Marking as completed...');
       // Update trip status to completed
       await umrahVisaAPI.updateTripStatus(booking.id, 'completed');
@@ -386,6 +400,8 @@ export default function TripInfoPage() {
       fetchBookings();
     } catch (error: any) {
       toast.error(error.message || 'Failed to mark trip as completed');
+    } finally {
+      setMarkingCompletedId(null);
     }
   };
 
@@ -566,9 +582,21 @@ export default function TripInfoPage() {
               <Button
                 size="sm"
                 onClick={() => handleMarkReadyForVoucher(booking)}
-                disabled={!(booking.hotelBookings?.some((h: any) => h.brn && (Array.isArray(h.brn) ? h.brn.length > 0 : String(h.brn).trim() !== '')))}
+                disabled={
+                  markingCompletedId === booking.id ||
+                  (booking.visaType === 'group_visa'
+                    ? (booking.hotelBookings && booking.hotelBookings.length > 0
+                        ? !(booking.hotelBookings.some((h: any) => h.brn && (Array.isArray(h.brn) ? h.brn.length > 0 : String(h.brn).trim() !== '')))
+                        : false)
+                    : !(booking.hotelBookings?.some((h: any) => h.brn && (Array.isArray(h.brn) ? h.brn.length > 0 : String(h.brn).trim() !== ''))))
+                }
                 className="flex items-center gap-1 whitespace-nowrap bg-green-600 hover:bg-green-700 text-white font-bold disabled:opacity-50 disabled:bg-gray-400"
               >
+                {markingCompletedId === booking.id ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Check className="h-3 w-3" />
+                )}
                 Done
               </Button>
             )}
@@ -618,6 +646,26 @@ export default function TripInfoPage() {
       {/* Content */}
       <div className="flex-1 overflow-auto">
         <div className="p-4 lg:p-8">
+          {pendingBookingsCount > 0 && (
+            <div className="mb-6 p-4 rounded-xl border border-red-200 bg-red-50 text-red-950 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-pulse">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-red-100 text-red-600 animate-bounce">
+                  <AlertCircle className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm uppercase tracking-wide">Pending Bookings Alert</h4>
+                  <p className="text-xs text-red-700 font-medium mt-0.5">There are {pendingBookingsCount} pending booking(s) waiting in the Booking listing screen.</p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => router.push('/dashboard/umrah-visa/bookings?status=pending')}
+                className="bg-red-650 hover:bg-red-700 text-white font-bold text-xs px-4 h-9 shadow-sm"
+              >
+                View Bookings
+              </Button>
+            </div>
+          )}
           <Card>
             <CardHeader>
               <CardTitle>Trip Information</CardTitle>

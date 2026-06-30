@@ -76,6 +76,9 @@ const createPartyValidation = [
   body('email_notification').optional().isBoolean(),
   body('sms_notification').optional().isBoolean(),
   body('marketing_notification').optional().isBoolean(),
+  body('nusuk_entity_id').optional().isString().trim(),
+  body('nusuk_active_entity_id').optional().isString().trim(),
+  body('nusuk_active_entity_type_id').optional().isString().trim(),
 ];
 
 // Create party
@@ -105,6 +108,9 @@ router.post(
       email_notification = true,
       sms_notification = true,
       marketing_notification = false,
+      nusuk_entity_id,
+      nusuk_active_entity_id,
+      nusuk_active_entity_type_id,
     } = req.body;
     
     // Validate customer_type is required if is_customer is true
@@ -177,6 +183,9 @@ router.post(
         gstNumber: gst_number,
         panNumber: pan_number,
         aadhaarNumber: aadhaar_number,
+        nusukEntityId: nusuk_entity_id || null,
+        nusukActiveEntityId: nusuk_active_entity_id || null,
+        nusukActiveEntityTypeId: nusuk_active_entity_type_id || null,
         supplierServiceTypes: supplier_service_types ? JSON.parse(JSON.stringify(supplier_service_types)) : null,
         customerType: customer_type || 'direct', // Default to 'direct' if not provided
         accountCurrencyId: account_currency_id,
@@ -458,6 +467,9 @@ router.put(
       email_notification,
       sms_notification,
       marketing_notification,
+      nusuk_entity_id,
+      nusuk_active_entity_id,
+      nusuk_active_entity_type_id,
     } = req.body;
     
     // Validate supplier service types if supplier is being set to true
@@ -597,6 +609,9 @@ router.put(
     if (gst_number !== undefined) updateData.gstNumber = gst_number;
     if (pan_number !== undefined) updateData.panNumber = pan_number;
     if (aadhaar_number !== undefined) updateData.aadhaarNumber = aadhaar_number;
+    if (nusuk_entity_id !== undefined) updateData.nusukEntityId = nusuk_entity_id || null;
+    if (nusuk_active_entity_id !== undefined) updateData.nusukActiveEntityId = nusuk_active_entity_id || null;
+    if (nusuk_active_entity_type_id !== undefined) updateData.nusukActiveEntityTypeId = nusuk_active_entity_type_id || null;
     if (supplier_service_types !== undefined) updateData.supplierServiceTypes = JSON.parse(JSON.stringify(supplier_service_types));
     if (customer_type !== undefined) updateData.customerType = customer_type;
     if (account_currency_id !== undefined) updateData.accountCurrencyId = account_currency_id;

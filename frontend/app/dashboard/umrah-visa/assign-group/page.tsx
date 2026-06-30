@@ -213,8 +213,8 @@ export default function AssignGroupPage() {
   };
 
   const handleAddGroupData = async () => {
-    if (!selectedBooking || !groupNumber || !groupName) {
-      toast.error('Please fill in all required fields');
+    if (!selectedBooking || !groupNumber || !groupName || !umrahVisaProviderId || !umrahVisaProviderId.trim()) {
+      toast.error('Please fill in all fields (Group Number, Name, and Umrah Company)');
       return;
     }
 
@@ -224,11 +224,8 @@ export default function AssignGroupPage() {
       const payload: any = {
         groupNumber, 
         groupName,
+        umrahVisaProviderId,
       };
-      
-      if (umrahVisaProviderId && umrahVisaProviderId.trim()) {
-        payload.umrahVisaProviderId = umrahVisaProviderId;
-      }
       
       const response = await umrahVisaAPI.addGroupData(selectedBooking.id, payload);
       toast.success('Group data added successfully');
@@ -245,8 +242,13 @@ export default function AssignGroupPage() {
 
   const handleInlineAssignGroup = async (booking: UmrahVisaBooking) => {
     const data = inlineGroupData[booking.id];
+    const providerId = data?.providerId || booking.umrahVisaProviderId;
     if (!data?.groupNumber || !data?.groupName) {
       toast.error('Please enter both group number and name');
+      return;
+    }
+    if (!providerId) {
+      toast.error('Please select an Umrah company (click the "+" button on the right to assign)');
       return;
     }
 
@@ -255,7 +257,7 @@ export default function AssignGroupPage() {
       const payload: any = {
         groupNumber: data.groupNumber,
         groupName: data.groupName,
-        umrahVisaProviderId: data.providerId || booking.umrahVisaProviderId
+        umrahVisaProviderId: providerId
       };
       
       await umrahVisaAPI.addGroupData(booking.id, payload);
@@ -343,6 +345,7 @@ export default function AssignGroupPage() {
                       <TableHead className="w-[130px]">Reference</TableHead>
                       <TableHead className="w-[200px]">Group Details</TableHead>
                       <TableHead className="w-[180px]">Party Name</TableHead>
+                      <TableHead className="w-[180px]">Umrah Company</TableHead>
                       <TableHead className="w-[150px]">Arrival Date</TableHead>
                       <TableHead className="w-[200px]">Downloaded By</TableHead>
                       <TableHead className="w-[150px]">Status</TableHead>
@@ -352,11 +355,11 @@ export default function AssignGroupPage() {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8">Loading...</TableCell>
+                        <TableCell colSpan={8} className="text-center py-8">Loading...</TableCell>
                       </TableRow>
                     ) : filteredData.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-gray-500">No bookings found</TableCell>
+                        <TableCell colSpan={8} className="text-center py-8 text-gray-500">No bookings found</TableCell>
                       </TableRow>
                     ) : (
                       filteredData.map((booking) => (
@@ -401,6 +404,7 @@ export default function AssignGroupPage() {
                             )}
                           </TableCell>
                           <TableCell><div className="font-medium">{booking.party?.partyName || 'N/A'}</div></TableCell>
+                          <TableCell><div className="font-semibold text-xs">{booking.umrahVisaProvider?.partyName || 'N/A'}</div></TableCell>
                           <TableCell>
                             <div className="text-sm">
                               {(() => {
@@ -451,15 +455,15 @@ export default function AssignGroupPage() {
               <Label htmlFor="groupName">Group Name *</Label>
               <Input id="groupName" placeholder="e.g., Ramadan Group 2024" value={groupName} onChange={(e) => setGroupName(e.target.value)} />
             </div>
-            <div>
-              <Label htmlFor="umrahVisaProviderId">Umrah Visa Providing Company</Label>
+             <div>
+              <Label htmlFor="umrahVisaProviderId">Umrah Visa Providing Company *</Label>
               <Select
                 value={umrahVisaProviderId || undefined}
                 onValueChange={(value) => setUmrahVisaProviderId(value || '')}
                 disabled={loadingProviders}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={loadingProviders ? "Loading..." : "Select umrah visa provider (optional)"} />
+                  <SelectValue placeholder={loadingProviders ? "Loading..." : "Select umrah visa provider"} />
                 </SelectTrigger>
                 <SelectContent>
                   {umrahVisaProviders.map((provider) => (
@@ -469,17 +473,6 @@ export default function AssignGroupPage() {
                   ))}
                 </SelectContent>
               </Select>
-              {umrahVisaProviderId && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="mt-2 h-6 text-xs"
-                  onClick={() => setUmrahVisaProviderId('')}
-                >
-                  Clear selection
-                </Button>
-              )}
             </div>
           </div>
           <DialogFooter>

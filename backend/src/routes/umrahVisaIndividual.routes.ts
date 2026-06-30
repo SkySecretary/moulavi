@@ -602,6 +602,9 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
                   brn: hotel.brn && Array.isArray(hotel.brn) && hotel.brn.length > 0 
                     ? hotel.brn 
                     : null,
+                  additionalBrns: hotel.additionalBrns && Array.isArray(hotel.additionalBrns) && hotel.additionalBrns.length > 0
+                    ? hotel.additionalBrns as any
+                    : null,
                 },
               });
             })
@@ -1147,9 +1150,12 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
           await prisma.umrahHotelBooking.update({
             where: { id: h.id },
             data: {
+              cityId: h.cityId ?? undefined,
+              hotelId: h.hotelId ?? undefined,
               checkInDate: parseSafeDate(h.checkInDate) || undefined,
               checkOutDate: parseSafeDate(h.checkOutDate) || undefined,
               brn: h.brn ?? undefined,
+              additionalBrns: h.additionalBrns ? (h.additionalBrns as any) : undefined,
             },
           });
         }

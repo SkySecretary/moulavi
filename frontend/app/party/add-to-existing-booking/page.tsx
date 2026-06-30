@@ -25,6 +25,81 @@ interface UmrahVisaBooking {
   createdAt: string;
 }
 
+interface UploaderBoxProps {
+  label: string;
+  description: string;
+  files: File[];
+  onChange: (files: File[]) => void;
+  accept?: string;
+  multiple?: boolean;
+}
+
+const UploaderBox: React.FC<UploaderBoxProps> = ({
+  label,
+  description,
+  files,
+  onChange,
+  accept = "image/*,.pdf,.zip,.heic,.heif,.webp",
+  multiple = true
+}) => {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const selected = Array.from(e.target.files);
+      if (multiple) {
+        onChange([...files, ...selected]);
+      } else {
+        onChange(selected.slice(0, 1));
+      }
+    }
+  };
+
+  const removeFile = (idx: number) => {
+    onChange(files.filter((_, i) => i !== idx));
+  };
+
+  return (
+    <Card className="border border-gray-150 p-4 bg-white rounded-xl shadow-sm space-y-3">
+      <div>
+        <Label className="text-xs font-bold text-gray-700 uppercase tracking-wider block">{label}</Label>
+        <span className="text-[10px] text-gray-400 mt-0.5 block">{description}</span>
+      </div>
+      <div 
+        onClick={() => fileInputRef.current?.click()}
+        className="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/20 transition-all flex flex-col items-center justify-center min-h-[80px]"
+      >
+        <input 
+          ref={fileInputRef}
+          type="file"
+          accept={accept}
+          multiple={multiple}
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        <UploadCloud className="h-5 w-5 text-gray-400 mb-1" />
+        <span className="text-[10px] font-bold text-gray-600 uppercase">Click to select files</span>
+      </div>
+      {files.length > 0 && (
+        <div className="space-y-1.5 pt-1.5 border-t border-gray-100 max-h-40 overflow-y-auto">
+          {files.map((file, i) => (
+            <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 border border-gray-100 text-xs">
+              <span className="font-semibold text-gray-700 truncate max-w-[85%]">{file.name}</span>
+              <button 
+                type="button" 
+                onClick={(e) => { e.stopPropagation(); removeFile(i); }}
+                className="text-red-500 hover:text-red-700"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+};
+
 export default function AddToExistingBookingPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -39,9 +114,14 @@ export default function AddToExistingBookingPage() {
     newGroupName: '',
     passengerCount: '',
   });
+  
+  // Categorized upload files state
+  const [passportCopies, setPassportCopies] = useState<File[]>([]);
+  const [passengerPhotos, setPassengerPhotos] = useState<File[]>([]);
+  const [panCardCopies, setPanCardCopies] = useState<File[]>([]);
+  const [onwardTickets, setOnwardTickets] = useState<File[]>([]);
+  const [returnTickets, setReturnTickets] = useState<File[]>([]);
   const [zipFile, setZipFile] = useState<File | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -91,40 +171,6 @@ export default function AddToExistingBookingPage() {
     setZipFile(file);
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      handleFileSelect(files[0]);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      handleFileSelect(files[0]);
-    }
-  };
-
-  const handleRemoveFile = () => {
-    setZipFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -133,8 +179,16 @@ export default function AddToExistingBookingPage() {
       return;
     }
 
-    if (!zipFile) {
-      toast.error('Please upload a ZIP file containing PAN cards');
+    const totalFilesUploaded = 
+      passportCopies.length + 
+      passengerPhotos.length + 
+      panCardCopies.length + 
+      onwardTickets.length + 
+      returnTickets.length + 
+      (zipFile ? 1 : 0);
+
+    if (totalFilesUploaded === 0) {
+      toast.error('Please upload at least one document (Passport copies, PAN copies, Passenger photos, onward/return flight tickets, or ZIP)');
       return;
     }
 
@@ -152,11 +206,19 @@ export default function AddToExistingBookingPage() {
       formDataToSend.append('newGroupNumber', formData.newGroupNumber);
       formDataToSend.append('newGroupName', formData.newGroupName);
       formDataToSend.append('passengerCount', formData.passengerCount);
-      formDataToSend.append('panCardZipFile', zipFile);
+      
+      passportCopies.forEach(file => formDataToSend.append('passportCopies', file));
+      passengerPhotos.forEach(file => formDataToSend.append('passengerPhotos', file));
+      panCardCopies.forEach(file => formDataToSend.append('panCardCopies', file));
+      onwardTickets.forEach(file => formDataToSend.append('onwardTickets', file));
+      returnTickets.forEach(file => formDataToSend.append('returnTickets', file));
+      if (zipFile) {
+        formDataToSend.append('panCardZipFile', zipFile);
+      }
 
       await umrahVisaAPI.addToExistingBooking(formDataToSend);
 
-      toast.success('Group added to existing booking successfully!');
+      toast.success('Group added to existing booking successfully and internal duplicate booking created!');
       router.push('/party/dashboard');
     } catch (error: any) {
       console.error('Error adding group to existing booking:', error);
@@ -255,65 +317,55 @@ export default function AddToExistingBookingPage() {
                 />
               </div>
 
-              {/* Document Upload */}
-              <div className="space-y-2">
-                <Label>PAN Cards ZIP File *</Label>
-                {!zipFile ? (
-                  <div
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`border-2 border-dashed rounded-lg p-6 lg:p-12 text-center cursor-pointer transition-colors ${
-                      isDragging
-                        ? 'border-primary bg-primary/5'
-                        : 'border-gray-200 bg-gray-50 hover:border-secondary/40 hover:bg-secondary/5'
-                    }`}
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".zip,application/zip"
-                      onChange={handleFileInputChange}
-                      className="hidden"
-                    />
-                    
-                    <div className="flex flex-col items-center justify-center space-y-3 lg:space-y-4">
-                      <UploadCloud className={`w-12 h-12 lg:w-16 lg:h-16 ${isDragging ? 'text-primary' : 'text-gray-400'}`} />
-                      <div>
-                        <p className="text-base lg:text-lg font-black text-primary mb-1 uppercase tracking-tighter italic">
-                          {isDragging ? 'Release to Initialize' : 'Initialize Asset Upload'}
-                        </p>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                          Tactical ZIP package required (MAX. 50MB)
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between p-4 lg:p-6 border-2 border-emerald-500/20 bg-emerald-50/30 rounded-2xl shadow-xl shadow-emerald-500/5 animate-in zoom-in-95">
-                    <div className="flex items-center space-x-4 lg:space-x-6 min-w-0 flex-1">
-                      <div className="p-3 bg-white rounded-xl shadow-sm border border-emerald-100">
-                        <File className="h-6 w-6 lg:h-8 lg:w-8 text-emerald-600 flex-shrink-0" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-black text-primary text-sm lg:text-lg truncate uppercase italic">{zipFile.name}</p>
-                        <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mt-1">
-                          Payload: {(zipFile.size / (1024 * 1024)).toFixed(2)} MB
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleRemoveFile}
-                      className="text-destructive hover:text-white hover:bg-destructive transition-all flex-shrink-0 ml-2 rounded-xl h-10 px-4 font-black uppercase text-[10px] tracking-widest"
-                    >
-                      Flush
-                    </Button>
-                  </div>
-                )}
+              {/* Document Upload divided into categories */}
+              <div className="space-y-4">
+                <Label className="text-sm font-semibold text-gray-900 block border-b pb-1">Document Uploads (Add to Existing)</Label>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <UploaderBox
+                    label="Passport Copies"
+                    description="Upload front and back pages of all passenger passports."
+                    files={passportCopies}
+                    onChange={setPassportCopies}
+                  />
+
+                  <UploaderBox
+                    label="Passenger Photos"
+                    description="Upload white background passport sized photos."
+                    files={passengerPhotos}
+                    onChange={setPassengerPhotos}
+                  />
+
+                  <UploaderBox
+                    label="PAN Card Copies"
+                    description="Upload PAN card copies of the passengers."
+                    files={panCardCopies}
+                    onChange={setPanCardCopies}
+                  />
+
+                  <UploaderBox
+                    label="Onward Flight Tickets"
+                    description="Upload onward flight tickets or itineraries."
+                    files={onwardTickets}
+                    onChange={setOnwardTickets}
+                  />
+
+                  <UploaderBox
+                    label="Return Flight Tickets"
+                    description="Upload return flight tickets or itineraries."
+                    files={returnTickets}
+                    onChange={setReturnTickets}
+                  />
+
+                  <UploaderBox
+                    label="Other / PAN ZIP File"
+                    description="Upload single zip file containing PAN cards or other files."
+                    files={zipFile ? [zipFile] : []}
+                    onChange={(files) => setZipFile(files[0] || null)}
+                    multiple={false}
+                    accept=".zip,application/zip"
+                  />
+                </div>
               </div>
 
               <div className="flex flex-col sm:flex-row justify-end gap-4 pt-8 border-t border-secondary/10">

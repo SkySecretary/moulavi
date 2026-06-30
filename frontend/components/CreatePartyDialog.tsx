@@ -47,7 +47,10 @@ export default function CreatePartyDialog({
     login_required: false,
     email_notification: true,
     sms_notification: true,
-    marketing_notification: false
+    marketing_notification: false,
+    nusuk_entity_id: '',
+    nusuk_active_entity_id: '',
+    nusuk_active_entity_type_id: ''
   });
   const [documentFiles, setDocumentFiles] = useState<{
     gst_certificate?: File;
@@ -87,7 +90,10 @@ export default function CreatePartyDialog({
           login_required: editingParty.loginRequired,
           email_notification: editingParty.emailNotification,
           sms_notification: editingParty.smsNotification,
-          marketing_notification: editingParty.marketingNotification
+          marketing_notification: editingParty.marketingNotification,
+          nusuk_entity_id: (editingParty as any).nusukEntityId || '',
+          nusuk_active_entity_id: (editingParty as any).nusukActiveEntityId || '',
+          nusuk_active_entity_type_id: (editingParty as any).nusukActiveEntityTypeId || ''
         });
       } else {
         setFormData({
@@ -109,7 +115,10 @@ export default function CreatePartyDialog({
           login_required: false,
           email_notification: true,
           sms_notification: true,
-          marketing_notification: false
+          marketing_notification: false,
+          nusuk_entity_id: '',
+          nusuk_active_entity_id: '',
+          nusuk_active_entity_type_id: ''
         });
       }
       setDocumentFiles({});
@@ -729,6 +738,48 @@ export default function CreatePartyDialog({
                   <Label htmlFor="transport_service" className="cursor-pointer">
                     Transport Service
                   </Label>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Nusuk Integration Config - Only show if it is an Umrah Service supplier */}
+          {formData.is_supplier && formData.supplier_service_types.includes('umrah_service') && (
+            <div className="space-y-3 border-t pt-4 bg-slate-50/50 p-3 rounded-lg border border-slate-100">
+              <Label className="text-sm font-bold text-slate-800">Nusuk Integration Settings</Label>
+              <div className="space-y-2">
+                <div>
+                  <Label htmlFor="nusuk_entity_id" className="text-xs">Nusuk Entity ID (Umrah Co ID)</Label>
+                  <Input
+                    id="nusuk_entity_id"
+                    type="text"
+                    value={formData.nusuk_entity_id}
+                    onChange={(e) => handleInputChange('nusuk_entity_id', e.target.value)}
+                    placeholder="e.g. 525592"
+                    className="text-xs font-mono bg-white"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="nusuk_active_entity_id" className="text-xs">Nusuk Active Entity ID</Label>
+                  <Input
+                    id="nusuk_active_entity_id"
+                    type="text"
+                    value={formData.nusuk_active_entity_id}
+                    onChange={(e) => handleInputChange('nusuk_active_entity_id', e.target.value)}
+                    placeholder="e.g. 525592"
+                    className="text-xs font-mono bg-white"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="nusuk_active_entity_type_id" className="text-xs">Nusuk Active Entity Type ID</Label>
+                  <Input
+                    id="nusuk_active_entity_type_id"
+                    type="text"
+                    value={formData.nusuk_active_entity_type_id}
+                    onChange={(e) => handleInputChange('nusuk_active_entity_type_id', e.target.value)}
+                    placeholder="e.g. 32"
+                    className="text-xs font-mono bg-white"
+                  />
                 </div>
               </div>
             </div>

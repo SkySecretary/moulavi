@@ -13,6 +13,7 @@ const saveSettingsValidation = [
   body('activeEntityId').optional().isString().trim(),
   body('activeEntityTypeId').optional().isString().trim(),
   body('entityId').optional().isString().trim(),
+  body('selectedUmrahCompanyIds').optional().isString().trim(),
   body('checkByPassport').optional().isBoolean(),
   body('externalAgentCodes').optional().isString().trim(),
   body('syncSchedule').optional().isString().trim(),
@@ -42,12 +43,19 @@ router.post(
       });
     }
 
-    const { token, activeEntityId, activeEntityTypeId, entityId, checkByPassport, externalAgentCodes, syncSchedule } = req.body;
+    const { token, activeEntityId, activeEntityTypeId, entityId, selectedUmrahCompanyIds, checkByPassport, externalAgentCodes, syncSchedule } = req.body;
+    
+    let cleanedToken = String(token || '').trim();
+    if (cleanedToken.toUpperCase().startsWith('BEARER ')) {
+      cleanedToken = cleanedToken.substring(7).trim();
+    }
+
     const settings = await NusukService.saveSettings({
-      token,
+      token: cleanedToken,
       activeEntityId,
       activeEntityTypeId,
       entityId,
+      selectedUmrahCompanyIds,
       checkByPassport,
       externalAgentCodes,
       syncSchedule,
@@ -66,7 +74,8 @@ router.post(
   authenticate,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     try {
-      const result = await NusukService.triggerSync();
+      const partyId = (req.query.partyId || req.body.partyId) as string | undefined;
+      const result = await NusukService.triggerSync(partyId);
       res.json({
         message: 'Sync completed successfully',
         ...result,
@@ -85,18 +94,20 @@ router.get(
   '/mismatches',
   authenticate,
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const resolved = req.query.resolved === 'true';
+    const resolved = req.query.resolved === 'true' ? true : (req.query.resolved === 'false' ? false : undefined);
     const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
     const mismatchType = req.query.mismatchType as string || 'all';
     const partyId = req.query.partyId as string || 'all';
+    const search = req.query.search as string || undefined;
 
     const result = await NusukService.getMismatches({
       resolved,
       page,
       limit,
       mismatchType,
-      partyId
+      partyId,
+      search
     });
     res.json(result);
   })
@@ -178,6 +189,22 @@ router.post(
 
     await NusukService.overrideComplianceStatus(partyId, status, reason || 'No details provided');
     res.json({ message: `Agent status overridden to ${status} successfully.` });
+  })
+);
+
+// Get compliance dashboard metrics for current logged-in user context
+router.get(
+  '/compliance/dashboard',
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const role = req.user.role;
+    const partyId = req.user.partyId || undefined;
+    
+    const dashboardStats = await NusukService.getComplianceDashboard(role, partyId);
+    res.json(dashboardStats);
   })
 );
 

@@ -3,11 +3,147 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Hotel, Plus, Search } from 'lucide-react';
+import { Hotel, Plus, Search, Trash2 } from 'lucide-react';
 import { HotelBooking, Location, Hotel as HotelType } from '@/lib/umrah/types';
 import { QuickAddHotelDialog } from './QuickAddHotelDialog';
 import { toDisplayDate, fromDisplayDate } from '@/lib/umrah/validation';
 import { DatePicker } from '@/components/ui/date-picker';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+
+interface AdditionalBrnsDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  hotelName: string;
+  initialBrns?: { brnNumber: string; checkInDate: string; checkOutDate: string; }[];
+  onSave: (brns: { brnNumber: string; checkInDate: string; checkOutDate: string; }[]) => void;
+  disabled?: boolean;
+}
+
+const AdditionalBrnsDialog: React.FC<AdditionalBrnsDialogProps> = ({
+  isOpen,
+  onClose,
+  hotelName,
+  initialBrns = [],
+  onSave,
+  disabled = false,
+}) => {
+  const [brns, setBrns] = useState<{ brnNumber: string; checkInDate: string; checkOutDate: string; }[]>([]);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setBrns(initialBrns || []);
+    }
+  }, [isOpen]);
+
+  const addRow = () => {
+    setBrns([...brns, { brnNumber: '', checkInDate: '', checkOutDate: '' }]);
+  };
+
+  const removeRow = (idx: number) => {
+    setBrns(brns.filter((_, i) => i !== idx));
+  };
+
+  const updateRow = (idx: number, field: 'brnNumber' | 'checkInDate' | 'checkOutDate', value: string) => {
+    const updated = [...brns];
+    updated[idx] = { ...updated[idx], [field]: value };
+    setBrns(updated);
+  };
+
+  const handleSave = () => {
+    const valid = brns.filter(b => b.brnNumber && b.brnNumber.trim().length > 0);
+    onSave(valid);
+    onClose();
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-2xl bg-white p-6 rounded-2xl shadow-xl">
+        <DialogHeader>
+          <DialogTitle className="text-lg font-bold text-gray-900 uppercase tracking-tight">
+            Manage Additional BRNs
+          </DialogTitle>
+          <div className="text-xs text-gray-500 block mt-1">
+            Add multiple sub-BRNs for hotel: <strong className="text-gray-700">{hotelName}</strong>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-4 my-4 max-h-[350px] overflow-y-auto pr-1">
+          {brns.length === 0 ? (
+            <div className="text-center py-6 text-xs text-gray-400 font-medium">
+              No additional BRNs configured. Click "Add BRN Row" to start.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {brns.map((b, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-2 items-center border p-3 rounded-xl bg-gray-50/50">
+                  <div className="col-span-5 space-y-1">
+                    <Label className="text-[10px] font-bold text-gray-500 uppercase">BRN Number *</Label>
+                    <Input
+                      placeholder="e.g. BRN12345"
+                      value={b.brnNumber}
+                      onChange={(e) => updateRow(idx, 'brnNumber', e.target.value)}
+                      disabled={disabled}
+                      className="h-9 text-xs font-semibold w-full"
+                    />
+                  </div>
+                  <div className="col-span-3 space-y-1">
+                    <Label className="text-[10px] font-bold text-gray-500 uppercase">Check-in</Label>
+                    <DatePicker
+                      value={b.checkInDate}
+                      onChange={(val) => updateRow(idx, 'checkInDate', val || '')}
+                      disabled={disabled}
+                    />
+                  </div>
+                  <div className="col-span-3 space-y-1">
+                    <Label className="text-[10px] font-bold text-gray-500 uppercase">Check-out</Label>
+                    <DatePicker
+                      value={b.checkOutDate}
+                      onChange={(val) => updateRow(idx, 'checkOutDate', val || '')}
+                      disabled={disabled}
+                    />
+                  </div>
+                  <div className="col-span-1 flex justify-center pt-5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeRow(idx)}
+                      disabled={disabled}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 h-8 w-8 rounded-full"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!disabled && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addRow}
+              className="w-full border-dashed text-xs py-2 h-9 font-bold"
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" /> Add BRN Row
+            </Button>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button type="button" variant="outline" onClick={onClose} className="h-10 text-xs font-bold">
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleSave} disabled={disabled} className="h-10 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold">
+            Save BRNs
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 interface HotelBookingTableProps {
   hotelBookings: HotelBooking[];
@@ -49,6 +185,10 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
   // Quick add dialog state
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [activeBookingIndex, setActiveBookingIndex] = useState<number | null>(null);
+  
+  // Additional BRNs dialog state
+  const [isBrnDialogOpen, setIsBrnDialogOpen] = useState(false);
+  const [selectedHotelRowIndex, setSelectedHotelRowIndex] = useState<number | null>(null);
 
   // Initialize BRN inputs from booking data
   React.useEffect(() => {
@@ -144,6 +284,9 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
             </th>
             <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700 min-w-[300px]">
               BRN
+            </th>
+            <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700 w-44">
+              Additional BRNs
             </th>
             {onRemoveBooking && (
               <th className="border border-gray-200 p-3 text-center text-sm font-medium text-gray-700 w-20">
@@ -324,6 +467,30 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                     className="w-full h-10 text-sm"
                     disabled={disabled}
                   />
+                  {booking.additionalBrns && booking.additionalBrns.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1 max-w-[280px]">
+                      {booking.additionalBrns.map((sub, sidx) => (
+                        <span key={sidx} className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[9px] font-semibold border border-indigo-100/80">
+                          {sub.brnNumber} ({sub.checkInDate || 'N/A'} - {sub.checkOutDate || 'N/A'})
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </td>
+                <td className="border border-gray-200 p-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedHotelRowIndex(index);
+                      setIsBrnDialogOpen(true);
+                    }}
+                    className="flex items-center gap-1 text-xs font-semibold text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Manage BRNs ({booking.additionalBrns?.length || 0})
+                  </Button>
                 </td>
                 {onRemoveBooking && (
                   <td className="border border-gray-200 p-3 text-center">
@@ -390,9 +557,25 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                    </div>
                 </div>
                 <div className="space-y-1">
-                   <Label className="text-xs">BRN</Label>
-                   <Input value={brnInputs[index] ?? (booking.brn?.join(', ') || '')} onChange={(e) => { setBrnInputs({...brnInputs, [index]: e.target.value}); onUpdateBooking(index, 'brn', e.target.value.split(',').map(s => s.trim()).filter(Boolean)); }} />
-                </div>
+                    <Label className="text-xs">BRN</Label>
+                    <Input value={brnInputs[index] ?? (booking.brn?.join(', ') || '')} onChange={(e) => { setBrnInputs({...brnInputs, [index]: e.target.value}); onUpdateBooking(index, 'brn', e.target.value.split(',').map(s => s.trim()).filter(Boolean)); }} />
+                 </div>
+                 <div className="space-y-1">
+                    <Label className="text-xs">Additional BRNs</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedHotelRowIndex(index);
+                        setIsBrnDialogOpen(true);
+                      }}
+                      className="w-full flex items-center justify-center gap-1 text-xs font-semibold text-indigo-600 border-indigo-200 hover:bg-indigo-50 h-10"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Manage Additional BRNs ({booking.additionalBrns?.length || 0})
+                    </Button>
+                 </div>
              </div>
           </div>
         ))}
@@ -411,6 +594,32 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
         onClose={() => setQuickAddOpen(false)}
         onSuccess={handleQuickAddSuccess}
         initialCityId={activeBookingIndex !== null ? hotelBookings[activeBookingIndex].cityId : undefined}
+      />
+
+      <AdditionalBrnsDialog
+        isOpen={isBrnDialogOpen}
+        onClose={() => {
+          setIsBrnDialogOpen(false);
+          setSelectedHotelRowIndex(null);
+        }}
+        hotelName={
+          selectedHotelRowIndex !== null && hotelBookings[selectedHotelRowIndex]
+            ? hotels.find(h => h.id === hotelBookings[selectedHotelRowIndex].hotelId)?.name || 
+              hotels.find(h => h.id === hotelBookings[selectedHotelRowIndex].hotelId)?.hotelName || 
+              'Selected Hotel'
+            : ''
+        }
+        initialBrns={
+          selectedHotelRowIndex !== null && hotelBookings[selectedHotelRowIndex]
+            ? hotelBookings[selectedHotelRowIndex].additionalBrns
+            : []
+        }
+        onSave={(updatedBrns) => {
+          if (selectedHotelRowIndex !== null) {
+            onUpdateBooking(selectedHotelRowIndex, 'additionalBrns' as any, updatedBrns as any);
+          }
+        }}
+        disabled={disabled}
       />
     </>
   );

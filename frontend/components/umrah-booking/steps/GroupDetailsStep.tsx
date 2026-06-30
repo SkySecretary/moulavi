@@ -80,7 +80,7 @@ export const GroupDetailsStep: React.FC<GroupDetailsStepProps> = ({
               <SelectContent>
                 {umrahVisaProviders.map((provider) => (
                   <SelectItem key={provider.id} value={provider.id}>
-                    {provider.partyName}
+                    {provider.partyCode || provider.partyName}
                   </SelectItem>
                 ))}
               </SelectContent>

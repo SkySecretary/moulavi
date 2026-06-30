@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
-import { nusukAPI } from '@/lib/api';
+import { nusukAPI, partyAPI } from '@/lib/api';
 import { Settings, Save, Loader2, RefreshCw, AlertTriangle, CheckCircle, ShieldAlert } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
+import { Party } from '@/types';
 
 export default function NusukSettingsPage() {
   const router = useRouter();
@@ -18,6 +19,10 @@ export default function NusukSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [umrahCompanies, setUmrahCompanies] = useState<Party[]>([]);
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([]);
+  const [currentSyncingCompany, setCurrentSyncingCompany] = useState<string | null>(null);
+  
   const [settingsData, setSettingsData] = useState({
     token: '',
     activeEntityId: '525592',
@@ -39,6 +44,14 @@ export default function NusukSettingsPage() {
     const loadSettings = async () => {
       try {
         setLoading(true);
+        // Load all Umrah companies
+        const companiesRes = await partyAPI.getAll({ 
+          supplier_service_type: 'umrah_service',
+          limit: 1000 
+        });
+        const companiesList = companiesRes.data.parties || [];
+        setUmrahCompanies(companiesList);
+
         const response = await nusukAPI.getSettings();
         if (response.data) {
           setSettingsData({
@@ -52,6 +65,11 @@ export default function NusukSettingsPage() {
             isValid: response.data.isValid ?? true,
             lastSyncedAt: response.data.lastSyncedAt || null,
           });
+
+          const ids = response.data.selectedUmrahCompanyIds
+            ? response.data.selectedUmrahCompanyIds.split(',').map((id: string) => id.trim()).filter(Boolean)
+            : [];
+          setSelectedCompanyIds(ids);
         }
       } catch (error: any) {
         console.error('Error loading Nusuk settings:', error);
@@ -78,6 +96,7 @@ export default function NusukSettingsPage() {
         activeEntityId: settingsData.activeEntityId,
         activeEntityTypeId: settingsData.activeEntityTypeId,
         entityId: settingsData.entityId,
+        selectedUmrahCompanyIds: selectedCompanyIds.join(','),
         checkByPassport: settingsData.checkByPassport,
         externalAgentCodes: settingsData.externalAgentCodes,
         syncSchedule: settingsData.syncSchedule,
@@ -92,24 +111,49 @@ export default function NusukSettingsPage() {
     }
   };
 
+  const handleToggleCompany = (companyId: string) => {
+    setSelectedCompanyIds(prev =>
+      prev.includes(companyId)
+        ? prev.filter(id => id !== companyId)
+        : [...prev, companyId]
+    );
+  };
+
   const handleSync = async () => {
     if (!settingsData.token) {
       toast.error('Please save a valid authorization token first');
       return;
     }
 
+    const companiesToSync = umrahCompanies.filter(c => selectedCompanyIds.includes(c.id));
+    if (companiesToSync.length === 0) {
+      toast.error('Please select at least one Umrah Company to sync.');
+      return;
+    }
+
     try {
       setSyncing(true);
-      toast.info('Triggering report sync from Nusuk portal...');
-      const response = await nusukAPI.triggerSync();
-      
+      let totalMismatches = 0;
+      let lastSyncedAt = null;
+
+      for (let i = 0; i < companiesToSync.length; i++) {
+        const company = companiesToSync[i];
+        setCurrentSyncingCompany(company.partyName);
+        toast.info(`Syncing ${company.partyName} (${i + 1}/${companiesToSync.length})...`);
+
+        // Trigger manual sync for this specific company
+        const response = await nusukAPI.triggerSync(company.id);
+        totalMismatches += response.data.mismatchesCount || 0;
+        lastSyncedAt = response.data.syncedAt;
+      }
+
       setSettingsData(prev => ({
         ...prev,
         isValid: true,
-        lastSyncedAt: response.data.syncedAt,
+        lastSyncedAt: lastSyncedAt || new Date().toISOString(),
       }));
-      
-      toast.success(`Sync completed! Found ${response.data.mismatchesCount} mismatched travel details.`);
+
+      toast.success(`Sync completed! Found ${totalMismatches} total travel detail mismatches.`);
     } catch (error: any) {
       console.error('Nusuk sync failed:', error);
       const errorMessage = error.response?.data?.error || error.message || 'Synchronization failed';
@@ -120,6 +164,7 @@ export default function NusukSettingsPage() {
       }
     } finally {
       setSyncing(false);
+      setCurrentSyncingCompany(null);
     }
   };
 
@@ -207,37 +252,79 @@ export default function NusukSettingsPage() {
                       </p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="activeEntityId" className="text-xs">Active Entity ID</Label>
-                        <Input
-                          id="activeEntityId"
-                          className="text-xs font-mono"
-                          value={settingsData.activeEntityId}
-                          onChange={(e) => setSettingsData({ ...settingsData, activeEntityId: e.target.value })}
-                          disabled={saving || syncing}
-                        />
+                    <div className="space-y-3 p-3 bg-slate-50 border rounded-lg border-slate-100">
+                      <div className="space-y-0.5">
+                        <Label className="text-sm font-semibold text-slate-800">Global Fallback Credentials</Label>
+                        <p className="text-[11px] text-gray-500">
+                          These values are used as defaults if no company is selected below, or if a selected company does not have custom entity IDs configured.
+                        </p>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="activeEntityTypeId" className="text-xs">Active Entity Type ID</Label>
-                        <Input
-                          id="activeEntityTypeId"
-                          className="text-xs font-mono"
-                          value={settingsData.activeEntityTypeId}
-                          onChange={(e) => setSettingsData({ ...settingsData, activeEntityTypeId: e.target.value })}
-                          disabled={saving || syncing}
-                        />
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+                        <div className="space-y-2">
+                          <Label htmlFor="activeEntityId" className="text-xs">Active Entity ID</Label>
+                          <Input
+                            id="activeEntityId"
+                            className="text-xs font-mono bg-white"
+                            value={settingsData.activeEntityId}
+                            onChange={(e) => setSettingsData({ ...settingsData, activeEntityId: e.target.value })}
+                            disabled={saving || syncing}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="activeEntityTypeId" className="text-xs">Active Entity Type ID</Label>
+                          <Input
+                            id="activeEntityTypeId"
+                            className="text-xs font-mono bg-white"
+                            value={settingsData.activeEntityTypeId}
+                            onChange={(e) => setSettingsData({ ...settingsData, activeEntityTypeId: e.target.value })}
+                            disabled={saving || syncing}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="entityId" className="text-xs">Entity ID</Label>
+                          <Input
+                            id="entityId"
+                            className="text-xs font-mono bg-white"
+                            value={settingsData.entityId}
+                            onChange={(e) => setSettingsData({ ...settingsData, entityId: e.target.value })}
+                            disabled={saving || syncing}
+                          />
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="entityId" className="text-xs">Entity ID</Label>
-                        <Input
-                          id="entityId"
-                          className="text-xs font-mono"
-                          value={settingsData.entityId}
-                          onChange={(e) => setSettingsData({ ...settingsData, entityId: e.target.value })}
-                          disabled={saving || syncing}
-                        />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold text-slate-800">Umrah Companies to Sync *</Label>
+                      <div className="border rounded-lg p-3 bg-white max-h-48 overflow-y-auto space-y-2">
+                        {umrahCompanies.map((company) => {
+                          const isSelected = selectedCompanyIds.includes(company.id);
+                          return (
+                            <label key={company.id} className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1.5 rounded transition">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleToggleCompany(company.id)}
+                                disabled={saving || syncing}
+                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                              <div className="flex flex-col">
+                                <span className="text-xs font-semibold text-slate-700">{company.partyName}</span>
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  {company.nusukEntityId ? `Entity ID: ${company.nusukEntityId}` : 'No Entity ID set'}
+                                </span>
+                              </div>
+                            </label>
+                          );
+                        })}
+                        {umrahCompanies.length === 0 && (
+                          <p className="text-xs text-muted-foreground p-2 text-center">
+                            No Umrah service providers found. Configure them in Masters &gt; Parties first.
+                          </p>
+                        )}
                       </div>
+                      <p className="text-xs text-gray-500">
+                        Select which Umrah Companies to run syncs for. Each company will sync with its configured Entity ID settings.
+                      </p>
                     </div>
 
                     <div className="space-y-2">
@@ -354,7 +441,7 @@ export default function NusukSettingsPage() {
                     {syncing ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Synchronizing...
+                        {currentSyncingCompany ? `Syncing ${currentSyncingCompany}...` : 'Synchronizing...'}
                       </>
                     ) : (
                       <>

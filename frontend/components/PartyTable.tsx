@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -277,7 +278,16 @@ export default function PartyTable({
                 </div>
               </div>
               <div className="col-span-2">
-                <div className="font-medium text-gray-900">{party.partyName}</div>
+                {party.isCustomer ? (
+                  <Link
+                    href={`/dashboard/masters/party/${party.id}`}
+                    className="font-semibold text-indigo-600 hover:text-indigo-800 hover:underline"
+                  >
+                    {party.partyName}
+                  </Link>
+                ) : (
+                  <div className="font-medium text-gray-900">{party.partyName}</div>
+                )}
                 <div className="text-sm text-gray-500">{party.email}</div>
               </div>
               <div className="col-span-2">
@@ -382,8 +392,14 @@ export default function PartyTable({
                     className="rounded border-gray-300 mt-1"
                   />
                   <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 text-base">
-                      {party.partyName}
+                    <h3 className="font-semibold text-base">
+                      {party.isCustomer ? (
+                        <Link href={`/dashboard/masters/party/${party.id}`} className="text-indigo-600 hover:text-indigo-800 hover:underline">
+                          {party.partyName}
+                        </Link>
+                      ) : (
+                        <span className="text-gray-900">{party.partyName}</span>
+                      )}
                     </h3>
                     <p className="text-sm text-gray-500 mt-0.5">
                       {party.email}

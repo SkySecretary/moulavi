@@ -208,7 +208,6 @@ export default function DailyOverviewPage() {
         visaType,
         reference,
         group,
-        party,
         provider,
         qty,
         arrival,
@@ -219,7 +218,7 @@ export default function DailyOverviewPage() {
 
     autoTable(doc, {
       startY: 80,
-      head: [['Visa Type', 'Reference', 'Group Details', 'Party Name', 'Service Provider', 'Qty', 'Arrival Hub', 'Departure Hub', 'City Movement']],
+      head: [['Visa Type', 'Reference', 'Group Details', 'Service Provider', 'Qty', 'Arrival Hub', 'Departure Hub', 'City Movement']],
       body: tableData,
       theme: 'grid',
       styles: {
@@ -233,9 +232,9 @@ export default function DailyOverviewPage() {
         halign: 'center'
       },
       columnStyles: {
+        4: { halign: 'center' },
         5: { halign: 'center' },
         6: { halign: 'center' },
-        7: { halign: 'center' },
       },
       margin: { top: 80, bottom: 40, left: 40, right: 40 },
       didDrawPage: (data) => {

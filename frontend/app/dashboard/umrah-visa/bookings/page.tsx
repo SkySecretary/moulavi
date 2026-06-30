@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
-import { umrahVisaAPI, nusukAPI } from '@/lib/api';
+import { umrahVisaAPI, nusukAPI, partyAPI } from '@/lib/api';
 import { UMRAH_VISA_STATUS_CONFIG, VISA_TYPE_CONFIG } from '@/lib/constants';
 import { DatePicker } from '@/components/ui/date-picker';
 import { fromDisplayDate, toDisplayDate, extractDateFromISO } from '@/lib/umrah/validation';
@@ -39,6 +39,8 @@ import ViewUmrahVisaDialog from '@/components/ViewUmrahVisaDialog';
 
 export default function UmrahVisaPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryPartyId = searchParams.get('partyId');
   const user = getUser();
   const [bookings, setBookings] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
@@ -48,8 +50,29 @@ export default function UmrahVisaPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedVisaType, setSelectedVisaType] = useState<string>('all');
+  const [selectedPartyId, setSelectedPartyId] = useState<string>('all');
+
+  useEffect(() => {
+    if (queryPartyId) {
+      setSelectedPartyId(queryPartyId);
+    }
+  }, [queryPartyId]);
+
+  const [parties, setParties] = useState<any[]>([]);
   const [arrivalDateFrom, setArrivalDateFrom] = useState('');
   const [arrivalDateTo, setArrivalDateTo] = useState('');
+
+  useEffect(() => {
+    const loadParties = async () => {
+      try {
+        const response = await partyAPI.getAll({ limit: 1000 });
+        setParties(response.data.parties || []);
+      } catch (err) {
+        console.error('Failed to load parties:', err);
+      }
+    };
+    loadParties();
+  }, []);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -83,7 +106,7 @@ export default function UmrahVisaPage() {
 
   useEffect(() => {
     fetchBookings(pagination.page);
-  }, [pagination.page, pagination.limit, searchQuery, selectedStatus, selectedVisaType, arrivalDateFrom, arrivalDateTo, viewArchived]);
+  }, [pagination.page, pagination.limit, searchQuery, selectedStatus, selectedVisaType, arrivalDateFrom, arrivalDateTo, viewArchived, selectedPartyId]);
 
   const fetchBookings = async (page = 1) => {
     try {
@@ -98,6 +121,10 @@ export default function UmrahVisaPage() {
         arrivalDateTo,
         archived: viewArchived ? 'true' : 'false',
       };
+
+      if (selectedPartyId && selectedPartyId !== 'all') {
+        params.partyId = selectedPartyId;
+      }
       
       const response = await umrahVisaAPI.getBookings(params);
       const flattenedBookings = (response.data.bookings || []).map((b: any) => {
@@ -123,6 +150,7 @@ export default function UmrahVisaPage() {
   const handleFilterChange = (key: string, value: string) => {
     if (key === 'status') setSelectedStatus(value);
     else if (key === 'visaType') setSelectedVisaType(value);
+    else if (key === 'partyId') setSelectedPartyId(value);
     else if (key === 'search') setSearchQuery(value);
     else if (key === 'dateFrom') setArrivalDateFrom(value);
     else if (key === 'dateTo') setArrivalDateTo(value);
@@ -366,8 +394,8 @@ export default function UmrahVisaPage() {
                     Archived Items (Deleted)
                   </button>
                 </div>
-                {/* Search Bar and Filters */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+                 {/* Search Bar and Filters */}
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
                   <div className="relative md:col-span-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                     <Input
@@ -377,6 +405,19 @@ export default function UmrahVisaPage() {
                       className="pl-10"
                     />
                   </div>
+                  <Select value={selectedPartyId} onValueChange={(val) => handleFilterChange('partyId', val)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Customers/Agencies" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Customers/Agencies</SelectItem>
+                      {parties.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.partyName} ({p.partyCode || 'N/A'})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Select value={selectedVisaType} onValueChange={(val) => handleFilterChange('visaType', val)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Visa Type" />

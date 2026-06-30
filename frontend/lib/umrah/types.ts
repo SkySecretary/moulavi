@@ -123,11 +123,17 @@ export interface TransportBooking {
 }
 
 export interface HotelBooking {
+  id?: string;
   cityId: string;
   hotelId: string;
   checkInDate: string;
   checkOutDate: string;
   brn?: string[];
+  additionalBrns?: {
+    brnNumber: string;
+    checkInDate: string;
+    checkOutDate: string;
+  }[];
 }
 
 export interface IqamaDetails {

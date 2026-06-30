@@ -236,6 +236,9 @@ export const umrahVisaAPI = {
   generateVoucher: (bookingId: string, voucherData: any) =>
     api.post(`/umrah-visa/${bookingId}/generate-voucher`, voucherData),
 
+  recreateBooking: (bookingId: string, data: any) =>
+    api.post(`/umrah-visa/${bookingId}/recreate`, data),
+
   getMissingBrnBookings: (params?: any) => 
     api.get('/umrah-visa/missing-brn', { params }),
 
@@ -486,22 +489,25 @@ export const nusukAPI = {
     activeEntityId?: string;
     activeEntityTypeId?: string;
     entityId?: string;
+    selectedUmrahCompanyIds?: string;
     checkByPassport?: boolean;
     externalAgentCodes?: string;
     syncSchedule?: string;
   }) => api.post('/nusuk/settings', data),
-  triggerSync: () => api.post('/nusuk/sync'),
+  triggerSync: (partyId?: string) => api.post('/nusuk/sync', { partyId }),
   getMismatches: (params?: { 
     resolved?: boolean; 
     page?: number; 
     limit?: number; 
     mismatchType?: string; 
     partyId?: string; 
+    search?: string;
   }) => api.get('/nusuk/mismatches', { params }),
   resolveMismatch: (id: string) => api.post(`/nusuk/mismatches/${id}/resolve`),
   getComplianceSummary: () => api.get('/nusuk/compliance/summary'),
   getComplianceAgents: () => api.get('/nusuk/compliance/agents'),
   getComplianceAgentLogs: (partyId: string) => api.get(`/nusuk/compliance/agents/${partyId}/logs`),
+  getComplianceDashboard: () => api.get('/nusuk/compliance/dashboard'),
   overrideComplianceStatus: (partyId: string, data: { status: 'GREEN' | 'YELLOW' | 'RED'; reason: string }) => 
     api.post(`/nusuk/compliance/agents/${partyId}/override`, data),
   recalculateCompliance: () => api.post('/nusuk/compliance/recalculate'),
