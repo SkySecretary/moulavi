@@ -443,6 +443,13 @@ router.patch('/hotels/:hotelBookingId/brn', authenticate, authorize('admin', 'st
       }
     });
 
+    try {
+      const { InventoryService } = require('../services/inventoryService');
+      await InventoryService.recalculateAll();
+    } catch (err) {
+      console.error('Failed to recalculate inventories on BRN patch:', err);
+    }
+
     res.json({ success: true, hotel: updatedHotel });
   } catch (error) {
     console.error('Error updating hotel BRN:', error);

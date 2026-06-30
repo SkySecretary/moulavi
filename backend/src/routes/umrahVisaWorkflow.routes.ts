@@ -2043,6 +2043,13 @@ router.post('/:bookingId/hotel-bookings', authenticate, async (req, res) => {
     // Sync hotel booking changes to voucher
     await syncBookingToVoucher(prisma, bookingId);
 
+    try {
+      const { InventoryService } = require('../services/inventoryService');
+      await InventoryService.recalculateAll();
+    } catch (err) {
+      console.error('Failed to recalculate inventories on create:', err);
+    }
+
     res.json({ hotelBooking: created });
   } catch (error) {
     console.error('Error creating hotel booking:', error);
@@ -2065,6 +2072,13 @@ router.delete('/hotel-bookings/:id', authenticate, async (req, res) => {
       await prisma.umrahHotelBooking.delete({ where: { id } });
       // Sync changes back to voucher
       await syncBookingToVoucher(prisma, hotelBooking.bookingId);
+
+      try {
+        const { InventoryService } = require('../services/inventoryService');
+        await InventoryService.recalculateAll();
+      } catch (err) {
+        console.error('Failed to recalculate inventories on delete:', err);
+      }
     }
     
     res.json({ ok: true });

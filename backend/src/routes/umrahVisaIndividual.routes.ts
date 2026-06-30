@@ -1164,6 +1164,13 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
       // Sync hotel changes to voucher
       await syncBookingToVoucher(prisma, bookingId);
 
+      try {
+        const { InventoryService } = require('../services/inventoryService');
+        await InventoryService.recalculateAll();
+      } catch (err) {
+        console.error('Failed to recalculate inventories on accommodation patch:', err);
+      }
+
       const refreshed = await prisma.umrahHotelBooking.findMany({
         where: { bookingId },
         include: { hotel: true, city: true },
