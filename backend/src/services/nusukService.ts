@@ -476,14 +476,28 @@ export class NusukService {
       }
     });
 
-    const agencyByEACode = new Map<string, typeof customerAgencies[0]>();
+    // Also load all active provider suppliers (Umrah Companies) that have External Agent codes configured
+    const providerSuppliers = await prisma.party.findMany({
+      where: {
+        isSupplier: true,
+        nusukExternalAgentCodes: { not: null }
+      }
+    });
+
     const allowedAgentCodes = new Set<string>();
 
     for (const agency of customerAgencies) {
       if (!agency.nusukExternalAgentCodes) continue;
       const codes = agency.nusukExternalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean);
       for (const code of codes) {
-        agencyByEACode.set(code, agency);
+        allowedAgentCodes.add(code);
+      }
+    }
+
+    for (const provider of providerSuppliers) {
+      if (!provider.nusukExternalAgentCodes) continue;
+      const codes = provider.nusukExternalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean);
+      for (const code of codes) {
         allowedAgentCodes.add(code);
       }
     }
@@ -496,7 +510,7 @@ export class NusukService {
       }
     }
 
-    console.log(`[NUSUK SYNC] Configured ${allowedAgentCodes.size} allowed External Agent codes across ${customerAgencies.length} active customer agencies (and global settings).`);
+    console.log(`[NUSUK SYNC] Configured ${allowedAgentCodes.size} allowed External Agent codes across ${customerAgencies.length} active customer agencies, ${providerSuppliers.length} active suppliers (and global settings).`);
       
     const rowsByGroup: { [groupNum: string]: any[] } = {};
     let skippedCount = 0;
@@ -527,6 +541,7 @@ export class NusukService {
       },
       include: {
         party: true, // MUST include party to check agency EA codes
+        umrahVisaProvider: true, // Include provider to check provider EA codes
         passengers: {
           where: { isDeleted: false }
         },
@@ -713,7 +728,16 @@ export class NusukService {
             return codes.includes(rowAgentCode);
           });
 
-          // Fallback: If no agency matches rowAgentCode specifically, but we have candidate bookings, fall back to them
+          // Fallback: If no agency matches rowAgentCode specifically, check if the provider/supplier matches (backwards compatible)
+          if (matchedBookings.length === 0) {
+            matchedBookings = bookings.filter(b => {
+              if (!b.umrahVisaProvider || !b.umrahVisaProvider.nusukExternalAgentCodes) return false;
+              const codes = b.umrahVisaProvider.nusukExternalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean);
+              return codes.includes(rowAgentCode);
+            });
+          }
+
+          // Fallback: If still no matched bookings, fall back to any booking in the group
           if (matchedBookings.length === 0) {
             matchedBookings = bookings;
           }
