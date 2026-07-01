@@ -21,7 +21,8 @@ import {
   X,
   ExternalLink,
   AlertCircle,
-  AlertTriangle
+  AlertTriangle,
+  ShieldAlert
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getUser, removeUser } from '@/lib/auth';
@@ -92,6 +93,7 @@ export default function Navbar() {
     { name: 'Assign Group', path: '/dashboard/umrah-visa/assign-group', icon: Users },
     { name: 'Missing BRN', path: '/dashboard/umrah-visa/missing-brn', icon: AlertCircle },
     { name: 'Mismatched Travel', path: '/dashboard/umrah-visa/mismatched-travel', icon: AlertTriangle },
+    { name: 'Consulate Review', path: '/dashboard/umrah-visa/consulate-review', icon: ShieldAlert },
     { name: 'Agent Compliance', path: '/dashboard/umrah-visa/agent-compliance', icon: Award },
     { name: 'Vouchers (Umrah)', path: '/dashboard/umrah-visa/voucher', icon: Award },
     { name: 'Invoices', path: '/dashboard/umrah-visa/invoice', icon: FileText },

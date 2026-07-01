@@ -65,6 +65,7 @@ export interface Party {
   nusukEntityId?: string;
   nusukActiveEntityId?: string;
   nusukActiveEntityTypeId?: string;
+  nusukExternalAgentCodes?: string;
   userId?: string;
   createdBy: string;
   createdAt: string;
@@ -117,6 +118,10 @@ export interface CreatePartyRequest {
   sms_notification?: boolean;
   marketing_notification?: boolean;
   logo_path?: string;
+  nusuk_entity_id?: string;
+  nusuk_active_entity_id?: string;
+  nusuk_active_entity_type_id?: string;
+  nusuk_external_agent_codes?: string;
 }
 
 export interface PartyContact {

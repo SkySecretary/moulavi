@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
 import { partyAPI, umrahVisaAPI, nusukAPI } from '@/lib/api';
-import { Users, FileText, TrendingUp, Activity, PlusCircle, Globe, Calendar, Clock, Shield, Award, CheckCircle2, Plane } from 'lucide-react';
+import { Users, FileText, TrendingUp, Activity, PlusCircle, Globe, Calendar, Clock, Shield, Award, CheckCircle2, Plane, ShieldAlert } from 'lucide-react';
 import CreatePartyDialog from '@/components/CreatePartyDialog';
 import PartyList from '@/components/PartyList';
 import { DashboardStats } from '@/types';
@@ -36,6 +36,7 @@ export default function DashboardPage() {
       systemPassengers: number;
       nusukPassengers: number;
       visasIssued: number;
+      consulateReview: number;
       passengersInKSA: number;
       passengersToArrive: number;
     };
@@ -180,7 +181,7 @@ export default function DashboardPage() {
         {/* Nusuk Visa & Arrival Summary Stats Grid */}
         <div className="space-y-3">
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Nusuk Visa & Arrival Summary</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
             <StatsCard 
               title="Pilgrims (System / Nusuk)" 
               value={`${complianceData?.visaSummary?.systemPassengers ?? 0} / ${complianceData?.visaSummary?.nusukPassengers ?? 0}`} 
@@ -196,6 +197,15 @@ export default function DashboardPage() {
               description="Visas active in Nusuk"
               color="text-emerald-650"
               bgColor="bg-emerald-50"
+            />
+            <StatsCard 
+              title="Consulate Review" 
+              value={complianceData?.visaSummary?.consulateReview ?? 0} 
+              icon={ShieldAlert} 
+              description="Applications under review"
+              color="text-rose-650"
+              bgColor="bg-rose-50"
+              onClick={() => router.push('/dashboard/umrah-visa/consulate-review')}
             />
             <StatsCard 
               title="Pilgrims in KSA" 
@@ -414,9 +424,12 @@ export default function DashboardPage() {
   );
 }
 
-function StatsCard({ title, value, icon: Icon, description, color, bgColor }: any) {
+function StatsCard({ title, value, icon: Icon, description, color, bgColor, onClick }: any) {
   return (
-    <Card className="border-none shadow-sm hover:shadow-md transition-shadow duration-200 bg-white">
+    <Card 
+      onClick={onClick}
+      className={`border-none shadow-sm hover:shadow-md transition-all duration-200 bg-white ${onClick ? 'cursor-pointer hover:-translate-y-1' : ''}`}
+    >
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div>

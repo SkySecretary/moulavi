@@ -50,7 +50,8 @@ export default function CreatePartyDialog({
     marketing_notification: false,
     nusuk_entity_id: '',
     nusuk_active_entity_id: '',
-    nusuk_active_entity_type_id: ''
+    nusuk_active_entity_type_id: '',
+    nusuk_external_agent_codes: ''
   });
   const [documentFiles, setDocumentFiles] = useState<{
     gst_certificate?: File;
@@ -93,7 +94,8 @@ export default function CreatePartyDialog({
           marketing_notification: editingParty.marketingNotification,
           nusuk_entity_id: (editingParty as any).nusukEntityId || '',
           nusuk_active_entity_id: (editingParty as any).nusukActiveEntityId || '',
-          nusuk_active_entity_type_id: (editingParty as any).nusukActiveEntityTypeId || ''
+          nusuk_active_entity_type_id: (editingParty as any).nusukActiveEntityTypeId || '',
+          nusuk_external_agent_codes: (editingParty as any).nusukExternalAgentCodes || ''
         });
       } else {
         setFormData({
@@ -118,7 +120,8 @@ export default function CreatePartyDialog({
           marketing_notification: false,
           nusuk_entity_id: '',
           nusuk_active_entity_id: '',
-          nusuk_active_entity_type_id: ''
+          nusuk_active_entity_type_id: '',
+          nusuk_external_agent_codes: ''
         });
       }
       setDocumentFiles({});
@@ -778,6 +781,17 @@ export default function CreatePartyDialog({
                     value={formData.nusuk_active_entity_type_id}
                     onChange={(e) => handleInputChange('nusuk_active_entity_type_id', e.target.value)}
                     placeholder="e.g. 32"
+                    className="text-xs font-mono bg-white"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="nusuk_external_agent_codes" className="text-xs">Allowed External Agent Codes (comma separated)</Label>
+                  <Input
+                    id="nusuk_external_agent_codes"
+                    type="text"
+                    value={formData.nusuk_external_agent_codes}
+                    onChange={(e) => handleInputChange('nusuk_external_agent_codes', e.target.value)}
+                    placeholder="e.g. 1006961, 1006962"
                     className="text-xs font-mono bg-white"
                   />
                 </div>

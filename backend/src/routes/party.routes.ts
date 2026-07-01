@@ -79,6 +79,7 @@ const createPartyValidation = [
   body('nusuk_entity_id').optional().isString().trim(),
   body('nusuk_active_entity_id').optional().isString().trim(),
   body('nusuk_active_entity_type_id').optional().isString().trim(),
+  body('nusuk_external_agent_codes').optional().isString().trim(),
 ];
 
 // Create party
@@ -111,6 +112,7 @@ router.post(
       nusuk_entity_id,
       nusuk_active_entity_id,
       nusuk_active_entity_type_id,
+      nusuk_external_agent_codes,
     } = req.body;
     
     // Validate customer_type is required if is_customer is true
@@ -186,6 +188,7 @@ router.post(
         nusukEntityId: nusuk_entity_id || null,
         nusukActiveEntityId: nusuk_active_entity_id || null,
         nusukActiveEntityTypeId: nusuk_active_entity_type_id || null,
+        nusukExternalAgentCodes: nusuk_external_agent_codes || null,
         supplierServiceTypes: supplier_service_types ? JSON.parse(JSON.stringify(supplier_service_types)) : null,
         customerType: customer_type || 'direct', // Default to 'direct' if not provided
         accountCurrencyId: account_currency_id,
@@ -470,6 +473,7 @@ router.put(
       nusuk_entity_id,
       nusuk_active_entity_id,
       nusuk_active_entity_type_id,
+      nusuk_external_agent_codes,
     } = req.body;
     
     // Validate supplier service types if supplier is being set to true
@@ -612,6 +616,7 @@ router.put(
     if (nusuk_entity_id !== undefined) updateData.nusukEntityId = nusuk_entity_id || null;
     if (nusuk_active_entity_id !== undefined) updateData.nusukActiveEntityId = nusuk_active_entity_id || null;
     if (nusuk_active_entity_type_id !== undefined) updateData.nusukActiveEntityTypeId = nusuk_active_entity_type_id || null;
+    if (nusuk_external_agent_codes !== undefined) updateData.nusukExternalAgentCodes = nusuk_external_agent_codes || null;
     if (supplier_service_types !== undefined) updateData.supplierServiceTypes = JSON.parse(JSON.stringify(supplier_service_types));
     if (customer_type !== undefined) updateData.customerType = customer_type;
     if (account_currency_id !== undefined) updateData.accountCurrencyId = account_currency_id;

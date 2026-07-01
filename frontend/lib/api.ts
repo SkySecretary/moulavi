@@ -519,6 +519,22 @@ export const nusukAPI = {
   overrideComplianceStatus: (partyId: string, data: { status: 'GREEN' | 'YELLOW' | 'RED'; reason: string }) => 
     api.post(`/nusuk/compliance/agents/${partyId}/override`, data),
   recalculateCompliance: () => api.post('/nusuk/compliance/recalculate'),
+  syncExcel: (file: File, partyId?: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/nusuk/sync-excel', formData, {
+      params: partyId ? { partyId } : undefined,
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+  getConsulateReview: (params?: {
+    page?: number;
+    limit?: number;
+    partyId?: string;
+    search?: string;
+  }) => api.get('/nusuk/consulate-review', { params }),
 };
 
 

@@ -4,6 +4,9 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { authenticate } from '../middleware/auth';
 import { AuthRequest } from '../types';
 import { NusukService } from '../services/nusukService';
+import multer from 'multer';
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 const router = Router();
 
@@ -86,6 +89,52 @@ router.post(
         error: error.message || 'Synchronization failed',
       });
     }
+  })
+);
+
+// Manual Excel Report Upload Synchronization
+router.post(
+  '/sync-excel',
+  authenticate,
+  upload.single('file'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No Excel file uploaded.' });
+    }
+
+    try {
+      const partyId = (req.query.partyId || req.body.partyId) as string | undefined;
+      const result = await NusukService.processExcelSync(req.file.buffer, partyId);
+      res.json({
+        message: 'Manual Excel synchronization completed successfully.',
+        ...result,
+      });
+    } catch (error: any) {
+      console.error('[MANUAL EXCEL SYNC ROUTE ERROR]', error);
+      res.status(400).json({
+        error: error.message || 'Manual Excel synchronization failed',
+      });
+    }
+  })
+);
+
+// Get consulate review list with pagination and filters
+router.get(
+  '/consulate-review',
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
+    const partyId = req.query.partyId as string || 'all';
+    const search = req.query.search as string || undefined;
+
+    const result = await NusukService.getConsulateReview({
+      page,
+      limit,
+      partyId,
+      search
+    });
+    res.json(result);
   })
 );
 

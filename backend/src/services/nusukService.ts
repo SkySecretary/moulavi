@@ -28,6 +28,60 @@ function cleanFlightNumber(flightNum: string): { carrier: string; number: string
   return { carrier: clean, number: '' };
 }
 
+// Utility to compare two flight numbers robustly
+function isFlightNumberMatch(flight1: string | null | undefined, flight2: string | null | undefined): boolean {
+  if (!flight1 || !flight2) return false;
+
+  const parse = (f: string) => {
+    const clean = f.replace(/[\s-]/g, '').toUpperCase();
+    // Extract trailing digits
+    const digitsMatch = clean.match(/\d+$/);
+    const digits = digitsMatch ? digitsMatch[0] : '';
+    const carrier = digitsMatch ? clean.substring(0, clean.length - digits.length) : clean;
+    return {
+      carrier: carrier.replace(/[^A-Z0-9]/g, ''),
+      number: digits ? parseInt(digits, 10).toString() : ''
+    };
+  };
+
+  const p1 = parse(flight1);
+  const p2 = parse(flight2);
+
+  if (!p1.number || !p2.number) {
+    return flight1.replace(/[^A-Z0-9]/g, '').toUpperCase() === flight2.replace(/[^A-Z0-9]/g, '').toUpperCase();
+  }
+
+  if (parseInt(p1.number, 10) !== parseInt(p2.number, 10)) {
+    return false;
+  }
+
+  if (p1.carrier && p2.carrier) {
+    const iataToIcao: Record<string, string> = {
+      'SV': 'SVA',
+      'EK': 'UAE',
+      'WY': 'OMA',
+      'QR': 'QTR',
+      'EY': 'ETD',
+      'XY': 'KNE',
+      'FZ': 'FDB',
+      'G9': 'ABY',
+      'MS': 'MSR',
+      'KU': 'KAC',
+      'GF': 'GFA',
+      'J9': 'JZR',
+      'BG': 'BBC',
+      'AI': 'AIC',
+      'IX': 'AXB',
+      '6E': 'IGO'
+    };
+    
+    const norm = (c: string) => iataToIcao[c] || c;
+    return norm(p1.carrier) === norm(p2.carrier);
+  }
+
+  return true;
+}
+
 // Utility for generous airport name matching
 function isAirportSimilar(nameDb: string | null | undefined, nameExcel: string | null | undefined): boolean {
   if (!nameDb || !nameExcel) return false;
@@ -379,6 +433,18 @@ export class NusukService {
       throw error;
     }
 
+    return await this.processExcelSync(excelBuffer, partyId, settings);
+  }
+
+  // Process the Excel report buffer and sync with DB (used by both Puppeteer sync and manual upload sync)
+  static async processExcelSync(excelBuffer: Buffer, partyId: string | undefined, settings?: any) {
+    if (!settings) {
+      settings = await prisma.nusukSetting.findFirst();
+      if (!settings) {
+        throw new Error('Nusuk integration settings not configured.');
+      }
+    }
+
     // Parse Excel report using xlsx
     let workbook: XLSX.WorkBook;
     try {
@@ -400,13 +466,22 @@ export class NusukService {
     // Keep track of bookings we've processed during this sync run so we can refresh mismatches
     const processedBookingIds = new Set<string>();
     const mismatchesToCreate: any[] = [];
+    const processedPassports = new Set<string>();
 
-    // Group the Excel rows by Group Number
-    // Filter rows by allowed external agent codes if configured in settings
-      // Filter rows by allowed external agent codes if configured in settings
-      const allowedAgentCodes = settings.externalAgentCodes
-        ? settings.externalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean)
-        : [];
+    // Filter rows by allowed external agent codes (either party-specific or global fallback)
+    let allowedAgentCodes: string[] = [];
+    if (partyId) {
+      const party = await prisma.party.findUnique({ where: { id: partyId } });
+      if (party && party.nusukExternalAgentCodes) {
+        allowedAgentCodes = party.nusukExternalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean);
+        console.log(`[NUSUK SYNC] Using party-specific EA codes for ${party.partyName}:`, allowedAgentCodes);
+      }
+    }
+    
+    if (allowedAgentCodes.length === 0 && settings.externalAgentCodes) {
+      allowedAgentCodes = settings.externalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean);
+      console.log('[NUSUK SYNC] Using global fallback settings EA codes:', allowedAgentCodes);
+    }
       
       const rowsByGroup: { [groupNum: string]: any[] } = {};
       let skippedCount = 0;
@@ -432,7 +507,8 @@ export class NusukService {
       const candidateBookings = await prisma.umrahVisaBooking.findMany({
         where: {
           isDeleted: false,
-          groupNumber: { not: null }
+          groupNumber: { not: null },
+          ...(partyId ? { umrahVisaProviderId: partyId } : {})
         },
         include: {
           passengers: {
@@ -508,13 +584,16 @@ export class NusukService {
         }
       }
 
-      // Build map of individual group number parts to booking
-      const bookingByGroupMap = new Map<string, typeof candidateBookings[0]>();
+      // Build map of individual group number parts to bookings (supporting multiple bookings per group)
+      const bookingByGroupMap = new Map<string, typeof candidateBookings[0][]>();
       for (const b of candidateBookings) {
         if (!b.groupNumber) continue;
         const dbParts = b.groupNumber.split(/[\s,]+/).map(p => p.trim()).filter(Boolean);
         for (const part of dbParts) {
-          bookingByGroupMap.set(part, b);
+          if (!bookingByGroupMap.has(part)) {
+            bookingByGroupMap.set(part, []);
+          }
+          bookingByGroupMap.get(part)!.push(b);
         }
       }
 
@@ -541,22 +620,78 @@ export class NusukService {
 
       // 2. Process each group
       for (const [gNum, excelRows] of Object.entries(rowsByGroup)) {
-        // Find corresponding booking in database candidate map
-        const booking = bookingByGroupMap.get(gNum);
-        if (!booking) continue;
+        // Find corresponding bookings in database candidate map
+        const bookings = bookingByGroupMap.get(gNum) || [];
+        if (bookings.length === 0) continue;
 
-        processedBookingIds.add(booking.id);
-        const currentPassengers = [...booking.passengers];
+        // Collect all passports present in the Excel rows for this group
+        const excelPassports = new Set(
+          excelRows
+            .map(row => String(getRowValue(row, ['Passport Number', 'PassportNumber']) || '').trim().toUpperCase())
+            .filter(Boolean)
+        );
 
-        // Sync passenger records from excelRows into the database under this booking
+        // Fetch all active DB passengers for these matched bookings
+        const bookingIds = bookings.map(b => b.id);
+        const allDbPassengers = await prisma.umrahPassenger.findMany({
+          where: {
+            bookingId: { in: bookingIds },
+            isDeleted: false
+          }
+        });
+
+        // A. Clear passport and Nusuk details for passengers that are missing in the new Excel file for this group number
+        for (const p of allDbPassengers) {
+          if (p.passportNumber) {
+            const cleanDbPassport = p.passportNumber.trim().toUpperCase();
+            if (!excelPassports.has(cleanDbPassport)) {
+              await prisma.umrahPassenger.update({
+                where: { id: p.id },
+                data: {
+                  passportNumber: null,
+                  visaNumber: null,
+                  mofaNumber: null,
+                  borderNumber: null,
+                  visaIssueDate: null,
+                  currentlyInKingdom: null,
+                  mutamerStatus: null,
+                  isConsulateReview: false
+                }
+              });
+              console.log(`[NUSUK SYNC] Cleared passport and Nusuk fields for passenger ${p.fullName} because they are missing in the new Nusuk report for group ${gNum}`);
+              
+              // Update local cache
+              p.passportNumber = null;
+              p.visaNumber = null;
+              p.mofaNumber = null;
+              p.borderNumber = null;
+              p.visaIssueDate = null;
+              p.currentlyInKingdom = null;
+              p.mutamerStatus = null;
+              p.isConsulateReview = false;
+            }
+          }
+        }
+
+        // Keep track of which passenger IDs were updated or created in this group sync
+        const processedDbPassengerIds = new Set<string>();
+
+        // Sync passenger records from excelRows into the database under these bookings
         for (const row of excelRows) {
           const passport = String(getRowValue(row, ['Passport Number', 'PassportNumber']) || '').trim().toUpperCase();
           if (!passport) continue;
 
+          // Avoid duplicate sync by passport number in this run (global set is checked)
+          if (processedPassports.has(passport)) {
+            console.log(`[NUSUK SYNC] Skipping duplicate passenger row with passport ${passport} in the Excel file.`);
+            continue;
+          }
+          processedPassports.add(passport);
+
           const mutamerName = String(getRowValue(row, ['Mutamer Name', 'MutamerName']) || 'Unknown Mutamer').trim();
           const nationality = String(getRowValue(row, ['Mutamer Nationality', 'Nationality']) || '').trim();
           const passportExpiry = parseExcelDate(getRowValue(row, ['Passport Expiry Date']));
-                  const visaNumber = String(getRowValue(row, ['Visa Number']) || '').trim();
+          const visaNumber = String(getRowValue(row, ['Visa Number']) || '').trim();
           const mofaNumber = String(getRowValue(row, ['Mofa Number']) || '').trim();
           const mutamerStatus = String(getRowValue(row, ['Mutamer Status']) || '').trim();
           const currentlyInKingdom = String(getRowValue(row, ['Currently in Kingdom', 'CurrentlyInKingdom']) || 'No').trim();
@@ -564,25 +699,61 @@ export class NusukService {
           const visaIssueDate = parseExcelDate(getRowValue(row, ['Visa Issue Date', 'VisaIssueDate']));
           const entryDate = parseExcelDate(getRowValue(row, ['Entry Date']), getRowValue(row, ['Entry Time']));
           const exitDate = parseExcelDate(getRowValue(row, ['Exit Date']), getRowValue(row, ['Exit Time']));
-          const excelGender = String(getRowValue(row, ['Gender', 'Type']) || '').trim().toLowerCase(); // Support Excel column named "Type" as fallback for Gender
+          const excelGender = String(getRowValue(row, ['Gender', 'Type']) || '').trim().toLowerCase();
           
           let gender: 'male' | 'female' | null = null;
           if (excelGender === 'male') gender = 'male';
           else if (excelGender === 'female') gender = 'female';
 
-          // Step 1: Check if passenger exists by passport number under this booking
-          let passenger: any = currentPassengers.find(p => p.passportNumber?.toUpperCase() === passport);
+          // Mark as Consulate Review if visa number is missing and mutamer status is Consulate Review or visa is missing
+          const isConsulateReview = !visaNumber || mutamerStatus === 'Consulate Review' || mutamerStatus.toLowerCase().includes('review');
 
-          // Step 2: If not found by passport number, find an existing passenger who doesn't have a passport number yet
+          // Step 1: Check if passenger exists by passport number in the list of DB passengers for this group
+          let passenger: any = allDbPassengers.find(p => p.passportNumber?.toUpperCase() === passport);
+
+          // Step 2: If not found in this group, check if passenger exists globally in the DB under ANY active booking
           if (!passenger) {
-            passenger = currentPassengers.find(p => !p.passportNumber);
+            passenger = await prisma.umrahPassenger.findFirst({
+              where: {
+                passportNumber: passport,
+                isDeleted: false,
+                booking: { isDeleted: false }
+              }
+            });
+            if (passenger) {
+              // Reassign to the first booking of this group
+              const targetBooking = bookings[0];
+              passenger = await prisma.umrahPassenger.update({
+                where: { id: passenger.id },
+                data: { bookingId: targetBooking.id }
+              });
+              console.log(`[NUSUK SYNC] Reassigned global passenger ${passenger.fullName} (${passport}) to booking ${targetBooking.bookingReference}`);
+              allDbPassengers.push(passenger);
+            }
+          }
+
+          // Step 3: Match by Name Similarity in this group (among passengers without a passport number)
+          if (!passenger) {
+            const cleanExcelName = mutamerName.toLowerCase().replace(/[^a-z]/g, '');
+            passenger = allDbPassengers.find(p => {
+              if (p.passportNumber) return false;
+              if (processedDbPassengerIds.has(p.id)) return false; // Don't reuse a slot we already filled in this sync run
+              const cleanDbName = p.fullName.toLowerCase().replace(/[^a-z]/g, '');
+              return cleanDbName === cleanExcelName || cleanDbName.includes(cleanExcelName) || cleanExcelName.includes(cleanDbName);
+            });
+          }
+
+          // Step 4: Match by Empty Slot in this group (first passenger that has no passport number)
+          if (!passenger) {
+            passenger = allDbPassengers.find(p => !p.passportNumber && !processedDbPassengerIds.has(p.id));
           }
 
           if (!passenger) {
-            // Step 3: Create passenger record if no empty slot/matching passenger was found
+            // Step 5: Create passenger record if no empty slot/matching passenger was found (in the first booking)
+            const targetBooking = bookings[0];
             passenger = await prisma.umrahPassenger.create({
               data: {
-                bookingId: booking.id,
+                bookingId: targetBooking.id,
                 fullName: mutamerName,
                 nationality,
                 passportNumber: passport,
@@ -596,13 +767,14 @@ export class NusukService {
                 entryDate,
                 exitDate,
                 gender,
-                isLeadPassenger: currentPassengers.length === 0
+                isConsulateReview,
+                isLeadPassenger: false
               }
             });
-            currentPassengers.push(passenger);
-            console.log(`[NUSUK SYNC] Created passenger ${mutamerName} (${passport}) for booking ${booking.bookingReference}`);
+            allDbPassengers.push(passenger);
+            console.log(`[NUSUK SYNC] Created passenger ${mutamerName} (${passport}) for booking ${targetBooking.bookingReference}`);
           } else {
-            // Step 4: Update passenger details in-place
+            // Step 6: Update passenger details in-place
             passenger = await prisma.umrahPassenger.update({
               where: { id: passenger.id },
               data: {
@@ -618,17 +790,24 @@ export class NusukService {
                 visaIssueDate: visaIssueDate || null,
                 entryDate,
                 exitDate,
-                gender
+                gender,
+                isConsulateReview
               }
             });
             // Update local cache
-            const index = currentPassengers.findIndex(p => p.id === passenger.id);
-            if (index !== -1) currentPassengers[index] = passenger;
-            console.log(`[NUSUK SYNC] Updated passenger ${mutamerName} (${passport}) for booking ${booking.bookingReference}`);
+            const index = allDbPassengers.findIndex(p => p.id === passenger.id);
+            if (index !== -1) allDbPassengers[index] = passenger;
+            console.log(`[NUSUK SYNC] Updated passenger ${mutamerName} (${passport}) for booking ID ${passenger.bookingId}`);
           }
 
+          processedDbPassengerIds.add(passenger.id);
+
+          // Get the booking that the passenger is assigned to
+          const assignedBooking = bookings.find(b => b.id === passenger.bookingId) || bookings[0];
+          processedBookingIds.add(assignedBooking.id);
+
           // Compare travel details for this passenger against booking travel details
-          const mainTravel = booking.travelDetails?.find((t: any) => !t.isAlternate);
+          const mainTravel = assignedBooking.travelDetails?.find((t: any) => !t.isAlternate);
           let entryMismatchDetails: any = null;
           let exitMismatchDetails: any = null;
 
@@ -641,12 +820,7 @@ export class NusukService {
             if (excelEntryDate) {
               const excelEntryDateTime = parseExcelDate(excelEntryDate, excelEntryTime);
               if (excelEntryDateTime) {
-                const dbF = cleanFlightNumber(mainTravel.arrivalFlightNumber);
-                const exF = cleanFlightNumber(excelEntryCarrierNum);
-                const sameCarrier = dbF.carrier && exF.carrier && dbF.carrier === exF.carrier;
-                const sameFlightNum = dbF.number && exF.number && parseInt(dbF.number, 10) === parseInt(exF.number, 10);
-                
-                const flightMismatch = !sameCarrier || !sameFlightNum;
+                const flightMismatch = !isFlightNumberMatch(mainTravel.arrivalFlightNumber, excelEntryCarrierNum);
                 const timeDiffMs = Math.abs(mainTravel.arrivalDateTime.getTime() - excelEntryDateTime.getTime());
                 const timeDiffHrs = timeDiffMs / (1000 * 60 * 60);
 
@@ -684,12 +858,7 @@ export class NusukService {
             if (excelExitDate) {
               const excelExitDateTime = parseExcelDate(excelExitDate, excelExitTime);
               if (excelExitDateTime) {
-                const dbFDep = cleanFlightNumber(mainTravel.departureFlightNumber);
-                const exFDep = cleanFlightNumber(excelExitCarrierNum);
-                const sameCarrierDep = dbFDep.carrier && exFDep.carrier && dbFDep.carrier === exFDep.carrier;
-                const sameFlightNumDep = dbFDep.number && exFDep.number && parseInt(dbFDep.number, 10) === parseInt(exFDep.number, 10);
-
-                const flightMismatchDep = !sameCarrierDep || !sameFlightNumDep;
+                const flightMismatchDep = !isFlightNumberMatch(mainTravel.departureFlightNumber, excelExitCarrierNum);
                 const timeDiffMsDep = Math.abs(mainTravel.departureDateTime.getTime() - excelExitDateTime.getTime());
                 const timeDiffHrsDep = timeDiffMsDep / (1000 * 60 * 60);
 
@@ -727,13 +896,13 @@ export class NusukService {
 
               const mismatchKey = passenger.id 
                 ? `pax-${passenger.id}` 
-                : `passport-${passport}-${booking.id}`;
+                : `passport-${passport}-${assignedBooking.id}`;
 
               if (resolvedKeys.has(mismatchKey)) {
                 console.log(`[NUSUK SYNC] Ignoring mismatch for passenger ${mutamerName} (${passport}) as it was previously resolved.`);
               } else {
                 mismatchesToCreate.push({
-                  bookingId: booking.id,
+                  bookingId: assignedBooking.id,
                   passengerId: passenger.id,
                   mismatchType,
                   details: {
@@ -749,8 +918,8 @@ export class NusukService {
           }
 
           // Update compliance calculation stats in-memory
-          if (booking.partyId) {
-            const stats = getOrInitStats(booking.partyId);
+          if (assignedBooking.partyId) {
+            const stats = getOrInitStats(assignedBooking.partyId);
 
             const windowDays = 30;
             const thirtyDaysAgo = new Date();
@@ -781,20 +950,23 @@ export class NusukService {
           }
         }
 
-        // 3. Verify total passenger count
-        const actualCount = currentPassengers.length;
-        if (actualCount !== booking.passengerCount) {
-          mismatchesToCreate.push({
-            bookingId: booking.id,
-            passengerId: null,
-            mismatchType: 'pax_count',
-            details: {
-              type: 'pax_count',
-              groupNumber: gNum,
-              expected: booking.passengerCount,
-              actual: actualCount
-            }
-          });
+        // 3. Verify total passenger count for each booking
+        for (const booking of bookings) {
+          const bookingPassengers = allDbPassengers.filter(p => p.bookingId === booking.id && !p.isDeleted && p.passportNumber);
+          const actualCount = bookingPassengers.length;
+          if (actualCount !== booking.passengerCount) {
+            mismatchesToCreate.push({
+              bookingId: booking.id,
+              passengerId: null,
+              mismatchType: 'pax_count',
+              details: {
+                type: 'pax_count',
+                groupNumber: gNum,
+                expected: booking.passengerCount,
+                actual: actualCount
+              }
+            });
+          }
         }
       }
 
@@ -1391,7 +1563,7 @@ export class NusukService {
 
     // Filters for mismatches
     const baseFilter: any = { resolved: false };
-    if (role === 'customer' && partyId) {
+    if ((role === 'customer' || role === 'party') && partyId) {
       baseFilter.booking = { partyId };
     }
 
@@ -1420,7 +1592,7 @@ export class NusukService {
       }
     });
 
-    if (role !== 'customer') {
+    if (role !== 'customer' && role !== 'party') {
       // Admin dashboard
       // Fetch latest 5 active mismatches
       const recentMismatches = await prisma.nusukMismatch.findMany({
@@ -1465,6 +1637,12 @@ export class NusukService {
           visaNumber: { not: null }
         }
       });
+      const consulateReview = await prisma.umrahPassenger.count({
+        where: {
+          isDeleted: false,
+          isConsulateReview: true
+        }
+      });
       const passengersInKSA = await prisma.umrahPassenger.count({
         where: {
           isDeleted: false,
@@ -1507,6 +1685,7 @@ export class NusukService {
           systemPassengers,
           nusukPassengers,
           visasIssued,
+          consulateReview,
           passengersInKSA,
           passengersToArrive
         }
@@ -1525,6 +1704,29 @@ export class NusukService {
         weightedScore: 0,
         complianceStatus: 'GREEN'
       };
+
+      // Fetch consulate review passengers for this customer
+      const myConsulateReviews = await prisma.umrahPassenger.findMany({
+        where: {
+          isDeleted: false,
+          isConsulateReview: true,
+          booking: {
+            partyId,
+            isDeleted: false
+          }
+        },
+        orderBy: { updatedAt: 'desc' },
+        include: {
+          booking: {
+            select: {
+              id: true,
+              bookingReference: true,
+              groupNumber: true,
+              groupName: true
+            }
+          }
+        }
+      });
 
       // Fetch all active mismatches for this customer (with full details)
       const myMismatches = await prisma.nusukMismatch.findMany({
@@ -1601,6 +1803,7 @@ export class NusukService {
         monthCount,
         metrics,
         myMismatches,
+        myConsulateReviews,
         advice,
         accuracy,
         totalAllMismatches,
@@ -1608,4 +1811,89 @@ export class NusukService {
       };
     }
   }
+
+  // Get consulate review passengers with pagination and filters
+  static async getConsulateReview(params: {
+    page: number;
+    limit: number;
+    partyId?: string;
+    search?: string;
+  }) {
+    const { page, limit, partyId, search } = params;
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      isDeleted: false,
+      isConsulateReview: true,
+      booking: {
+        isDeleted: false
+      }
+    };
+
+    if (partyId && partyId !== 'all') {
+      where.booking.partyId = partyId;
+    }
+
+    if (search) {
+      where.OR = [
+        { fullName: { contains: search } },
+        { passportNumber: { contains: search } },
+        { mofaNumber: { contains: search } },
+        { booking: { bookingReference: { contains: search } } },
+        { booking: { groupNumber: { contains: search } } }
+      ];
+    }
+
+    const [passengers, total] = await Promise.all([
+      prisma.umrahPassenger.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { updatedAt: 'desc' },
+        include: {
+          booking: {
+            select: {
+              id: true,
+              bookingReference: true,
+              groupNumber: true,
+              groupName: true,
+              party: {
+                select: {
+                  id: true,
+                  partyName: true
+                }
+              }
+            }
+          }
+        }
+      }),
+      prisma.umrahPassenger.count({ where })
+    ]);
+
+    return {
+      passengers: passengers.map(p => ({
+        id: p.id,
+        fullName: p.fullName,
+        passportNumber: p.passportNumber,
+        nationality: p.nationality,
+        mofaNumber: p.mofaNumber,
+        mutamerStatus: p.mutamerStatus,
+        visaNumber: p.visaNumber,
+        bookingId: p.booking.id,
+        bookingReference: p.booking.bookingReference,
+        groupNumber: p.booking.groupNumber,
+        groupName: p.booking.groupName,
+        partyId: p.booking.party.id,
+        partyName: p.booking.party.partyName,
+        updatedAt: p.updatedAt
+      })),
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
+  }
 }
+

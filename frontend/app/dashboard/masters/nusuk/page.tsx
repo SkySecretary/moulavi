@@ -19,9 +19,59 @@ export default function NusukSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [uploadingExcel, setUploadingExcel] = useState(false);
+  const [excelFile, setExcelFile] = useState<File | null>(null);
   const [umrahCompanies, setUmrahCompanies] = useState<Party[]>([]);
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([]);
   const [currentSyncingCompany, setCurrentSyncingCompany] = useState<string | null>(null);
+
+  const handleExcelUploadSync = async () => {
+    if (!excelFile) {
+      toast.error('Please select an Excel file first');
+      return;
+    }
+
+    const companiesToSync = umrahCompanies.filter(c => selectedCompanyIds.includes(c.id));
+    if (companiesToSync.length === 0) {
+      toast.error('Please select at least one Umrah Company to sync.');
+      return;
+    }
+
+    try {
+      setUploadingExcel(true);
+      let totalMismatches = 0;
+      let lastSyncedAt = null;
+
+      for (let i = 0; i < companiesToSync.length; i++) {
+        const company = companiesToSync[i];
+        setCurrentSyncingCompany(company.partyName);
+        toast.info(`Manually syncing ${company.partyName} (${i + 1}/${companiesToSync.length})...`);
+
+        const response = await nusukAPI.syncExcel(excelFile, company.id);
+        totalMismatches += response.data.mismatchesCount || 0;
+        lastSyncedAt = response.data.syncedAt;
+      }
+
+      setSettingsData(prev => ({
+        ...prev,
+        isValid: true,
+        lastSyncedAt: lastSyncedAt || new Date().toISOString(),
+      }));
+
+      toast.success(`Manual sync completed! Found ${totalMismatches} total travel detail mismatches.`);
+      setExcelFile(null);
+      
+      const fileInput = document.getElementById('manual-excel-file') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+    } catch (error: any) {
+      console.error('Manual Nusuk sync failed:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Manual synchronization failed';
+      toast.error(errorMessage);
+    } finally {
+      setUploadingExcel(false);
+      setCurrentSyncingCompany(null);
+    }
+  };
   
   const [settingsData, setSettingsData] = useState({
     token: '',
@@ -451,6 +501,52 @@ export default function NusukSettingsPage() {
                     )}
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Manual Excel Sync</CardTitle>
+                <CardDescription>
+                  Upload a manually downloaded Nusuk report (.xlsx) to synchronize data directly.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="manual-excel-file" className="text-xs font-semibold">
+                    Select Nusuk Report (.xlsx)
+                  </Label>
+                  <Input
+                    id="manual-excel-file"
+                    type="file"
+                    accept=".xlsx, .xls"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        setExcelFile(e.target.files[0]);
+                      }
+                    }}
+                    disabled={uploadingExcel || syncing || saving}
+                    className="text-xs cursor-pointer"
+                  />
+                </div>
+
+                <Button
+                  onClick={handleExcelUploadSync}
+                  disabled={!excelFile || uploadingExcel || syncing || saving || loading}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center gap-2 text-xs"
+                >
+                  {uploadingExcel ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {currentSyncingCompany ? `Syncing ${currentSyncingCompany}...` : 'Processing File...'}
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      Sync Uploaded Excel
+                    </>
+                  )}
+                </Button>
               </CardContent>
             </Card>
 

@@ -38,7 +38,8 @@ import {
   Download,
   Loader2,
   AlertTriangle,
-  AlertCircle
+  AlertCircle,
+  ShieldAlert
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -584,6 +585,73 @@ export default function PartyDashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Consulate Review Section */}
+        {complianceData && complianceData.myConsulateReviews && complianceData.myConsulateReviews.length > 0 && (
+          <Card className="border-none shadow-md overflow-hidden bg-white rounded-xl">
+            <CardHeader className="border-b border-gray-50 py-4 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-md font-bold text-secondary flex items-center gap-2">
+                  <ShieldAlert className="h-5 w-5 text-rose-500" />
+                  Consulate Review Applications
+                </CardTitle>
+                <p className="text-xs text-gray-400">Pilgrims whose visas are currently in Consulate Review (no visa number yet)</p>
+              </div>
+              <Badge className="bg-rose-50 text-rose-700 border-rose-200 font-bold px-2.5 py-1">
+                {complianceData.myConsulateReviews.length} Applications
+              </Badge>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 font-bold uppercase text-[9px] tracking-wider border-b border-slate-100">
+                      <th className="py-3 px-4">Mutamer Name</th>
+                      <th className="py-3 px-4">Passport Number</th>
+                      <th className="py-3 px-4">MoFA Number</th>
+                      <th className="py-3 px-4">Nationality</th>
+                      <th className="py-3 px-4">Group Info</th>
+                      <th className="py-3 px-4">Nusuk Status</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {complianceData.myConsulateReviews.map((passenger: any) => (
+                      <tr key={passenger.id} className="border-b border-slate-100 hover:bg-slate-50/40 transition duration-150">
+                        <td className="py-3 px-4 font-semibold text-slate-900">{passenger.fullName}</td>
+                        <td className="py-3 px-4 font-mono font-bold text-slate-700">{passenger.passportNumber || '-'}</td>
+                        <td className="py-3 px-4 font-mono font-bold text-slate-700">{passenger.mofaNumber || '-'}</td>
+                        <td className="py-3 px-4 text-slate-500">{passenger.nationality || '-'}</td>
+                        <td className="py-3 px-4">
+                          <div className="flex flex-col">
+                            <span className="font-mono font-semibold text-indigo-650 text-[10px]">
+                              {passenger.booking?.groupNumber || 'No Group'}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              {passenger.booking?.groupName || '-'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge variant="outline" className="text-[9px] font-bold uppercase bg-rose-50 text-rose-700 border-rose-100">
+                            {passenger.mutamerStatus || 'Consulate Review'}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <Link href={`/party/umrah-visa/view/${passenger.bookingId}`} target="_blank" passHref>
+                            <Button size="sm" variant="ghost" className="text-indigo-650 hover:text-indigo-700 hover:bg-indigo-50 font-bold text-xs h-8 px-2.5 rounded-lg">
+                              View Booking
+                            </Button>
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* All Applications */}
         <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
