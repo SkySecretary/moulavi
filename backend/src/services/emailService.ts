@@ -441,36 +441,63 @@ const EMAIL_TEMPLATES = {
     </html>
   `,
 
-  iqamaConfirmation: (name: string) => `
+  iqamaConfirmation: (name: string, bookingDetails?: {
+    bookingReference?: string;
+    groupNumber?: string;
+    groupName?: string;
+    passengerCount?: number;
+    passengers?: string[];
+    partyName?: string;
+  }) => {
+    const ref = bookingDetails?.bookingReference || 'N/A';
+    const partyName = bookingDetails?.partyName || 'Valued Partner';
+    const count = bookingDetails?.passengerCount || 0;
+    const passengerList = bookingDetails?.passengers && bookingDetails.passengers.length > 0
+      ? bookingDetails.passengers.map(p => `<li style="margin: 6px 0; color: #2c3e50;">${p}</li>`).join('')
+      : `<li style="color: #2c3e50;">${count} passenger(s)</li>`;
+
+    return `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Iqama Confirmation - NuSync</title>
+      <title>Umrah Visa Confirmation Required - NuSync</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background-color: #f8f9fa; }
-        .email-container { max-width: 650px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
-        .header { background: linear-gradient(135deg, #E3000F 0%, #C7000A 100%); color: white; padding: 40px 30px; text-align: center; position: relative; }
-        .header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>'); opacity: 0.1; }
-        .logo { font-size: 28px; font-weight: 700; margin-bottom: 10px; position: relative; z-index: 1; }
-        .tagline { font-size: 14px; opacity: 0.9; position: relative; z-index: 1; }
-        .content { padding: 40px 30px; background-color: #ffffff; }
-        .greeting { font-size: 18px; margin-bottom: 20px; color: #2c3e50; }
-        .message { font-size: 16px; margin-bottom: 30px; color: #555; }
-        .info-box { background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border: 2px solid #E3000F; padding: 25px; margin: 25px 0; border-radius: 12px; }
-        .instruction-box { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 30px 0; border-left: 5px solid #E3000F; }
-        .step-item { margin: 12px 0; padding-left: 25px; position: relative; }
-        .step-item::before { content: '✓'; position: absolute; left: 0; color: #E3000F; font-weight: bold; font-size: 18px; }
-        .footer { background: #2c3e50; color: #bdc3c7; padding: 30px; text-align: center; }
-        .footer-logo { font-size: 20px; font-weight: 700; color: #E3000F; margin-bottom: 10px; }
-        .footer-text { font-size: 14px; margin: 5px 0; }
-        .divider { height: 2px; background: linear-gradient(90deg, transparent, #E3000F, transparent); margin: 30px 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background-color: #f4f7f6; }
+        .email-container { max-width: 650px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); border-top: 6px solid #E3000F; }
+        .header { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 35px 30px; text-align: center; }
+        .logo { font-size: 26px; font-weight: 700; letter-spacing: 1px; margin-bottom: 5px; }
+        .tagline { font-size: 13px; opacity: 0.8; font-weight: 300; }
+        .content { padding: 40px 30px; }
+        .greeting { font-size: 18px; font-weight: 600; margin-bottom: 15px; color: #1e3c72; }
+        .intro-text { font-size: 15px; color: #555; margin-bottom: 25px; line-height: 1.6; }
+        
+        .section-card { background: #f8fafd; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 25px; }
+        .section-title { font-size: 15px; font-weight: 600; color: #1e3c72; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 12px; display: flex; align-items: center; }
+        
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .grid-item { font-size: 14px; }
+        .label { font-weight: 600; color: #718096; display: block; margin-bottom: 2px; }
+        .value { color: #2d3748; font-weight: 500; }
+        
+        .instruction-box { background: #fffaf0; border-left: 4px solid #dd6b20; border-radius: 4px; padding: 15px 20px; margin: 20px 0; }
+        .step-item { margin: 10px 0; padding-left: 20px; position: relative; font-size: 14px; color: #4a5568; }
+        .step-item::before { content: ''; position: absolute; left: 0; top: 8px; width: 6px; height: 6px; background-color: #dd6b20; border-radius: 50%; }
+        
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; background-color: #feebc8; color: #c05621; }
+        .footer { background: #1a202c; color: #a0aec0; padding: 30px; text-align: center; font-size: 12px; }
+        .footer-logo { font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 8px; }
+        .footer-text { margin: 4px 0; color: #718096; }
+        .divider { height: 1px; background-color: #e2e8f0; margin: 25px 0; }
+        
+        ul.passenger-list { padding-left: 20px; margin: 10px 0; }
+        
         @media (max-width: 600px) {
-          .email-container { margin: 0; box-shadow: none; }
-          .header, .content, .footer { padding: 20px; }
-          .logo { font-size: 24px; }
+          .email-container { margin: 0; border-radius: 0; box-shadow: none; }
+          .grid { grid-template-columns: 1fr; }
+          .content { padding: 25px 20px; }
         }
       </style>
     </head>
@@ -478,45 +505,96 @@ const EMAIL_TEMPLATES = {
       <div class="email-container">
         <div class="header">
           <div class="logo">NuSync</div>
-          <div class="tagline">Professional Business Solutions</div>
+          <div class="tagline">Umrah Visa Management System</div>
         </div>
         
         <div class="content">
-          <div class="greeting">Dear ${name},</div>
+          <div class="greeting">Dear ${partyName},</div>
           
-          <div class="message">
-            🌙 Greetings from Umra Company, Saudi Arabia 🇸🇦
+          <p class="intro-text">
+            This email is to inform you that action is required for the Umrah Visa booking referenced below. 
+            A request has been initiated in Saudi Arabia, and the <strong>Sponsor (Iqama Holder) must approve the application on Absher</strong> before the visa can be processed.
+          </p>
+          
+          <div class="section-card">
+            <div class="section-title">
+              📋 Booking & Agency Details
+            </div>
+            <div class="grid">
+              <div class="grid-item">
+                <span class="label">Booking Reference</span>
+                <span class="value">${ref}</span>
+              </div>
+              <div class="grid-item">
+                <span class="label">Sponsor / Host Name</span>
+                <span class="value">${name}</span>
+              </div>
+              ${bookingDetails?.groupNumber ? `
+              <div class="grid-item">
+                <span class="label">Group Number</span>
+                <span class="value">${bookingDetails.groupNumber}</span>
+              </div>` : ''}
+              ${bookingDetails?.groupName ? `
+              <div class="grid-item">
+                <span class="label">Group Name</span>
+                <span class="value">${bookingDetails.groupName}</span>
+              </div>` : ''}
+            </div>
           </div>
           
-          <div class="info-box">
-            <p style="margin-bottom: 15px;">👨‍👩‍👧 Your family has applied for an Umrah visa through our Indian agent.</p>
-            <p style="margin-bottom: 15px;">✅ Kindly log in to your Absher account and approve the request at the earliest convenience.</p>
-            <p style="margin-bottom: 15px;">🔎 For your reference, please check under "Qabul Services" in your Absher account to view and approve the request.</p>
-            <p>📞 If you need any assistance, please feel free to contact us anytime.</p>
+          <div class="section-card">
+            <div class="section-title">
+              🕋 Pilgrim Information
+            </div>
+            <p style="font-size: 14px; color: #4a5568; margin-bottom: 8px;">
+              The following family members/pilgrims are linked to this visa application:
+            </p>
+            <ul class="passenger-list">
+              ${passengerList}
+            </ul>
+          </div>
+          
+          <div class="section-card" style="border-left: 4px solid #3182ce; background: #ebf8ff;">
+            <div class="section-title" style="color: #2b6cb0; border-bottom-color: #bee3f8;">
+              📱 Direct Notification Status
+            </div>
+            <p style="font-size: 14px; color: #2d3748;">
+              We have automatically sent a WhatsApp notification to the host's mobile number. Please double-check with the host to ensure they received it.
+            </p>
           </div>
           
           <div class="divider"></div>
           
           <div class="instruction-box">
-            <h3 style="color: #E3000F; margin-bottom: 15px;">✅ How to Check Qabul Services in Absher</h3>
-            <div class="step-item">Log in to <a href="https://www.absher.sa" style="color: #E3000F; text-decoration: none;">Absher.sa</a> → Individual account</div>
-            <div class="step-item">Go to My Services (خدماتي) → Inquiries (الاستعلامات)</div>
-            <div class="step-item">Select General Services (الخدمات العامة)</div>
-            <div class="step-item">Click Qabul Services (قبول الخدمات)</div>
-            <div class="step-item">View or Accept (قبول) / Reject (رفض) any pending requests</div>
+            <h3 style="color: #dd6b20; font-size: 15px; margin-bottom: 12px; font-weight: 600;">
+              👉 Instructions for the Host (Iqama Holder) to Approve in Absher:
+            </h3>
+            <p style="font-size: 13px; color: #718096; margin-bottom: 10px;">
+              Please ask the host (sponsor) in Saudi Arabia to perform these steps immediately:
+            </p>
+            <div class="step-item">Log in to the official Portal: <a href="https://www.absher.sa" target="_blank" style="color: #dd6b20; text-decoration: underline; font-weight: 600;">Absher.sa</a> (select <strong>Absher Individuals</strong>)</div>
+            <div class="step-item">Navigate to: <strong>My Services</strong> (خدماتي) &rarr; <strong>Inquiries</strong> (الاستعلامات)</div>
+            <div class="step-item">Select: <strong>General Services</strong> (الخدمات العامة)</div>
+            <div class="step-item">Click on: <strong>Qabul Services</strong> (قبول الخدمات)</div>
+            <div class="step-item">Review the pending visa application and click <strong>Accept</strong> (قبول) to confirm.</div>
           </div>
+          
+          <p style="font-size: 13px; color: #718096; margin-top: 25px; text-align: center;">
+            Need help? Reach out to your operations coordinator.
+          </p>
         </div>
         
         <div class="footer">
           <div class="footer-logo">NuSync</div>
-          <div class="footer-text">Professional Business Solutions</div>
-          <div class="footer-text">© 2025 NuSync. All rights reserved.</div>
-          <div class="footer-text">This is an automated email. Please do not reply to this message.</div>
+          <div class="footer-text">NuSync Travel Technology Solutions</div>
+          <div class="footer-text">© 2026 NuSync. All rights reserved.</div>
+          <div class="footer-text">This is an automated notification. Please do not reply directly to this email.</div>
         </div>
       </div>
     </body>
     </html>
-  `,
+    `;
+  },
 } as const;
 
 // Utility function to send email with error handling
@@ -1039,7 +1117,15 @@ export const sendIqamaConfirmationEmail = async (
   to: string | undefined,
   name: string,
   confirmationImagePath?: string,
-  phoneNumber?: string
+  phoneNumber?: string,
+  bookingDetails?: {
+    bookingReference?: string;
+    groupNumber?: string;
+    groupName?: string;
+    passengerCount?: number;
+    passengers?: string[];
+    partyName?: string;
+  }
 ): Promise<void> => {
   console.log('[EMAIL] ========== sendIqamaConfirmationEmail called ==========');
   console.log('[EMAIL] Parameters:', {
@@ -1047,6 +1133,7 @@ export const sendIqamaConfirmationEmail = async (
     name: name || 'null',
     confirmationImagePath: confirmationImagePath ? 'provided' : 'not provided',
     phoneNumber: phoneNumber ? `${phoneNumber.substring(0, 3)}***${phoneNumber.substring(phoneNumber.length - 2)}` : 'not provided',
+    bookingReference: bookingDetails?.bookingReference || 'none',
   });
 
   // Prepare attachments
@@ -1073,7 +1160,7 @@ export const sendIqamaConfirmationEmail = async (
       from: EMAIL_CONFIG.from,
       to,
       subject: 'Umrah Visa Confirmation - Action Required',
-      html: EMAIL_TEMPLATES.iqamaConfirmation(name),
+      html: EMAIL_TEMPLATES.iqamaConfirmation(name, bookingDetails),
       attachments: attachments.length > 0 ? attachments as any : undefined,
     };
 
@@ -1105,7 +1192,7 @@ export const sendIqamaConfirmationEmail = async (
     console.log('[EMAIL] Attempting to send WhatsApp iqama confirmation...');
     try {
       const { sendIqamaConfirmationWhatsApp } = await import('./whatsappService');
-      await sendIqamaConfirmationWhatsApp(phoneNumber, name);
+      await sendIqamaConfirmationWhatsApp(phoneNumber, name, bookingDetails);
       console.log('[EMAIL] ✅ WhatsApp iqama confirmation sent successfully');
     } catch (error: any) {
       console.error('[EMAIL] ❌ Failed to send WhatsApp iqama confirmation:', error?.message || 'Unknown error');

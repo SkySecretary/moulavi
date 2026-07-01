@@ -76,31 +76,37 @@ Your ${serviceType} service request has been successfully submitted!
 Thank you for choosing NuSync!
   `.trim(),
 
-  iqamaConfirmation: (name: string) => `
-🌙 Greetings from Umra Company, Saudi Arabia 🇸🇦
+  iqamaConfirmation: (name: string, bookingDetails?: { passengerCount?: number; passengers?: string[]; bookingReference?: string; }) => {
+    let familyDetails = 'Your family has applied for an Umrah visa through our agent.';
+    if (bookingDetails?.passengers && bookingDetails.passengers.length > 0) {
+      familyDetails = `The following pilgrim(s) have applied for an Umrah visa sponsored by you:\n${bookingDetails.passengers.map(p => `• ${p}`).join('\n')}`;
+    } else if (bookingDetails?.passengerCount) {
+      familyDetails = `Your family (${bookingDetails.passengerCount} pilgrim(s)) has applied for an Umrah visa sponsored by you.`;
+    }
+    
+    const refText = bookingDetails?.bookingReference ? `\n\nBooking Reference: *${bookingDetails.bookingReference}*` : '';
 
-👨‍👩‍👧 Your family has applied for an Umrah visa through our Indian agent.
+    return `
+🌙 *Greetings from Umra Company, Saudi Arabia* 🇸🇦
 
-✅ Kindly log in to your Absher account and approve the request at the earliest convenience.
+Dear *${name}*,
 
-🔎 For your reference, please check under "Qabul Services" in your Absher account to view and approve the request.
+${familyDetails}${refText}
 
-📞 If you need any assistance, please feel free to contact us anytime.
+✅ *Action Required:* Kindly log in to your *Absher* account and approve this request at your earliest convenience to issue the Umrah visas.
 
----
+🔎 *How to Approve:*
+1. Log in to *Absher.sa* (Individual account)
+2. Go to *My Services* (خدماتي) → *Inquiries* (الاستعلامات)
+3. Select *General Services* (الخدمات العامة)
+4. Click *Qabul Services* (قبول الخدمات)
+5. View and *Accept* (قبول) the pending request.
 
-✅ *How to Check Qabul Services in Absher*
+📞 If you need any assistance, please feel free to contact us or your travel agency.
 
-1. Log in to [Absher.sa](https://www.absher.sa) → Individual account
-
-2. Go to My Services (خدماتي) → *Inquiries (الاستعلامات)
-
-3. Select General Services (الخدمات العامة)
-
-4. Click Qabul Services (قبول الخدمات)
-
-5. View or Accept (قبول) / Reject (رفض) any pending requests
-  `.trim(),
+Thank you.
+    `.trim();
+  },
 } as const;
 
 // Utility function to format phone number
@@ -416,15 +422,17 @@ Thank you for choosing our services!`;
 // Send iqama confirmation WhatsApp message
 export const sendIqamaConfirmationWhatsApp = async (
   phoneNumber: string,
-  name: string
+  name: string,
+  bookingDetails?: { passengerCount?: number; passengers?: string[]; bookingReference?: string; }
 ): Promise<void> => {
   console.log('[WHATSAPP] ========== sendIqamaConfirmationWhatsApp called ==========');
   console.log('[WHATSAPP] Parameters:', {
     phoneNumber: phoneNumber ? `${phoneNumber.substring(0, 3)}***${phoneNumber.substring(phoneNumber.length - 2)}` : 'null',
     name: name || 'null',
+    bookingReference: bookingDetails?.bookingReference || 'none',
   });
 
-  const message = WHATSAPP_TEMPLATES.iqamaConfirmation(name);
+  const message = WHATSAPP_TEMPLATES.iqamaConfirmation(name, bookingDetails);
   console.log('[WHATSAPP] Message template generated, length:', message.length);
 
   try {

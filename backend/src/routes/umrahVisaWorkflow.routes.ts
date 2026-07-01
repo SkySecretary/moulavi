@@ -570,22 +570,36 @@ router.post('/:bookingId/upload-confirmation', authenticate, async (req, res) =>
       await syncBookingStatusInTx(bookingId, nextStatus, user.id, 'Confirmation image uploaded', tx);
     });
     
-    // Re-fetch updated booking with iqama details
+    // Re-fetch updated booking with iqama and party details
     const finalBooking = await prisma.umrahVisaBooking.findUnique({ 
       where: { id: bookingId },
       include: {
         sponsorIqamaDetails: true,
-        umrahVisaProvider: {
+        party: {
           select: {
+            partyName: true,
             email: true,
-            whatsappNumber: true,
+          },
+        },
+        passengers: {
+          where: { isDeleted: false },
+          select: {
+            fullName: true,
           },
         },
       },
     });
 
-    // Send notification (email + WhatsApp) to iqama holder
-    const mainIqama = finalBooking?.sponsorIqamaDetails?.find((i: any) => !i.isAlternate);
+    if (!finalBooking) {
+      console.log('⚠️ Booking not found for sending notifications');
+      return res.json({
+        message: 'Confirmation uploaded successfully but booking not found for notifications',
+        data: { booking: null }
+      });
+    }
+
+    // Send notification (email to Agency/Party + WhatsApp to Iqama holder mobile)
+    const mainIqama = finalBooking.sponsorIqamaDetails?.find((i: any) => !i.isAlternate);
     if (mainIqama) {
       try {
         const { sendIqamaConfirmationEmail } = await import('../services/emailService');
@@ -593,15 +607,25 @@ router.post('/:bookingId/upload-confirmation', authenticate, async (req, res) =>
         const iqamaHolderPhone = mainIqama.sponserMobileNumber || undefined;
         const confirmationImagePath = mainIqama.confirmationImagePath || undefined;
         
-        // Use umrahVisaProvider email if available, otherwise skip email
-        const recipientEmail = finalBooking?.umrahVisaProvider?.email || undefined;
+        // Use agency/party email for the email notification
+        const recipientEmail = finalBooking.party?.email || undefined;
+        
+        const bookingDetails = {
+          bookingReference: finalBooking.bookingReference || undefined,
+          groupNumber: finalBooking.groupNumber || undefined,
+          groupName: finalBooking.groupName || undefined,
+          passengerCount: finalBooking.passengerCount,
+          passengers: finalBooking.passengers?.map((p: any) => p.fullName.trim()) || [],
+          partyName: finalBooking.party?.partyName,
+        };
         
         if (recipientEmail || iqamaHolderPhone) {
           await sendIqamaConfirmationEmail(
             recipientEmail,
             iqamaHolderName,
             confirmationImagePath,
-            iqamaHolderPhone
+            iqamaHolderPhone,
+            bookingDetails
           );
           console.log('✅ Iqama confirmation notification sent successfully');
         } else {
@@ -2457,7 +2481,13 @@ router.patch('/:bookingId/trip-status', authenticate, async (req, res) => {
       where: { id: bookingId },
       include: { 
         sponsorIqamaDetails: { where: { isAlternate: false } },
-        party: true
+        party: true,
+        passengers: {
+          where: { isDeleted: false },
+          select: {
+            fullName: true,
+          },
+        },
       },
     });
 
@@ -2478,12 +2508,22 @@ router.patch('/:bookingId/trip-status', authenticate, async (req, res) => {
       const iqama = booking.sponsorIqamaDetails?.[0];
       if (iqama) {
         try {
+           const bookingDetails = {
+             bookingReference: booking.bookingReference || undefined,
+             groupNumber: booking.groupNumber || undefined,
+             groupName: booking.groupName || undefined,
+             passengerCount: booking.passengerCount,
+             passengers: booking.passengers?.map((p: any) => p.fullName.trim()) || [],
+             partyName: booking.party?.partyName,
+           };
+
            // Pass party email and iqama holder mobile for dual notification
            await sendIqamaConfirmationEmail(
              booking.party.email,
              iqama.iqamaSponserName,
              iqama.confirmationImagePath || '',
-             iqama.sponserMobileNumber || undefined
+             iqama.sponserMobileNumber || undefined,
+             bookingDetails
            );
         } catch (err) {
            console.error('Error sending hosting notification:', err);
