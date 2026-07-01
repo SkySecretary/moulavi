@@ -468,61 +468,77 @@ export class NusukService {
     const mismatchesToCreate: any[] = [];
     const processedPassports = new Set<string>();
 
-    // Filter rows by allowed external agent codes (either party-specific or global fallback)
-    let allowedAgentCodes: string[] = [];
-    if (partyId) {
-      const party = await prisma.party.findUnique({ where: { id: partyId } });
-      if (party && party.nusukExternalAgentCodes) {
-        allowedAgentCodes = party.nusukExternalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean);
-        console.log(`[NUSUK SYNC] Using party-specific EA codes for ${party.partyName}:`, allowedAgentCodes);
+    // Load all active customer agencies (Indian Agents) that have External Agent codes configured
+    const customerAgencies = await prisma.party.findMany({
+      where: {
+        isCustomer: true,
+        nusukExternalAgentCodes: { not: null }
+      }
+    });
+
+    const agencyByEACode = new Map<string, typeof customerAgencies[0]>();
+    const allowedAgentCodes = new Set<string>();
+
+    for (const agency of customerAgencies) {
+      if (!agency.nusukExternalAgentCodes) continue;
+      const codes = agency.nusukExternalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean);
+      for (const code of codes) {
+        agencyByEACode.set(code, agency);
+        allowedAgentCodes.add(code);
       }
     }
-    
-    if (allowedAgentCodes.length === 0 && settings.externalAgentCodes) {
-      allowedAgentCodes = settings.externalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean);
-      console.log('[NUSUK SYNC] Using global fallback settings EA codes:', allowedAgentCodes);
+
+    // Also include global fallback settings EA codes if configured
+    if (settings.externalAgentCodes) {
+      const globalCodes = settings.externalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean);
+      for (const code of globalCodes) {
+        allowedAgentCodes.add(code);
+      }
     }
+
+    console.log(`[NUSUK SYNC] Configured ${allowedAgentCodes.size} allowed External Agent codes across ${customerAgencies.length} active customer agencies (and global settings).`);
       
-      const rowsByGroup: { [groupNum: string]: any[] } = {};
-      let skippedCount = 0;
+    const rowsByGroup: { [groupNum: string]: any[] } = {};
+    let skippedCount = 0;
 
-      for (const row of rows) {
-        // Filter by External Agent Code (column "External Agent" or "Agent Number")
-        const rowAgentCode = String(getRowValue(row, ['External Agent', 'ExternalAgent', 'External Agent Code', 'Agent Code', 'Agent Number', 'AgentNumber']) || '').trim();
-        if (allowedAgentCodes.length > 0 && !allowedAgentCodes.includes(rowAgentCode)) {
-          skippedCount++;
-          continue;
-        }
-
-        const gNum = String(getRowValue(row, ['Group number', 'GroupNumber']) || '').trim();
-        if (gNum) {
-          if (!rowsByGroup[gNum]) rowsByGroup[gNum] = [];
-          rowsByGroup[gNum].push(row);
-        }
+    for (const row of rows) {
+      // Filter by External Agent Code
+      const rowAgentCode = String(getRowValue(row, ['External Agent', 'ExternalAgent', 'External Agent Code', 'Agent Code', 'Agent Number', 'AgentNumber', 'EACode', 'EA Code', 'EA Number', 'EANumber']) || '').trim();
+      if (allowedAgentCodes.size > 0 && !allowedAgentCodes.has(rowAgentCode)) {
+        skippedCount++;
+        continue;
       }
 
-      console.log(`[NUSUK SYNC] Grouped rows into ${Object.keys(rowsByGroup).length} distinct groups from Nusuk. Skipped ${skippedCount} rows belonging to other external agents.`);
+      const gNum = String(getRowValue(row, ['Group number', 'GroupNumber']) || '').trim();
+      if (gNum) {
+        if (!rowsByGroup[gNum]) rowsByGroup[gNum] = [];
+        rowsByGroup[gNum].push(row);
+      }
+    }
 
-      // Pre-fetch candidate active bookings with groupNumber to match them in memory
-      const candidateBookings = await prisma.umrahVisaBooking.findMany({
-        where: {
-          isDeleted: false,
-          groupNumber: { not: null },
-          ...(partyId ? { umrahVisaProviderId: partyId } : {})
+    console.log(`[NUSUK SYNC] Grouped rows into ${Object.keys(rowsByGroup).length} distinct groups from Nusuk. Skipped ${skippedCount} rows belonging to other external agents.`);
+
+    // Pre-fetch candidate active bookings with groupNumber to match them in memory
+    const candidateBookings = await prisma.umrahVisaBooking.findMany({
+      where: {
+        isDeleted: false,
+        groupNumber: { not: null },
+        ...(partyId ? { umrahVisaProviderId: partyId } : {})
+      },
+      include: {
+        party: true, // MUST include party to check agency EA codes
+        passengers: {
+          where: { isDeleted: false }
         },
-        include: {
-          passengers: {
-            where: { isDeleted: false }
-          },
-          travelDetails: {
-            where: { isAlternate: false },
-            include: {
-              arrivalAirport: true,
-              departureAirport: true
-            }
+        travelDetails: {
+          where: { isAlternate: false },
+          include: {
+            arrivalAirport: true,
+            departureAirport: true
           }
         }
-      });
+      }
+    });
 
       // A. Clean up any duplicate unresolved mismatches in the database first for these candidate bookings
       const bookingIds = candidateBookings.map(b => b.id);
@@ -688,6 +704,28 @@ export class NusukService {
           }
           processedPassports.add(passport);
 
+          const rowAgentCode = String(getRowValue(row, ['External Agent', 'ExternalAgent', 'External Agent Code', 'Agent Code', 'Agent Number', 'AgentNumber', 'EACode', 'EA Code', 'EA Number', 'EANumber']) || '').trim();
+
+          // Find bookings in this group that belong to the Agency with this rowAgentCode
+          let matchedBookings = bookings.filter(b => {
+            if (!b.party || !b.party.nusukExternalAgentCodes) return false;
+            const codes = b.party.nusukExternalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean);
+            return codes.includes(rowAgentCode);
+          });
+
+          // Fallback: If no agency matches rowAgentCode specifically, but we have candidate bookings, fall back to them
+          if (matchedBookings.length === 0) {
+            matchedBookings = bookings;
+          }
+
+          if (matchedBookings.length === 0) {
+            console.log(`[NUSUK SYNC] No bookings in group ${gNum} could be matched for row. Skipping.`);
+            continue;
+          }
+
+          const matchedBookingIds = matchedBookings.map(b => b.id);
+          const matchedDbPassengers = allDbPassengers.filter(p => matchedBookingIds.includes(p.bookingId));
+
           const mutamerName = String(getRowValue(row, ['Mutamer Name', 'MutamerName']) || 'Unknown Mutamer').trim();
           const nationality = String(getRowValue(row, ['Mutamer Nationality', 'Nationality']) || '').trim();
           const passportExpiry = parseExcelDate(getRowValue(row, ['Passport Expiry Date']));
@@ -708,8 +746,8 @@ export class NusukService {
           // Mark as Consulate Review if visa number is missing and mutamer status is Consulate Review or visa is missing
           const isConsulateReview = !visaNumber || mutamerStatus === 'Consulate Review' || mutamerStatus.toLowerCase().includes('review');
 
-          // Step 1: Check if passenger exists by passport number in the list of DB passengers for this group
-          let passenger: any = allDbPassengers.find(p => p.passportNumber?.toUpperCase() === passport);
+          // Step 1: Check if passenger exists by passport number in the list of matched DB passengers for this group
+          let passenger: any = matchedDbPassengers.find(p => p.passportNumber?.toUpperCase() === passport);
 
           // Step 2: If not found in this group, check if passenger exists globally in the DB under ANY active booking
           if (!passenger) {
@@ -721,8 +759,8 @@ export class NusukService {
               }
             });
             if (passenger) {
-              // Reassign to the first booking of this group
-              const targetBooking = bookings[0];
+              // Reassign to the first matched booking of this group
+              const targetBooking = matchedBookings[0];
               passenger = await prisma.umrahPassenger.update({
                 where: { id: passenger.id },
                 data: { bookingId: targetBooking.id }
@@ -732,10 +770,10 @@ export class NusukService {
             }
           }
 
-          // Step 3: Match by Name Similarity in this group (among passengers without a passport number)
+          // Step 3: Match by Name Similarity in this group (among matched passengers without a passport number)
           if (!passenger) {
             const cleanExcelName = mutamerName.toLowerCase().replace(/[^a-z]/g, '');
-            passenger = allDbPassengers.find(p => {
+            passenger = matchedDbPassengers.find(p => {
               if (p.passportNumber) return false;
               if (processedDbPassengerIds.has(p.id)) return false; // Don't reuse a slot we already filled in this sync run
               const cleanDbName = p.fullName.toLowerCase().replace(/[^a-z]/g, '');
@@ -743,14 +781,14 @@ export class NusukService {
             });
           }
 
-          // Step 4: Match by Empty Slot in this group (first passenger that has no passport number)
+          // Step 4: Match by Empty Slot in this group (first matched passenger that has no passport number)
           if (!passenger) {
-            passenger = allDbPassengers.find(p => !p.passportNumber && !processedDbPassengerIds.has(p.id));
+            passenger = matchedDbPassengers.find(p => !p.passportNumber && !processedDbPassengerIds.has(p.id));
           }
 
           if (!passenger) {
-            // Step 5: Create passenger record if no empty slot/matching passenger was found (in the first booking)
-            const targetBooking = bookings[0];
+            // Step 5: Create passenger record if no empty slot/matching passenger was found (in the first matched booking)
+            const targetBooking = matchedBookings[0];
             passenger = await prisma.umrahPassenger.create({
               data: {
                 bookingId: targetBooking.id,
@@ -803,7 +841,7 @@ export class NusukService {
           processedDbPassengerIds.add(passenger.id);
 
           // Get the booking that the passenger is assigned to
-          const assignedBooking = bookings.find(b => b.id === passenger.bookingId) || bookings[0];
+          const assignedBooking = matchedBookings.find(b => b.id === passenger.bookingId) || matchedBookings[0];
           processedBookingIds.add(assignedBooking.id);
 
           // Compare travel details for this passenger against booking travel details
