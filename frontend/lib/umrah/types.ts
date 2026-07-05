@@ -20,6 +20,9 @@ export interface Step2Data {
   passengerCount?: number; // Number of passengers (for both individual and group bookings)
   transportBookings?: TransportBooking[];
   hotelBookings?: HotelBooking[]; // For group bookings, hotels are in Step 2
+  isOneWay?: boolean;
+  oneWayContactName?: string;
+  oneWayWhatsapp?: string;
 }
 
 // Unified Movement interface - replaces transportSegments and ziyaraths

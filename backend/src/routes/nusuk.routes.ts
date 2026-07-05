@@ -20,6 +20,7 @@ const saveSettingsValidation = [
   body('checkByPassport').optional().isBoolean(),
   body('externalAgentCodes').optional().isString().trim(),
   body('syncSchedule').optional().isString().trim(),
+  body('syncType').optional().isIn(['excel', 'listing']).withMessage('Sync type must be excel or listing'),
 ];
 
 // Get Nusuk settings
@@ -46,7 +47,7 @@ router.post(
       });
     }
 
-    const { token, activeEntityId, activeEntityTypeId, entityId, selectedUmrahCompanyIds, checkByPassport, externalAgentCodes, syncSchedule } = req.body;
+    const { token, activeEntityId, activeEntityTypeId, entityId, selectedUmrahCompanyIds, checkByPassport, externalAgentCodes, syncSchedule, syncType, allowOneWayTicket } = req.body;
     
     let cleanedToken = String(token || '').trim();
     if (cleanedToken.toUpperCase().startsWith('BEARER ')) {
@@ -62,6 +63,8 @@ router.post(
       checkByPassport,
       externalAgentCodes,
       syncSchedule,
+      syncType,
+      allowOneWayTicket: allowOneWayTicket !== undefined ? Boolean(allowOneWayTicket) : undefined,
     });
     
     res.json({
@@ -254,6 +257,21 @@ router.get(
     
     const dashboardStats = await NusukService.getComplianceDashboard(role, partyId);
     res.json(dashboardStats);
+  })
+);
+
+// Search passengers globally by passport number (autocomplete/match search)
+router.get(
+  '/passengers/search',
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const query = String(req.query.q || '').trim();
+    if (!query) {
+      return res.json([]);
+    }
+
+    const results = await NusukService.searchPassengersByPassport(query, req.user?.role, req.user?.partyId || undefined);
+    res.json(results);
   })
 );
 

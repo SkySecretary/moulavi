@@ -519,6 +519,9 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
           umrahVisaProviderId: step1Data.umrahVisaProviderId || null,
           status: initialStatus,
           visaType: 'individual_visa',
+          isOneWay: !!step2Data.isOneWay,
+          oneWayContactName: step2Data.isOneWay ? (step2Data.oneWayContactName || null) : null,
+          oneWayWhatsapp: step2Data.isOneWay ? (step2Data.oneWayWhatsapp || null) : null,
           accommodationType: step3Data.accommodationType,
           hasTransportation,
           lastUpdatedBy: user.id,
@@ -527,7 +530,9 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
 
       // 3. Create UmrahTravelDetails - combine date and time before storing
       const arrivalDateTime = combineDateTime(step2Data.arrivalDate, step2Data.arrivalTime);
-      const departureDateTime = combineDateTime(step2Data.departureDate, step2Data.departureTime);
+      const departureDateTime = step2Data.isOneWay
+        ? arrivalDateTime
+        : combineDateTime(step2Data.departureDate || '', step2Data.departureTime || '');
       
       if (!arrivalDateTime || !departureDateTime) {
         throw new Error('Invalid arrival or departure date/time');
@@ -540,8 +545,8 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
           arrivalAirportId: step2Data.arrivalAirportId,
           arrivalFlightNumber: step2Data.arrivalFlightNumber,
           departureDateTime,
-          departureAirportId: step2Data.departureAirportId,
-          departureFlightNumber: step2Data.departureFlightNumber,
+          departureAirportId: step2Data.isOneWay ? step2Data.arrivalAirportId : step2Data.departureAirportId!,
+          departureFlightNumber: step2Data.isOneWay ? 'OW-9999' : step2Data.departureFlightNumber!,
           brn: step2Data.brn || null,
         },
       });
@@ -1002,6 +1007,31 @@ router.patch('/:bookingId/travel-details', authenticate, async (req, res) => {
     console.log(`[DEBUG] Updating travel details for booking ${bookingId}`);
     console.log(`[DEBUG] Full Body:`, JSON.stringify(req.body, null, 2));
 
+    const booking = await prisma.umrahVisaBooking.findUnique({
+      where: { id: bookingId }
+    });
+    
+    if (req.body.isOneWay !== undefined) {
+      await prisma.umrahVisaBooking.update({
+        where: { id: bookingId },
+        data: { 
+          isOneWay: Boolean(req.body.isOneWay),
+          oneWayContactName: req.body.isOneWay ? (req.body.oneWayContactName || null) : null,
+          oneWayWhatsapp: req.body.isOneWay ? (req.body.oneWayWhatsapp || null) : null,
+        }
+      });
+    } else if (req.body.oneWayContactName !== undefined || req.body.oneWayWhatsapp !== undefined) {
+      await prisma.umrahVisaBooking.update({
+        where: { id: bookingId },
+        data: {
+          oneWayContactName: req.body.oneWayContactName || null,
+          oneWayWhatsapp: req.body.oneWayWhatsapp || null,
+        }
+      });
+    }
+
+    const isOneWay = req.body.isOneWay !== undefined ? Boolean(req.body.isOneWay) : (booking?.isOneWay || false);
+
     const {
       arrivalDate,
       arrivalTime,
@@ -1013,7 +1043,7 @@ router.patch('/:bookingId/travel-details', authenticate, async (req, res) => {
       arrivalDateTime: incomingArrivalDateTime,
       departureDateTime: incomingDepartureDateTime,
     } = req.body || {};
-    
+
     // Combine date and time into datetime before storing
     // Support both separate date/time and direct ISO string
     let arrivalDateTime = incomingArrivalDateTime ? new Date(incomingArrivalDateTime) : undefined;
@@ -1022,7 +1052,9 @@ router.patch('/:bookingId/travel-details', authenticate, async (req, res) => {
     }
     
     let departureDateTime = incomingDepartureDateTime ? new Date(incomingDepartureDateTime) : undefined;
-    if (!departureDateTime && departureDate) {
+    if (isOneWay) {
+      departureDateTime = arrivalDateTime;
+    } else if (!departureDateTime && departureDate) {
       departureDateTime = combineDateTime(departureDate, departureTime || '12:00');
     }
 
@@ -1038,6 +1070,14 @@ router.patch('/:bookingId/travel-details', authenticate, async (req, res) => {
       },
     });
 
+    const finalArrivalDateTime = arrivalDateTime ?? existing?.arrivalDateTime ?? new Date();
+    const finalArrivalAirportId = req.body?.arrivalAirportId ?? existing?.arrivalAirportId;
+    const finalArrivalFlightNumber = arrivalFlightNumber ?? existing?.arrivalFlightNumber ?? '';
+
+    const finalDepartureDateTime = isOneWay ? finalArrivalDateTime : (departureDateTime ?? existing?.departureDateTime ?? new Date());
+    const finalDepartureAirportId = isOneWay ? finalArrivalAirportId : (req.body?.departureAirportId ?? existing?.departureAirportId);
+    const finalDepartureFlightNumber = isOneWay ? 'OW-9999' : (departureFlightNumber ?? existing?.departureFlightNumber ?? '');
+
     const travel = await prisma.umrahTravelDetails.upsert({
       where: {
         bookingId_isAlternate: {
@@ -1046,24 +1086,24 @@ router.patch('/:bookingId/travel-details', authenticate, async (req, res) => {
         },
       },
       update: {
-        arrivalDateTime: arrivalDateTime ?? existing?.arrivalDateTime,
-        arrivalFlightNumber: arrivalFlightNumber ?? existing?.arrivalFlightNumber,
-        departureDateTime: departureDateTime ?? existing?.departureDateTime,
-        departureFlightNumber: departureFlightNumber ?? existing?.departureFlightNumber,
+        arrivalDateTime: finalArrivalDateTime,
+        arrivalFlightNumber: finalArrivalFlightNumber,
+        departureDateTime: finalDepartureDateTime,
+        departureFlightNumber: finalDepartureFlightNumber,
         brn: brn !== undefined ? brn : existing?.brn,
-        arrivalAirportId: req.body?.arrivalAirportId ?? existing?.arrivalAirportId,
-        departureAirportId: req.body?.departureAirportId ?? existing?.departureAirportId,
+        arrivalAirportId: finalArrivalAirportId,
+        departureAirportId: finalDepartureAirportId,
       },
       create: {
         bookingId,
         isAlternate: false,
-        arrivalDateTime: arrivalDateTime ?? new Date(),
-        arrivalFlightNumber: arrivalFlightNumber ?? '',
-        departureDateTime: departureDateTime ?? new Date(),
-        departureFlightNumber: departureFlightNumber ?? '',
+        arrivalDateTime: finalArrivalDateTime,
+        arrivalFlightNumber: finalArrivalFlightNumber,
+        departureDateTime: finalDepartureDateTime,
+        departureFlightNumber: finalDepartureFlightNumber,
         brn: brn || null,
-        arrivalAirportId: req.body?.arrivalAirportId,
-        departureAirportId: req.body?.departureAirportId,
+        arrivalAirportId: finalArrivalAirportId,
+        departureAirportId: finalDepartureAirportId,
       },
     });
 

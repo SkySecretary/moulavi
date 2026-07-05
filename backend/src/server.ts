@@ -174,18 +174,35 @@ app.listen(PORT, () => {
         const settings = await NusukService.getSettings();
         if (!settings || !settings.token) return;
 
-        const scheduleTimes = settings.syncSchedule
-          ? settings.syncSchedule.split(',').map((t: string) => t.trim())
-          : ['08:00', '20:00'];
+        const isListing = settings.syncType === 'listing';
 
-        if (scheduleTimes.includes(currentHrMin)) {
-          lastSyncMinute = currentMinKey;
-          console.log(`[SERVER] Scheduled sync triggered at match: ${currentHrMin}`);
-          try {
-            await NusukService.triggerSync();
-            console.log(`[SERVER] Scheduled Nusuk mismatch synchronization completed.`);
-          } catch (error: any) {
-            console.warn(`⚠️  Scheduled Nusuk synchronization failed: ${error.message}`);
+        if (isListing) {
+          // Trigger listing-based sync every 5 minutes
+          if (now.getMinutes() % 5 === 0) {
+            lastSyncMinute = currentMinKey;
+            console.log(`[SERVER] Scheduled 5-minute listing sync triggered at: ${currentHrMin}`);
+            try {
+              await NusukService.triggerSync();
+              console.log(`[SERVER] Scheduled Nusuk listing synchronization completed.`);
+            } catch (error: any) {
+              console.warn(`⚠️  Scheduled Nusuk listing synchronization failed: ${error.message}`);
+            }
+          }
+        } else {
+          // Excel sync: trigger on the custom schedule times
+          const scheduleTimes = settings.syncSchedule
+            ? settings.syncSchedule.split(',').map((t: string) => t.trim())
+            : ['08:00', '20:00'];
+
+          if (scheduleTimes.includes(currentHrMin)) {
+            lastSyncMinute = currentMinKey;
+            console.log(`[SERVER] Scheduled Excel sync triggered at match: ${currentHrMin}`);
+            try {
+              await NusukService.triggerSync();
+              console.log(`[SERVER] Scheduled Nusuk Excel synchronization completed.`);
+            } catch (error: any) {
+              console.warn(`⚠️  Scheduled Nusuk Excel synchronization failed: ${error.message}`);
+            }
           }
         }
       } catch (error: any) {

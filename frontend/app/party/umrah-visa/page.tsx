@@ -22,6 +22,7 @@ import { MovementDetailsStep } from '@/components/umrah-booking/steps/MovementDe
 import { DocumentsStep } from '@/components/umrah-booking/steps/DocumentsStep';
 import { validateStep1, validateStep2, validateStep3, validateStep4, validateStep5Movements, validateStep6 } from '@/lib/umrah/validation';
 import { DisclaimerDialog } from '@/components/umrah-booking/shared/DisclaimerDialog';
+import { OneWayDisclaimerDialog } from '@/components/umrah-booking/shared/OneWayDisclaimerDialog';
 
 export default function UmrahVisaNewPage() {
   const router = useRouter();
@@ -44,7 +45,12 @@ export default function UmrahVisaNewPage() {
     setCurrentStep,
     loadPartyData,
     submitStep,
+    selectedParty,
+    globalAllowOneWayTicket,
   } = useUmrahBooking();
+
+  const [showOneWayDisclaimer, setShowOneWayDisclaimer] = useState(false);
+  const [oneWayDisclaimerAccepted, setOneWayDisclaimerAccepted] = useState(false);
 
   const {
     masterData,
@@ -90,7 +96,7 @@ export default function UmrahVisaNewPage() {
       case 5:
         return validateStep5Movements(bookingState.step5Data, bookingState.step1Data, bookingState.step2Data, bookingState.step3Data, bookingState.step4Data, masterData.locationMasters);
       case 6:
-        return validateStep6(bookingState.step6Data || {}, bookingState.step1Data, bookingState.step3Data, bookingState.step2Data.passengerCount || bookingState.step1Data.passengerCount || 0, false);
+        return validateStep6(bookingState.step6Data || {}, bookingState.step1Data, bookingState.step3Data, bookingState.step2Data.passengerCount || bookingState.step1Data.passengerCount || 0, false, !!bookingState.step2Data.isOneWay);
       default:
         return null;
     }
@@ -100,6 +106,11 @@ export default function UmrahVisaNewPage() {
     const validationError = validateCurrentStep();
     if (validationError) {
       toast.error(validationError);
+      return;
+    }
+
+    if (bookingState.currentStep === 2 && bookingState.step2Data.isOneWay && !oneWayDisclaimerAccepted) {
+      setShowOneWayDisclaimer(true);
       return;
     }
 
@@ -121,6 +132,15 @@ export default function UmrahVisaNewPage() {
     
     if (success && bookingState.currentStep === 6) {
       router.push('/party/dashboard');
+    }
+  };
+
+  const handleOneWayDisclaimerConfirm = async () => {
+    setShowOneWayDisclaimer(false);
+    setOneWayDisclaimerAccepted(true);
+    const success = await submitStep(2);
+    if (success) {
+      setCurrentStep(3);
     }
   };
 
@@ -186,12 +206,13 @@ export default function UmrahVisaNewPage() {
 
       case 2:
         return (
-                <TravelDetailsStep
-                  data={bookingState.step2Data}
-                  onChange={updateStep2Data}
-                  airports={masterData.airports}
-                  disabled={isLoading}
-                />
+          <TravelDetailsStep
+            data={bookingState.step2Data}
+            onChange={updateStep2Data}
+            airports={masterData.airports}
+            disabled={isLoading}
+            allowOneWayOption={globalAllowOneWayTicket || selectedParty?.allowOneWayTicket}
+          />
         );
 
       case 3:
@@ -259,6 +280,7 @@ export default function UmrahVisaNewPage() {
             data={bookingState.step6Data || {}}
             step1Data={bookingState.step1Data}
             step3Data={bookingState.step3Data}
+            step2Data={bookingState.step2Data}
             onChange={updateStep6Data}
             disabled={isLoading}
             passengerCount={bookingState.step2Data.passengerCount || bookingState.step1Data.passengerCount || 0}
@@ -287,6 +309,11 @@ export default function UmrahVisaNewPage() {
         <DisclaimerDialog 
           open={showDisclaimer} 
           onConfirm={() => setShowDisclaimer(false)} 
+        />
+        <OneWayDisclaimerDialog
+          open={showOneWayDisclaimer}
+          onConfirm={handleOneWayDisclaimerConfirm}
+          onCancel={() => setShowOneWayDisclaimer(false)}
         />
         <div className="w-full">
           {/* Step Progress - Compact UI */}

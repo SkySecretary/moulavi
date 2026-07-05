@@ -501,6 +501,8 @@ export const nusukAPI = {
     checkByPassport?: boolean;
     externalAgentCodes?: string;
     syncSchedule?: string;
+    syncType?: string;
+    allowOneWayTicket?: boolean;
   }) => api.post('/nusuk/settings', data),
   triggerSync: (partyId?: string) => api.post('/nusuk/sync', { partyId }),
   getMismatches: (params?: { 
@@ -516,6 +518,7 @@ export const nusukAPI = {
   getComplianceAgents: () => api.get('/nusuk/compliance/agents'),
   getComplianceAgentLogs: (partyId: string) => api.get(`/nusuk/compliance/agents/${partyId}/logs`),
   getComplianceDashboard: () => api.get('/nusuk/compliance/dashboard'),
+  searchPassengers: (query: string) => api.get('/nusuk/passengers/search', { params: { q: query } }),
   overrideComplianceStatus: (partyId: string, data: { status: 'GREEN' | 'YELLOW' | 'RED'; reason: string }) => 
     api.post(`/nusuk/compliance/agents/${partyId}/override`, data),
   recalculateCompliance: () => api.post('/nusuk/compliance/recalculate'),

@@ -70,6 +70,21 @@ router.get('/bookings', authenticate, async (req, res) => {
     if (accommodationType) where.accommodationType = accommodationType;
     if (visaType) where.visaType = visaType;
 
+    const { missingReturnTicket } = req.query;
+    if (missingReturnTicket === 'true') {
+      where.isOneWay = true;
+      where.passengers = {
+        none: {
+          documents: {
+            some: {
+              documentType: 'ticketCopy',
+              isDeleted: false
+            }
+          }
+        }
+      };
+    }
+
     // Search by group number, reference, or name
     if (search && typeof search === 'string' && search.trim() !== '') {
       const query = search.trim();

@@ -259,12 +259,14 @@ export const validateStep2 = (data: Step2Data, airports: any[], step1Data?: Step
     return 'Arrival date must be in DD/MM/YY format';
   }
 
-  if (!data.departureDate || !data.departureTime || !data.departureAirportId || !data.departureFlightNumber) {
-    return 'Please fill in all required departure details';
-  }
+  if (!data.isOneWay) {
+    if (!data.departureDate || !data.departureTime || !data.departureAirportId || !data.departureFlightNumber) {
+      return 'Please fill in all required departure details';
+    }
 
-  if (!isValidStrictDate(data.departureDate)) {
-    return 'Departure date must be in DD/MM/YY format';
+    if (!isValidStrictDate(data.departureDate)) {
+      return 'Departure date must be in DD/MM/YY format';
+    }
   }
 
   // Passenger count is required in Step 2 for both individual and group bookings
@@ -276,28 +278,33 @@ export const validateStep2 = (data: Step2Data, airports: any[], step1Data?: Step
     return 'Invalid arrival flight number format (e.g., 6E-6083 or SV-123)';
   }
 
-  if (!FLIGHT_NUMBER_REGEX.test(data.departureFlightNumber)) {
-    return 'Invalid departure flight number format (e.g., 6E-6083 or SV-123)';
-  }
+  if (!data.isOneWay) {
+    if (!data.departureFlightNumber || !FLIGHT_NUMBER_REGEX.test(data.departureFlightNumber)) {
+      return 'Invalid departure flight number format (e.g., 6E-6083 or SV-123)';
+    }
 
-  const durationResult = calculateDuration(data.arrivalDate, data.departureDate);
-  if (durationResult.error) {
-    return durationResult.error;
+    const durationResult = calculateDuration(data.arrivalDate, data.departureDate);
+    if (durationResult.error) {
+      return durationResult.error;
+    }
   }
 
   // Validate against Umrah visa master dates
   if (umrahVisaMaster) {
     const arrivalDate = new Date(fromDisplayDate(data.arrivalDate));
-    const departureDate = new Date(fromDisplayDate(data.departureDate));
     const lastArrivalDate = new Date(umrahVisaMaster.lastArrivalDate);
-    const lastDepartureDate = new Date(umrahVisaMaster.lastDepartureDate);
 
     if (!isNaN(arrivalDate.getTime()) && !isNaN(lastArrivalDate.getTime()) && arrivalDate > lastArrivalDate) {
       return `Final Date of Umra Visa Arrival is ${umrahVisaMaster.lastArrivalDate}`;
     }
 
-    if (!isNaN(departureDate.getTime()) && !isNaN(lastDepartureDate.getTime()) && departureDate > lastDepartureDate) {
-      return `Final Date of Umra Visa Departure is ${umrahVisaMaster.lastDepartureDate}`;
+    if (!data.isOneWay && data.departureDate) {
+      const departureDate = new Date(fromDisplayDate(data.departureDate));
+      const lastDepartureDate = new Date(umrahVisaMaster.lastDepartureDate);
+
+      if (!isNaN(departureDate.getTime()) && !isNaN(lastDepartureDate.getTime()) && departureDate > lastDepartureDate) {
+        return `Final Date of Umra Visa Departure is ${umrahVisaMaster.lastDepartureDate}`;
+      }
     }
   }
 
@@ -659,7 +666,8 @@ export const validateStep6 = (
   step1Data: Step1Data,
   step3Data: Step3Data,
   passengerCount: number,
-  isGroupVisa: boolean = false
+  isGroupVisa: boolean = false,
+  isOneWay: boolean = false
 ): string | null => {
   const isIndividualWithoutGroupNumber = !isGroupVisa && step1Data.bookingMode !== 'group_number';
 
@@ -698,7 +706,7 @@ export const validateStep6 = (
   }
 
   // 6) return ticket (mandatory)
-  if (!isGroupVisa) {
+  if (!isGroupVisa && !isOneWay) {
     if (!data.returnTickets || data.returnTickets.length === 0) {
       return 'Return ticket copy is required.';
     }

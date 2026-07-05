@@ -113,6 +113,7 @@ router.post(
       nusuk_active_entity_id,
       nusuk_active_entity_type_id,
       nusuk_external_agent_codes,
+      allow_one_way_ticket = false,
     } = req.body;
     
     // Validate customer_type is required if is_customer is true
@@ -189,6 +190,7 @@ router.post(
         nusukActiveEntityId: nusuk_active_entity_id || null,
         nusukActiveEntityTypeId: nusuk_active_entity_type_id || null,
         nusukExternalAgentCodes: nusuk_external_agent_codes || null,
+        allowOneWayTicket: Boolean(allow_one_way_ticket),
         supplierServiceTypes: supplier_service_types ? JSON.parse(JSON.stringify(supplier_service_types)) : null,
         customerType: customer_type || 'direct', // Default to 'direct' if not provided
         accountCurrencyId: account_currency_id,
@@ -474,6 +476,7 @@ router.put(
       nusuk_active_entity_id,
       nusuk_active_entity_type_id,
       nusuk_external_agent_codes,
+      allow_one_way_ticket,
     } = req.body;
     
     // Validate supplier service types if supplier is being set to true
@@ -625,6 +628,7 @@ router.put(
     if (email_notification !== undefined) updateData.emailNotification = email_notification;
     if (sms_notification !== undefined) updateData.smsNotification = sms_notification;
     if (marketing_notification !== undefined) updateData.marketingNotification = marketing_notification;
+    if (allow_one_way_ticket !== undefined) updateData.allowOneWayTicket = Boolean(allow_one_way_ticket);
     
     // Handle updates in a transaction to sync Party and associated User account email atomically
     const party = await prisma.$transaction(async (tx) => {

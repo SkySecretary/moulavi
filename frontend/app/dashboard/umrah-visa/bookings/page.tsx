@@ -27,7 +27,8 @@ import {
   Download,
   Loader2,
   Ticket,
-  RotateCcw
+  RotateCcw,
+  ShieldAlert
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
@@ -51,6 +52,8 @@ export default function UmrahVisaPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedVisaType, setSelectedVisaType] = useState<string>('all');
   const [selectedPartyId, setSelectedPartyId] = useState<string>('all');
+  const [filterMissingReturn, setFilterMissingReturn] = useState(false);
+  const [missingReturnCount, setMissingReturnCount] = useState(0);
 
   useEffect(() => {
     if (queryPartyId) {
@@ -106,7 +109,25 @@ export default function UmrahVisaPage() {
 
   useEffect(() => {
     fetchBookings(pagination.page);
-  }, [pagination.page, pagination.limit, searchQuery, selectedStatus, selectedVisaType, arrivalDateFrom, arrivalDateTo, viewArchived, selectedPartyId]);
+    fetchMissingReturnCount();
+  }, [pagination.page, pagination.limit, searchQuery, selectedStatus, selectedVisaType, arrivalDateFrom, arrivalDateTo, viewArchived, selectedPartyId, filterMissingReturn]);
+
+  const fetchMissingReturnCount = async () => {
+    try {
+      const params: any = {
+        page: '1',
+        limit: '1',
+        missingReturnTicket: 'true',
+      };
+      if (selectedPartyId && selectedPartyId !== 'all') {
+        params.partyId = selectedPartyId;
+      }
+      const response = await umrahVisaAPI.getBookings(params);
+      setMissingReturnCount(response.data.pagination?.total || 0);
+    } catch (error) {
+      console.error('Error fetching missing return tickets count:', error);
+    }
+  };
 
   const fetchBookings = async (page = 1) => {
     try {
@@ -121,6 +142,10 @@ export default function UmrahVisaPage() {
         arrivalDateTo,
         archived: viewArchived ? 'true' : 'false',
       };
+
+      if (filterMissingReturn) {
+        params.missingReturnTicket = 'true';
+      }
 
       if (selectedPartyId && selectedPartyId !== 'all') {
         params.partyId = selectedPartyId;
@@ -369,7 +394,38 @@ export default function UmrahVisaPage() {
 
         <div className="flex-1 overflow-auto">
           <div className="p-4 lg:p-8">
-          <Card>
+            {missingReturnCount > 0 && (
+              <Card className="border-rose-200 bg-rose-50 shadow-md mb-6 rounded-2xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
+                <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600 shrink-0 mt-0.5 shadow-sm">
+                      <ShieldAlert className="h-5 w-5 animate-pulse" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <h4 className="text-sm font-black text-rose-950 uppercase italic tracking-wider">Protocol Violation Warning</h4>
+                      <p className="text-xs text-rose-900/80 leading-relaxed font-semibold">
+                        You have <span className="underline font-black text-rose-700">{missingReturnCount} one-way bookings</span> without a departure flight ticket copy uploaded.
+                      </p>
+                      <p className="text-[10px] text-rose-700/70">
+                        ⚠️ Failure to upload return tickets will result in immediate system blocks and severe financial penalties.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={filterMissingReturn ? "secondary" : "destructive"}
+                    onClick={() => {
+                      setFilterMissingReturn(!filterMissingReturn);
+                      setPagination(prev => ({ ...prev, page: 1 }));
+                    }}
+                    className="font-black uppercase tracking-wider text-xs rounded-xl shadow-lg shadow-rose-600/10 shrink-0 h-10 px-5"
+                  >
+                    {filterMissingReturn ? "Show All Bookings" : "Filter Missing Tickets"}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+            <Card>
               <CardContent className="space-y-4">
                 {/* Active/Archived Tabs */}
                 <div className="flex border-b pb-2 mt-4 gap-2">

@@ -219,14 +219,15 @@ export const findCityByName = async (cityName: string) => {
 // Note: Date and time are kept as separate strings for UI compatibility
 // They will be combined into datetime before storing in the database
 export const step2Schema = z.object({
+  isOneWay: z.boolean().optional().nullable(),
   arrivalDate: z.string(), // YYYY-MM-DD format
   arrivalTime: z.string(), // HH:mm format
   arrivalAirportId: z.string().uuid(),
   arrivalFlightNumber: z.string().regex(FLIGHT_NUMBER_REGEX, 'Invalid arrival flight number format (e.g., 6E-6083)'),
-  departureDate: z.string(), // YYYY-MM-DD format
-  departureTime: z.string(), // HH:mm format
-  departureAirportId: z.string().uuid(),
-  departureFlightNumber: z.string().regex(FLIGHT_NUMBER_REGEX, 'Invalid departure flight number format (e.g., 6E-6083)'),
+  departureDate: z.string().optional().nullable(), // YYYY-MM-DD format
+  departureTime: z.string().optional().nullable(), // HH:mm format
+  departureAirportId: z.string().uuid().optional().nullable(),
+  departureFlightNumber: z.string().optional().nullable(),
   brn: z.string().optional(),
   passengerCount: z.number().min(1).max(50).optional(), // Number of passengers (for both individual and group bookings - now in Step 2)
   transportBookings: z.array(z.object({
@@ -245,6 +246,17 @@ export const step2Schema = z.object({
     checkOutDate: z.string().transform((str) => new Date(str)),
     brn: z.array(z.string()).optional(),
   })).optional(),
+}).refine((data) => {
+  if (!data.isOneWay) {
+    if (!data.departureFlightNumber || !FLIGHT_NUMBER_REGEX.test(data.departureFlightNumber)) {
+      return false;
+    }
+    return !!data.departureDate && !!data.departureTime && !!data.departureAirportId;
+  }
+  return true;
+}, {
+  message: "Departure flight details and a valid flight number format are required for round-trip bookings",
+  path: ["departureFlightNumber"]
 });
 
 // Step 3 schema - used by both individual and group

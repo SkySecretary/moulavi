@@ -46,6 +46,27 @@ export const useUmrahBooking = () => {
     symbol: string;
     exchangeRate: number;
   } | null>(null);
+  const [selectedParty, setSelectedParty] = useState<any | null>(null);
+  const [globalAllowOneWayTicket, setGlobalAllowOneWayTicket] = useState<boolean>(false);
+
+  useEffect(() => {
+    const fetchNusukSettings = async () => {
+      try {
+        const response = await fetch(`${API_URL}/nusuk/settings`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setGlobalAllowOneWayTicket(!!data.allowOneWayTicket);
+        }
+      } catch (error) {
+        console.error('Error loading Nusuk settings:', error);
+      }
+    };
+    fetchNusukSettings();
+  }, []);
 
   const updateStep1Data = useCallback((data: Partial<Step1Data>) => {
     setBookingState(prev => ({
@@ -101,6 +122,7 @@ export const useUmrahBooking = () => {
         const response = await partyAPI.getById(providedPartyId);
         party = response.data.party;
         setPartyId(providedPartyId);
+        setSelectedParty(party);
       } else {
         // Only attempt to get party from current user if they are a party user
         const user = getUser();
@@ -111,6 +133,7 @@ export const useUmrahBooking = () => {
           
           if (party) {
             setPartyId(party.id);
+            setSelectedParty(party);
           } else {
             toast.error('Party information not found');
           }
@@ -392,6 +415,8 @@ export const useUmrahBooking = () => {
     setCurrentStep,
     loadPartyData,
     submitStep,
+    selectedParty,
+    globalAllowOneWayTicket,
   };
 };
 

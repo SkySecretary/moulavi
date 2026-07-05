@@ -243,6 +243,43 @@ export default function MismatchedTravelPage() {
     }
   };
 
+  const getPageNumbers = () => {
+    const totalPages = pagination.totalPages;
+    const current = currentPage;
+    const maxVisible = 5;
+
+    if (totalPages <= maxVisible) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+
+    const pages: (number | string)[] = [];
+    pages.push(1);
+
+    let start = Math.max(2, current - 1);
+    let end = Math.min(totalPages - 1, current + 1);
+
+    if (current <= 2) {
+      end = 4;
+    } else if (current >= totalPages - 1) {
+      start = totalPages - 3;
+    }
+
+    if (start > 2) {
+      pages.push('...');
+    }
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+
+    if (end < totalPages - 1) {
+      pages.push('...');
+    }
+
+    pages.push(totalPages);
+    return pages;
+  };
+
   if (!user) return null;
 
   return (
@@ -659,20 +696,29 @@ export default function MismatchedTravelPage() {
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((p) => (
-                  <Button
-                    key={p}
-                    variant={currentPage === p ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setCurrentPage(p)}
-                    disabled={loading}
-                    className={`h-7 w-7 p-0 font-medium ${
-                      currentPage === p ? 'bg-indigo-600 text-white' : 'bg-white'
-                    }`}
-                  >
-                    {p}
-                  </Button>
-                ))}
+                {getPageNumbers().map((p, idx) => {
+                  if (p === '...') {
+                    return (
+                      <span key={`ell-${idx}`} className="px-1.5 text-gray-400 font-bold text-xs select-none">
+                        ...
+                      </span>
+                    );
+                  }
+                  return (
+                    <Button
+                      key={p}
+                      variant={currentPage === p ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setCurrentPage(p as number)}
+                      disabled={loading}
+                      className={`h-7 w-7 p-0 font-medium ${
+                        currentPage === p ? 'bg-indigo-600 text-white' : 'bg-white'
+                      }`}
+                    >
+                      {p}
+                    </Button>
+                  );
+                })}
                 <Button
                   variant="outline"
                   size="sm"

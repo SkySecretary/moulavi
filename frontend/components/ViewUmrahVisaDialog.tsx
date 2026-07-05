@@ -303,6 +303,25 @@ export default function ViewUmrahVisaDialog({ bookingId, open, onOpenChange }: V
                     <p className="font-medium text-xs sm:text-sm">{booking.flightBrn}</p>
                   </div>
                 )}
+                {booking.isOneWay && (
+                  <div className="sm:col-span-2 p-3 bg-indigo-50 border border-indigo-100 rounded-xl space-y-2">
+                    <p className="text-[10px] font-black text-indigo-900 uppercase tracking-wider">Onward Only Booking Notice</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {booking.oneWayContactName && (
+                        <div>
+                          <p className="text-[10px] text-indigo-700 font-semibold uppercase tracking-wider">Contact Name</p>
+                          <p className="font-bold text-xs text-indigo-950">{booking.oneWayContactName}</p>
+                        </div>
+                      )}
+                      {booking.oneWayWhatsapp && (
+                        <div>
+                          <p className="text-[10px] text-indigo-700 font-semibold uppercase tracking-wider">WhatsApp Number</p>
+                          <p className="font-bold text-xs text-indigo-950">{booking.oneWayWhatsapp}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

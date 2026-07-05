@@ -30,51 +30,44 @@ function cleanFlightNumber(flightNum: string): { carrier: string; number: string
 
 // Utility to compare two flight numbers robustly
 function isFlightNumberMatch(flight1: string | null | undefined, flight2: string | null | undefined): boolean {
+  if (!flight1 && !flight2) return true;
   if (!flight1 || !flight2) return false;
 
   const parse = (f: string) => {
-    const clean = f.replace(/[\s-]/g, '').toUpperCase();
-    // Extract trailing digits
+    // Strip all non-alphanumeric characters and convert to uppercase
+    const clean = f.replace(/[^A-Z0-9]/g, '').toUpperCase();
+    // Extract consecutive digits at the end of the string
     const digitsMatch = clean.match(/\d+$/);
     const digits = digitsMatch ? digitsMatch[0] : '';
+    const numberVal = digits ? parseInt(digits, 10) : null;
     const carrier = digitsMatch ? clean.substring(0, clean.length - digits.length) : clean;
     return {
-      carrier: carrier.replace(/[^A-Z0-9]/g, ''),
-      number: digits ? parseInt(digits, 10).toString() : ''
+      carrier,
+      number: numberVal
     };
   };
 
   const p1 = parse(flight1);
   const p2 = parse(flight2);
 
-  if (!p1.number || !p2.number) {
+  // If either doesn't have a numeric part, compare cleaned strings directly
+  if (p1.number === null || p2.number === null) {
     return flight1.replace(/[^A-Z0-9]/g, '').toUpperCase() === flight2.replace(/[^A-Z0-9]/g, '').toUpperCase();
   }
 
-  if (parseInt(p1.number, 10) !== parseInt(p2.number, 10)) {
+  // Compare flight number values (ignoring leading zeros)
+  if (p1.number !== p2.number) {
     return false;
   }
 
+  // Compare carriers
   if (p1.carrier && p2.carrier) {
     const iataToIcao: Record<string, string> = {
-      'SV': 'SVA',
-      'EK': 'UAE',
-      'WY': 'OMA',
-      'QR': 'QTR',
-      'EY': 'ETD',
-      'XY': 'KNE',
-      'FZ': 'FDB',
-      'G9': 'ABY',
-      'MS': 'MSR',
-      'KU': 'KAC',
-      'GF': 'GFA',
-      'J9': 'JZR',
-      'BG': 'BBC',
-      'AI': 'AIC',
-      'IX': 'AXB',
+      'SV': 'SVA', 'EK': 'UAE', 'WY': 'OMA', 'QR': 'QTR', 'EY': 'ETD',
+      'XY': 'KNE', 'FZ': 'FDB', 'G9': 'ABY', 'MS': 'MSR', 'KU': 'KAC',
+      'GF': 'GFA', 'J9': 'JZR', 'BG': 'BBC', 'AI': 'AIC', 'IX': 'AXB',
       '6E': 'IGO'
     };
-    
     const norm = (c: string) => iataToIcao[c] || c;
     return norm(p1.carrier) === norm(p2.carrier);
   }
@@ -86,26 +79,63 @@ function isFlightNumberMatch(flight1: string | null | undefined, flight2: string
 function isAirportSimilar(nameDb: string | null | undefined, nameExcel: string | null | undefined): boolean {
   if (!nameDb || !nameExcel) return false;
   
-  const cleanDb = nameDb.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const cleanExcel = nameExcel.toLowerCase().replace(/[^a-z0-9]/g, '');
-  
-  // Strip common words to compare core names if they contain them
-  const stripCommon = (s: string) => s.replace(/(airport|international|king|terminal)/g, '');
-  const coreDb = stripCommon(cleanDb);
-  const coreExcel = stripCommon(cleanExcel);
+  const cleanDb = nameDb.toLowerCase();
+  const cleanExcel = nameExcel.toLowerCase();
 
-  if (coreDb.includes(coreExcel) || coreExcel.includes(coreDb)) {
-    return true;
+  // Helper to determine airport category
+  const getAirportKey = (name: string): string => {
+    if (name.includes('jed') || name.includes('jidd') || name.includes('abdulaziz') || name.includes('abdul aziz')) {
+      return 'jeddah';
+    }
+    if (name.includes('med') || name.includes('mad') || name.includes('moham') || name.includes('muham')) {
+      return 'madinah';
+    }
+    if (name.includes('yan') || name.includes('ynb') || name.includes('mohsin')) {
+      return 'yanbu';
+    }
+    if (name.includes('riy') || name.includes('ruh') || name.includes('khalid')) {
+      return 'riyadh';
+    }
+    if (name.includes('dam') || name.includes('dmm') || name.includes('fahd')) {
+      return 'dammam';
+    }
+    // Fallback to alphanumeric normalized string
+    return name.replace(/[^a-z0-9]/g, '');
+  };
+
+  const keyDb = getAirportKey(cleanDb);
+  const keyExcel = getAirportKey(cleanExcel);
+
+  if (keyDb === keyExcel) return true;
+
+  // Levenshtein distance check for minor spelling typos
+  const getLevenshteinDistance = (a: string, b: string): number => {
+    const tmp: number[][] = [];
+    for (let i = 0; i <= a.length; i++) {
+      tmp[i] = [i];
+    }
+    for (let j = 0; j <= b.length; j++) {
+      tmp[0][j] = j;
+    }
+    for (let i = 1; i <= a.length; i++) {
+      for (let j = 1; j <= b.length; j++) {
+        tmp[i][j] = Math.min(
+          tmp[i - 1][j] + 1,
+          tmp[i][j - 1] + 1,
+          tmp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+        );
+      }
+    }
+    return tmp[a.length][b.length];
+  };
+
+  // If both are at least 4 chars long, allow edit distance of 2
+  if (keyDb.length >= 4 && keyExcel.length >= 4) {
+    const dist = getLevenshteinDistance(keyDb, keyExcel);
+    if (dist <= 2) return true;
   }
-  
-  const cleanWords = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, ' ')
-    .split(/\s+/)
-    .filter(w => w.length > 2 && w !== 'airport' && w !== 'international' && w !== 'king');
-  
-  const dbWords = cleanWords(nameDb);
-  const excelWords = cleanWords(nameExcel);
 
-  return dbWords.some(w => excelWords.includes(w)) || excelWords.some(w => dbWords.includes(w));
+  return false;
 }
 
 // Utility to parse dates and times from spreadsheet cells
@@ -253,6 +283,8 @@ export class NusukService {
     checkByPassport?: boolean;
     externalAgentCodes?: string;
     syncSchedule?: string;
+    syncType?: string;
+    allowOneWayTicket?: boolean;
   }) {
     const existing = await prisma.nusukSetting.findFirst();
     if (existing) {
@@ -267,6 +299,8 @@ export class NusukService {
           checkByPassport: data.checkByPassport ?? existing.checkByPassport,
           externalAgentCodes: data.externalAgentCodes ?? existing.externalAgentCodes,
           syncSchedule: data.syncSchedule ?? existing.syncSchedule,
+          syncType: data.syncType ?? existing.syncType,
+          allowOneWayTicket: data.allowOneWayTicket ?? existing.allowOneWayTicket,
           isValid: true // Reset valid status on update
         }
       });
@@ -281,6 +315,8 @@ export class NusukService {
           checkByPassport: data.checkByPassport ?? false,
           externalAgentCodes: data.externalAgentCodes ?? '22282, 6655, 1001828',
           syncSchedule: data.syncSchedule ?? '08:00, 20:00',
+          syncType: data.syncType ?? 'excel',
+          allowOneWayTicket: data.allowOneWayTicket ?? false,
           isValid: true
         }
       });
@@ -298,16 +334,66 @@ export class NusukService {
       const party = await prisma.party.findUnique({ where: { id: partyId } });
       if (party) {
         companyName = party.partyName;
-        if (party.nusukEntityId) entityId = party.nusukEntityId;
-        if (party.nusukActiveEntityId) activeEntityId = party.nusukActiveEntityId;
-        if (party.nusukActiveEntityTypeId) activeEntityTypeId = party.nusukActiveEntityTypeId;
+        // If the company has at least one code configured, use ONLY its own codes (no global settings fallback for missing fields)
+        if (party.nusukEntityId || party.nusukActiveEntityId || party.nusukActiveEntityTypeId) {
+          entityId = party.nusukEntityId || '';
+          activeEntityId = party.nusukActiveEntityId || '';
+          activeEntityTypeId = party.nusukActiveEntityTypeId || '';
+        }
+      }
+    }
+    if (partyId && entityId !== settings.entityId) {
+      console.warn(`[NUSUK SYNC] Skipping direct sync for ${companyName} because the Bearer token belongs to entity ID ${settings.entityId || 'another entity'} (expected ${entityId}). Please sync this company using manual Excel upload instead.`);
+      throw new Error(`Direct sync is only supported for the company matching the token (${settings.entityId}). Please sync this company using manual Excel upload instead.`);
+    }
+
+    // 1. Gather allowed External Agent codes for this sync context
+    const customerAgencies = await prisma.party.findMany({
+      where: {
+        isCustomer: true,
+        nusukExternalAgentCodes: { not: null }
+      }
+    });
+
+    const providerSuppliers = await prisma.party.findMany({
+      where: {
+        isSupplier: true,
+        nusukExternalAgentCodes: { not: null }
+      }
+    });
+
+    const allowedAgentCodes = new Set<string>();
+
+    for (const agency of customerAgencies) {
+      if (!agency.nusukExternalAgentCodes) continue;
+      const codes = agency.nusukExternalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean);
+      for (const code of codes) {
+        allowedAgentCodes.add(code);
       }
     }
 
-    let excelBuffer: Buffer;
-    
+    for (const provider of providerSuppliers) {
+      if (!provider.nusukExternalAgentCodes) continue;
+      const codes = provider.nusukExternalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean);
+      for (const code of codes) {
+        allowedAgentCodes.add(code);
+      }
+    }
+
+    // Only apply global fallback if no company had any EA codes configured
+    if (allowedAgentCodes.size === 0 && settings.externalAgentCodes) {
+      const globalCodes = settings.externalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean);
+      for (const code of globalCodes) {
+        allowedAgentCodes.add(code);
+      }
+    }
+
+    const isListingSync = settings.syncType === 'listing';
+
     console.log(`[NUSUK SYNC] Syncing entity: ${companyName} (Entity ID: ${entityId}, Active Entity ID: ${activeEntityId}, Active Entity Type ID: ${activeEntityTypeId})`);
+    console.log(`[NUSUK SYNC] Sync Type: ${settings.syncType || 'excel'}`);
     console.log('[NUSUK SYNC] Launching headless browser to sync from Nusuk...');
+    
     const browser = await puppeteer.launch({
       headless: true,
       args: [
@@ -352,92 +438,175 @@ export class NusukService {
         timeout: 20000
       });
 
-      console.log('[NUSUK SYNC] Querying report export from page context...');
-      const result: any = await page.evaluate(async (tok, activeEntityId, activeEntityTypeId, entityId) => {
-        try {
-          const response = await fetch("https://masar.nusuk.sa/umrah/reports_apis/api/Reports/ExportData?exportDataType=1&reportType=1", {
-            method: "POST",
-            headers: {
-              "accept": "application/json, text/plain, */*",
-              "accept-language": "en",
-              "activeentityid": activeEntityId,
-              "activeentitytypeid": activeEntityTypeId,
-              "authorization": `Bearer ${tok}`,
-              "content-type": "application/json",
-              "entity-id": entityId,
-              "x-lang": "en"
-            },
-            body: JSON.stringify({
-              limit: 1000000,
-              offset: 0,
-              filterList: [],
-              sortColumn: null,
-              sortCriteria: []
-            })
-          });
+      if (isListingSync) {
+        console.log('[NUSUK SYNC] Querying report listing from page context...');
+        const result: any = await page.evaluate(async (tok, activeEntityId, activeEntityTypeId, tokenEntityId, codes) => {
+          try {
+            const queryCodes = codes && codes.length > 0 ? codes : [null];
+            let allMutamers: any[] = [];
 
-          const isJson = response.headers.get('content-type')?.includes('application/json');
-          if (isJson) {
-            const bodyJsonText = await response.text();
+            for (const code of queryCodes) {
+              const bodyData = {
+                limit: 100000,
+                offset: 0,
+                filterList: code ? [{ propertyName: "eaCode", operation: "match", propertyValue: code }] : [],
+                sortColumn: null,
+                sortCriteria: [],
+                noCount: true
+              };
+
+              const response = await fetch("https://masar.nusuk.sa/umrah/reports_apis/api/Reports/GetMutamerReport", {
+                method: "POST",
+                headers: {
+                  "accept": "application/json, text/plain, */*",
+                  "accept-language": "en",
+                  "activeentityid": activeEntityId,
+                  "activeentitytypeid": activeEntityTypeId,
+                  "authorization": `Bearer ${tok}`,
+                  "content-type": "application/json",
+                  "entity-id": tokenEntityId,
+                  "x-lang": "en"
+                },
+                body: JSON.stringify(bodyData)
+              });
+
+              const isJson = response.headers.get('content-type')?.includes('application/json');
+              if (response.status === 401 || response.status === 403 || !response.ok) {
+                const errText = await response.text();
+                return {
+                  success: false,
+                  status: response.status,
+                  body: errText,
+                  isAuthError: response.status === 401 || response.status === 403
+                };
+              }
+
+              if (isJson) {
+                const resData = (await response.json()) as any;
+                const actualData = resData && resData.response ? resData.response.data : resData;
+                const list = actualData && actualData.content 
+                  ? actualData.content 
+                  : (actualData && actualData.data ? actualData.data : (Array.isArray(actualData) ? actualData : []));
+                allMutamers = allMutamers.concat(list);
+              }
+            }
+
+            return {
+              success: true,
+              data: allMutamers
+            };
+
+          } catch (err: any) {
             return {
               success: false,
-              status: response.status,
-              body: bodyJsonText,
-              isAuthError: true
+              error: err.message
             };
           }
+        }, settings.token, activeEntityId, activeEntityTypeId, settings.entityId, Array.from(allowedAgentCodes));
 
-          const buffer = await response.arrayBuffer();
-          let binary = '';
-          const bytes = new Uint8Array(buffer);
-          const len = bytes.byteLength;
-          for (let i = 0; i < len; i++) {
-            binary += String.fromCharCode(bytes[i]);
+        await browser.close();
+
+        if (!result.success) {
+          if (result.isAuthError || result.status === 401 || result.status === 403 || (result.body && result.body.includes('bot'))) {
+            await prisma.nusukSetting.update({
+              where: { id: settings.id },
+              data: { isValid: false }
+            });
+            throw new Error(`Nusuk authentication failed. The Bearer token has expired or is blocked: ${result.body || result.statusText}`);
           }
-          const base64 = btoa(binary);
-
-          return {
-            success: true,
-            status: response.status,
-            byteLength: len,
-            base64: base64
-          };
-
-        } catch (err: any) {
-          return {
-            success: false,
-            error: err.message
-          };
+          throw new Error(result.error || `Nusuk API returned status ${result.status}: ${result.body}`);
         }
-      }, settings.token, settings.activeEntityId, settings.activeEntityTypeId, settings.entityId);
 
-      await browser.close();
+        console.log(`[NUSUK SYNC] Listing successfully fetched via browser context. Received ${result.data.length} records.`);
+        return await this.processRowsSync(result.data, partyId, settings, allowedAgentCodes);
 
-      if (!result.success) {
-        if (result.isAuthError || result.status === 401 || result.status === 403 || (result.body && result.body.includes('bot'))) {
-          await prisma.nusukSetting.update({
-            where: { id: settings.id },
-            data: { isValid: false }
-          });
-          throw new Error(`Nusuk authentication failed. The Bearer token has expired or is blocked: ${result.body || result.statusText}`);
+      } else {
+        console.log('[NUSUK SYNC] Querying report export from page context...');
+        const result: any = await page.evaluate(async (tok, activeEntityId, activeEntityTypeId, tokenEntityId) => {
+          try {
+            const response = await fetch("https://masar.nusuk.sa/umrah/reports_apis/api/Reports/ExportData?exportDataType=1&reportType=1", {
+              method: "POST",
+              headers: {
+                "accept": "application/json, text/plain, */*",
+                "accept-language": "en",
+                "activeentityid": activeEntityId,
+                "activeentitytypeid": activeEntityTypeId,
+                "authorization": `Bearer ${tok}`,
+                "content-type": "application/json",
+                "entity-id": tokenEntityId,
+                "x-lang": "en"
+              },
+              body: JSON.stringify({
+                limit: 1000000,
+                offset: 0,
+                filterList: [],
+                sortColumn: null,
+                sortCriteria: []
+              })
+            });
+
+            const isJson = response.headers.get('content-type')?.includes('application/json');
+            if (isJson) {
+              const bodyJsonText = await response.text();
+              return {
+                success: false,
+                status: response.status,
+                body: bodyJsonText,
+                isAuthError: true
+              };
+            }
+
+            const buffer = await response.arrayBuffer();
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            const len = bytes.byteLength;
+            for (let i = 0; i < len; i++) {
+              binary += String.fromCharCode(bytes[i]);
+            }
+            const base64 = btoa(binary);
+
+            return {
+              success: true,
+              status: response.status,
+              byteLength: len,
+              base64: base64
+            };
+
+          } catch (err: any) {
+            return {
+              success: false,
+              error: err.message
+            };
+          }
+        }, settings.token, activeEntityId, activeEntityTypeId, settings.entityId);
+
+        await browser.close();
+
+        if (!result.success) {
+          if (result.isAuthError || result.status === 401 || result.status === 403 || (result.body && result.body.includes('bot'))) {
+            await prisma.nusukSetting.update({
+              where: { id: settings.id },
+              data: { isValid: false }
+            });
+            throw new Error(`Nusuk authentication failed. The Bearer token has expired or is blocked: ${result.body || result.statusText}`);
+          }
+          throw new Error(result.error || `Nusuk API returned status ${result.status}: ${result.body}`);
         }
-        throw new Error(result.error || `Nusuk API returned status ${result.status}: ${result.body}`);
+
+        const excelBuffer = Buffer.from(result.base64, 'base64');
+        console.log('[NUSUK SYNC] Report successfully fetched via browser context. Size:', excelBuffer.length, 'bytes');
+        return await this.processExcelSync(excelBuffer, partyId, settings, allowedAgentCodes);
       }
-
-      excelBuffer = Buffer.from(result.base64, 'base64');
-      console.log('[NUSUK SYNC] Report successfully fetched via browser context. Size:', excelBuffer.length, 'bytes');
 
     } catch (error: any) {
       await browser.close();
       console.error('[NUSUK SYNC] Error fetching Nusuk data:', error.message);
       throw error;
     }
-
-    return await this.processExcelSync(excelBuffer, partyId, settings);
   }
 
   // Process the Excel report buffer and sync with DB (used by both Puppeteer sync and manual upload sync)
-  static async processExcelSync(excelBuffer: Buffer, partyId: string | undefined, settings?: any) {
+  static async processExcelSync(excelBuffer: Buffer, partyId: string | undefined, settings?: any, allowedAgentCodes?: Set<string>) {
     if (!settings) {
       settings = await prisma.nusukSetting.findFirst();
       if (!settings) {
@@ -463,54 +632,63 @@ export class NusukService {
     const rows = XLSX.utils.sheet_to_json(worksheet) as any[];
     console.log(`[NUSUK SYNC] Parsed ${rows.length} rows from Nusuk report.`);
 
+    return await this.processRowsSync(rows, partyId, settings, allowedAgentCodes);
+  }
+
+  // Process rows array (from Excel or JSON Listing) and sync with DB
+  static async processRowsSync(rows: any[], partyId: string | undefined, settings: any, precalculatedAllowedAgentCodes?: Set<string>) {
     // Keep track of bookings we've processed during this sync run so we can refresh mismatches
     const processedBookingIds = new Set<string>();
     const mismatchesToCreate: any[] = [];
     const processedPassports = new Set<string>();
 
-    // Load all active customer agencies (Indian Agents) that have External Agent codes configured
-    const customerAgencies = await prisma.party.findMany({
-      where: {
-        isCustomer: true,
-        nusukExternalAgentCodes: { not: null }
+    let allowedAgentCodes = precalculatedAllowedAgentCodes;
+
+    if (!allowedAgentCodes) {
+      // Load all active customer agencies (Indian Agents) that have External Agent codes configured
+      const customerAgencies = await prisma.party.findMany({
+        where: {
+          isCustomer: true,
+          nusukExternalAgentCodes: { not: null }
+        }
+      });
+
+      // Also load all active provider suppliers (Umrah Companies) that have External Agent codes configured
+      const providerSuppliers = await prisma.party.findMany({
+        where: {
+          isSupplier: true,
+          nusukExternalAgentCodes: { not: null }
+        }
+      });
+
+      allowedAgentCodes = new Set<string>();
+
+      for (const agency of customerAgencies) {
+        if (!agency.nusukExternalAgentCodes) continue;
+        const codes = agency.nusukExternalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean);
+        for (const code of codes) {
+          allowedAgentCodes.add(code);
+        }
       }
-    });
 
-    // Also load all active provider suppliers (Umrah Companies) that have External Agent codes configured
-    const providerSuppliers = await prisma.party.findMany({
-      where: {
-        isSupplier: true,
-        nusukExternalAgentCodes: { not: null }
+      for (const provider of providerSuppliers) {
+        if (!provider.nusukExternalAgentCodes) continue;
+        const codes = provider.nusukExternalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean);
+        for (const code of codes) {
+          allowedAgentCodes.add(code);
+        }
       }
-    });
 
-    const allowedAgentCodes = new Set<string>();
-
-    for (const agency of customerAgencies) {
-      if (!agency.nusukExternalAgentCodes) continue;
-      const codes = agency.nusukExternalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean);
-      for (const code of codes) {
-        allowedAgentCodes.add(code);
+      // Only apply global fallback if no company had any EA codes configured
+      if (allowedAgentCodes.size === 0 && settings.externalAgentCodes) {
+        const globalCodes = settings.externalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean);
+        for (const code of globalCodes) {
+          allowedAgentCodes.add(code);
+        }
       }
     }
 
-    for (const provider of providerSuppliers) {
-      if (!provider.nusukExternalAgentCodes) continue;
-      const codes = provider.nusukExternalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean);
-      for (const code of codes) {
-        allowedAgentCodes.add(code);
-      }
-    }
-
-    // Also include global fallback settings EA codes if configured
-    if (settings.externalAgentCodes) {
-      const globalCodes = settings.externalAgentCodes.split(',').map((c: string) => c.trim()).filter(Boolean);
-      for (const code of globalCodes) {
-        allowedAgentCodes.add(code);
-      }
-    }
-
-    console.log(`[NUSUK SYNC] Configured ${allowedAgentCodes.size} allowed External Agent codes across ${customerAgencies.length} active customer agencies, ${providerSuppliers.length} active suppliers (and global settings).`);
+    console.log(`[NUSUK SYNC] Configured ${allowedAgentCodes.size} allowed External Agent codes.`);
       
     const rowsByGroup: { [groupNum: string]: any[] } = {};
     let skippedCount = 0;
@@ -555,8 +733,53 @@ export class NusukService {
       }
     });
 
-      // A. Clean up any duplicate unresolved mismatches in the database first for these candidate bookings
       const bookingIds = candidateBookings.map(b => b.id);
+
+      // Clear stale Nusuk fields for database passengers who belong to these candidate bookings but are missing in the new report.
+      // This keeps the Nusuk count on the dashboard correct and removes stale/completed visa statuses.
+      if (bookingIds.length > 0) {
+        const reportPassports = new Set<string>();
+        for (const row of rows) {
+          const passport = String(getRowValue(row, ['Passport Number', 'PassportNumber']) || '').trim().toUpperCase();
+          if (passport) reportPassports.add(passport);
+        }
+
+        const dbPassengersToClear = await prisma.umrahPassenger.findMany({
+          where: {
+            bookingId: { in: bookingIds },
+            isDeleted: false,
+            passportNumber: { not: null },
+            OR: [
+              { mofaNumber: { not: null } },
+              { visaNumber: { not: null } },
+              { borderNumber: { not: null } },
+              { currentlyInKingdom: { not: null } },
+              { mutamerStatus: { not: null } }
+            ]
+          }
+        });
+
+        const passengersToClear = dbPassengersToClear.filter(p => p.passportNumber && !reportPassports.has(p.passportNumber.trim().toUpperCase()));
+        if (passengersToClear.length > 0) {
+          console.log(`[NUSUK SYNC] Clearing stale Nusuk fields for ${passengersToClear.length} passengers no longer present in the active Nusuk report.`);
+          await prisma.umrahPassenger.updateMany({
+            where: {
+              id: { in: passengersToClear.map(p => p.id) }
+            },
+            data: {
+              visaNumber: null,
+              mofaNumber: null,
+              borderNumber: null,
+              visaIssueDate: null,
+              currentlyInKingdom: null,
+              mutamerStatus: null,
+              isConsulateReview: false
+            }
+          });
+        }
+      }
+
+      // A. Clean up any duplicate unresolved mismatches in the database first for these candidate bookings
       if (bookingIds.length > 0) {
         const allActiveMismatches = await prisma.nusukMismatch.findMany({
           where: { 
@@ -750,25 +973,25 @@ export class NusukService {
           const matchedBookingIds = matchedBookings.map(b => b.id);
           const matchedDbPassengers = allDbPassengers.filter(p => matchedBookingIds.includes(p.bookingId));
 
-          const mutamerName = String(getRowValue(row, ['Mutamer Name', 'MutamerName']) || 'Unknown Mutamer').trim();
-          const nationality = String(getRowValue(row, ['Mutamer Nationality', 'Nationality']) || '').trim();
-          const passportExpiry = parseExcelDate(getRowValue(row, ['Passport Expiry Date']));
-          const visaNumber = String(getRowValue(row, ['Visa Number']) || '').trim();
-          const mofaNumber = String(getRowValue(row, ['Mofa Number']) || '').trim();
-          const mutamerStatus = String(getRowValue(row, ['Mutamer Status']) || '').trim();
-          const currentlyInKingdom = String(getRowValue(row, ['Currently in Kingdom', 'CurrentlyInKingdom']) || 'No').trim();
-          const borderNumber = String(getRowValue(row, ['Border Number', 'BorderNumber']) || '').trim();
-          const visaIssueDate = parseExcelDate(getRowValue(row, ['Visa Issue Date', 'VisaIssueDate']));
-          const entryDate = parseExcelDate(getRowValue(row, ['Entry Date']), getRowValue(row, ['Entry Time']));
-          const exitDate = parseExcelDate(getRowValue(row, ['Exit Date']), getRowValue(row, ['Exit Time']));
-          const excelGender = String(getRowValue(row, ['Gender', 'Type']) || '').trim().toLowerCase();
+          const mutamerName = String(getRowValue(row, ['Mutamer Name', 'MutamerName', 'FullName', 'Full Name', 'NameEn', 'Name']) || 'Unknown Mutamer').trim();
+          const nationality = String(getRowValue(row, ['Mutamer Nationality', 'Nationality', 'NationalityName', 'NationalityEn']) || '').trim();
+          const passportExpiry = parseExcelDate(getRowValue(row, ['Passport Expiry Date', 'Passport Expiry', 'PassportExpiry', 'PassportExpiryDate']));
+          const visaNumber = String(getRowValue(row, ['Visa Number', 'VisaNumber', 'VisaNo', 'Visa No']) || '').trim();
+          const mofaNumber = String(getRowValue(row, ['Mofa Number', 'MofaNumber', 'MofaNo', 'Mofa No']) || '').trim();
+          const mutamerStatus = String(getRowValue(row, ['Mutamer Status', 'MutamerStatus', 'StatusName', 'Status']) || '').trim();
+          const currentlyInKingdom = String(getRowValue(row, ['Currently in Kingdom', 'CurrentlyInKingdom', 'InKingdom', 'IsInsideKingdom']) || 'No').trim();
+          const borderNumber = String(getRowValue(row, ['Border Number', 'BorderNumber', 'BorderNo', 'Border No']) || '').trim();
+          const visaIssueDate = parseExcelDate(getRowValue(row, ['Visa Issue Date', 'VisaIssueDate', 'VisaIssue']));
+          const entryDate = parseExcelDate(getRowValue(row, ['Entry Date', 'EntryDate', 'ArrivalDate', 'Arrival Date']), getRowValue(row, ['Entry Time', 'EntryTime', 'ArrivalTime', 'Arrival Time']));
+          const exitDate = parseExcelDate(getRowValue(row, ['Exit Date', 'ExitDate', 'DepartureDate', 'Departure Date']), getRowValue(row, ['Exit Time', 'ExitTime', 'DepartureTime', 'Departure Time']));
+          const excelGender = String(getRowValue(row, ['Gender', 'Type', 'GenderName', 'GenderEn']) || '').trim().toLowerCase();
           
           let gender: 'male' | 'female' | null = null;
           if (excelGender === 'male') gender = 'male';
           else if (excelGender === 'female') gender = 'female';
 
-          // Mark as Consulate Review if visa number is missing and mutamer status is Consulate Review or visa is missing
-          const isConsulateReview = !visaNumber || mutamerStatus === 'Consulate Review' || mutamerStatus.toLowerCase().includes('review');
+          // Mark as Consulate Review if mutamer status is Consulate Review
+          const isConsulateReview = mutamerStatus.toLowerCase().includes('consulate review') || mutamerStatus === 'Consulate Review';
 
           // Step 1: Check if passenger exists by passport number in the list of matched DB passengers for this group
           let passenger: any = matchedDbPassengers.find(p => p.passportNumber?.toUpperCase() === passport);
@@ -874,10 +1097,10 @@ export class NusukService {
           let exitMismatchDetails: any = null;
 
           if (mainTravel) {
-            const excelEntryDate = getRowValue(row, ['Entry Date', 'EntryDate']);
-            const excelEntryTime = getRowValue(row, ['Entry Time', 'EntryTime']);
+            const excelEntryDate = getRowValue(row, ['Entry Date', 'EntryDate', 'ArrivalDate', 'Arrival Date']);
+            const excelEntryTime = getRowValue(row, ['Entry Time', 'EntryTime', 'ArrivalTime', 'Arrival Time']);
             const excelEntryCarrierNum = getRowValue(row, ['Arrival Flight Number', 'ArrivalFlightNumber', 'Entry Carrier Number', 'EntryCarrierNumber', 'Entry Carrier']);
-            const excelEntryPort = getRowValue(row, ['Entry Port Name', 'EntryPortName', 'Entry Port']);
+            const excelEntryPort = getRowValue(row, ['Entry Port Name', 'EntryPortName', 'Entry Port', 'EntryPort']);
 
             if (excelEntryDate) {
               const excelEntryDateTime = parseExcelDate(excelEntryDate, excelEntryTime);
@@ -912,8 +1135,8 @@ export class NusukService {
               }
             }
 
-            const excelExitDate = getRowValue(row, ['Exit Date', 'ExitDate']);
-            const excelExitTime = getRowValue(row, ['Exit Time', 'ExitTime']);
+            const excelExitDate = getRowValue(row, ['Exit Date', 'ExitDate', 'DepartureDate', 'Departure Date']);
+            const excelExitTime = getRowValue(row, ['Exit Time', 'ExitTime', 'DepartureTime', 'Departure Time']);
             const excelExitCarrierNum = getRowValue(row, ['Departure Flight Number', 'DepartureFlightNumber', 'Exit Carrier Number', 'ExitCarrierNumber', 'Exit Carrier']);
             const excelExitPort = getRowValue(row, ['Exit Port', 'ExitPortName', 'ExitPort']);
 
@@ -1032,11 +1255,11 @@ export class NusukService {
         }
       }
 
-      // 4. Delete unresolved mismatches for the bookings that were parsed
-      if (processedBookingIds.size > 0) {
+      // 4. Delete unresolved mismatches for all candidate bookings under this sync context
+      if (bookingIds.length > 0) {
         await prisma.nusukMismatch.deleteMany({
           where: {
-            bookingId: { in: Array.from(processedBookingIds) },
+            bookingId: { in: bookingIds },
             resolved: false
           }
         });
@@ -1183,9 +1406,16 @@ export class NusukService {
       throw new Error('Nusuk integration is not configured. Please supply a valid Bearer token in Settings.');
     }
 
+    const isEAToken = settings.activeEntityTypeId === '52' || String(settings.activeEntityTypeId) === '52';
+
     if (partyId) {
       // Sync only the requested entity
       return await this.triggerSyncSingle(partyId, settings);
+    }
+
+    if (isEAToken) {
+      console.log(`[NUSUK SYNC] Running global sync for External Agent token (Entity ID: ${settings.entityId})`);
+      return await this.triggerSyncSingle(undefined, settings);
     }
 
     // Otherwise, loop over all selected Umrah Companies
@@ -1693,16 +1923,25 @@ export class NusukService {
           ]
         }
       });
-      const visasIssued = await prisma.umrahPassenger.count({
+      const visasIssuedAggregate = await prisma.umrahVisaBooking.aggregate({
+        _sum: { passengerCount: true },
         where: {
           isDeleted: false,
-          visaNumber: { not: null }
+          NOT: [
+            { groupNumber: null },
+            { groupNumber: '' }
+          ]
         }
       });
+      const visasIssued = visasIssuedAggregate._sum.passengerCount || 0;
       const consulateReview = await prisma.umrahPassenger.count({
         where: {
           isDeleted: false,
-          isConsulateReview: true
+          OR: [
+            { isConsulateReview: true },
+            { mutamerStatus: 'Visa Rejected' },
+            { mutamerStatus: 'Visa Not Issued' }
+          ]
         }
       });
       const passengersInKSA = await prisma.umrahPassenger.count({
@@ -1771,11 +2010,15 @@ export class NusukService {
       const myConsulateReviews = await prisma.umrahPassenger.findMany({
         where: {
           isDeleted: false,
-          isConsulateReview: true,
           booking: {
             partyId,
             isDeleted: false
-          }
+          },
+          OR: [
+            { isConsulateReview: true },
+            { mutamerStatus: 'Visa Rejected' },
+            { mutamerStatus: 'Visa Not Issued' }
+          ]
         },
         orderBy: { updatedAt: 'desc' },
         include: {
@@ -1886,10 +2129,18 @@ export class NusukService {
 
     const where: any = {
       isDeleted: false,
-      isConsulateReview: true,
       booking: {
         isDeleted: false
-      }
+      },
+      AND: [
+        {
+          OR: [
+            { isConsulateReview: true },
+            { mutamerStatus: 'Visa Rejected' },
+            { mutamerStatus: 'Visa Not Issued' }
+          ]
+        }
+      ]
     };
 
     if (partyId && partyId !== 'all') {
@@ -1897,13 +2148,15 @@ export class NusukService {
     }
 
     if (search) {
-      where.OR = [
-        { fullName: { contains: search } },
-        { passportNumber: { contains: search } },
-        { mofaNumber: { contains: search } },
-        { booking: { bookingReference: { contains: search } } },
-        { booking: { groupNumber: { contains: search } } }
-      ];
+      where.AND.push({
+        OR: [
+          { fullName: { contains: search } },
+          { passportNumber: { contains: search } },
+          { mofaNumber: { contains: search } },
+          { booking: { bookingReference: { contains: search } } },
+          { booking: { groupNumber: { contains: search } } }
+        ]
+      });
     }
 
     const [passengers, total] = await Promise.all([
@@ -1956,6 +2209,71 @@ export class NusukService {
         totalPages: Math.ceil(total / limit)
       }
     };
+  }
+
+  // Search passengers globally by passport number (autocomplete/match search)
+  static async searchPassengersByPassport(query: string, role?: string, partyId?: string) {
+    const where: any = {
+      isDeleted: false,
+      passportNumber: {
+        contains: query
+      },
+      booking: {
+        isDeleted: false
+      }
+    };
+
+    // If the logged-in user is a customer, restrict to their own bookings
+    if ((role === 'customer' || role === 'party') && partyId) {
+      where.booking.partyId = partyId;
+    }
+
+    const passengers = await prisma.umrahPassenger.findMany({
+      where,
+      take: 20, // limit to 20 autocomplete results
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        booking: {
+          select: {
+            id: true,
+            bookingReference: true,
+            groupNumber: true,
+            status: true,
+            party: {
+              select: {
+                id: true,
+                partyName: true
+              }
+            },
+            vouchers: {
+              select: {
+                id: true,
+                voucherNumber: true
+              },
+              take: 1
+            }
+          }
+        }
+      }
+    });
+
+    return passengers.map(p => ({
+      id: p.id,
+      fullName: p.fullName,
+      passportNumber: p.passportNumber,
+      mutamerStatus: p.mutamerStatus || 'N/A',
+      currentlyInKingdom: p.currentlyInKingdom || 'No',
+      booking: {
+        id: p.booking.id,
+        bookingReference: p.booking.bookingReference,
+        status: p.booking.status,
+        party: {
+          id: p.booking.party.id,
+          partyName: p.booking.party.partyName
+        },
+        voucher: p.booking.vouchers[0] || null
+      }
+    }));
   }
 }
 

@@ -58,6 +58,8 @@ function CreateGroupContent() {
     addHotelBooking,
     removeHotelBooking,
     hasStepDataChanged,
+    selectedParty,
+    globalAllowOneWayTicket,
   } = useGroupUmrahBooking();
 
   const {
@@ -142,7 +144,7 @@ function CreateGroupContent() {
       case 1:
         return <GroupDetailsStep data={bookingState.step1Data} onChange={updateStep1Data} disabled={isLoading} />;
       case 2:
-        return <TravelDetailsStep data={bookingState.step2Data} onChange={updateStep2Data} airports={masterData.airports} disabled={isLoading} isGroupBooking={true} locations={masterData.locations} hotels={masterData.hotels} arrivalDate={bookingState.step2Data.arrivalDate} departureDate={bookingState.step2Data.departureDate} onLoadHotels={loadHotels} getHotelsForLocation={getHotelsForLocation} onAddHotelBooking={addHotelBooking} onRemoveHotelBooking={removeHotelBooking} />;
+        return <TravelDetailsStep data={bookingState.step2Data} onChange={updateStep2Data} airports={masterData.airports} disabled={isLoading} isGroupBooking={true} locations={masterData.locations} hotels={masterData.hotels} arrivalDate={bookingState.step2Data.arrivalDate} departureDate={bookingState.step2Data.departureDate} onLoadHotels={loadHotels} getHotelsForLocation={getHotelsForLocation} onAddHotelBooking={addHotelBooking} onRemoveHotelBooking={removeHotelBooking} allowOneWayOption={globalAllowOneWayTicket || selectedParty?.allowOneWayTicket} />;
       case 3:
         return <TransportVehicleSelectionStep data={bookingState.step3Data} step1Data={bookingState.step1Data} step2Data={bookingState.step2Data} locationMasters={masterData.locationMasters} onChange={updateStep3Data} disabled={isLoading} currency={partyCurrency || undefined} />;
       case 4:

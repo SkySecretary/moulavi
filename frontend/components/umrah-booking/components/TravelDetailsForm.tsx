@@ -19,6 +19,7 @@ interface TravelDetailsFormProps {
   durationError?: string;
   onDateChange?: (field: 'arrivalDate' | 'departureDate', value: string) => void;
   onAirportChange?: (field: 'arrivalAirportId' | 'departureAirportId', value: string) => void;
+  allowOneWayOption?: boolean;
 }
 
 export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
@@ -30,6 +31,7 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
   durationError = '',
   onDateChange,
   onAirportChange,
+  allowOneWayOption = false,
 }) => {
   const handleDateChange = (field: 'arrivalDate' | 'departureDate', value: string) => {
     if (onDateChange) {
@@ -49,6 +51,85 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* One Way Ticket Switch Block */}
+      {allowOneWayOption && (
+        <div className="space-y-4 p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="isOneWayToggle"
+              checked={!!data.isOneWay}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                if (checked) {
+                  // If checking one-way, clear departure inputs from state
+                  onChange({
+                    isOneWay: true,
+                    departureDate: '',
+                    departureTime: '',
+                    departureAirportId: '',
+                    departureFlightNumber: '',
+                    oneWayContactName: '',
+                    oneWayWhatsapp: ''
+                  });
+                } else {
+                  onChange({
+                    isOneWay: false,
+                    oneWayContactName: undefined,
+                    oneWayWhatsapp: undefined
+                  });
+                }
+              }}
+              disabled={disabled}
+              className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
+            />
+            <div className="flex flex-col">
+              <Label htmlFor="isOneWayToggle" className="text-sm font-bold text-indigo-900 cursor-pointer select-none">
+                One Way Ticket (Onward Flight Only)
+              </Label>
+              <span className="text-[10px] text-indigo-700/80">
+                Only arrival flight details will be required. Return flight details will be ignored.
+              </span>
+            </div>
+          </div>
+
+          {/* Contact Details for Notification */}
+          {!!data.isOneWay && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-indigo-100/50 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="space-y-1">
+                <Label htmlFor="oneWayContactName" className="text-[10px] font-black text-indigo-900 uppercase tracking-wider">
+                  Contact Name (Optional)
+                </Label>
+                <Input
+                  id="oneWayContactName"
+                  placeholder="Enter pilgrim or customer contact name"
+                  value={data.oneWayContactName || ''}
+                  onChange={(e) => onChange({ oneWayContactName: e.target.value })}
+                  disabled={disabled}
+                  className="h-10 bg-white border-indigo-100 rounded-lg text-xs font-semibold text-primary focus:ring-indigo-500"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="oneWayWhatsapp" className="text-[10px] font-black text-indigo-900 uppercase tracking-wider">
+                  WhatsApp Number (Optional)
+                </Label>
+                <Input
+                  id="oneWayWhatsapp"
+                  placeholder="e.g. +966XXXXXXXXX or +91XXXXXXXXXX"
+                  value={data.oneWayWhatsapp || ''}
+                  onChange={(e) => onChange({ oneWayWhatsapp: e.target.value })}
+                  disabled={disabled}
+                  className="h-10 bg-white border-indigo-100 rounded-lg text-xs font-semibold text-primary focus:ring-indigo-500"
+                />
+                <span className="text-[9px] text-indigo-600/70 block">
+                  Used for automated notifications and reminders to collect the departure ticket.
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Desktop Table Architecture - More Compact */}
       <div className="hidden lg:block overflow-hidden rounded-2xl border border-secondary/10 bg-white">
         <table className="w-full border-collapse">
@@ -68,9 +149,6 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
               </th>
               <th className="px-6 py-3 text-left text-[8px] font-black text-primary/40 uppercase tracking-[0.2em] w-[120px]">
                 Time (24h)
-              </th>
-              <th className="px-6 py-3 text-left text-[8px] font-black text-primary/40 uppercase tracking-[0.2em] w-[150px]">
-                Travel BRN
               </th>
             </tr>
           </thead>
@@ -133,61 +211,63 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
             </tr>
 
             {/* Departure Vector */}
-            <tr className="group hover:bg-secondary/5 transition-colors">
-              <td className="px-6 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-lg bg-primary/5 flex items-center justify-center text-primary border border-primary/10 group-hover:scale-110 transition-all shadow-sm">
-                    <Plane className="h-4 w-4 -rotate-45" />
+            {!data.isOneWay && (
+              <tr className="group hover:bg-secondary/5 transition-colors">
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-primary/5 flex items-center justify-center text-primary border border-primary/10 group-hover:scale-110 transition-all shadow-sm">
+                      <Plane className="h-4 w-4 -rotate-45" />
+                    </div>
+                    <span className="text-xs font-black text-primary uppercase italic">Depart</span>
                   </div>
-                  <span className="text-xs font-black text-primary uppercase italic">Depart</span>
-                </div>
-              </td>
-              <td className="px-6 py-4">
-                <Select
-                  value={data.departureAirportId}
-                  onValueChange={(value) => handleAirportChange('departureAirportId', value)}
-                  disabled={disabled}
-                >
-                  <SelectTrigger className="h-12 border-gray-100 rounded-lg font-semibold text-primary focus:ring-secondary/20 bg-gray-50/30 text-base">
-                    <SelectValue placeholder="Select Hub" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl border-0 shadow-2xl p-1">
-                    {airports.map((airport) => (
-                      <SelectItem key={airport.id} value={airport.id} className="font-medium text-base p-3">
-                        {airport.airportCode} • {airport.airportName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </td>
-              <td className="px-6 py-4">
-                <Input
-                  placeholder="SV-XXXX"
-                  value={data.departureFlightNumber}
-                  onChange={(e) => {
-                    const formatted = formatFlightNumber(e.target.value);
-                    onChange({ departureFlightNumber: formatted });
-                  }}
-                  disabled={disabled}
-                  className="h-12 border-gray-100 rounded-lg font-bold text-secondary focus:ring-secondary/20 bg-gray-50/30 text-center tracking-widest text-sm"
-                />
-              </td>
-              <td className="px-6 py-4">
-                <DatePicker
-                  value={data.departureDate}
-                  onChange={(val) => handleDateChange('departureDate', val)}
-                  disabled={disabled}
-                />
-              </td>
-              <td className="px-6 py-4">
-                <TimePicker
-                  value={data.departureTime || ''}
-                  onChange={(value) => onChange({ departureTime: value })}
-                  disabled={disabled}
-                  className="h-12"
-                />
-              </td>
-            </tr>
+                </td>
+                <td className="px-6 py-4">
+                  <Select
+                    value={data.departureAirportId}
+                    onValueChange={(value) => handleAirportChange('departureAirportId', value)}
+                    disabled={disabled}
+                  >
+                    <SelectTrigger className="h-12 border-gray-100 rounded-lg font-semibold text-primary focus:ring-secondary/20 bg-gray-50/30 text-base">
+                      <SelectValue placeholder="Select Hub" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-0 shadow-2xl p-1">
+                      {airports.map((airport) => (
+                        <SelectItem key={airport.id} value={airport.id} className="font-medium text-base p-3">
+                          {airport.airportCode} • {airport.airportName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </td>
+                <td className="px-6 py-4">
+                  <Input
+                    placeholder="SV-XXXX"
+                    value={data.departureFlightNumber}
+                    onChange={(e) => {
+                      const formatted = formatFlightNumber(e.target.value);
+                      onChange({ departureFlightNumber: formatted });
+                    }}
+                    disabled={disabled}
+                    className="h-12 border-gray-100 rounded-lg font-bold text-secondary focus:ring-secondary/20 bg-gray-50/30 text-center tracking-widest text-sm"
+                  />
+                </td>
+                <td className="px-6 py-4">
+                  <DatePicker
+                    value={data.departureDate}
+                    onChange={(val) => handleDateChange('departureDate', val)}
+                    disabled={disabled}
+                  />
+                </td>
+                <td className="px-6 py-4">
+                  <TimePicker
+                    value={data.departureTime || ''}
+                    onChange={(value) => onChange({ departureTime: value })}
+                    disabled={disabled}
+                    className="h-12"
+                  />
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -243,52 +323,54 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
         </Card>
 
         {/* Departure Segment */}
-        <Card className="rounded-2xl border-0 shadow-lg shadow-primary/5 bg-white overflow-hidden">
-          <div className="bg-primary/5 px-6 py-3 border-b border-secondary/10 flex items-center gap-3">
-            <Plane className="h-4 w-4 text-primary -rotate-45" />
-            <span className="text-[9px] font-black text-primary/60 uppercase tracking-widest">Exit Vector</span>
-          </div>
-          <CardContent className="p-6 space-y-6">
-            <div className="grid grid-cols-2 gap-4">
+        {!data.isOneWay && (
+          <Card className="rounded-2xl border-0 shadow-lg shadow-primary/5 bg-white overflow-hidden">
+            <div className="bg-primary/5 px-6 py-3 border-b border-secondary/10 flex items-center gap-3">
+              <Plane className="h-4 w-4 text-primary -rotate-45" />
+              <span className="text-[9px] font-black text-primary/60 uppercase tracking-widest">Exit Vector</span>
+            </div>
+            <CardContent className="p-6 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Timeline</Label>
+                  <DatePicker
+                    value={data.departureDate}
+                    onChange={(val) => handleDateChange('departureDate', val)}
+                    disabled={disabled}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Time (24h)</Label>
+                  <TimePicker value={data.departureTime || ''} onChange={(value) => onChange({ departureTime: value })} disabled={disabled} className="h-10" />
+                </div>
+              </div>
               <div className="space-y-1.5">
-                <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Timeline</Label>
-                <DatePicker
-                  value={data.departureDate}
-                  onChange={(val) => handleDateChange('departureDate', val)}
+                <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Hub</Label>
+                <Select value={data.departureAirportId} onValueChange={(value) => handleAirportChange('departureAirportId', value)} disabled={disabled}>
+                  <SelectTrigger className="h-11 rounded-xl border-gray-100 bg-gray-50/30 font-semibold text-primary text-sm">
+                    <SelectValue placeholder="Select Hub" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-0 shadow-2xl">
+                    {airports.map(a => <SelectItem key={a.id} value={a.id} className="text-sm font-medium">{a.airportCode} - {a.airportName}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Flight Number</Label>
+                <Input
+                  placeholder="SV-XXXX"
+                  value={data.departureFlightNumber}
+                  onChange={(e) => {
+                    const formatted = formatFlightNumber(e.target.value);
+                    onChange({ departureFlightNumber: formatted });
+                  }}
                   disabled={disabled}
+                  className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs"
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Time (24h)</Label>
-                <TimePicker value={data.departureTime || ''} onChange={(value) => onChange({ departureTime: value })} disabled={disabled} className="h-10" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Hub</Label>
-              <Select value={data.departureAirportId} onValueChange={(value) => handleAirportChange('departureAirportId', value)} disabled={disabled}>
-                <SelectTrigger className="h-11 rounded-xl border-gray-100 bg-gray-50/30 font-semibold text-primary text-sm">
-                  <SelectValue placeholder="Select Hub" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl border-0 shadow-2xl">
-                  {airports.map(a => <SelectItem key={a.id} value={a.id} className="text-sm font-medium">{a.airportCode} - {a.airportName}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Flight Number</Label>
-              <Input
-                placeholder="SV-XXXX"
-                value={data.departureFlightNumber}
-                onChange={(e) => {
-                  const formatted = formatFlightNumber(e.target.value);
-                  onChange({ departureFlightNumber: formatted });
-                }}
-                disabled={disabled}
-                className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs"
-              />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

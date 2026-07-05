@@ -81,6 +81,8 @@ export default function NusukSettingsPage() {
     checkByPassport: false,
     externalAgentCodes: '22282, 6655, 1001828',
     syncSchedule: '08:00, 20:00',
+    syncType: 'excel',
+    allowOneWayTicket: false,
     isValid: true,
     lastSyncedAt: null as string | null,
   });
@@ -112,6 +114,8 @@ export default function NusukSettingsPage() {
             checkByPassport: response.data.checkByPassport ?? false,
             externalAgentCodes: response.data.externalAgentCodes || '22282, 6655, 1001828',
             syncSchedule: response.data.syncSchedule || '08:00, 20:00',
+            syncType: response.data.syncType || 'excel',
+            allowOneWayTicket: response.data.allowOneWayTicket ?? false,
             isValid: response.data.isValid ?? true,
             lastSyncedAt: response.data.lastSyncedAt || null,
           });
@@ -150,6 +154,8 @@ export default function NusukSettingsPage() {
         checkByPassport: settingsData.checkByPassport,
         externalAgentCodes: settingsData.externalAgentCodes,
         syncSchedule: settingsData.syncSchedule,
+        syncType: settingsData.syncType,
+        allowOneWayTicket: settingsData.allowOneWayTicket,
       });
       setSettingsData(prev => ({ ...prev, isValid: true }));
       toast.success('Nusuk settings saved successfully');
@@ -396,22 +402,45 @@ export default function NusukSettingsPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="syncSchedule" className="text-sm font-semibold">
-                        Automated Sync Schedule (Times of Day) *
+                      <Label htmlFor="syncType" className="text-sm font-semibold">
+                        Sync Type / Method *
                       </Label>
-                      <Input
-                        id="syncSchedule"
-                        className="text-xs font-mono"
-                        placeholder="08:00, 20:00"
-                        value={settingsData.syncSchedule}
-                        onChange={(e) => setSettingsData({ ...settingsData, syncSchedule: e.target.value })}
+                      <select
+                        id="syncType"
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                        value={settingsData.syncType}
+                        onChange={(e) => setSettingsData({ ...settingsData, syncType: e.target.value })}
                         disabled={saving || syncing}
-                        required
-                      />
+                      >
+                        <option value="excel">Excel based (HH:MM Schedule)</option>
+                        <option value="listing">Listing based (Every 5 minutes)</option>
+                      </select>
                       <p className="text-xs text-gray-500">
-                        Enter comma-separated 24-hour times (HH:MM format) when the system should automatically fetch and sync Nusuk travel data (e.g. 08:00, 20:00).
+                        {settingsData.syncType === 'listing'
+                          ? 'Listing-based sync calls the Nusuk API directly every 5 minutes to fetch active mutamers without needing to generate Excel files.'
+                          : 'Excel-based sync parses exported spreadsheets at scheduled times of day.'}
                       </p>
                     </div>
+
+                    {settingsData.syncType !== 'listing' && (
+                      <div className="space-y-2">
+                        <Label htmlFor="syncSchedule" className="text-sm font-semibold">
+                          Automated Sync Schedule (Times of Day) *
+                        </Label>
+                        <Input
+                          id="syncSchedule"
+                          className="text-xs font-mono"
+                          placeholder="08:00, 20:00"
+                          value={settingsData.syncSchedule}
+                          onChange={(e) => setSettingsData({ ...settingsData, syncSchedule: e.target.value })}
+                          disabled={saving || syncing}
+                          required
+                        />
+                        <p className="text-xs text-gray-500">
+                          Enter comma-separated 24-hour times (HH:MM format) when the system should automatically fetch and sync Nusuk travel data (e.g. 08:00, 20:00).
+                        </p>
+                      </div>
+                    )}
 
                     <div className="flex items-center justify-between p-4 bg-slate-50 border rounded-lg">
                       <div className="space-y-0.5">
@@ -426,6 +455,23 @@ export default function NusukSettingsPage() {
                         id="checkByPassport"
                         checked={settingsData.checkByPassport}
                         onCheckedChange={(checked) => setSettingsData({ ...settingsData, checkByPassport: checked })}
+                        disabled={saving || syncing}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-slate-50 border rounded-lg">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="allowOneWayTicket" className="text-sm font-semibold text-slate-800">
+                          Allow One Way Ticket (Onward Only)
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Ignore departure flight fields, skip return ticket upload requirement, and display mandatory departure warning on booking flows.
+                        </p>
+                      </div>
+                      <Switch
+                        id="allowOneWayTicket"
+                        checked={settingsData.allowOneWayTicket}
+                        onCheckedChange={(checked) => setSettingsData({ ...settingsData, allowOneWayTicket: checked })}
                         disabled={saving || syncing}
                       />
                     </div>

@@ -51,7 +51,8 @@ export default function CreatePartyDialog({
     nusuk_entity_id: '',
     nusuk_active_entity_id: '',
     nusuk_active_entity_type_id: '',
-    nusuk_external_agent_codes: ''
+    nusuk_external_agent_codes: '',
+    allow_one_way_ticket: false
   });
   const [documentFiles, setDocumentFiles] = useState<{
     gst_certificate?: File;
@@ -95,7 +96,8 @@ export default function CreatePartyDialog({
           nusuk_entity_id: (editingParty as any).nusukEntityId || '',
           nusuk_active_entity_id: (editingParty as any).nusukActiveEntityId || '',
           nusuk_active_entity_type_id: (editingParty as any).nusukActiveEntityTypeId || '',
-          nusuk_external_agent_codes: (editingParty as any).nusukExternalAgentCodes || ''
+          nusuk_external_agent_codes: (editingParty as any).nusukExternalAgentCodes || '',
+          allow_one_way_ticket: (editingParty as any).allowOneWayTicket ?? false
         });
       } else {
         setFormData({
@@ -121,7 +123,8 @@ export default function CreatePartyDialog({
           nusuk_entity_id: '',
           nusuk_active_entity_id: '',
           nusuk_active_entity_type_id: '',
-          nusuk_external_agent_codes: ''
+          nusuk_external_agent_codes: '',
+          allow_one_way_ticket: false
         });
       }
       setDocumentFiles({});
@@ -814,6 +817,22 @@ export default function CreatePartyDialog({
                 className={`cursor-pointer ${editingParty && editingParty.userId ? 'text-gray-400' : ''}`}
               >
                 Create login account for party
+              </Label>
+            </div>
+
+            <div className="flex items-center space-x-2 mt-2">
+              <input
+                type="checkbox"
+                id="allow_one_way_ticket"
+                checked={formData.allow_one_way_ticket}
+                onChange={(e) => handleInputChange('allow_one_way_ticket', e.target.checked)}
+                className="rounded"
+              />
+              <Label 
+                htmlFor="allow_one_way_ticket" 
+                className="cursor-pointer font-semibold text-slate-800"
+              >
+                Allow One Way Ticket (Onward Only)
               </Label>
             </div>
             {editingParty && editingParty.userId ? (
