@@ -226,7 +226,7 @@ export const step2Schema = z.object({
   arrivalFlightNumber: z.string().regex(FLIGHT_NUMBER_REGEX, 'Invalid arrival flight number format (e.g., 6E-6083)'),
   departureDate: z.string().optional().nullable(), // YYYY-MM-DD format
   departureTime: z.string().optional().nullable(), // HH:mm format
-  departureAirportId: z.string().uuid().optional().nullable(),
+  departureAirportId: z.string().uuid().optional().nullable().or(z.literal('')),
   departureFlightNumber: z.string().optional().nullable(),
   brn: z.string().optional(),
   passengerCount: z.number().min(1).max(50).optional(), // Number of passengers (for both individual and group bookings - now in Step 2)
