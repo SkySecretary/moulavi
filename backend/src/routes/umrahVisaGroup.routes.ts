@@ -97,7 +97,9 @@ router.post('/group/step2', authenticate, async (req, res) => {
 
     // Validate date range (80 days max) - convert strings to Date objects
     const arrivalDateObj = parseSafeDate(validatedData.arrivalDate);
-    const departureDateObj = parseSafeDate(validatedData.departureDate);
+    const departureDateObj = validatedData.isOneWay 
+      ? arrivalDateObj 
+      : parseSafeDate(validatedData.departureDate);
     const dateRangeValidation = validateDateRange(arrivalDateObj, departureDateObj);
     if (!dateRangeValidation.valid) {
       return res.status(400).json({ error: dateRangeValidation.error });
