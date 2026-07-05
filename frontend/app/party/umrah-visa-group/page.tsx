@@ -22,7 +22,6 @@ import { GroupDocumentsStep } from '@/components/umrah-booking/steps/GroupDocume
 import { validateStep1, validateStep2, validateStep3, validateStep4, validateStep5 } from '@/lib/umrah/validation';
 import { umrahVisaAPI } from '@/lib/api';
 import { DisclaimerDialog } from '@/components/umrah-booking/shared/DisclaimerDialog';
-import { OneWayDisclaimerDialog } from '@/components/umrah-booking/shared/OneWayDisclaimerDialog';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
@@ -51,12 +50,9 @@ export default function GroupUmrahVisaPage() {
     addHotelBooking,
     removeHotelBooking,
     hasStepDataChanged,
-    selectedParty,
-    globalAllowOneWayTicket,
   } = useGroupUmrahBooking();
 
-  const [showOneWayDisclaimer, setShowOneWayDisclaimer] = useState(false);
-  const [oneWayDisclaimerAccepted, setOneWayDisclaimerAccepted] = useState(false);
+
 
   const {
     masterData,
@@ -162,23 +158,9 @@ export default function GroupUmrahVisaPage() {
       return;
     }
 
-    if (bookingState.currentStep === 2 && bookingState.step2Data.isOneWay && !oneWayDisclaimerAccepted) {
-      setShowOneWayDisclaimer(true);
-      return;
-    }
-
     const success = await submitStep(bookingState.currentStep);
     if (success && bookingState.currentStep === 5) {
       router.push('/party/dashboard');
-    }
-  };
-
-  const handleOneWayDisclaimerConfirm = async () => {
-    setShowOneWayDisclaimer(false);
-    setOneWayDisclaimerAccepted(true);
-    const success = await submitStep(2);
-    if (success) {
-      setCurrentStep(3);
     }
   };
 
@@ -219,7 +201,6 @@ export default function GroupUmrahVisaPage() {
             getHotelsForLocation={getHotelsForLocation}
             onAddHotelBooking={addHotelBooking}
             onRemoveHotelBooking={removeHotelBooking}
-            allowOneWayOption={globalAllowOneWayTicket || selectedParty?.allowOneWayTicket}
           />
         );
 
@@ -299,11 +280,6 @@ export default function GroupUmrahVisaPage() {
         <DisclaimerDialog 
           open={showDisclaimer} 
           onConfirm={() => setShowDisclaimer(false)} 
-        />
-        <OneWayDisclaimerDialog
-          open={showOneWayDisclaimer}
-          onConfirm={handleOneWayDisclaimerConfirm}
-          onCancel={() => setShowOneWayDisclaimer(false)}
         />
         <div className="w-full">
           {/* Step Progress - Compact UI */}

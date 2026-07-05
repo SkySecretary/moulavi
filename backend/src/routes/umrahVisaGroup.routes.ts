@@ -97,9 +97,7 @@ router.post('/group/step2', authenticate, async (req, res) => {
 
     // Validate date range (80 days max) - convert strings to Date objects
     const arrivalDateObj = parseSafeDate(validatedData.arrivalDate);
-    const departureDateObj = validatedData.isOneWay 
-      ? arrivalDateObj 
-      : parseSafeDate(validatedData.departureDate);
+    const departureDateObj = parseSafeDate(validatedData.departureDate);
     const dateRangeValidation = validateDateRange(arrivalDateObj, departureDateObj);
     if (!dateRangeValidation.valid) {
       return res.status(400).json({ error: dateRangeValidation.error });
@@ -440,9 +438,7 @@ router.post('/group/create-booking', authenticate, uploadGroup.fields([
           umrahVisaProviderId: step1Data.umrahVisaProviderId || null,
           status: 'group_assigned',
           visaType: 'group_visa',
-          isOneWay: !!step2Data.isOneWay,
-          oneWayContactName: step2Data.isOneWay ? (step2Data.oneWayContactName || null) : null,
-          oneWayWhatsapp: step2Data.isOneWay ? (step2Data.oneWayWhatsapp || null) : null,
+          isOneWay: false,
           accommodationType: 'hotel',
           hasTransportation,
           lastUpdatedBy: user.id,
@@ -451,9 +447,7 @@ router.post('/group/create-booking', authenticate, uploadGroup.fields([
 
       // 3. Create UmrahTravelDetails - combine date and time before storing
       const arrivalDateTime = combineDateTime(step2Data.arrivalDate, step2Data.arrivalTime);
-      const departureDateTime = step2Data.isOneWay
-        ? arrivalDateTime
-        : combineDateTime(step2Data.departureDate || '', step2Data.departureTime || '');
+      const departureDateTime = combineDateTime(step2Data.departureDate || '', step2Data.departureTime || '');
       
       if (!arrivalDateTime || !departureDateTime) {
         throw new Error('Invalid arrival or departure date/time');
@@ -466,8 +460,8 @@ router.post('/group/create-booking', authenticate, uploadGroup.fields([
           arrivalAirportId: step2Data.arrivalAirportId,
           arrivalFlightNumber: step2Data.arrivalFlightNumber,
           departureDateTime,
-          departureAirportId: step2Data.isOneWay ? step2Data.arrivalAirportId : step2Data.departureAirportId!,
-          departureFlightNumber: step2Data.isOneWay ? 'OW-9999' : step2Data.departureFlightNumber!,
+          departureAirportId: step2Data.departureAirportId!,
+          departureFlightNumber: step2Data.departureFlightNumber!,
           brn: step2Data.brn || null,
         },
       });
