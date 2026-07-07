@@ -156,7 +156,7 @@ export async function appendBookingAttachments(
             srcPdf,
             srcPdf.getPageIndices()
           );
-          copiedPages.forEach((page) => mergedPdf.addPage(page));
+          copiedPages.forEach((page: any) => mergedPdf.addPage(page));
           console.log(`[PDF MERGE] Appended PDF pages for: ${doc.fileName}`);
         } catch (pdfError) {
           console.error(`[PDF MERGE] Error loading attachment PDF: ${doc.fileName}`, pdfError);

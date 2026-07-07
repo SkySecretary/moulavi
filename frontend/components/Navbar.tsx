@@ -3,17 +3,17 @@
 import React, { useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { 
-  LogOut, 
-  User, 
-  ChevronDown, 
-  Settings, 
-  LayoutDashboard, 
-  Ticket, 
-  FileText, 
-  MapPin, 
-  PlusCircle, 
-  Users, 
+import {
+  LogOut,
+  User,
+  ChevronDown,
+  Settings,
+  LayoutDashboard,
+  Ticket,
+  FileText,
+  MapPin,
+  PlusCircle,
+  Users,
   Award,
   Bell,
   Menu,
@@ -35,12 +35,12 @@ import { Button } from '@/components/ui/button';
 import { getUser, removeUser } from '@/lib/auth';
 import { nusukAPI, authAPI, umrahVisaAPI } from '@/lib/api';
 import { toast } from 'sonner';
-import { 
-  Sheet, 
-  SheetContent, 
-  SheetHeader, 
-  SheetTitle, 
-  SheetTrigger 
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger
 } from '@/components/ui/sheet';
 import NotificationDropdown from './NotificationDropdown';
 
@@ -85,7 +85,7 @@ export default function Navbar() {
             setNusukTokenAlert(true);
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [user]);
 
@@ -179,14 +179,14 @@ export default function Navbar() {
         <div className="flex justify-between h-16 items-center">
           {/* Logo & Desktop Tabs */}
           <div className="flex items-center space-x-8">
-            <div 
+            <div
               className="flex items-center cursor-pointer group"
               onClick={() => router.push(isAdminOrStaff ? '/dashboard' : '/party/dashboard')}
             >
               <div className="h-9 w-9 bg-secondary rounded-lg flex items-center justify-center mr-2 group-hover:scale-105 transition-transform shadow-md">
                 <span className="text-white font-black text-xl">N</span>
               </div>
-              <h1 className="text-xl font-black text-secondary tracking-tighter hidden md:block">NuSync</h1>
+              {/* <h1 className="text-xl font-black text-secondary tracking-tighter hidden md:block">NuSync</h1> */}
             </div>
 
             {/* Desktop Navigation Tabs */}
@@ -205,7 +205,7 @@ export default function Navbar() {
                     <tab.icon className={cn("h-4 w-4", isActive(tab.path) ? "text-primary" : "")} />
                     {tab.name}
                   </button>
-                  <button 
+                  <button
                     onClick={(e) => { e.stopPropagation(); window.open(tab.path, '_blank'); }}
                     className="opacity-0 group-hover/nav:opacity-100 p-1.5 -ml-3 mr-1 bg-white rounded-full shadow-sm border border-gray-100 text-gray-400 hover:text-secondary hover:scale-110 transition-all z-10"
                     title="Open in new tab"
@@ -231,7 +231,7 @@ export default function Navbar() {
                 </button>
 
                 {isAppsDropdownOpen && (
-                  <div 
+                  <div
                     className="absolute top-full left-0 mt-1 w-56 bg-white border border-gray-100 rounded-2xl shadow-xl py-2 animate-in fade-in slide-in-from-top-2 duration-200 z-[60]"
                     onMouseLeave={() => setIsAppsDropdownOpen(false)}
                   >
@@ -250,7 +250,7 @@ export default function Navbar() {
                           <item.icon className="h-4 w-4" />
                           {item.name}
                         </button>
-                        <button 
+                        <button
                           onClick={(e) => { e.stopPropagation(); window.open(item.path, '_blank'); setIsAppsDropdownOpen(false); }}
                           className="opacity-0 group-hover/dropdown:opacity-100 p-1.5 mr-2 text-gray-400 hover:text-secondary hover:bg-gray-100 rounded-lg transition-all"
                           title="Open in new tab"
@@ -288,7 +288,7 @@ export default function Navbar() {
             )}
 
             <NotificationDropdown />
-            
+
             <button
               onClick={() => router.push(isAdminOrStaff ? '/dashboard/settings' : '/party/settings')}
               className={cn(
@@ -306,14 +306,14 @@ export default function Navbar() {
                 <span className="text-xs font-black text-secondary uppercase tracking-tighter">{user?.name}</span>
                 <span className="text-[10px] text-primary font-bold uppercase">{user?.role}</span>
               </div>
-              
+
               <Sheet>
                 <SheetTrigger asChild>
                   <button className="h-10 w-10 rounded-full bg-gradient-to-br from-secondary to-primary flex items-center justify-center text-white shadow-lg hover:scale-105 transition-transform ring-2 ring-white ring-offset-2">
                     <User className="h-5 w-5" />
                   </button>
                 </SheetTrigger>
-                <SheetContent side="right" className="rounded-l-3xl border-l-0">
+                <SheetContent side="right" className="rounded-l-3xl border-l-0 flex flex-col h-full max-h-screen">
                   <SheetHeader className="pb-6 border-b">
                     <SheetTitle className="flex items-center gap-3 pt-4">
                       <div className="h-12 w-12 rounded-full bg-gradient-to-br from-secondary to-primary flex items-center justify-center text-white shadow-xl">
@@ -325,8 +325,8 @@ export default function Navbar() {
                       </div>
                     </SheetTitle>
                   </SheetHeader>
-                  
-                  <div className="py-6 space-y-6">
+
+                  <div className="flex-1 overflow-y-auto py-6 space-y-6 pr-1">
                     <div className="space-y-1">
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-2">Navigation</p>
                       {mainTabs.map((tab) => (
@@ -341,7 +341,7 @@ export default function Navbar() {
                             <tab.icon className="h-5 w-5" />
                             {tab.name}
                           </button>
-                          <button 
+                          <button
                             onClick={(e) => { e.stopPropagation(); window.open(tab.path, '_blank'); }}
                             className="p-3 text-gray-400 hover:text-secondary"
                             title="Open in new tab"
@@ -364,7 +364,7 @@ export default function Navbar() {
                               <item.icon className="h-5 w-5 text-gray-400 group-hover:text-primary mb-2" />
                               <span className="text-[10px] font-bold text-gray-600 text-center">{item.name}</span>
                             </button>
-                            <button 
+                            <button
                               onClick={(e) => { e.stopPropagation(); window.open(item.path, '_blank'); }}
                               className="absolute top-2 right-2 p-1.5 text-gray-300 hover:text-secondary opacity-0 group-hover/mobile-app:opacity-100 transition-opacity"
                               title="Open in new tab"
@@ -377,16 +377,16 @@ export default function Navbar() {
                     </div>
 
                     <div className="pt-6 space-y-3 px-2">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         className="w-full justify-start rounded-xl font-bold h-12"
                         onClick={() => router.push(isAdminOrStaff ? '/dashboard/settings' : '/party/settings')}
                       >
                         <Settings className="h-5 w-5 mr-3 text-primary" />
                         Settings
                       </Button>
-                      <Button 
-                        variant="destructive" 
+                      <Button
+                        variant="destructive"
                         className="w-full justify-start rounded-xl font-bold h-12 bg-primary hover:bg-primary"
                         onClick={handleLogout}
                       >
@@ -411,7 +411,7 @@ export default function Navbar() {
               <Search className="h-5 w-5" />
               <span className="font-semibold text-lg text-slate-200">Global Passport Search</span>
             </div>
-            <button 
+            <button
               onClick={() => {
                 setIsSearchOpen(false);
                 setSearchQuery('');
@@ -463,7 +463,7 @@ export default function Navbar() {
                   </div>
                   <div className="space-y-3">
                     {searchResults.map((result) => (
-                      <div 
+                      <div
                         key={result.id}
                         className="bg-slate-800/60 border border-slate-700/80 rounded-xl p-5 hover:bg-slate-850 hover:border-slate-600 transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-md text-left"
                       >
@@ -474,11 +474,10 @@ export default function Navbar() {
                             <span className="bg-indigo-950 text-indigo-300 border border-indigo-900 text-[11px] font-mono font-bold px-2 py-0.5 rounded text-left">
                               {result.passportNumber}
                             </span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-0.5 ${
-                              result.currentlyInKingdom === 'Yes' 
-                                ? 'bg-emerald-950 text-emerald-350 border border-emerald-900' 
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-0.5 ${result.currentlyInKingdom === 'Yes'
+                                ? 'bg-emerald-950 text-emerald-350 border border-emerald-900'
                                 : 'bg-slate-900 text-slate-450 border border-slate-800'
-                            }`}>
+                              }`}>
                               {result.currentlyInKingdom === 'Yes' ? 'In KSA' : 'Out of KSA'}
                             </span>
                           </div>
@@ -505,11 +504,10 @@ export default function Navbar() {
                             </div>
                             <div className="flex items-center space-x-1 sm:col-span-2 justify-start">
                               <span className="text-slate-400">Visa Status:</span>
-                              <span className={`font-semibold ${
-                                result.mutamerStatus.toLowerCase().includes('review')
+                              <span className={`font-semibold ${result.mutamerStatus.toLowerCase().includes('review')
                                   ? 'text-rose-400 font-bold'
                                   : 'text-slate-200'
-                              }`}>
+                                }`}>
                                 {result.mutamerStatus}
                               </span>
                             </div>
@@ -532,7 +530,7 @@ export default function Navbar() {
                             PDF
                           </Button>
 
-                          <NextLink 
+                          <NextLink
                             href={`/dashboard/umrah-visa/visa-management/edit/${result.booking.id}`}
                             onClick={() => setIsSearchOpen(false)}
                           >
@@ -546,7 +544,7 @@ export default function Navbar() {
                           </NextLink>
 
                           {result.booking.voucher && (
-                            <NextLink 
+                            <NextLink
                               href={`/dashboard/services/voucher/view/${result.booking.voucher.id}`}
                               onClick={() => setIsSearchOpen(false)}
                             >
@@ -560,7 +558,7 @@ export default function Navbar() {
                             </NextLink>
                           )}
 
-                          <NextLink 
+                          <NextLink
                             href={`/dashboard/masters/party/${result.booking.party.id}`}
                             onClick={() => setIsSearchOpen(false)}
                           >
