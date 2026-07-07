@@ -10,6 +10,8 @@
     "migrate": "node -r ts-node/register src/database/migrate.ts",
     "create-admin": "node scripts/create-admin.js",
     "seed-master": "node scripts/seed-all.js",
+    "db:dump": "node scripts/db-dump.js",
+    "db:restore": "node scripts/db-restore.js",
     "deploy": "npm run build && npm start"
   },
   "keywords": [

@@ -32,6 +32,7 @@ interface AccommodationStepProps {
   refreshHotels?: () => void;
   passengerCount?: number; // Add passenger count from step 1
   disabled?: boolean;
+  isOneWay?: boolean;
 }
 
 export const AccommodationStep: React.FC<AccommodationStepProps> = ({
@@ -46,9 +47,22 @@ export const AccommodationStep: React.FC<AccommodationStepProps> = ({
   refreshHotels,
   passengerCount,
   disabled = false,
+  isOneWay = false,
 }) => {
   const MAX_PASSENGERS_IQAMA = 5;
   const canSelectIqama = !passengerCount || passengerCount <= MAX_PASSENGERS_IQAMA;
+
+  // Force iqama if one-way ticket is chosen
+  React.useEffect(() => {
+    if (isOneWay && data.accommodationType !== 'iqama') {
+      onChange({
+        accommodationType: 'iqama',
+        hotelBookings: undefined,
+        iqamaDetails: data.iqamaDetails || {},
+      });
+    }
+  }, [isOneWay, data.accommodationType, onChange, data.iqamaDetails]);
+
   const addHotelBooking = React.useCallback(() => {
     const existingBookings = data.hotelBookings || [];
     let checkInDate = '';
@@ -128,10 +142,11 @@ export const AccommodationStep: React.FC<AccommodationStepProps> = ({
               "relative p-4 rounded-xl border transition-all duration-500 group cursor-pointer overflow-hidden",
               data.accommodationType === 'hotel' 
                 ? "bg-primary border-primary shadow-md scale-[1.01]" 
-                : "bg-white border-secondary/10 hover:border-secondary/30"
+                : "bg-white border-secondary/10 hover:border-secondary/30",
+              isOneWay && "opacity-50 cursor-not-allowed bg-gray-50 hover:border-secondary/10"
             )}
             onClick={() => {
-              if (!disabled) {
+              if (!disabled && !isOneWay) {
                 onChange({ 
                   accommodationType: 'hotel',
                   iqamaDetails: undefined,
@@ -155,7 +170,9 @@ export const AccommodationStep: React.FC<AccommodationStepProps> = ({
                 <p className={cn(
                   "text-[10px] font-medium opacity-60",
                   data.accommodationType === 'hotel' ? "text-secondary" : "text-muted-foreground"
-                )}>Select hotels</p>
+                )}>
+                  {isOneWay ? "Not available for one-way settings" : "Select hotels"}
+                </p>
               </div>
             </div>
           </div>

@@ -14,7 +14,7 @@ import { DashboardStats } from '@/types';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const user = getUser();
+  const [user, setUser] = useState<any>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [stats, setStats] = useState<DashboardStats>({
     totalParties: 0,
@@ -45,10 +45,16 @@ export default function DashboardPage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    if (!user || !hasRole(['admin', 'staff'])) {
+    const activeUser = getUser();
+    if (!activeUser || !hasRole(['admin', 'staff'])) {
       router.push('/');
       return;
     }
+    setUser(activeUser);
+  }, [router]);
+
+  useEffect(() => {
+    if (!user) return;
 
     const loadStats = async () => {
       try {
@@ -79,7 +85,7 @@ export default function DashboardPage() {
     };
 
     loadStats();
-  }, [user, router]);
+  }, [user, refreshKey]);
 
   const handlePartyCreated = () => {
     setRefreshKey(prev => prev + 1);

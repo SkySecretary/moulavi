@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import { authenticate, authorize } from '../middleware/auth';
 import { prisma, findCityByName } from './umrahVisa/shared';
+import { parseSafeDate } from '../utils/dateParser';
 
 const router = Router();
 
@@ -73,16 +74,6 @@ router.get('/bookings', authenticate, async (req, res) => {
     const { missingReturnTicket } = req.query;
     if (missingReturnTicket === 'true') {
       where.isOneWay = true;
-      where.passengers = {
-        none: {
-          documents: {
-            some: {
-              documentType: 'ticketCopy',
-              isDeleted: false
-            }
-          }
-        }
-      };
     }
 
     // Search by group number, reference, or name
@@ -643,6 +634,90 @@ Moulavi Travel`;
   }
 });
 
+// POST /api/umrah-visa/:bookingId/notify-missing-return-ticket - Send WhatsApp & Email notification for missing return ticket
+router.post('/:bookingId/notify-missing-return-ticket', authenticate, authorize('admin', 'staff'), async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    
+    const booking = await prisma.umrahVisaBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        party: true,
+        travelDetails: { where: { isAlternate: false } }
+      }
+    });
+
+    if (!booking || !booking.party) {
+      return res.status(404).json({ error: 'Booking or Party not found' });
+    }
+
+    const { sendCustomWhatsApp } = await import('../services/whatsappService');
+    const { sendSingleMissingReturnTicketEmail } = await import('../services/emailService');
+
+    const agentName = booking.party.partyName;
+    const bookingRef = booking.groupNumber || booking.bookingReference || booking.id.slice(0, 8);
+    const arrivalDate = booking.travelDetails?.[0]?.arrivalDateTime 
+      ? booking.travelDetails[0].arrivalDateTime.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })
+      : 'the scheduled date';
+    const contact = booking.oneWayContactName ? `${booking.oneWayContactName} (${booking.oneWayWhatsapp || ''})` : '';
+
+    let notificationSent = false;
+    let errors = [];
+
+    // 1. WhatsApp
+    if (booking.party.contactNumber) {
+      try {
+        const message = `Dear ${agentName},
+
+Greetings from Moulavi Travel.
+
+Your booking reference/group ${bookingRef} has return ticket details missing. Please note that return ticket details are required to complete your booking.
+
+Kindly update the return ticket details (Departure Date, Flight Number, and Airport) as soon as possible.
+
+Your prompt cooperation is highly appreciated.
+
+Regards,
+Moulavi Travel`;
+
+        await sendCustomWhatsApp(booking.party.contactNumber, message);
+        notificationSent = true;
+      } catch (err: any) {
+        errors.push(`WhatsApp: ${err.message}`);
+      }
+    } else {
+      errors.push('No contact number for WhatsApp');
+    }
+
+    // 2. Email
+    if (booking.party.email) {
+      try {
+        await sendSingleMissingReturnTicketEmail(
+          booking.party.email, 
+          agentName, 
+          bookingRef, 
+          arrivalDate, 
+          contact
+        );
+        notificationSent = true;
+      } catch (err: any) {
+        errors.push(`Email: ${err.message}`);
+      }
+    } else {
+      errors.push('No email address available');
+    }
+
+    if (!notificationSent) {
+      return res.status(500).json({ error: 'Failed to send notifications via all channels', details: errors });
+    }
+
+    res.json({ success: true, message: 'Notification(s) sent successfully' });
+  } catch (error) {
+    console.error('Error sending missing return ticket notification:', error);
+    res.status(500).json({ error: 'Failed to send notification' });
+  }
+});
+
 // GET /api/umrah-visa/stats/pending-brn-load - Get date-wise mutammer count for bookings without BRN
 router.get('/stats/pending-brn-load', authenticate, authorize('admin', 'staff'), async (req, res) => {
   try {
@@ -855,8 +930,8 @@ router.get('/ziyarath-counts', authenticate, async (req, res) => {
 
     // Convert dates to Date objects and find min/max for query range
     const dateObjects = dateArray.map(dateStr => {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) {
+      const date = parseSafeDate(dateStr);
+      if (!date || isNaN(date.getTime())) {
         throw new Error(`Invalid date format: ${dateStr}`);
       }
       date.setHours(0, 0, 0, 0);

@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getUser, hasRole } from '@/lib/auth';
-import { umrahVisaAPI, nusukAPI } from '@/lib/api';
+import { umrahVisaAPI, nusukAPI, partyAPI } from '@/lib/api';
 import { PartyLayout } from '@/components/layouts/PartyLayout';
 import Link from 'next/link';
 import { 
@@ -89,7 +89,27 @@ export default function PartyDashboardPage() {
     completed: 0,
   });
   const [complianceData, setComplianceData] = useState<any>(null);
+  const [partyDetails, setPartyDetails] = useState<any>(null);
+  const [missingReturnBookings, setMissingReturnBookings] = useState<any[]>([]);
+  const [loadingMissingReturn, setLoadingMissingReturn] = useState(false);
   const loadingRef = useRef(false);
+
+  const loadPartyAndMissingReturn = async () => {
+    try {
+      const partyRes = await partyAPI.getMyParty();
+      const party = partyRes.data.party;
+      setPartyDetails(party);
+
+      if (party?.allowOneWayTicket) {
+        setLoadingMissingReturn(true);
+        const response = await umrahVisaAPI.getMissingReturnTicketsBookings({ page: '1', limit: '100' });
+        setMissingReturnBookings(response.data.bookings || []);
+        setLoadingMissingReturn(false);
+      }
+    } catch (error) {
+      console.error('Failed to load party details or missing return bookings:', error);
+    }
+  };
 
   const loadCompliance = async () => {
     try {
@@ -179,6 +199,7 @@ export default function PartyDashboardPage() {
     if (!mounted || !user || !hasRole('party')) return;
     loadBookings();
     loadCompliance();
+    loadPartyAndMissingReturn();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, user, pagination.page, pagination.limit, searchTerm, statusFilter, dateFrom, dateTo]);
 
@@ -268,6 +289,36 @@ export default function PartyDashboardPage() {
     );
   }
 
+  const getMissingReturnStatus = () => {
+    if (!partyDetails?.allowOneWayTicket || missingReturnBookings.length === 0) {
+      return { show: false, urgent: false, count: 0 };
+    }
+
+    const now = new Date();
+    const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).getTime();
+    const tomorrowUTC = todayUTC + 86400000;
+    const dayAfterUTC = todayUTC + 172800000;
+
+    let hasUrgent = false;
+    for (const booking of missingReturnBookings) {
+      if (booking.departureDate) {
+        const depDate = new Date(booking.departureDate.substring(0, 10)).getTime();
+        if (depDate <= dayAfterUTC) {
+          hasUrgent = true;
+          break;
+        }
+      }
+    }
+
+    return {
+      show: true,
+      urgent: hasUrgent,
+      count: missingReturnBookings.length
+    };
+  };
+
+  const missingReturnStatus = getMissingReturnStatus();
+
   if (!user || !hasRole('party')) {
     return null;
   }
@@ -338,6 +389,60 @@ export default function PartyDashboardPage() {
       </div>
 
       <div className="p-6 lg:p-8 space-y-8">
+        {/* Missing Return Tickets Alert */}
+        {missingReturnStatus.show && (
+          missingReturnStatus.urgent ? (
+            <div className="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-600 p-5 rounded-2xl flex items-start gap-4 shadow-sm animate-pulse">
+              <div className="h-10 w-10 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+                <AlertCircle className="h-6 w-6" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-sm font-black text-rose-950 uppercase tracking-wide flex items-center gap-2">
+                  <span>CRITICAL ALERT: URGENT ACTION REQUIRED</span>
+                  <span className="bg-rose-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full animate-bounce">DEPARTING SOON</span>
+                </h4>
+                <p className="text-xs text-rose-700 font-semibold mt-1.5 leading-relaxed">
+                  You have <span className="font-extrabold text-rose-950 underline">{missingReturnStatus.count} booking(s)</span> created as onward-only (one-way) that are missing return tickets. At least one booking has a departure scheduled today, tomorrow, or the day after. You must collect and upload the return ticket immediately!
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <Button 
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => router.push('/party/missing-return-ticket')}
+                    className="font-bold text-xs"
+                  >
+                    Upload Return Tickets Now
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 p-5 rounded-2xl flex items-start gap-4 shadow-sm">
+              <div className="h-10 w-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-sm font-black text-amber-950 uppercase tracking-wide">
+                  ATTENTION: Missing Return Tickets Notice
+                </h4>
+                <p className="text-xs text-amber-700 font-semibold mt-1.5 leading-relaxed">
+                  You have <span className="font-extrabold text-amber-950">{missingReturnStatus.count} booking(s)</span> in the system with onward-only (one-way) flights. Please ensure that return tickets are collected and updated in the system as soon as possible.
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <Button 
+                    size="sm"
+                    variant="outline"
+                    onClick={() => router.push('/party/missing-return-ticket')}
+                    className="border-amber-300 text-amber-800 hover:bg-amber-100 font-bold text-xs"
+                  >
+                    Manage Missing Tickets
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )
+        )}
+
         {/* Mismatched Travel Compliance High Priority Notice */}
         {complianceData && complianceData.myMismatches && complianceData.myMismatches.length > 0 && (
           <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-xl flex items-start gap-3 shadow-sm animate-pulse">

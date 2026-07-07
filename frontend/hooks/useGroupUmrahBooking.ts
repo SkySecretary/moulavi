@@ -225,7 +225,13 @@ export const useGroupUmrahBooking = () => {
         toast.success('Step 1 validated successfully');
         return true;
       } else {
-        toast.error(data.error || 'Failed to validate step 1');
+        if (data.details && Array.isArray(data.details)) {
+          data.details.forEach((err: any) => {
+            toast.error(err.message || 'Validation error');
+          });
+        } else {
+          toast.error(data.error || 'Failed to validate step 1');
+        }
         return false;
       }
     } catch (error) {
@@ -273,7 +279,13 @@ export const useGroupUmrahBooking = () => {
         toast.success('Step 2 validated successfully');
         return true;
       } else {
-        toast.error(data.error || 'Failed to validate step 2');
+        if (data.details && Array.isArray(data.details)) {
+          data.details.forEach((err: any) => {
+            toast.error(err.message || 'Validation error');
+          });
+        } else {
+          toast.error(data.error || 'Failed to validate step 2');
+        }
         return false;
       }
     } catch (error) {
@@ -420,7 +432,13 @@ export const useGroupUmrahBooking = () => {
         toast.success('Group Umrah visa booking completed successfully!');
         return true;
       } else {
-        toast.error(data.error || 'Failed to create booking');
+        if (data.details && Array.isArray(data.details)) {
+          data.details.forEach((err: any) => {
+            toast.error(err.message || 'Validation error');
+          });
+        } else {
+          toast.error(data.error || 'Failed to create booking');
+        }
         return false;
       }
     } catch (error) {

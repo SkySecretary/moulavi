@@ -133,6 +133,57 @@ export default function PartyBookingsPage() {
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'N/A';
+      return date.toLocaleDateString('en-US', {
+        timeZone: 'UTC',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      return 'N/A';
+    }
+  };
+
+  const formatRecordDateTimeIST = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    try {
+      let normalized = dateString;
+      if (
+        typeof dateString === 'string' &&
+        !dateString.includes('Z') &&
+        !dateString.includes('GMT') &&
+        !/[+-]\d{2}:?\d{2}$/.test(dateString)
+      ) {
+        if (dateString.includes(':') || dateString.includes('T')) {
+          normalized = dateString.endsWith(' ') ? dateString.trim() + 'Z' : dateString + 'Z';
+        }
+      }
+
+      const date = new Date(normalized);
+      if (isNaN(date.getTime())) return 'N/A';
+      const d = date.toLocaleDateString('en-US', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+      const t = date.toLocaleTimeString('en-US', {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+      return `${d} ${t}`;
+    } catch {
+      return 'N/A';
+    }
+  };
+
   const handleViewDetails = (bookingId: string) => {
     setSelectedBookingId(bookingId);
     setViewDialogOpen(true);
@@ -231,7 +282,7 @@ export default function PartyBookingsPage() {
   };
 
   const getStatusBadgeVariant = (status: string) => {
-    const config = UMRAH_VISA_STATUS_CONFIG[status];
+    const config = UMRAH_VISA_STATUS_CONFIG[status as keyof typeof UMRAH_VISA_STATUS_CONFIG];
     return config ? config.color : 'bg-gray-100 text-gray-800';
   };
 
@@ -382,9 +433,11 @@ export default function PartyBookingsPage() {
                       <TableRow key={booking.id} className="hover:bg-gray-50/50">
                         <TableCell className="font-bold text-gray-900">
                           <div>{booking.bookingReference || 'N/A'}</div>
-                          <div className="text-[10px] font-normal text-gray-400 mt-0.5">
-                            {new Date(booking.createdAt).toLocaleDateString()}
-                          </div>
+                          {booking.createdAt && (
+                            <div className="text-[10px] font-normal text-gray-400 mt-0.5">
+                              {formatRecordDateTimeIST(booking.createdAt)}
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="font-semibold text-gray-900">{booking.groupNumber || 'Not Assigned'}</div>
@@ -400,11 +453,11 @@ export default function PartyBookingsPage() {
                           <div className="flex flex-col text-gray-650">
                             <span className="flex items-center gap-1">
                               <Plane className="h-3.5 w-3.5 text-indigo-500 shrink-0" style={{ transform: 'rotate(45deg)' }} />
-                              Arr: {booking.arrivalDate ? new Date(booking.arrivalDate).toLocaleString() : 'N/A'}
+                              Arr: {booking.arrivalDate ? formatDate(booking.arrivalDate) : 'N/A'}
                             </span>
                             <span className="flex items-center gap-1 mt-1">
                               <Plane className="h-3.5 w-3.5 text-emerald-500 shrink-0" style={{ transform: 'rotate(135deg)' }} />
-                              Dep: {booking.departureDate ? new Date(booking.departureDate).toLocaleString() : 'N/A'}
+                              Dep: {booking.departureDate ? formatDate(booking.departureDate) : 'N/A'}
                             </span>
                           </div>
                         </TableCell>

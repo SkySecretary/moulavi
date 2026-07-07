@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client, S3_CONFIG, isS3Configured, extractS3KeyFromUrl } from '../config/s3';
+import { prisma } from '../config/database';
 
 dotenv.config();
 
@@ -595,6 +596,73 @@ const EMAIL_TEMPLATES = {
     </html>
     `;
   },
+
+  missingReturnTicketsNotification: (agentName: string, bookingsListHtml: string) => `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Missing Return Ticket Details - Action Required</title>
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background-color: #f8f9fa; margin: 0; padding: 0; }
+        .container { max-width: 650px; margin: 20px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+        .header { background: #4f46e5; color: white; padding: 35px 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+        .content { padding: 35px; }
+        .greeting { font-size: 18px; font-weight: 600; margin-bottom: 20px; color: #4f46e5; }
+        .message { font-size: 15px; color: #475569; margin-bottom: 25px; }
+        .table-container { width: 100%; overflow-x: auto; margin-bottom: 30px; border-radius: 8px; border: 1px solid #e2e8f0; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+        th { background-color: #f8fafc; color: #475569; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; }
+        td { color: #334155; }
+        .btn { display: inline-block; padding: 12px 24px; background-color: #4f46e5; color: white !important; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px; margin-top: 15px; transition: background-color 0.2s; }
+        .footer { background: #0f172a; color: #94a3b8; padding: 30px 20px; text-align: center; font-size: 12px; }
+        .footer-logo { font-size: 18px; font-weight: bold; color: #f8fafc; margin-bottom: 10px; }
+        .footer-text { margin: 4px 0; color: #64748b; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Missing Return Ticket Details</h1>
+        </div>
+        <div class="content">
+          <div class="greeting">Dear ${agentName},</div>
+          <div class="message">
+            We noticed that the return ticket details are missing for the following booking(s) created as one-way/onward-only. Please update the return travel details (flight, airport, dates, and ticket upload) as soon as possible.
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th style="padding: 12px 16px; text-align: left; background-color: #f8fafc; color: #475569; font-weight: 600; text-transform: uppercase; font-size: 11px;">Voucher / Group Ref</th>
+                  <th style="padding: 12px 16px; text-align: left; background-color: #f8fafc; color: #475569; font-weight: 600; text-transform: uppercase; font-size: 11px;">Pax</th>
+                  <th style="padding: 12px 16px; text-align: left; background-color: #f8fafc; color: #475569; font-weight: 600; text-transform: uppercase; font-size: 11px;">Arrival Date</th>
+                  <th style="padding: 12px 16px; text-align: left; background-color: #f8fafc; color: #475569; font-weight: 600; text-transform: uppercase; font-size: 11px;">Contact Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${bookingsListHtml}
+              </tbody>
+            </table>
+          </div>
+          <p style="font-size: 14px; color: #64748b; text-align: center;">Please log in to your dashboard to update these details:</p>
+          <div style="text-align: center; margin-bottom: 15px;">
+            <a href="${EMAIL_CONFIG.frontendUrl}/dashboard/umrah-visa/missing-return-ticket" class="btn">Update Return Tickets</a>
+          </div>
+        </div>
+        <div class="footer">
+          <div class="footer-logo">NuSync</div>
+          <div class="footer-text">NuSync Travel Technology Solutions</div>
+          <div class="footer-text">© 2026 NuSync. All rights reserved.</div>
+          <div class="footer-text">This is an automated notification. Please do not reply directly to this email.</div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `,
 } as const;
 
 // Utility function to send email with error handling
@@ -1302,5 +1370,111 @@ export const sendVerificationEmail = async (
   } catch (error: any) {
     console.error('[EMAIL] ❌ sendVerificationEmail failed:', error?.message);
     throw new Error('Failed to send verification email');
+  }
+};
+
+// Send single missing return ticket email notification
+export const sendSingleMissingReturnTicketEmail = async (
+  to: string,
+  agentName: string,
+  bookingRef: string,
+  arrivalDate: string,
+  contact: string
+): Promise<void> => {
+  console.log(`[EMAIL] Attempting to send Single Missing Return Ticket email to ${to}`);
+  const bookingsListHtml = `
+    <tr>
+      <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">${bookingRef}</td>
+      <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0;">-</td>
+      <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0;">${arrivalDate}</td>
+      <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 13px;">${contact}</td>
+    </tr>
+  `;
+  const mailOptions: nodemailer.SendMailOptions = {
+    from: EMAIL_CONFIG.from,
+    to,
+    subject: `Action Required: Missing Return Ticket for ${bookingRef}`,
+    html: EMAIL_TEMPLATES.missingReturnTicketsNotification(agentName, bookingsListHtml),
+  };
+  await sendEmail(mailOptions);
+  console.log(`[EMAIL] Successfully sent Single Missing Return Ticket email to ${to}`);
+};
+
+// Send daily missing return ticket emails to parties
+export const sendDailyMissingReturnTicketsEmails = async (): Promise<void> => {
+  console.log('[EMAIL] Running daily missing return ticket email job...');
+  try {
+    const bookings = await prisma.umrahVisaBooking.findMany({
+      where: {
+        isOneWay: true,
+        isDeleted: false,
+        status: { not: 'cancelled' },
+      },
+      include: {
+        party: true,
+        travelDetails: {
+          where: { isAlternate: false }
+        }
+      }
+    });
+
+    if (bookings.length === 0) {
+      console.log('[EMAIL] No bookings found with missing return tickets. Skipping daily report.');
+      return;
+    }
+
+    const partyBookingsMap: Record<string, typeof bookings> = {};
+    bookings.forEach(b => {
+      if (!b.partyId) return;
+      if (!partyBookingsMap[b.partyId]) {
+        partyBookingsMap[b.partyId] = [];
+      }
+      partyBookingsMap[b.partyId].push(b);
+    });
+
+    for (const partyId of Object.keys(partyBookingsMap)) {
+      const partyBookings = partyBookingsMap[partyId];
+      const party = partyBookings[0].party;
+      
+      if (!party || !party.email || !party.emailNotification) {
+        console.log(`[EMAIL] Skipping email for party ${party?.partyName || partyId} (No email or notifications disabled)`);
+        continue;
+      }
+
+      let bookingsListHtml = '';
+      partyBookings.forEach(b => {
+        const groupRef = b.groupNumber || b.bookingReference || b.id.slice(0, 8);
+        const pax = b.passengerCount;
+        const arrivalDate = b.travelDetails?.[0]?.arrivalDateTime 
+          ? new Date(b.travelDetails[0].arrivalDateTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+          : 'N/A';
+        const contact = b.oneWayContactName ? `${b.oneWayContactName} (${b.oneWayWhatsapp || ''})` : '-';
+        
+        bookingsListHtml += `
+          <tr>
+            <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">${groupRef}</td>
+            <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0;">${pax} PAX</td>
+            <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0;">${arrivalDate}</td>
+            <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 13px;">${contact}</td>
+          </tr>
+        `;
+      });
+
+      const mailOptions: nodemailer.SendMailOptions = {
+        from: EMAIL_CONFIG.from,
+        to: party.email,
+        subject: `Action Required: Missing Return Ticket Details - ${partyBookings.length} Booking(s)`,
+        html: EMAIL_TEMPLATES.missingReturnTicketsNotification(party.partyName, bookingsListHtml),
+      };
+
+      try {
+        await sendEmail(mailOptions);
+        console.log(`[EMAIL] Successfully sent missing return ticket report to ${party.email} (${partyBookings.length} bookings)`);
+      } catch (err: any) {
+        console.error(`[EMAIL] Failed to send report to ${party.email}:`, err?.message);
+      }
+    }
+  } catch (error: any) {
+    console.error('[EMAIL] Error in sendDailyMissingReturnTicketsEmails:', error);
   }
 };

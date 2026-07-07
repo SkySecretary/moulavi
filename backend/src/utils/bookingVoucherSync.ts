@@ -433,6 +433,9 @@ export async function syncBookingToVoucher(tx: any, bookingId: string) {
       paxCount: booking.passengerCount,
       groupCode: booking.groupNumber || null,
       groupName: booking.groupName || null,
+      umrahVisaProviderId: booking.umrahVisaProviderId || null,
+      umrahCompanyId: booking.umrahVisaProviderId || null,
+      transportCompanyId: booking.transportCompanyId || null,
       version: voucher.version + 1,
     },
   });

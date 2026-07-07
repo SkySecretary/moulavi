@@ -242,6 +242,9 @@ export const umrahVisaAPI = {
   getMissingBrnBookings: (params?: any) => 
     api.get('/umrah-visa/missing-brn', { params }),
 
+  getMissingReturnTicketsBookings: (params?: any) => 
+    api.get('/umrah-visa/bookings', { params: { ...params, missingReturnTicket: 'true' } }),
+
   updateHotelBrn: (hotelBookingId: string, brn: string | string[]) =>
     api.patch(`/umrah-visa/hotels/${hotelBookingId}/brn`, { brn }),
 
@@ -250,6 +253,9 @@ export const umrahVisaAPI = {
 
   notifyMissingBrn: (bookingId: string) =>
     api.post(`/umrah-visa/${bookingId}/notify-missing-brn`),
+
+  notifyMissingReturnTicket: (bookingId: string) =>
+    api.post(`/umrah-visa/${bookingId}/notify-missing-return-ticket`),
 
   getDailyOverview: (params: any) =>
     api.get('/umrah-visa/operational/daily-bookings', { params }),

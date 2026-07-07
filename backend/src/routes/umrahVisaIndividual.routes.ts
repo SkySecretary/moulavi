@@ -370,10 +370,16 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
 
     // Additional validations - convert date strings to Date objects for validation
     const arrivalDateObj = parseSafeDate(step2Data.arrivalDate);
-    const departureDateObj = parseSafeDate(step2Data.departureDate);
+    const departureDateObj = step2Data.isOneWay
+      ? arrivalDateObj
+      : parseSafeDate(step2Data.departureDate);
     const dateRangeValidation = validateDateRange(arrivalDateObj, departureDateObj);
     if (!dateRangeValidation.valid) {
       return res.status(400).json({ error: dateRangeValidation.error });
+    }
+
+    if (step2Data.isOneWay && step3Data.accommodationType !== 'iqama') {
+      return res.status(400).json({ error: 'One-way setting is only permitted with Iqama stay.' });
     }
 
     // Since we know they are valid dates now, cast for the next functions
@@ -1012,6 +1018,17 @@ router.patch('/:bookingId/travel-details', authenticate, async (req, res) => {
     const booking = await prisma.umrahVisaBooking.findUnique({
       where: { id: bookingId }
     });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const isOneWay = req.body.isOneWay !== undefined ? Boolean(req.body.isOneWay) : (booking.isOneWay || false);
+    const accommodationType = booking.accommodationType;
+
+    if (isOneWay && accommodationType !== 'iqama') {
+      return res.status(400).json({ error: 'One-way setting is only permitted with Iqama stay.' });
+    }
     
     if (req.body.isOneWay !== undefined) {
       await prisma.umrahVisaBooking.update({
@@ -1032,7 +1049,7 @@ router.patch('/:bookingId/travel-details', authenticate, async (req, res) => {
       });
     }
 
-    const isOneWay = req.body.isOneWay !== undefined ? Boolean(req.body.isOneWay) : (booking?.isOneWay || false);
+
 
     const {
       arrivalDate,
@@ -1149,6 +1166,21 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
     console.log(`[DEBUG] Updating accommodation for booking ${bookingId}`);
     console.log(`[DEBUG] Type: ${accommodationType}`);
 
+    // Get current booking state
+    const booking = await prisma.umrahVisaBooking.findUnique({
+      where: { id: bookingId },
+      select: { accommodationType: true, isOneWay: true },
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const targetAccommodationType = accommodationType || booking.accommodationType;
+    if (booking.isOneWay && targetAccommodationType !== 'iqama') {
+      return res.status(400).json({ error: 'One-way bookings are only permitted with Iqama stay.' });
+    }
+
     // Update accommodation type in booking table if provided
     if (accommodationType) {
       await prisma.umrahVisaBooking.update({
@@ -1157,18 +1189,9 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
       });
     }
 
-    // Get current booking state
-    const booking = await prisma.umrahVisaBooking.findUnique({
-      where: { id: bookingId },
-      select: { accommodationType: true },
-    });
-
-    if (!booking) {
-      return res.status(404).json({ error: 'Booking not found' });
-    }
-
     // Update based on accommodation type
-    if (booking.accommodationType === 'iqama') {
+    const finalAccommodationType = accommodationType || booking.accommodationType;
+    if (finalAccommodationType === 'iqama') {
       // Update or create sponsor iqama details
       const sponsorIqama = await prisma.umrahSponserIqamaDetails.upsert({
         where: {
@@ -1211,7 +1234,7 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
       }
 
       return res.json({ sponsorIqamaDetails: sponsorIqama });
-    } else if (booking.accommodationType === 'hotel') {
+    } else if (finalAccommodationType === 'hotel') {
       // Update hotel bookings
       if (Array.isArray(hotelBookings)) {
         for (const h of hotelBookings) {

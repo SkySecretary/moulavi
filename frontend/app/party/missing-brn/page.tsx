@@ -177,8 +177,13 @@ export default function PartyMissingBRNPage() {
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
     try {
-      return new Date(dateString).toLocaleDateString('en-GB', {
-        day: 'numeric', month: 'short', year: 'numeric'
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'N/A';
+      return date.toLocaleDateString('en-US', {
+        timeZone: 'UTC',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
       });
     } catch {
       return 'N/A';

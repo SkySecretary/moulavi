@@ -209,6 +209,31 @@ app.listen(PORT, () => {
         console.warn(`⚠️  Scheduled Nusuk sync checker encountered an error: ${error.message}`);
       }
     }, 60 * 1000);
+
+    // Initialize Daily Missing Return Ticket Notification (Runs at 09:00 AM everyday)
+    try {
+      const { sendDailyMissingReturnTicketsEmails } = require('./services/emailService');
+      let lastReportDate = '';
+      setInterval(async () => {
+        try {
+          const now = new Date();
+          const currentHrMin = now.toTimeString().substring(0, 5); // "HH:MM"
+          const currentDateStr = now.toISOString().substring(0, 10); // "YYYY-MM-DD"
+          
+          if (currentHrMin === '09:00' && lastReportDate !== currentDateStr) {
+            lastReportDate = currentDateStr;
+            console.log(`[SERVER] Running scheduled daily missing return ticket report at: ${currentHrMin}`);
+            await sendDailyMissingReturnTicketsEmails();
+            console.log(`[SERVER] Daily missing return ticket report completed.`);
+          }
+        } catch (error: any) {
+          console.warn(`⚠️ Scheduled daily missing return ticket report failed: ${error.message}`);
+        }
+      }, 60 * 1000);
+      console.log(`✉️ Daily Missing Return Ticket Report: Scheduled at 09:00 AM every day`);
+    } catch (error: any) {
+      console.warn(`⚠️ Daily Missing Return Ticket Report initialization failed: ${error.message}`);
+    }
     
     // Non-blocking sync shortly after server start
     setTimeout(async () => {

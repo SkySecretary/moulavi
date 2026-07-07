@@ -78,6 +78,9 @@ export const S3_CONFIG = {
     'passport_back',
     'visa_copy',
     'confirmation_image',
+    'iqama',
+    'onward_ticket',
+    'return_ticket',
     'other'
   ]
 };

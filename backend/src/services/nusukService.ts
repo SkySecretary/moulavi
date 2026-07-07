@@ -1110,7 +1110,10 @@ export class NusukService {
                 const timeDiffHrs = timeDiffMs / (1000 * 60 * 60);
 
                 const timeMismatch = timeDiffHrs >= 9;
-                const airportMismatch = !isAirportSimilar(mainTravel.arrivalAirport?.name, excelEntryPort);
+                // Relax airport name mismatch if flight code and time match
+                const airportMismatch = (flightMismatch || timeMismatch)
+                  ? !isAirportSimilar(mainTravel.arrivalAirport?.name, excelEntryPort)
+                  : false;
 
                 if (flightMismatch || timeMismatch || airportMismatch) {
                   entryMismatchDetails = {
@@ -1148,7 +1151,10 @@ export class NusukService {
                 const timeDiffHrsDep = timeDiffMsDep / (1000 * 60 * 60);
 
                 const timeMismatchDep = timeDiffHrsDep >= 9;
-                const airportMismatchDep = !isAirportSimilar(mainTravel.departureAirport?.name, excelExitPort);
+                // Relax airport name mismatch if flight code and time match
+                const airportMismatchDep = (flightMismatchDep || timeMismatchDep)
+                  ? !isAirportSimilar(mainTravel.departureAirport?.name, excelExitPort)
+                  : false;
 
                 if (flightMismatchDep || timeMismatchDep || airportMismatchDep) {
                   exitMismatchDetails = {
@@ -1912,31 +1918,39 @@ export class NusukService {
 
       // Calculate visa stats
       const systemPassengers = await prisma.umrahPassenger.count({
-        where: { isDeleted: false }
+        where: { 
+          isDeleted: false,
+          booking: { isDeleted: false }
+        }
       });
+      // Synced pilgrims: count of active passengers in bookings that have a groupNumber assigned
       const nusukPassengers = await prisma.umrahPassenger.count({
         where: {
           isDeleted: false,
-          OR: [
-            { mofaNumber: { not: null } },
-            { visaNumber: { not: null } }
-          ]
+          booking: {
+            isDeleted: false,
+            NOT: [
+              { groupNumber: null },
+              { groupNumber: '' }
+            ]
+          }
         }
       });
-      const visasIssuedAggregate = await prisma.umrahVisaBooking.aggregate({
-        _sum: { passengerCount: true },
+      // Visas Issued: count of active passengers who have an actual visa number assigned (active visas in Nusuk)
+      const visasIssued = await prisma.umrahPassenger.count({
         where: {
           isDeleted: false,
+          booking: { isDeleted: false },
           NOT: [
-            { groupNumber: null },
-            { groupNumber: '' }
+            { visaNumber: null },
+            { visaNumber: '' }
           ]
         }
       });
-      const visasIssued = visasIssuedAggregate._sum.passengerCount || 0;
       const consulateReview = await prisma.umrahPassenger.count({
         where: {
           isDeleted: false,
+          booking: { isDeleted: false },
           OR: [
             { isConsulateReview: true },
             { mutamerStatus: 'Visa Rejected' },
@@ -1947,6 +1961,7 @@ export class NusukService {
       const passengersInKSA = await prisma.umrahPassenger.count({
         where: {
           isDeleted: false,
+          booking: { isDeleted: false },
           OR: [
             { currentlyInKingdom: 'Yes' },
             {
@@ -1959,6 +1974,7 @@ export class NusukService {
       const passengersToArrive = await prisma.umrahPassenger.count({
         where: {
           isDeleted: false,
+          booking: { isDeleted: false },
           visaNumber: { not: null },
           entryDate: null,
           OR: [
