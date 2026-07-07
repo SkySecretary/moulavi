@@ -482,16 +482,6 @@ export default function TripInfoPage() {
 
   const handleCopyAll = async (booking: UmrahVisaBooking) => {
     const mainTravel = booking.travelDetails?.find(t => !t.isAlternate);
-    let makkahHotelName = 'N/A';
-    let makkahBrn = 'N/A';
-    let makkahCheckIn = 'N/A';
-    let makkahCheckOut = 'N/A';
-    
-    let madinahHotelName = 'N/A';
-    let madinahBrn = 'N/A';
-    let madinahCheckIn = 'N/A';
-    let madinahCheckOut = 'N/A';
-
     let iqamaInfo = '';
 
     const formatDateShort = (dateStr: string | undefined) => {
@@ -510,31 +500,9 @@ export default function TripInfoPage() {
       return String(brn);
     };
 
-    if (booking.accommodationType === 'hotel') {
-      const makkahHotel = booking.hotelBookings?.find(h => (h.city?.name || '').toLowerCase().includes('makkah'));
-      const madinahHotel = booking.hotelBookings?.find(h => (h.city?.name || '').toLowerCase().includes('madinah'));
-      
-      if (makkahHotel) {
-        makkahHotelName = makkahHotel.hotel?.name || 'N/A';
-        makkahBrn = brnToString(makkahHotel.brn);
-        makkahCheckIn = formatDateShort(makkahHotel.checkInDate);
-        makkahCheckOut = formatDateShort(makkahHotel.checkOutDate);
-      }
-      if (madinahHotel) {
-        madinahHotelName = madinahHotel.hotel?.name || 'N/A';
-        madinahBrn = brnToString(madinahHotel.brn);
-        madinahCheckIn = formatDateShort(madinahHotel.checkInDate);
-        madinahCheckOut = formatDateShort(madinahHotel.checkOutDate);
-      }
-    } else if (booking.accommodationType === 'iqama') {
+    if (booking.accommodationType === 'iqama') {
       const mainIqama = booking.sponsorIqamaDetails?.find(i => !i.isAlternate);
       if (mainIqama) {
-        makkahHotelName = mainIqama.makkahHotelName || 'N/A';
-        makkahBrn = brnToString(mainIqama.makkahBrn);
-        
-        madinahHotelName = mainIqama.madinahHotelName || 'N/A';
-        madinahBrn = brnToString(mainIqama.madinahBrn);
-
         // Additional Iqama info for copy text
         iqamaInfo = `💳 *Iqama Number:* ${mainIqama.iqamaNumber || 'N/A'}\n`;
         iqamaInfo += `👤 *Iqama Holder:* ${mainIqama.iqamaSponserName || 'N/A'}\n`;
@@ -552,28 +520,59 @@ export default function TripInfoPage() {
       text += iqamaInfo;
     }
 
-    const isIndividual = booking.visaType !== 'group_visa';
-    const hotel1Label = isIndividual ? 'Makkah Hotel' : 'Hotel 1';
-    const hotel2Label = isIndividual ? 'Madinah Hotel' : 'Hotel 2';
+    if (booking.accommodationType === 'hotel') {
+      const sortedBookings = [...(booking.hotelBookings || [])].sort((a, b) => {
+        if (!a.checkInDate) return 1;
+        if (!b.checkInDate) return -1;
+        return new Date(a.checkInDate).getTime() - new Date(b.checkInDate).getTime();
+      });
 
-    if (makkahHotelName !== 'N/A') {
-      text += `🏨 *${hotel1Label}:* ${makkahHotelName}\n`;
-      text += `📄 *Agreement No.:* ${makkahBrn}\n`;
-      if (booking.accommodationType === 'hotel') {
-        text += `📅 *Check-in:* ${makkahCheckIn}\n`;
-        text += `📅 *Check-out:* ${makkahCheckOut}\n`;
-      }
-      text += `\n`;
-    }
+      const totalHotels = sortedBookings.length;
 
-    if (madinahHotelName !== 'N/A') {
-      text += `🏨 *${hotel2Label}:* ${madinahHotelName}\n`;
-      text += `📄 *Agreement No.:* ${madinahBrn}\n`;
-      if (booking.accommodationType === 'hotel') {
-        text += `📅 *Check-in:* ${madinahCheckIn}\n`;
-        text += `📅 *Check-out:* ${madinahCheckOut}\n`;
+      sortedBookings.forEach((hotelBooking, index) => {
+        const isMakkah = (hotelBooking.city?.name || '').toLowerCase().includes('makkah');
+        const isMadinah = (hotelBooking.city?.name || '').toLowerCase().includes('madinah');
+        
+        let label = '';
+        if (booking.visaType !== 'group_visa') {
+          label = isMakkah ? 'Makkah Hotel' : isMadinah ? 'Madinah Hotel' : `Hotel ${index + 1}`;
+        } else {
+          label = `Hotel ${totalHotels > 1 ? `${index + 1}` : ''}`.trim();
+        }
+
+        const hName = hotelBooking.hotel?.name || 'N/A';
+        const hBrn = brnToString(hotelBooking.brn);
+        const hCheckIn = formatDateShort(hotelBooking.checkInDate);
+        const hCheckOut = formatDateShort(hotelBooking.checkOutDate);
+
+        if (hName !== 'N/A') {
+          text += `🏨 *${label}:* ${hName}\n`;
+          text += `📄 *Agreement No.:* ${hBrn}\n`;
+          text += `📅 *Check-in:* ${hCheckIn}\n`;
+          text += `📅 *Check-out:* ${hCheckOut}\n\n`;
+        }
+      });
+    } else if (booking.accommodationType === 'iqama') {
+      const mainIqama = booking.sponsorIqamaDetails?.find(i => !i.isAlternate);
+      if (mainIqama) {
+        const isIndividual = booking.visaType !== 'group_visa';
+        const hotel1Label = isIndividual ? 'Makkah Hotel' : 'Hotel 1';
+        const hotel2Label = isIndividual ? 'Madinah Hotel' : 'Hotel 2';
+
+        const mName = mainIqama.makkahHotelName || 'N/A';
+        const mBrn = brnToString(mainIqama.makkahBrn);
+        const dName = mainIqama.madinahHotelName || 'N/A';
+        const dBrn = brnToString(mainIqama.madinahBrn);
+
+        if (mName !== 'N/A') {
+          text += `🏨 *${hotel1Label}:* ${mName}\n`;
+          text += `📄 *Agreement No.:* ${mBrn}\n\n`;
+        }
+        if (dName !== 'N/A') {
+          text += `🏨 *${hotel2Label}:* ${dName}\n`;
+          text += `📄 *Agreement No.:* ${dBrn}\n\n`;
+        }
       }
-      text += `\n`;
     }
 
     text += `🛫 *Arrival Flight:* ${mainTravel?.arrivalFlightNumber || 'N/A'}\n`;
