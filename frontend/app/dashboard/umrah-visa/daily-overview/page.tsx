@@ -184,6 +184,7 @@ export default function DailyOverviewPage() {
 
       const visaType = VISA_TYPE_CONFIG[booking.visaType as keyof typeof VISA_TYPE_CONFIG]?.label || booking.visaType;
       const reference = booking.bookingReference || 'N/A';
+      const voucher = booking.vouchers?.map((v: any) => v.voucherNumber).filter(Boolean).join(', ') || '';
       const group = `${booking.groupNumber || 'N/A'}\n${booking.groupName || ''}`;
       const party = booking.party?.partyName || 'N/A';
       const provider = booking.umrahVisaProvider?.partyName || 'N/A';
@@ -207,6 +208,7 @@ export default function DailyOverviewPage() {
       return [
         visaType,
         reference,
+        voucher,
         group,
         provider,
         qty,
@@ -218,7 +220,7 @@ export default function DailyOverviewPage() {
 
     autoTable(doc, {
       startY: 80,
-      head: [['Visa Type', 'Reference', 'Group Details', 'Service Provider', 'Qty', 'Arrival Hub', 'Departure Hub', 'City Movement']],
+      head: [['Visa Type', 'Reference', 'Voucher', 'Group Details', 'Service Provider', 'Qty', 'Arrival Hub', 'Departure Hub', 'City Movement']],
       body: tableData,
       theme: 'grid',
       styles: {
@@ -232,9 +234,9 @@ export default function DailyOverviewPage() {
         halign: 'center'
       },
       columnStyles: {
-        4: { halign: 'center' },
         5: { halign: 'center' },
         6: { halign: 'center' },
+        7: { halign: 'center' },
       },
       margin: { top: 80, bottom: 40, left: 40, right: 40 },
       didDrawPage: (data) => {
