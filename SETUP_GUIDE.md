@@ -7,7 +7,7 @@ This guide will help you set up the NuSync system from scratch.
 Before starting, ensure you have:
 
 - [ ] Node.js v18+ installed (`node --version`)
-- [ ] PostgreSQL v14+ installed (`psql --version`)
+- [ ] SQLite3 CLI installed (`sqlite3 --version`)
 - [ ] npm or yarn package manager
 - [ ] A code editor (VS Code recommended)
 - [ ] Git (optional, for version control)
@@ -16,33 +16,16 @@ Before starting, ensure you have:
 
 ### 1. Database Setup
 
-1. **Start PostgreSQL service**
-   ```bash
-   # On Windows
-   # Open Services and start PostgreSQL
-   
-   # On Mac
-   brew services start postgresql
-   
-   # On Linux
-   sudo systemctl start postgresql
-   ```
+NuSync uses **SQLite** for development and production data storage. There is no need to run or configure a standalone database server.
 
-2. **Create database**
+To initialize your local database:
+1. Ensure the SQLite CLI tool is installed.
+2. Navigate to the `backend` folder and run the restore script:
    ```bash
-   # Using psql
-   psql -U postgres
-   CREATE DATABASE moulavi_erp;
-   \q
-   
-   # Or using createdb command
-   createdb -U postgres moulavi_erp
+   cd backend
+   npm run db:restore
    ```
-
-3. **Verify database creation**
-   ```bash
-   psql -U postgres -d moulavi_erp -c "SELECT version();"
-   ```
+   This will clean-import the database seed from `backend/prisma/seed.sql` into `backend/prisma/dev.db`.
 
 ### 2. Backend Setup
 
@@ -78,9 +61,8 @@ Before starting, ensure you have:
    ```env
    PORT=5000
    NODE_ENV=development
-   
-   # Database Configuration (Prisma)
-   DATABASE_URL="postgresql://postgres:your_password@localhost:5432/moulavi_erp?schema=public"
+      # Database Configuration (Prisma SQLite)
+    DATABASE_URL="file:./dev.db"
    
    # JWT Secrets (generate random strings)
    JWT_SECRET=generate_a_long_random_string_here_min_32_chars
@@ -119,24 +101,16 @@ Before starting, ensure you have:
    - Copy the 16-character password
    - Use it in `SMTP_PASSWORD`
 
-7. **Set up Prisma ORM**
+7. **Generate Prisma Client**
    ```bash
-   # Generate Prisma client
+   # Generate Prisma client library
    npx prisma generate
-   
-   # Run database migrations (creates all tables)
-   npx prisma migrate dev --name init
    
    # Optional: Open Prisma Studio to view database
    npx prisma studio
    ```
    
-   You should see:
-   ```
-   ✔ Generated Prisma Client (v6.17.0)
-   Applying migration `20250109143950_init`
-   Your database is now in sync with your schema.
-   ```
+   *Note: Since you already restored the database using `npm run db:restore` in Step 1, the database schema and data are already fully configured.*
 
 8. **Create initial admin user**
    ```bash
@@ -255,16 +229,13 @@ Before starting, ensure you have:
 
 ### Backend Issues
 
-**"Cannot connect to database"**
-- Ensure PostgreSQL is running
-- Check `DATABASE_URL` in `.env` file
-- Verify database exists: `psql -U postgres -l`
-- Make sure there are no leading spaces in `.env` file
+**"Cannot connect to database / dev.db not found"**
+- Ensure `DATABASE_URL` is set to `"file:./dev.db"` in `backend/.env`
+- Ensure you have run `npm run db:restore` inside the `backend` folder to generate the SQLite database file
+- Check filesystem permissions on the `backend/prisma/` directory
 
-**"Prisma migration failed"**
-- Ensure `DATABASE_URL` is correctly formatted
-- Check if database exists: `psql -U postgres -c "SELECT 1"`
-- If database exists but migration fails, try: `npx prisma migrate reset --force`
+**"Prisma generation / client errors"**
+- Run `npx prisma generate` in the `backend` folder to rebuild client mappings
 
 **"Port 5000 already in use"**
 - Change `PORT` in `.env` to another port (e.g., 5001)
@@ -299,7 +270,7 @@ Before starting, ensure you have:
 - [ ] Change admin password
 - [ ] Use strong JWT secrets
 - [ ] Set `NODE_ENV=production`
-- [ ] Use managed PostgreSQL database
+- [ ] Use SQLite database (dev.db) on persistent volume
 - [ ] Enable HTTPS
 - [ ] Configure proper CORS origins
 - [ ] Set up SSL for database connection
