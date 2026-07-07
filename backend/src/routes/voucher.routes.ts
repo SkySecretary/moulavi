@@ -1092,6 +1092,10 @@ router.post(
       return res.status(400).json({ error: 'Guest name and passenger count are required' });
     }
 
+    if (!transportCompanyId) {
+      return res.status(400).json({ error: 'Transport Company is required' });
+    }
+
     const voucherNumber = await generateVoucherNumber(); // Voucher number is used as reservation number
 
     // Generate route numbers dynamically from the last route number in database

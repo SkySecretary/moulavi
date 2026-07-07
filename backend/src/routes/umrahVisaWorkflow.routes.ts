@@ -1119,6 +1119,10 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
+    if (!voucherData.transportCompanyId) {
+      return res.status(400).json({ error: 'Transport Company is required for voucher generation.' });
+    }
+
     // Check status - allow voucher generation in appropriate stages
     const validStatuses = ['voucher', 'ready_for_voucher', 'bill', 'booking_success'];
     if (!validStatuses.includes(booking.status)) {

@@ -100,12 +100,10 @@ export default function PartyDashboardPage() {
       const party = partyRes.data.party;
       setPartyDetails(party);
 
-      if (party?.allowOneWayTicket) {
-        setLoadingMissingReturn(true);
-        const response = await umrahVisaAPI.getMissingReturnTicketsBookings({ page: '1', limit: '100' });
-        setMissingReturnBookings(response.data.bookings || []);
-        setLoadingMissingReturn(false);
-      }
+      setLoadingMissingReturn(true);
+      const response = await umrahVisaAPI.getMissingReturnTicketsBookings({ page: '1', limit: '100' });
+      setMissingReturnBookings(response.data.bookings || []);
+      setLoadingMissingReturn(false);
     } catch (error) {
       console.error('Failed to load party details or missing return bookings:', error);
     }
@@ -290,7 +288,7 @@ export default function PartyDashboardPage() {
   }
 
   const getMissingReturnStatus = () => {
-    if (!partyDetails?.allowOneWayTicket || missingReturnBookings.length === 0) {
+    if (missingReturnBookings.length === 0) {
       return { show: false, urgent: false, count: 0 };
     }
 
