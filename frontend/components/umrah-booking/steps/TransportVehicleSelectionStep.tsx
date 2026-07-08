@@ -140,8 +140,9 @@ export const TransportVehicleSelectionStep: React.FC<TransportVehicleSelectionSt
 
   // Load all active routes - only when step is accessed (lazy loading)
   useEffect(() => {
-    // Only load if we have the minimum required data (at least 2 cities in route)
-    if (determinedRoute.length < 2) {
+    const isOneWay = !!step2Data.isOneWay || step3Data?.accommodationType === 'iqama';
+    const minRequiredLength = isOneWay ? 1 : 2;
+    if (determinedRoute.length < minRequiredLength) {
       return;
     }
 
@@ -314,7 +315,10 @@ export const TransportVehicleSelectionStep: React.FC<TransportVehicleSelectionSt
   };
 
 
-  if (determinedRoute.length < 2) {
+  const isOneWay = !!step2Data.isOneWay || step3Data?.accommodationType === 'iqama';
+  const minRequiredLength = isOneWay ? 1 : 2;
+
+  if (determinedRoute.length < minRequiredLength) {
     return (
       <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
         <p className="text-yellow-800">
@@ -330,7 +334,7 @@ export const TransportVehicleSelectionStep: React.FC<TransportVehicleSelectionSt
   }).join(' → ');
 
   const selectedRoute = availableRoutes.find(r => r.id === selectedRouteId);
-  const routeNotFound = determinedRoute.length >= 2 && !selectedRoute;
+  const routeNotFound = determinedRoute.length >= minRequiredLength && !selectedRoute;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
