@@ -42,3 +42,16 @@ Ensure you have the `sqlite3` CLI client installed on your system:
    ```bash
    npm run dev
    ```
+
+---
+
+## 📥 Pulling live production database (For testing with real data)
+If you want to pull the latest SQLite database file directly from the live production server to test with real production data locally:
+
+1. Ensure you have SSH access to the production server (`64.227.158.41`).
+2. Run the pull script:
+   ```bash
+   cd backend
+   npm run db:pull
+   ```
+   *Note: This automatically downloads `/var/www/umrasystem/shared/dev.db` via `scp` and places it into `backend/prisma/dev.db`, overwriting your local data, and automatically runs `npx prisma generate` to sync backend mappings.*

@@ -12,6 +12,7 @@
     "seed-master": "node scripts/seed-all.js",
     "db:dump": "node scripts/db-dump.js",
     "db:restore": "node scripts/db-restore.js",
+    "db:pull": "node scripts/db-pull.js",
     "deploy": "npm run build && npm start"
   },
   "keywords": [

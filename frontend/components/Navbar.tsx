@@ -226,7 +226,7 @@ export default function Navbar() {
                       : "text-gray-500 hover:bg-gray-100 hover:text-secondary"
                   )}
                 >
-                  Download/Upload
+                  {isAdminOrStaff ? "Download/Upload" : "Compliance & Tools"}
                   <ChevronDown className={cn("h-4 w-4 transition-transform", isAppsDropdownOpen && "rotate-180")} />
                 </button>
 

@@ -211,7 +211,7 @@ export default function UmrahVisaNewPage() {
             onChange={updateStep2Data}
             airports={masterData.airports}
             disabled={isLoading}
-            allowOneWayOption={bookingState.step1Data.bookingMode === 'travel_details' && (globalAllowOneWayTicket || selectedParty?.allowOneWayTicket)}
+            allowOneWayOption={globalAllowOneWayTicket || selectedParty?.allowOneWayTicket}
           />
         );
 

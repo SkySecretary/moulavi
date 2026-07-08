@@ -140,6 +140,12 @@ router.get(
             email: true,
           },
         },
+        vouchers: {
+          select: {
+            id: true,
+            voucherNumber: true,
+          },
+        },
         umrahVisaProvider: {
           select: {
             id: true,
