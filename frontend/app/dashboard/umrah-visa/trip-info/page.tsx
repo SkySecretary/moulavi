@@ -549,7 +549,14 @@ export default function TripInfoPage() {
           text += `🏨 *${label}:* ${hName}\n`;
           text += `📄 *Agreement No.:* ${hBrn}\n`;
           text += `📅 *Check-in:* ${hCheckIn}\n`;
-          text += `📅 *Check-out:* ${hCheckOut}\n\n`;
+          text += `📅 *Check-out:* ${hCheckOut}\n`;
+          if (hotelBooking.checkInDate && hotelBooking.checkOutDate) {
+            const inDate = new Date(hotelBooking.checkInDate);
+            const outDate = new Date(hotelBooking.checkOutDate);
+            const diffDays = Math.ceil((outDate.getTime() - inDate.getTime()) / (1000 * 60 * 60 * 24));
+            text += `⏳ *Total Stay:* ${diffDays > 0 ? diffDays : 0} Days\n`;
+          }
+          text += `\n`;
         }
       });
     } else if (booking.accommodationType === 'iqama') {
@@ -1483,6 +1490,14 @@ export default function TripInfoPage() {
                                               </button>
                                             )}
                                           </div>
+                                           {hotelBooking.checkInDate && hotelBooking.checkOutDate && (
+                                             <div className="flex items-center gap-1">
+                                               <span className="text-gray-500">Total Stay:</span>{' '}
+                                               <span className="font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded text-[10px]">
+                                                 {Math.ceil(Math.abs(new Date(hotelBooking.checkOutDate).getTime() - new Date(hotelBooking.checkInDate).getTime()) / (1000 * 60 * 60 * 24))} Days
+                                               </span>
+                                             </div>
+                                           )}
                                           <div className="flex items-center gap-1">
                                             <span className="text-gray-500">BRN:</span>{' '}
                                             <span className="font-medium">
