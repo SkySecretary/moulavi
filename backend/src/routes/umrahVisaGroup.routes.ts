@@ -230,7 +230,8 @@ router.post('/group/create-booking', authenticate, uploadGroup.fields([
       return res.status(400).json({ error: 'Party ID is required' });
     }
 
-    // Check compliance status constraints
+    // Check compliance status constraints (LIFTED: restrictions removed for now)
+    /*
     try {
       const metric = await prisma.subAgentMetric.findUnique({
         where: { subAgentId: partyId }
@@ -261,6 +262,7 @@ router.post('/group/create-booking', authenticate, uploadGroup.fields([
     } catch (e: any) {
       console.error('[COMPLIANCE GROUP CHECK FAILED]', e.message);
     }
+    */
 
     // Check if group number is unique system-wide
     if (step1Data.groupNumber) {

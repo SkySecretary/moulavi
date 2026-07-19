@@ -40,6 +40,14 @@ export default function DashboardPage() {
       passengersInKSA: number;
       passengersToArrive: number;
     };
+    visaBreakdown?: {
+      individual: {
+        hotel: { bookings: number; passengers: number };
+        iqama: { bookings: number; passengers: number };
+        unspecified: { bookings: number; passengers: number };
+      };
+      group: { bookings: number; passengers: number };
+    };
   } | null>(null);
   const [adminFilter, setAdminFilter] = useState<'all' | 'arrival' | 'departure'>('all');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -229,6 +237,141 @@ export default function DashboardPage() {
               color="text-blue-650"
               bgColor="bg-blue-50"
             />
+          </div>
+        </div>
+
+        {/* Visa Applications by Type Breakdown */}
+        <div className="space-y-3">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Visa Applications Breakdown by Type</p>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* Individual Visas Main Card */}
+            <Card className="col-span-1 lg:col-span-2 border-none shadow-xl shadow-gray-200/50 bg-white rounded-3xl overflow-hidden relative">
+              <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                <Globe className="h-32 w-32 text-indigo-900" />
+              </div>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black bg-indigo-50 text-indigo-650 border border-indigo-100 uppercase tracking-tighter">
+                    Individual Visa Stream
+                  </div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase">Total System Allocation</span>
+                </div>
+                <CardTitle className="text-2xl font-black text-secondary uppercase tracking-tight mt-2">
+                  Individual Visa Applications
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-2">
+                {/* Summary numbers */}
+                <div className="grid grid-cols-2 gap-4 border-b border-gray-100 pb-6 mb-6">
+                  <div>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Total Applications</span>
+                    <span className="text-3xl font-black text-indigo-700">
+                      {(complianceData?.visaBreakdown?.individual?.hotel?.bookings ?? 0) +
+                       (complianceData?.visaBreakdown?.individual?.iqama?.bookings ?? 0) +
+                       (complianceData?.visaBreakdown?.individual?.unspecified?.bookings ?? 0)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Total Pilgrims</span>
+                    <span className="text-3xl font-black text-indigo-700">
+                      {(complianceData?.visaBreakdown?.individual?.hotel?.passengers ?? 0) +
+                       (complianceData?.visaBreakdown?.individual?.iqama?.passengers ?? 0) +
+                       (complianceData?.visaBreakdown?.individual?.unspecified?.passengers ?? 0)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Sub-breakdown sections */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {/* Hotel Accommodation sub-card */}
+                  <div className="bg-slate-50/50 border border-slate-100 p-5 rounded-2xl relative hover:border-indigo-200 transition">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-black text-slate-700 uppercase tracking-tight">Hotel Accommodation</span>
+                      <Award className="h-4 w-4 text-indigo-500" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-[9px] font-bold text-gray-400 uppercase block">Applications</span>
+                        <span className="text-lg font-black text-secondary">
+                          {complianceData?.visaBreakdown?.individual?.hotel?.bookings ?? 0}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-bold text-gray-400 uppercase block">Pilgrims</span>
+                        <span className="text-lg font-black text-secondary">
+                          {complianceData?.visaBreakdown?.individual?.hotel?.passengers ?? 0}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Iqama / Sponsor sub-card */}
+                  <div className="bg-slate-50/50 border border-slate-100 p-5 rounded-2xl relative hover:border-amber-200 transition">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-black text-slate-700 uppercase tracking-tight">Iqama / Sponsor</span>
+                      <Shield className="h-4 w-4 text-amber-500" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-[9px] font-bold text-gray-400 uppercase block">Applications</span>
+                        <span className="text-lg font-black text-secondary">
+                          {complianceData?.visaBreakdown?.individual?.iqama?.bookings ?? 0}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-bold text-gray-400 uppercase block">Pilgrims</span>
+                        <span className="text-lg font-black text-secondary">
+                          {complianceData?.visaBreakdown?.individual?.iqama?.passengers ?? 0}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Group Visas Main Card */}
+            <Card className="col-span-1 border-none shadow-xl shadow-gray-200/50 bg-white rounded-3xl overflow-hidden relative flex flex-col justify-between">
+              <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                <Users className="h-32 w-32 text-emerald-955" />
+              </div>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-650 border border-emerald-100 uppercase tracking-tighter">
+                    Group Visa Stream
+                  </div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase">Consolidated campaigns</span>
+                </div>
+                <CardTitle className="text-2xl font-black text-secondary uppercase tracking-tight mt-2">
+                  Group Visa Applications
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-2 flex-grow flex flex-col justify-between">
+                <div className="grid grid-cols-2 gap-4 border-b border-gray-100 pb-6 mb-6">
+                  <div>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Total Groups</span>
+                    <span className="text-3xl font-black text-emerald-700">
+                      {complianceData?.visaBreakdown?.group?.bookings ?? 0}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Total Pilgrims</span>
+                    <span className="text-3xl font-black text-emerald-700">
+                      {complianceData?.visaBreakdown?.group?.passengers ?? 0}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-emerald-50/30 border border-emerald-100 p-5 rounded-2xl">
+                  <span className="text-[10px] font-black text-emerald-800 uppercase tracking-widest block mb-1">Stream Summary</span>
+                  <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
+                    Group bookings are consolidated under unique Tafweej structures. They are managed collectively for transportation and hotel scheduling across cities.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
           </div>
         </div>
 

@@ -39,6 +39,8 @@ model Party {
   email                    String             @unique
   contactNumber            String?            @map("contact_number")
   whatsappNumber           String?            @map("whatsapp_number")
+  whatsappGroupId          String?            @map("whatsapp_group_id")
+  whatsappType             String             @default("number") @map("whatsapp_type")
   address                  String?
   gstNumber                String?            @map("gst_number")
   customerType             CustomerType       @map("customer_type")
@@ -597,6 +599,7 @@ model Voucher {
   vehicleType         String?           @map("vehicle_type")
   bookingId           String?           @map("booking_id")
   bookingReference    String?           @map("booking_reference")
+  invoiceGenerated    Boolean           @default(false) @map("invoice_generated")
   flights             VoucherFlight[]
   hotels              VoucherHotel[]
   movements           VoucherMovement[]
@@ -632,6 +635,7 @@ model VoucherMovement {
   price          Decimal?
   vehicleType    String?  @map("vehicle_type")
   viaBdr         Boolean  @default(false) @map("via_bdr")
+  whatsappSent   Boolean  @default(false) @map("whatsapp_sent")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
   voucher        Voucher  @relation(fields: [voucherId], references: [id], onDelete: Cascade)
@@ -965,5 +969,34 @@ model HotelInventory {
   @@index([brnNumber])
   @@map("hotel_inventories")
 }
+
+model WhatsappChannel {
+  id          String   @id @default(uuid())
+  name        String
+  baseUrl     String   @default("https://wa.linalapro.com/api/v1") @map("base_url")
+  apiKey      String   @map("api_key")
+  apiSecret   String   @map("api_secret")
+  channelId   String   @map("channel_id")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  mappings    WhatsappUseCaseMapping[]
+
+  @@map("whatsapp_channels")
+}
+
+model WhatsappUseCaseMapping {
+  id          String   @id @default(uuid())
+  useCase     String   @unique @map("use_case") // e.g. "credentials", "service_confirmation", "movement_update", "iqama_confirmation", "custom"
+  channelId   String   @map("channel_id")
+  isActive    Boolean  @default(true) @map("is_active")
+  channel     WhatsappChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("whatsapp_use_case_mappings")
+}
+
 
 

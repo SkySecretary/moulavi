@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { voucherAPI, cityMasterAPI, locationMasterAPI, transportRouteMasterAPI, transportMasterAPI, partyAPI } from '@/lib/api';
 import { Loader2, Plus, Minus, Trash2, MapPin, Truck, Ticket, Users, User, Plane, Building, CheckCircle2 } from 'lucide-react';
 import { MovementsTable } from '@/components/umrah-booking/components/MovementsTable';
+import { generateMovementsFromRoutes } from '@/lib/umrah/generateMovements';
 import {
   Table,
   TableBody,
@@ -160,6 +161,139 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
       setSelectedPartyCurrency(null);
     }
   }, [formData.partyId, allParties]);
+
+  // Track manual edit state
+  const [isManualEdit, setIsManualEdit] = useState(false);
+  const [lastGeneratedHash, setLastGeneratedHash] = useState('');
+
+  // Reset manual edit flag on key dependency changes
+  const prevDepsRef = useRef({
+    flights: formData.flightDetails,
+    hotels: formData.hotelSchedules,
+    transport: formData.transportOptions,
+  });
+
+  useEffect(() => {
+    const prev = prevDepsRef.current;
+    const flightsChanged = JSON.stringify(prev.flights) !== JSON.stringify(formData.flightDetails);
+    const hotelsChanged = JSON.stringify(prev.hotels) !== JSON.stringify(formData.hotelSchedules);
+    const transportChanged = JSON.stringify(prev.transport) !== JSON.stringify(formData.transportOptions);
+
+    if (flightsChanged || hotelsChanged || transportChanged) {
+      setIsManualEdit(false);
+      prevDepsRef.current = {
+        flights: formData.flightDetails,
+        hotels: formData.hotelSchedules,
+        transport: formData.transportOptions,
+      };
+    }
+  }, [formData.flightDetails, formData.hotelSchedules, formData.transportOptions]);
+
+  // Auto-generate movements based on hotels, flights, and transport options
+  useEffect(() => {
+    if (isManualEdit) return;
+
+    // Check if transport options are selected
+    if (formData.transportOptions.length === 0) {
+      if (formData.movementDetails.length > 0) {
+        setFormData(prev => ({ ...prev, movementDetails: [] }));
+        setLastGeneratedHash('');
+      }
+      return;
+    }
+
+    const arrivalFlight = formData.flightDetails.find(f => f.type === 'AA');
+    const departureFlight = formData.flightDetails.find(f => f.type === 'AD');
+    const arrivalAirportId = arrivalFlight?.fromLocationId;
+    const departureAirportId = departureFlight?.toLocationId;
+    const arrivalDate = arrivalFlight?.date;
+    const departureDate = departureFlight?.date;
+
+    if (!arrivalAirportId || !departureAirportId || !arrivalDate || !departureDate) {
+      return;
+    }
+
+    // Check if hotels are valid
+    const areHotelsValid = formData.hotelSchedules.length > 0 && formData.hotelSchedules.every(
+      h => h.locationId && h.checkIn && h.checkOut
+    );
+
+    if (!areHotelsValid) {
+      return;
+    }
+
+    const selectedRouteIds = new Set(formData.transportOptions.map(o => o.routeId));
+    const selectedRoutes = routes.filter(r => selectedRouteIds.has(r.id));
+
+    if (selectedRoutes.length === 0) return;
+
+    const findZiyarathByCity = (cityName: string) => {
+      const normalizedCity = cityName.toLowerCase().trim();
+      return ziyaraths.find((z: any) => 
+        (z.city || '').toLowerCase().trim() === normalizedCity
+      );
+    };
+
+    const hotelBookings = formData.hotelSchedules.map(h => ({
+      hotelId: h.locationId || '',
+      checkInDate: h.checkIn,
+      checkOutDate: h.checkOut,
+      cityId: h.cityId || '',
+    }));
+
+    const generated = generateMovementsFromRoutes({
+      hotelBookings,
+      arrivalAirportId,
+      departureAirportId,
+      arrivalDate,
+      arrivalTime: arrivalFlight?.eta || '20:30',
+      departureDate,
+      departureTime: departureFlight?.etd || '20:30',
+      locationMasters: locations,
+      findZiyarathByCity,
+      selectedRoutes,
+    });
+
+    const movementsHash = JSON.stringify(generated.map(m => 
+      `${m.type}-${m.fromLocationId}-${m.toLocationId}-${m.date}-${m.time}`
+    ));
+
+    if (movementsHash !== lastGeneratedHash) {
+      const mapped = generated.map((m, index) => {
+        const fromLoc = locations.find(l => l.id === m.fromLocationId);
+        const toLoc = locations.find(l => l.id === m.toLocationId);
+        return {
+          sr: index + 1,
+          route: '',
+          date: m.date,
+          time: m.time,
+          fromCityId: fromLoc?.cityMaster?.id || fromLoc?.cityId || '',
+          from: fromLoc?.city || fromLoc?.cityMaster?.name || '',
+          fromLocationId: m.fromLocationId,
+          fromLocation: fromLoc?.name || '',
+          toCityId: toLoc?.cityMaster?.id || toLoc?.cityId || '',
+          to: toLoc?.city || toLoc?.cityMaster?.name || '',
+          toLocationId: m.toLocationId,
+          toLocation: toLoc?.name || '',
+          paxCount: m.paxCount || formData.paxCount,
+          price: m.price || 0,
+          vehicleType: m.vehicleType || '',
+        };
+      });
+
+      setLastGeneratedHash(movementsHash);
+      setFormData(prev => ({ ...prev, movementDetails: mapped }));
+    }
+  }, [
+    formData.flightDetails,
+    formData.hotelSchedules,
+    formData.transportOptions,
+    routes,
+    locations,
+    ziyaraths,
+    isManualEdit,
+    lastGeneratedHash,
+  ]);
 
   // Load Master Data
   useEffect(() => {
@@ -736,6 +870,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
         groupCode: formData.groupCode,
         paxCount: formData.paxCount,
         reservationDate: fromDisplayDate(formData.reservationDate),
+        transportCompanyId: formData.transportCompanyId || null,
         hotelSchedules: formData.hotelSchedules.map((hs, idx) => ({
           number: idx + 1,
           location: hs.cityName || hs.location || '', // City name (CityMaster)
@@ -960,11 +1095,12 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
 
   // Movement functions
   const addMovementDetail = () => {
+    setIsManualEdit(true);
     const newIndex = formData.movementDetails.length;
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       movementDetails: [
-        ...formData.movementDetails,
+        ...prev.movementDetails,
         {
           sr: newIndex + 1,
           route: '',
@@ -979,18 +1115,20 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
           vehicleNumber: '',
         },
       ],
-    });
+    }));
   };
 
   const removeMovementDetail = (index: number) => {
+    setIsManualEdit(true);
     const updated = formData.movementDetails.filter((_, i) => i !== index);
     updated.forEach((m, idx) => {
       m.sr = idx + 1;
     });
-    setFormData({ ...formData, movementDetails: updated });
+    setFormData(prev => ({ ...prev, movementDetails: updated }));
   };
 
   const updateMovementDetail = (index: number, field: keyof MovementDetail, value: any) => {
+    setIsManualEdit(true);
     const updated = [...formData.movementDetails];
     updated[index] = { ...updated[index], [field]: value };
     
@@ -1046,7 +1184,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
       }
     }
     
-    setFormData({ ...formData, movementDetails: updated });
+    setFormData(prev => ({ ...prev, movementDetails: updated }));
   };
 
   // Flight functions
@@ -1706,9 +1844,9 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
                          <div key={t.id} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 border border-gray-100">
                            <div className="flex flex-col"><span className="text-[9px] font-bold text-primary uppercase truncate w-24">{t.vehicleType?.vehicleName}</span><span className="text-[8px] text-secondary">{formatCurrency(Number(t.price), selectedPartyCurrency)}</span></div>
                            <div className="flex items-center gap-2 bg-white p-0.5 rounded border border-gray-100">
-                            <Button variant="ghost" size="icon" className="h-5 w-5 hover:text-destructive" onClick={() => updateTransportQuantity(t.id, Math.max(0, qty - 1))}><Minus className="h-2 w-2" /></Button>
+                            <Button variant="ghost" size="icon" className="h-5 w-5 hover:text-destructive" onClick={() => updateTransportQuantity(t.id, -1)}><Minus className="h-2 w-2" /></Button>
                             <span className="text-[10px] font-bold">{qty}</span>
-                            <Button variant="ghost" size="icon" className="h-5 w-5 hover:text-emerald-600" onClick={() => updateTransportQuantity(t.id, qty + 1)}><Plus className="h-2 w-2" /></Button>
+                            <Button variant="ghost" size="icon" className="h-5 w-5 hover:text-emerald-600" onClick={() => updateTransportQuantity(t.id, 1)}><Plus className="h-2 w-2" /></Button>
                           </div>
                         </div>
                       );

@@ -2492,6 +2492,20 @@ router.patch('/:bookingId/trip-status', authenticate, async (req, res) => {
             fullName: true,
           },
         },
+        travelDetails: {
+          include: {
+            arrivalAirport: true,
+            departureAirport: true,
+          }
+        },
+        movementDetails: {
+          include: {
+            fromCity: true,
+            toCity: true,
+            fromLocation: true,
+            toLocation: true,
+          }
+        }
       },
     });
 
@@ -2499,12 +2513,69 @@ router.patch('/:bookingId/trip-status', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
-    const updatedBooking = await prisma.umrahVisaBooking.update({
-      where: { id: bookingId },
-      data: {
-        tripStatus,
-        lastUpdatedBy: user.id,
-      },
+    let targetBookingStatus: 'voucher' | 'bill' | null = null;
+    let transitionReason = '';
+
+    if (tripStatus === 'completed' && 
+        booking.visaType === 'individual_visa' && 
+        booking.accommodationType === 'hotel' && 
+        booking.status === 'group_assigned') {
+      
+      let isJeddahMadinah = false;
+      
+      // Check travel details airports
+      if (booking.travelDetails) {
+        for (const t of booking.travelDetails) {
+          const arrName = t.arrivalAirport?.name?.toLowerCase() || '';
+          const depName = t.departureAirport?.name?.toLowerCase() || '';
+          if (arrName.includes('jeddah') || arrName.includes('madina') || arrName.includes('madinah') ||
+              depName.includes('jeddah') || depName.includes('madina') || depName.includes('madinah')) {
+            isJeddahMadinah = true;
+            break;
+          }
+        }
+      }
+
+      // Check movement details locations/cities
+      if (!isJeddahMadinah && booking.movementDetails) {
+        for (const m of booking.movementDetails) {
+          const fromCityName = m.fromCity?.name?.toLowerCase() || '';
+          const toCityName = m.toCity?.name?.toLowerCase() || '';
+          const fromLocName = m.fromLocation?.name?.toLowerCase() || '';
+          const toLocName = m.toLocation?.name?.toLowerCase() || '';
+          if (fromCityName.includes('jeddah') || fromCityName.includes('madina') || fromCityName.includes('madinah') ||
+              toCityName.includes('jeddah') || toCityName.includes('madina') || toCityName.includes('madinah') ||
+              fromLocName.includes('jeddah') || fromLocName.includes('madina') || fromLocName.includes('madinah') ||
+              toLocName.includes('jeddah') || toLocName.includes('madina') || toLocName.includes('madinah')) {
+            isJeddahMadinah = true;
+            break;
+          }
+        }
+      }
+
+      if (isJeddahMadinah) {
+        targetBookingStatus = 'voucher';
+        transitionReason = 'Trip completed (individual hotel booking involving Jeddah/Madina, transitioned to voucher pending)';
+      } else {
+        targetBookingStatus = 'bill';
+        transitionReason = 'Trip completed (individual hotel booking, transitioned to bill ready)';
+      }
+    }
+
+    const updatedBooking = await prisma.$transaction(async (tx) => {
+      const ub = await tx.umrahVisaBooking.update({
+        where: { id: bookingId },
+        data: {
+          tripStatus,
+          lastUpdatedBy: user.id,
+        },
+      });
+
+      if (targetBookingStatus) {
+        await syncBookingStatusInTx(bookingId, targetBookingStatus, user.id, transitionReason, tx);
+      }
+
+      return ub;
     });
 
     // If status changed to hosting, send notifications

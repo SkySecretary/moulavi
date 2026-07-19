@@ -310,7 +310,8 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
       return res.status(400).json({ error: 'Party ID is required' });
     }
 
-    // Check compliance status constraints
+    // Check compliance status constraints (LIFTED: restrictions removed for now)
+    /*
     try {
       const metric = await prisma.subAgentMetric.findUnique({
         where: { subAgentId: partyId }
@@ -341,6 +342,7 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
     } catch (e: any) {
       console.error('[COMPLIANCE INDIVIDUAL CHECK FAILED]', e.message);
     }
+    */
 
     // Check if group number is unique system-wide (if provided)
     if (step1Data.bookingMode === 'group_number' && step1Data.groupNumber) {

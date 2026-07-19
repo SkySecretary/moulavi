@@ -38,6 +38,7 @@ const masterItems = [
   { name: 'Umrah Visa Master', icon: Calendar, path: '/dashboard/masters/umrah-visa', category: 'Services', description: 'Configure Umrah visa rules' },
   { name: 'Hotel Inventory Master', icon: Building2, path: '/dashboard/masters/hotel-inventory', category: 'Services', description: 'Manage BRN inventory allocation and available beds' },
   { name: 'Nusuk API Integration', icon: SettingsIcon, path: '/dashboard/masters/nusuk', category: 'Services', description: 'Configure Nusuk authentication token and daily report synchronization' },
+  { name: 'WhatsApp Channel Settings', icon: SettingsIcon, path: '/dashboard/masters/whatsapp', category: 'Services', description: 'Configure multi-channel WhatsApp API profiles and map them to system use cases' },
 ];
 
 const categories = ['General', 'Region', 'Financial', 'Transport', 'External', 'Services'];

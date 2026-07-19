@@ -546,4 +546,18 @@ export const nusukAPI = {
   }) => api.get('/nusuk/consulate-review', { params }),
 };
 
+// WhatsApp Channel Settings API
+export const whatsappChannelAPI = {
+  getAll: () => api.get('/whatsapp-channels'),
+  create: (data: any) => api.post('/whatsapp-channels', data),
+  update: (id: string, data: any) => api.put(`/whatsapp-channels/${id}`, data),
+  delete: (id: string) => api.delete(`/whatsapp-channels/${id}`),
+  getMappings: () => api.get('/whatsapp-channels/mappings'),
+  saveMapping: (useCase: string, channelId: string, isActive?: boolean) => api.post('/whatsapp-channels/mappings', { useCase, channelId, isActive }),
+  toggleMapping: (id: string, isActive: boolean) => api.patch(`/whatsapp-channels/mappings/${id}`, { isActive }),
+  testConfig: (data: { baseUrl: string; apiKey: string; apiSecret: string; channelId: string; to: string; message: string }) =>
+    api.post('/whatsapp-channels/test-config', data),
+};
+
+
 

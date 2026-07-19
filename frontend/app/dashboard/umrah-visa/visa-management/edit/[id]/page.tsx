@@ -42,6 +42,10 @@ export default function EditUmrahVisaBookingPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [passengerCount, setPassengerCount] = useState(0);
   const [bookingStatus, setBookingStatus] = useState('');
+  const [isOneWay, setIsOneWay] = useState(false);
+  const [oneWayContactName, setOneWayContactName] = useState('');
+  const [oneWayWhatsapp, setOneWayWhatsapp] = useState('');
+  const [globalAllowOneWayTicket, setGlobalAllowOneWayTicket] = useState(false);
   
   // Travel Details
   const [arrivalDate, setArrivalDate] = useState('');
@@ -173,6 +177,24 @@ export default function EditUmrahVisaBookingPage() {
       setSelectedCustomerId(b.partyId || '');
       setPassengerCount(b.passengerCount || 0);
       setBookingStatus(b.status || '');
+      setIsOneWay(b.isOneWay || false);
+      setOneWayContactName(b.oneWayContactName || '');
+      setOneWayWhatsapp(b.oneWayWhatsapp || '');
+
+      // Fetch Nusuk settings for allowOneWayTicket
+      try {
+        const settingsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'}/nusuk/settings`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+          },
+        });
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json();
+          setGlobalAllowOneWayTicket(!!settingsData.allowOneWayTicket);
+        }
+      } catch (error) {
+        console.error('Error loading Nusuk settings:', error);
+      }
 
       const mainTravel = b.travelDetails?.find((t: any) => !t.isAlternate);
       if (mainTravel?.arrivalDateTime) {
@@ -328,6 +350,23 @@ export default function EditUmrahVisaBookingPage() {
     }
   };
 
+  const selectedCustomer = useMemo(() => {
+    return customers.find(c => c.id === selectedCustomerId);
+  }, [customers, selectedCustomerId]);
+
+  const showOneWayWidget = isOneWay || globalAllowOneWayTicket || selectedCustomer?.allowOneWayTicket;
+
+  const handleOneWayToggle = (checked: boolean) => {
+    setIsOneWay(checked);
+    if (checked) {
+      setDepartureDate('');
+      setDepartureTime('');
+      setDepartureAirportId('');
+      setDepartureFlightNumber('');
+      setAccommodationType('iqama');
+    }
+  };
+
   const handleSave = async () => {
     try {
       // Basic validation
@@ -335,9 +374,16 @@ export default function EditUmrahVisaBookingPage() {
         toast.error('Arrival date must be in DD/MM/YY format');
         return;
       }
-      if (!isValidStrictDate(departureDate)) {
-        toast.error('Departure date must be in DD/MM/YY format');
-        return;
+      if (!isOneWay) {
+        if (!isValidStrictDate(departureDate)) {
+          toast.error('Departure date must be in DD/MM/YY format');
+          return;
+        }
+      } else {
+        if (accommodationType !== 'iqama') {
+          toast.error('One-way setting is only permitted with Iqama stay.');
+          return;
+        }
       }
 
       setSaving(true);
@@ -350,12 +396,15 @@ export default function EditUmrahVisaBookingPage() {
 
       await umrahVisaAPI.updateTravelDetails(bookingId, {
         arrivalDateTime: combineDateAndTime(arrivalDate, arrivalTime),
-        departureDateTime: combineDateAndTime(departureDate, departureTime),
+        departureDateTime: isOneWay ? combineDateAndTime(arrivalDate, arrivalTime) : combineDateAndTime(departureDate, departureTime),
         arrivalAirportId,
         arrivalFlightNumber,
-        departureAirportId,
-        departureFlightNumber,
+        departureAirportId: isOneWay ? arrivalAirportId : departureAirportId,
+        departureFlightNumber: isOneWay ? 'OW-9999' : departureFlightNumber,
         brn: flightBrn,
+        isOneWay,
+        oneWayContactName: isOneWay ? oneWayContactName : null,
+        oneWayWhatsapp: isOneWay ? oneWayWhatsapp : null,
       });
 
       const movementDetailsToSave = movements.map((m) => {
@@ -768,7 +817,59 @@ export default function EditUmrahVisaBookingPage() {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2"><Plane className="h-5 w-5 text-sky-600" /> Travel Details</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-6">
+                {showOneWayWidget && (
+                  <div className="space-y-4 p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="isOneWayToggle"
+                        checked={isOneWay}
+                        onChange={(e) => handleOneWayToggle(e.target.checked)}
+                        disabled={saving}
+                        className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
+                      />
+                      <div className="flex flex-col">
+                        <label htmlFor="isOneWayToggle" className="text-sm font-bold text-indigo-900 cursor-pointer select-none">
+                          One Way Ticket (Onward Flight Only)
+                        </label>
+                        <span className="text-[10px] text-indigo-700/80">
+                          Only arrival flight details will be required. Return flight details will be ignored.
+                        </span>
+                      </div>
+                    </div>
+
+                    {isOneWay && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-indigo-100/50">
+                        <div>
+                          <label className="text-[10px] font-black text-indigo-900 uppercase tracking-wider block mb-1">
+                            Contact Name (Optional)
+                          </label>
+                          <Input
+                            placeholder="Enter pilgrim or customer contact name"
+                            value={oneWayContactName}
+                            onChange={(e) => setOneWayContactName(e.target.value)}
+                            disabled={saving}
+                            className="h-10 bg-white border-indigo-100 rounded-lg text-xs font-semibold text-primary focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-black text-indigo-900 uppercase tracking-wider block mb-1">
+                            WhatsApp Number (Optional)
+                          </label>
+                          <Input
+                            placeholder="e.g. +966XXXXXXXXX or +91XXXXXXXXXX"
+                            value={oneWayWhatsapp}
+                            onChange={(e) => setOneWayWhatsapp(e.target.value)}
+                            disabled={saving}
+                            className="h-10 bg-white border-indigo-100 rounded-lg text-xs font-semibold text-primary focus:ring-indigo-500"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="border-l-4 border-sky-500 pl-4 py-2 space-y-4">
                     <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Arrival</p>
@@ -804,31 +905,40 @@ export default function EditUmrahVisaBookingPage() {
                   </div>
                   <div className="border-l-4 border-orange-500 pl-4 py-2 space-y-4">
                     <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Departure</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs text-gray-600 mb-1 block">Date</label>
-                        <DatePicker value={departureDate} onChange={setDepartureDate} disabled={saving} />
+                    {isOneWay ? (
+                      <div className="p-4 bg-orange-50 border border-orange-100 rounded-xl text-xs text-orange-850">
+                        <p className="font-bold mb-1">One-Way Setting Enabled</p>
+                        <p>Departure flight details are ignored. Return tickets must be collected later.</p>
                       </div>
-                      <div>
-                        <label className="text-xs text-gray-600 mb-1 block">Time</label>
-                        <TimePicker value={departureTime} onChange={setDepartureTime} />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-600 mb-1 block">Airport</label>
-                      <Select value={departureAirportId} onValueChange={setDepartureAirportId}>
-                        <SelectTrigger><SelectValue placeholder="Select airport" /></SelectTrigger>
-                        <SelectContent>{airports.map(a => (<SelectItem key={a.id} value={a.id}>{a.code} - {a.name || a.airportName} ({a.city})</SelectItem>))}</SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-600 mb-1 block">Flight Number</label>
-                      <Input 
-                        value={departureFlightNumber} 
-                        onChange={(e) => setDepartureFlightNumber(formatFlightNumber(e.target.value))} 
-                        placeholder="SV-XXXX" 
-                      />
-                    </div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-xs text-gray-600 mb-1 block">Date</label>
+                            <DatePicker value={departureDate} onChange={setDepartureDate} disabled={saving} />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-600 mb-1 block">Time</label>
+                            <TimePicker value={departureTime} onChange={setDepartureTime} />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600 mb-1 block">Airport</label>
+                          <Select value={departureAirportId} onValueChange={setDepartureAirportId}>
+                            <SelectTrigger><SelectValue placeholder="Select airport" /></SelectTrigger>
+                            <SelectContent>{airports.map(a => (<SelectItem key={a.id} value={a.id}>{a.code} - {a.name || a.airportName} ({a.city})</SelectItem>))}</SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600 mb-1 block">Flight Number</label>
+                          <Input 
+                            value={departureFlightNumber} 
+                            onChange={(e) => setDepartureFlightNumber(formatFlightNumber(e.target.value))} 
+                            placeholder="SV-XXXX" 
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </CardContent>

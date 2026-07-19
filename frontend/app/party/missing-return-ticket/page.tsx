@@ -40,6 +40,7 @@ import {
 } from '@/components/ui/dialog';
 import { PartyLayout } from '@/components/layouts/PartyLayout';
 import { cn } from '@/lib/utils';
+import { TimePicker } from '@/components/ui/time-picker';
 
 // Update Return Ticket Modal Component
 interface UpdateTicketModalProps {
@@ -62,6 +63,13 @@ function UpdateTicketModal({ isOpen, onClose, booking, airports, onSuccess }: Up
 
   useEffect(() => {
     if (booking) {
+      // Reset to defaults first
+      setSelectedAirportId('');
+      setDepartureFlightNumber('');
+      setDepartureDate('');
+      setDepartureTime('12:00');
+      setTicketFile(null);
+
       const travel = booking.travelDetails?.[0];
       if (travel) {
         setSelectedAirportId(travel.departureAirportId || travel.arrivalAirportId || '');
@@ -81,7 +89,6 @@ function UpdateTicketModal({ isOpen, onClose, booking, airports, onSuccess }: Up
           setDepartureTime('12:00');
         }
       }
-      setTicketFile(null);
     }
   }, [booking]);
 
@@ -114,6 +121,10 @@ function UpdateTicketModal({ isOpen, onClose, booking, airports, onSuccess }: Up
     }
     if (!departureFlightNumber) {
       toast.error('Please enter departure flight number');
+      return;
+    }
+    if (!ticketFile) {
+      toast.error('Please upload the return ticket document');
       return;
     }
 
@@ -195,12 +206,10 @@ function UpdateTicketModal({ isOpen, onClose, booking, airports, onSuccess }: Up
             {/* Departure Time */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Departure Time</label>
-              <Input
-                type="time"
+              <TimePicker
                 value={departureTime}
-                onChange={(e) => setDepartureTime(e.target.value)}
-                className="h-10 text-sm font-medium border-slate-200"
-                required
+                onChange={setDepartureTime}
+                className="h-10"
               />
             </div>
           </div>
@@ -220,7 +229,7 @@ function UpdateTicketModal({ isOpen, onClose, booking, airports, onSuccess }: Up
 
           {/* Ticket File Upload */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Return Ticket Document (Optional)</label>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Return Ticket Document (Required)</label>
             {ticketFile ? (
               <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
                 <div className="flex items-center space-x-2">

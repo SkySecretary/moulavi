@@ -37,7 +37,17 @@ import {
   Truck,
   Printer,
   Copy,
+  Receipt,
+  MessageSquare,
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
 import api, { voucherAPI } from '@/lib/api';
@@ -109,7 +119,80 @@ export default function VoucherServicePage() {
   // Editing & Action States
   const [editingMovements, setEditingMovements] = useState<Map<string, any>>(new Map());
   const [savingMovementId, setSavingMovementId] = useState<string | null>(null);
+  const [sendingNotificationId, setSendingNotificationId] = useState<string | null>(null);
   const [downloadingVoucherId, setDownloadingVoucherId] = useState<string | null>(null);
+
+  // Invoice integration states
+  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+  const [selectedVoucherForInvoice, setSelectedVoucherForInvoice] = useState<any>(null);
+  const [invoiceQty, setInvoiceQty] = useState<string>('');
+  const [invoiceCost, setInvoiceCost] = useState<string>('');
+  const [invoiceRate, setInvoiceRate] = useState<string>('');
+  const [uploadingInvoice, setUploadingInvoice] = useState(false);
+
+  const handleOpenInvoiceModal = (voucher: any) => {
+    setSelectedVoucherForInvoice(voucher);
+    setInvoiceQty('0');
+    setInvoiceCost('');
+    setInvoiceRate('');
+    setInvoiceModalOpen(true);
+  };
+
+  const handleGenerateInvoice = async () => {
+    if (!selectedVoucherForInvoice) return;
+    if (!invoiceQty || !invoiceCost || !invoiceRate) {
+      toast.error('Please fill in quantity, cost, and rate.');
+      return;
+    }
+
+    const qtyVal = Number(invoiceQty);
+    const costVal = Number(invoiceCost);
+    const rateVal = Number(invoiceRate);
+
+    if (isNaN(qtyVal) || qtyVal <= 0) {
+      toast.error('Quantity must be a positive number.');
+      return;
+    }
+    if (isNaN(costVal) || costVal < 0) {
+      toast.error('Cost must be a valid number.');
+      return;
+    }
+    if (isNaN(rateVal) || rateVal < 0) {
+      toast.error('Rate must be a valid number.');
+      return;
+    }
+
+    try {
+      setUploadingInvoice(true);
+      const response = await api.post(`/vouchers/${selectedVoucherForInvoice.id}/upload-invoice`, {
+        qty: qtyVal,
+        cost: costVal,
+        rate: rateVal,
+      });
+
+      if (response.data) {
+        toast.success('Invoice uploaded successfully to external API');
+        setInvoiceModalOpen(false);
+        loadVouchers();
+      } else {
+        toast.error('Failed to generate/upload invoice');
+      }
+    } catch (error: any) {
+      console.error('Invoice upload error:', error);
+      const errMsg = error.response?.data?.error || error.message || 'Failed to upload invoice';
+      toast.error(errMsg);
+    } finally {
+      setUploadingInvoice(false);
+    }
+  };
+
+  const isFormInvalid = 
+    !invoiceQty || 
+    Number(invoiceQty) <= 0 || 
+    !invoiceCost || 
+    Number(invoiceCost) < 0 || 
+    !invoiceRate || 
+    Number(invoiceRate) < 0;
 
   const loadVouchers = async () => {
     try {
@@ -273,6 +356,7 @@ export default function VoucherServicePage() {
   const handleEditMovement = (movement: any) => {
     const movementId = movement.movementId || `${movement.voucherId}-${movement.movementIndex}`;
     setEditingMovements(prev => {
+      if (prev.has(movementId)) return prev;
       const updated = new Map(prev);
       updated.set(movementId, { ...movement });
       return updated;
@@ -301,6 +385,16 @@ export default function VoucherServicePage() {
   const saveMovement = async (movement: any) => {
     const movementId = movement.movementId || `${movement.voucherId}-${movement.movementIndex}`;
     const editedMovement = editingMovements.get(movementId) || movement;
+    
+    // Validate KSA Phone number if entered
+    if (editedMovement.driverDetails2) {
+      const cleanNum = editedMovement.driverDetails2.replace(/^\+966/, '');
+      if (!/^5\d{8}$/.test(cleanNum)) {
+        toast.error('Driver mobile must be a valid KSA number starting with 5 (e.g. 500511073, exactly 9 digits)');
+        return;
+      }
+    }
+
     try {
       setSavingMovementId(movementId);
       await voucherAPI.updateMovementDetails(movement.voucherId, movement.movementIndex, {
@@ -323,6 +417,20 @@ export default function VoucherServicePage() {
       toast.error('Failed to update movement');
     } finally {
       setSavingMovementId(null);
+    }
+  };
+
+  const notifyMovement = async (movement: any) => {
+    const movementId = movement.movementId || `${movement.voucherId}-${movement.movementIndex}`;
+    try {
+      setSendingNotificationId(movementId);
+      await voucherAPI.notifyMovementUpdate(movement.voucherId, movement.movementIndex);
+      toast.success('Driver details WhatsApp notification sent successfully');
+    } catch (error: any) {
+      console.error('Failed to send notification:', error);
+      toast.error(error?.response?.data?.error || 'Failed to send WhatsApp notification');
+    } finally {
+      setSendingNotificationId(null);
     }
   };
 
@@ -612,15 +720,20 @@ export default function VoucherServicePage() {
                               <TableCell className="text-xs text-gray-400 font-medium">{new Date(v.createdAt).toLocaleDateString('en-US', { timeZone: 'UTC' })}</TableCell>
                               <TableCell className="text-right px-6">
                                 <div className="flex items-center justify-end gap-1">
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 rounded-lg" onClick={() => router.push(`/dashboard/services/voucher/view/${v.id}`)}>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 rounded-lg" onClick={() => router.push(`/dashboard/services/voucher/view/${v.id}`)} title="View Voucher">
                                     <Eye className="h-4 w-4" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600 rounded-lg" onClick={() => router.push(`/dashboard/services/voucher/edit/${v.id}`)}>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600 rounded-lg" onClick={() => router.push(`/dashboard/services/voucher/edit/${v.id}`)} title="Edit Voucher">
                                     <Edit2 className="h-4 w-4" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600 rounded-lg" onClick={() => downloadVoucherPDF(v.id)} disabled={downloadingVoucherId === v.id}>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600 rounded-lg" onClick={() => downloadVoucherPDF(v.id)} disabled={downloadingVoucherId === v.id} title="Download PDF">
                                     {downloadingVoucherId === v.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                                   </Button>
+                                  {hasRole(['admin', 'staff']) && !v.invoiceGenerated && (
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600 rounded-lg" onClick={() => handleOpenInvoiceModal(v)} title="Upload Invoice to UmraBus">
+                                      <Receipt className="h-4 w-4" />
+                                    </Button>
+                                  )}
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -836,18 +949,28 @@ export default function VoucherServicePage() {
                             <TableCell>
                               <div className="space-y-1.5 py-2">
                                 <Input 
-                                  placeholder="Driver Name/Phone" 
+                                  placeholder="Driver Name" 
                                   value={edited.driverDetails1} 
                                   onChange={(e) => { handleEditMovement(m); handleInputChange(mid, 'driverDetails1', e.target.value); }}
                                   className="h-7 text-[10px] font-bold bg-white border-gray-100"
                                 />
                                 <div className="flex gap-2">
-                                  <Input 
-                                    placeholder="Alternative Contact" 
-                                    value={edited.driverDetails2} 
-                                    onChange={(e) => { handleEditMovement(m); handleInputChange(mid, 'driverDetails2', e.target.value); }}
-                                    className="h-7 text-[10px] font-bold bg-white border-gray-100 flex-1"
-                                  />
+                                  <div className="flex items-center border border-gray-200 bg-white rounded h-7 px-2 flex-1 focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
+                                    <span className="text-[10px] font-black text-gray-400 select-none mr-1">+966</span>
+                                    <input 
+                                      type="tel"
+                                      placeholder="500000000" 
+                                      value={edited.driverDetails2 ? edited.driverDetails2.replace(/^(\+966|966|0)/, '') : ''} 
+                                      onChange={(e) => {
+                                        let val = e.target.value.replace(/\D/g, ''); // only digits
+                                        if (val.startsWith('966')) val = val.substring(3);
+                                        if (val.startsWith('0')) val = val.substring(1);
+                                        handleEditMovement(m); 
+                                        handleInputChange(mid, 'driverDetails2', val ? `+966${val}` : ''); 
+                                      }}
+                                      className="h-full text-[10px] font-bold bg-transparent outline-none w-full border-none p-0 focus:ring-0"
+                                    />
+                                  </div>
                                   <Input 
                                     placeholder="Plate #" 
                                     value={edited.vehicleNumber} 
@@ -858,22 +981,39 @@ export default function VoucherServicePage() {
                               </div>
                             </TableCell>
                             <TableCell className="px-6 text-right no-capture">
-                              {editingMovements.has(mid) ? (
-                                <div className="flex justify-end gap-1">
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600 bg-emerald-50 hover:bg-emerald-100" onClick={() => saveMovement(m)} disabled={savingMovementId === mid}>
-                                    {savingMovementId === mid ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-4 w-4" />}
-                                  </Button>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400" onClick={() => handleCancelEdit(mid)}>
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-primary" onClick={() => handleEditMovement(m)}>
-                                    <Edit2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              )}
+                              <div className="flex items-center justify-end gap-2">
+                                {m.whatsappSent && (
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full select-none">
+                                    <Check className="h-2.5 w-2.5" /> Sent
+                                  </span>
+                                )}
+                                {editingMovements.has(mid) ? (
+                                  <div className="flex justify-end gap-1">
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600 bg-emerald-50 hover:bg-emerald-100" onClick={() => saveMovement(m)} disabled={savingMovementId === mid}>
+                                      {savingMovementId === mid ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-4 w-4" />}
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400" onClick={() => handleCancelEdit(mid)}>
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" 
+                                      title="Send WhatsApp Notification" 
+                                      onClick={() => notifyMovement(m)}
+                                      disabled={sendingNotificationId === mid}
+                                    >
+                                      {sendingNotificationId === mid ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-primary" onClick={() => handleEditMovement(m)}>
+                                      <Edit2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
@@ -942,6 +1082,115 @@ export default function VoucherServicePage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Invoice Generator Modal */}
+      <Dialog open={invoiceModalOpen} onOpenChange={setInvoiceModalOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-indigo-950">
+              <Receipt className="h-5 w-5 text-indigo-600" />
+              Generate Invoice to UmraBus
+            </DialogTitle>
+            <DialogDescription>
+              Enter the invoice details for Voucher <span className="font-bold text-slate-800">{selectedVoucherForInvoice?.voucherNumber}</span>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="invoiceQty" className="text-right text-xs font-bold text-gray-500 uppercase">
+                Quantity
+              </Label>
+              <Input
+                id="invoiceQty"
+                type="number"
+                min="1"
+                placeholder="10"
+                value={invoiceQty}
+                onChange={(e) => setInvoiceQty(e.target.value)}
+                className="col-span-3 h-10 border-gray-100 rounded-lg text-sm font-semibold"
+                disabled={uploadingInvoice}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="invoiceRate" className="text-right text-xs font-bold text-gray-500 uppercase">
+                Rate
+              </Label>
+              <Input
+                id="invoiceRate"
+                type="number"
+                min="0"
+                placeholder="500"
+                value={invoiceRate}
+                onChange={(e) => setInvoiceRate(e.target.value)}
+                className="col-span-3 h-10 border-gray-100 rounded-lg text-sm font-semibold"
+                disabled={uploadingInvoice}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="invoiceCost" className="text-right text-xs font-bold text-gray-500 uppercase">
+                Cost
+              </Label>
+              <Input
+                id="invoiceCost"
+                type="number"
+                min="0"
+                placeholder="200"
+                value={invoiceCost}
+                onChange={(e) => setInvoiceCost(e.target.value)}
+                className="col-span-3 h-10 border-gray-100 rounded-lg text-sm font-semibold"
+                disabled={uploadingInvoice}
+              />
+            </div>
+
+            {/* Calculations Preview */}
+            {invoiceQty && (invoiceRate || invoiceCost) && (
+              <div className="mt-2 p-3 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-1.5 text-xs">
+                <p className="font-bold text-indigo-900 mb-1">Invoice Preview</p>
+                <div className="flex justify-between text-indigo-950">
+                  <span>Gross Amount (Qty × Rate):</span>
+                  <span className="font-bold">
+                    {(Number(invoiceQty) || 0) * (Number(invoiceRate) || 0)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-indigo-950">
+                  <span>Cost Amount (Qty × Cost):</span>
+                  <span className="font-bold">
+                    {(Number(invoiceQty) || 0) * (Number(invoiceCost) || 0)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setInvoiceModalOpen(false)}
+              disabled={uploadingInvoice}
+              className="rounded-xl font-bold h-10"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleGenerateInvoice}
+              disabled={uploadingInvoice || isFormInvalid}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold h-10"
+            >
+              {uploadingInvoice ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                'Generate Invoice'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

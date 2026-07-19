@@ -270,6 +270,7 @@ router.get(
         driverDetails1: movement.driverDetails1 || '',
         driverDetails2: movement.driverDetails2 || '',
         vehicleNumber: movement.vehicleNumber || '',
+        whatsappSent: movement.whatsappSent,
         partyEmail: '', // Vouchers are standalone, no booking connection
         partyWhatsApp: '', // Vouchers are standalone, no booking connection
       };
@@ -385,6 +386,7 @@ router.get(
         driverDetails1: movement.driverDetails1 || '',
         driverDetails2: movement.driverDetails2 || '',
         vehicleNumber: movement.vehicleNumber || '',
+        whatsappSent: movement.whatsappSent,
         partyEmail: '', // Vouchers are standalone, no booking connection
         partyWhatsApp: '', // Vouchers are standalone, no booking connection
       };
@@ -500,6 +502,7 @@ router.get(
         driverDetails1: movement.driverDetails1 || '',
         driverDetails2: movement.driverDetails2 || '',
         vehicleNumber: movement.vehicleNumber || '',
+        whatsappSent: movement.whatsappSent,
         partyEmail: '', // Vouchers are standalone, no booking connection
         partyWhatsApp: '', // Vouchers are standalone, no booking connection
       };
@@ -619,6 +622,7 @@ router.get(
         driverDetails1: movement.driverDetails1 || '',
         driverDetails2: movement.driverDetails2 || '',
         vehicleNumber: movement.vehicleNumber || '',
+        whatsappSent: movement.whatsappSent,
         partyEmail: '', // Vouchers are standalone, no booking connection
         partyWhatsApp: '', // Vouchers are standalone, no booking connection
       };
@@ -1037,6 +1041,7 @@ router.get(
         driverDetails1: m.driverDetails1,
         driverDetails2: m.driverDetails2,
         vehicleNumber: m.vehicleNumber,
+        whatsappSent: m.whatsappSent,
         paxCount: m.paxCount,
         price: m.price,
         vehicleType: m.vehicleType,
@@ -1242,6 +1247,7 @@ router.put(
       hotelSchedules,
       movementDetails,
       flightDetails,
+      transportCompanyId,
     } = req.body;
 
     const voucher = await prisma.voucher.findUnique({
@@ -1262,6 +1268,7 @@ router.put(
           ...(groupCode !== undefined && { groupCode: groupCode || null }),
           ...(paxCount !== undefined && { paxCount }),
           ...(reservationDate !== undefined && { reservationDate: new Date(reservationDate) }),
+          ...(transportCompanyId !== undefined && { transportCompanyId: transportCompanyId || null }),
           version: voucher.version + 1,
         },
       });
@@ -1399,6 +1406,8 @@ router.put(
     const voucher = await prisma.voucher.findUnique({
       where: { id },
       include: {
+        party: true,
+        transportCompany: true,
         movements: {
           orderBy: {
             sr: 'asc',
@@ -1423,6 +1432,12 @@ router.put(
       return res.status(400).json({ error: 'Invalid movement index' });
     }
 
+    // Check if driver details changed to reset notification status
+    const driverDetailsChanged = 
+      (driverDetails1 !== undefined && driverDetails1 !== movement.driverDetails1) ||
+      (driverDetails2 !== undefined && driverDetails2 !== movement.driverDetails2) ||
+      (vehicleNumber !== undefined && vehicleNumber !== movement.vehicleNumber);
+
     // Update the specific movement record
     const updatedMovement = await prisma.voucherMovement.update({
       where: { id: movement.id },
@@ -1436,6 +1451,7 @@ router.put(
         to: to !== undefined ? to : movement.to,
         toLocation: toLocation !== undefined ? toLocation : movement.toLocation,
         toLocationId: toLocationId !== undefined ? toLocationId : movement.toLocationId,
+        whatsappSent: driverDetailsChanged ? false : movement.whatsappSent,
       },
     });
 
@@ -1453,37 +1469,31 @@ router.put(
     // Send movement update notification (email + WhatsApp)
     if (updatedMovement.driverDetails1 || updatedMovement.driverDetails2 || updatedMovement.vehicleNumber) {
       try {
-        // Get party (umrah visa provider) if voucher has umrahVisaProviderId
-        let partyWhatsApp: string | undefined;
+        // Send email update to umrah visa provider / party if configured
         let partyEmail = '';
         let partyName = voucher.guestName || 'Guest';
         
         if (voucher.umrahVisaProviderId) {
-          const party = await prisma.party.findUnique({
+          const providerParty = await prisma.party.findUnique({
             where: { id: voucher.umrahVisaProviderId },
             select: {
               partyName: true,
-              whatsappNumber: true,
               email: true,
             },
           });
-          
-          if (party) {
-            partyName = party.partyName;
-            partyEmail = party.email || '';
-            partyWhatsApp = party.whatsappNumber || undefined;
+          if (providerParty) {
+            partyName = providerParty.partyName;
+            partyEmail = providerParty.email || '';
           }
         }
-        
-        const guestMobile = voucher.guestMobile || undefined;
 
-        // Format date for display
-        const formattedDate = updatedMovement.date.toLocaleDateString('en-US', {
+        const formattedDate = updatedMovement.date ? updatedMovement.date.toLocaleDateString('en-US', {
           year: 'numeric',
           month: 'long',
           day: 'numeric',
-        });
+        }) : '';
 
+        // Trigger email update
         await sendMovementUpdateEmail(
           partyEmail,
           partyName,
@@ -1497,12 +1507,52 @@ router.put(
             driverDetails2: updatedMovement.driverDetails2 || '',
             vehicleNumber: updatedMovement.vehicleNumber || '',
           },
-          partyWhatsApp,
-          guestMobile
+          undefined, // partyWhatsApp is bypassed here since we send it in the new format below
+          undefined  // guestMobile is bypassed
         );
+
+        // Send the new WhatsApp notification to the B2B customer party automatically (matching exact requested template)
+        let targetDestination = voucher.party?.whatsappNumber;
+        if (voucher.party?.whatsappType === 'id') {
+          targetDestination = voucher.party?.whatsappGroupId || voucher.party?.whatsappNumber;
+        }
+        if (!targetDestination) {
+          targetDestination = voucher.party?.contactNumber;
+        }
+
+        if (targetDestination) {
+          const voucherNumber = voucher.voucherNumber;
+          const agencyName = voucher.party?.partyName || 'N/A';
+          const routeName = `${updatedMovement.from} - ${updatedMovement.to}`;
+          const rawDate = updatedMovement.date ? new Date(updatedMovement.date) : null;
+          const date = rawDate ? rawDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : 'N/A';
+          const reportingTime = updatedMovement.time || 'N/A';
+          const driverName = updatedMovement.driverDetails1 || 'N/A';
+          const driverMobile = updatedMovement.driverDetails2 || 'N/A';
+          const transportCompany = voucher.transportCompany?.partyName || '';
+
+          const { sendDriverUpdateWhatsApp } = await import('../services/whatsappService');
+          await sendDriverUpdateWhatsApp(targetDestination, {
+            voucherNumber,
+            agencyName,
+            routeName,
+            date,
+            reportingTime,
+            driverName,
+            driverMobile,
+            transportCompany,
+          });
+
+          // Mark notification as sent in DB
+          await prisma.voucherMovement.update({
+            where: { id: updatedMovement.id },
+            data: { whatsappSent: true },
+          });
+
+          console.log('[AUTO-WHATSAPP] Automatically sent driver update WhatsApp notification to customer party:', targetDestination);
+        }
       } catch (error: any) {
-        console.error('Failed to send movement update notification:', error);
-        // Don't fail the request if notification fails
+        console.error('Failed to send movement update notification:', error?.message);
       }
     }
 
@@ -1523,6 +1573,8 @@ router.post(
     const voucher = await prisma.voucher.findUnique({
       where: { id },
       include: {
+        party: true,
+        transportCompany: true,
         movements: {
           orderBy: {
             sr: 'asc',
@@ -1542,8 +1594,154 @@ router.post(
       return res.status(400).json({ error: 'Invalid movement index' });
     }
 
-    // Vouchers are standalone - notifications removed as they required booking connection
-    res.json({ message: 'Movement updated successfully' });
+    let targetDestination = voucher.party?.whatsappNumber;
+    if (voucher.party?.whatsappType === 'id') {
+      targetDestination = voucher.party?.whatsappGroupId || voucher.party?.whatsappNumber;
+    }
+    if (!targetDestination) {
+      targetDestination = voucher.party?.contactNumber;
+    }
+
+    if (!targetDestination) {
+      return res.status(400).json({ error: 'Party (Agency) contact number/group ID is not configured' });
+    }
+
+    // Retrieve details for template
+    const voucherNumber = voucher.voucherNumber;
+    const agencyName = voucher.party?.partyName || 'N/A';
+    const routeName = `${movement.from} - ${movement.to}`;
+    const rawDate = movement.date ? new Date(movement.date) : null;
+    const date = rawDate ? rawDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : 'N/A';
+    const reportingTime = movement.time || 'N/A';
+    const driverName = movement.driverDetails1 || 'N/A';
+    const driverMobile = movement.driverDetails2 || 'N/A';
+    const transportCompany = voucher.transportCompany?.partyName || '';
+
+    const { sendDriverUpdateWhatsApp } = await import('../services/whatsappService');
+
+    await sendDriverUpdateWhatsApp(targetDestination, {
+      voucherNumber,
+      agencyName,
+      routeName,
+      date,
+      reportingTime,
+      driverName,
+      driverMobile,
+      transportCompany,
+    });
+
+    // Mark notification as sent in DB
+    await prisma.voucherMovement.update({
+      where: { id: movement.id },
+      data: { whatsappSent: true },
+    });
+
+    res.json({ success: true, message: 'Driver update WhatsApp notification sent successfully' });
+  })
+);
+
+// POST /api/vouchers/:id/upload-invoice - Upload invoice details to external API
+router.post(
+  '/:id/upload-invoice',
+  authenticate,
+  authorize('admin', 'staff'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const { qty, cost, rate } = req.body;
+
+    if (qty === undefined || cost === undefined || rate === undefined) {
+      return res.status(400).json({ error: 'Quantity, cost, and rate are required' });
+    }
+
+    const qtyNum = Number(qty);
+    const costNum = Number(cost);
+    const rateNum = Number(rate);
+
+    if (isNaN(qtyNum) || isNaN(costNum) || isNaN(rateNum)) {
+      return res.status(400).json({ error: 'Quantity, cost, and rate must be numbers' });
+    }
+
+    // Fetch voucher with relationships
+    const voucher = await prisma.voucher.findUnique({
+      where: { id },
+      include: {
+        party: true,
+        umrahCompany: true,
+        transportCompany: true,
+      }
+    });
+
+    if (!voucher) {
+      return res.status(404).json({ error: 'Voucher not found' });
+    }
+
+    if (!voucher.party?.partyCode) {
+      return res.status(400).json({ error: 'Customer / Agency does not have a Party Code configured in Settings.' });
+    }
+    const partyID = Number(voucher.party.partyCode);
+    if (isNaN(partyID) || partyID <= 0) {
+      return res.status(400).json({ error: `Customer / Agency Party Code "${voucher.party.partyCode}" must be a numeric 3-digit ID.` });
+    }
+
+    if (!voucher.transportCompany?.partyCode) {
+      return res.status(400).json({ error: 'Transport Company does not have a Party Code configured in Settings.' });
+    }
+    const umrahCompanyID = Number(voucher.transportCompany.partyCode);
+    if (isNaN(umrahCompanyID) || umrahCompanyID <= 0) {
+      return res.status(400).json({ error: `Transport Company Party Code "${voucher.transportCompany.partyCode}" must be a numeric 3-digit ID.` });
+    }
+
+    // Map external API fields as requested
+    const remarks = voucher.groupCode || '';
+    const groupCode = `Voucher No: ${voucher.voucherNumber}`;
+    const amt = qtyNum * rateNum;
+    const costAmt = qtyNum * costNum;
+
+    // External API payload
+    const payload = [
+      {
+        partyID,
+        remarks,
+        qty: qtyNum,
+        rate: rateNum,
+        amt,
+        visaFileDetailID: 1,
+        typ: 2,
+        umrahCompanyID,
+        groupCode,
+        cost: costNum,
+        costAmt,
+        umrahType: 1
+      }
+    ];
+
+    try {
+      const axios = require('axios');
+      console.log(`[DEBUG] Uploading invoice to external API for voucher ${voucher.voucherNumber}:`, JSON.stringify(payload, null, 2));
+      const response = await axios.post('https://report.umrabus.com/api/passport/upload-invoices', payload, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log(`[DEBUG] External API response:`, response.data);
+      if (response.data && response.data.status === 'success') {
+        await prisma.voucher.update({
+          where: { id },
+          data: { invoiceGenerated: true }
+        });
+        res.json({ message: 'Invoice uploaded successfully to external API', externalResponse: response.data });
+      } else {
+        res.status(500).json({ error: 'Failed to upload invoice to external API', externalResponse: response.data });
+      }
+    } catch (error: any) {
+      console.error('Error uploading invoice to external API:', error.message);
+      if (error.response) {
+        console.error('Error details:', error.response.data);
+        return res.status(500).json({ error: 'External API Error', details: error.response.data });
+      }
+      res.status(500).json({ error: error.message || 'Failed to upload invoice' });
+    }
   })
 );
 

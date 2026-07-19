@@ -34,6 +34,7 @@ import landingRoutes from './routes/landing.routes';
 import umrahOperationalRoutes from './routes/umrahOperational.routes';
 import nusukRoutes from './routes/nusuk.routes';
 import hotelInventoryRoutes from './routes/hotelInventory.routes';
+import whatsappChannelRoutes from './routes/whatsappChannel.routes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
@@ -130,6 +131,7 @@ app.use('/api/landing', landingRoutes);
 app.use('/api/umrah-visa/operational', umrahOperationalRoutes);
 app.use('/api/nusuk', nusukRoutes);
 app.use('/api/hotel-inventories', hotelInventoryRoutes);
+app.use('/api/whatsapp-channels', whatsappChannelRoutes);
 
 // Error handlers
 app.use(notFoundHandler);

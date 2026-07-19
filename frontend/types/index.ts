@@ -47,6 +47,7 @@ export interface Party {
   email: string;
   contactNumber?: string;
   whatsappNumber?: string;
+  whatsappType?: 'number' | 'id';
   address?: string;
   gstNumber?: string;
   panNumber?: string;

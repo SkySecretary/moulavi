@@ -47,8 +47,19 @@ const createPartyValidation = [
   body('whatsapp_number')
     .optional()
     .isString()
-    .matches(/^[+]?[0-9]{10,15}$/, 'g')
+    .custom((val) => {
+      if (!val) return true;
+      return /^[+]?[0-9]{10,15}$/.test(val);
+    })
     .withMessage('WhatsApp number must be 10-15 digits, optionally starting with +'),
+  body('whatsapp_group_id')
+    .optional()
+    .isString()
+    .withMessage('WhatsApp Group ID must be a string'),
+  body('whatsapp_type')
+    .optional()
+    .isIn(['number', 'id'])
+    .withMessage('WhatsApp type must be either number or id'),
   body('address').optional().isString(),
   body('gst_number').optional().isString(),
   body('pan_number').optional().isString().trim(),
@@ -95,6 +106,8 @@ router.post(
       email,
       contact_number,
       whatsapp_number,
+      whatsapp_group_id,
+      whatsapp_type = 'number',
       address,
       gst_number,
       pan_number,
@@ -182,6 +195,8 @@ router.post(
         email,
         contactNumber: contact_number,
         whatsappNumber: whatsapp_number,
+        whatsappGroupId: whatsapp_group_id || null,
+        whatsappType: whatsapp_type,
         address,
         gstNumber: gst_number,
         panNumber: pan_number,
@@ -385,6 +400,8 @@ router.put(
       party_name,
       contact_number,
       whatsapp_number,
+      whatsapp_group_id,
+      whatsapp_type,
       address,
       gst_number,
       pan_number,
@@ -400,6 +417,8 @@ router.put(
     if (party_name !== undefined) updateData.partyName = party_name;
     if (contact_number !== undefined) updateData.contactNumber = contact_number;
     if (whatsapp_number !== undefined) updateData.whatsappNumber = whatsapp_number;
+    if (whatsapp_group_id !== undefined) updateData.whatsappGroupId = whatsapp_group_id || null;
+    if (whatsapp_type !== undefined) updateData.whatsappType = whatsapp_type;
     if (address !== undefined) updateData.address = address;
     if (gst_number !== undefined) updateData.gstNumber = gst_number;
     if (pan_number !== undefined) updateData.panNumber = pan_number;
@@ -458,6 +477,8 @@ router.put(
       email,
       contact_number,
       whatsapp_number,
+      whatsapp_group_id,
+      whatsapp_type,
       address,
       gst_number,
       pan_number,
@@ -612,6 +633,8 @@ router.put(
     if (party_code !== undefined) updateData.partyCode = party_code || null;
     if (contact_number !== undefined) updateData.contactNumber = contact_number;
     if (whatsapp_number !== undefined) updateData.whatsappNumber = whatsapp_number;
+    if (whatsapp_group_id !== undefined) updateData.whatsappGroupId = whatsapp_group_id || null;
+    if (whatsapp_type !== undefined) updateData.whatsappType = whatsapp_type;
     if (address !== undefined) updateData.address = address;
     if (gst_number !== undefined) updateData.gstNumber = gst_number;
     if (pan_number !== undefined) updateData.panNumber = pan_number;

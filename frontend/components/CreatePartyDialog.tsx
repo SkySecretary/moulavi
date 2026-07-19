@@ -34,6 +34,8 @@ export default function CreatePartyDialog({
     email: '',
     contact_number: '',
     whatsapp_number: '',
+    whatsapp_group_id: '',
+    whatsapp_type: 'number' as 'number' | 'id',
     address: '',
     gst_number: '',
     pan_number: '',
@@ -75,6 +77,8 @@ export default function CreatePartyDialog({
           email: editingParty.email,
           contact_number: editingParty.contactNumber || '',
           whatsapp_number: editingParty.whatsappNumber || '',
+          whatsapp_group_id: (editingParty as any).whatsappGroupId || '',
+          whatsapp_type: (editingParty as any).whatsappType || 'number',
           address: editingParty.address || '',
           gst_number: editingParty.gstNumber || '',
           pan_number: editingParty.panNumber || '',
@@ -106,6 +110,8 @@ export default function CreatePartyDialog({
           email: '',
           contact_number: '',
           whatsapp_number: '',
+          whatsapp_group_id: '',
+          whatsapp_type: 'number',
           address: '',
           gst_number: '',
           pan_number: '',
@@ -376,19 +382,50 @@ export default function CreatePartyDialog({
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="whatsapp_number">WhatsApp Number</Label>
-            <Input
-              id="whatsapp_number"
-              type="text"
-              value={formData.whatsapp_number}
-              onChange={(e) => handleInputChange('whatsapp_number', e.target.value)}
-              placeholder="+91 1234567890"
-              className={errors.whatsapp_number ? 'border-primary' : ''}
-            />
-            {errors.whatsapp_number && (
-              <p className="text-sm text-primary">{errors.whatsapp_number}</p>
-            )}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="whatsapp_number">WhatsApp Number</Label>
+              <Input
+                id="whatsapp_number"
+                type="text"
+                value={formData.whatsapp_number}
+                onChange={(e) => handleInputChange('whatsapp_number', e.target.value)}
+                placeholder="+911234567890"
+                className={errors.whatsapp_number ? 'border-primary' : ''}
+              />
+              {errors.whatsapp_number && (
+                <p className="text-sm text-primary">{errors.whatsapp_number}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="whatsapp_group_id">WhatsApp Group ID</Label>
+              <Input
+                id="whatsapp_group_id"
+                type="text"
+                value={formData.whatsapp_group_id}
+                onChange={(e) => handleInputChange('whatsapp_group_id', e.target.value)}
+                placeholder="120363024892482@g.us"
+                className={errors.whatsapp_group_id ? 'border-primary' : ''}
+              />
+              {errors.whatsapp_group_id && (
+                <p className="text-sm text-primary">{errors.whatsapp_group_id}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="whatsapp_type">Default Notify Target</Label>
+              <Select
+                value={formData.whatsapp_type}
+                onValueChange={(val) => handleInputChange('whatsapp_type', val)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="number">Individual Number</SelectItem>
+                  <SelectItem value="id">WhatsApp Group ID</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-2">

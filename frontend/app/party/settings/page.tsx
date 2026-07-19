@@ -12,6 +12,7 @@ import { PartyLayout } from '@/components/layouts/PartyLayout';
 import { getUser, hasRole } from '@/lib/auth';
 import { partyAPI, authAPI } from '@/lib/api';
 import { Loader2, Save, Lock, User } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Party {
   id: string;
@@ -19,6 +20,8 @@ interface Party {
   email: string;
   contactNumber?: string;
   whatsappNumber?: string;
+  whatsappGroupId?: string;
+  whatsappType?: 'number' | 'id';
   address?: string;
   gstNumber?: string;
   panNumber?: string;
@@ -48,6 +51,8 @@ export default function PartySettingsPage() {
     partyName: '',
     contactNumber: '',
     whatsappNumber: '',
+    whatsappGroupId: '',
+    whatsappType: 'number' as 'number' | 'id',
     address: '',
     gstNumber: '',
     panNumber: '',
@@ -83,6 +88,8 @@ export default function PartySettingsPage() {
         partyName: party.partyName || '',
         contactNumber: party.contactNumber || '',
         whatsappNumber: party.whatsappNumber || '',
+        whatsappGroupId: (party as any).whatsappGroupId || '',
+        whatsappType: party.whatsappType || 'number',
         address: party.address || '',
         gstNumber: party.gstNumber || '',
         panNumber: party.panNumber || '',
@@ -140,6 +147,8 @@ export default function PartySettingsPage() {
           party_name: formData.partyName,
           contact_number: formData.contactNumber,
           whatsapp_number: formData.whatsappNumber,
+          whatsapp_group_id: formData.whatsappGroupId,
+          whatsapp_type: formData.whatsappType,
           address: formData.address,
           gst_number: formData.gstNumber,
           pan_number: formData.panNumber,
@@ -310,15 +319,42 @@ export default function PartySettingsPage() {
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="whatsappNumber" className="text-xs font-bold uppercase tracking-wider text-gray-500">WhatsApp Number</Label>
-                      <Input
-                        id="whatsappNumber"
-                        value={formData.whatsappNumber}
-                        onChange={(e) => handleInputChange('whatsappNumber', e.target.value)}
-                        placeholder="Enter WhatsApp number"
-                        className="border-gray-200 focus:border-primary focus:ring-primary/20 h-11"
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="whatsappNumber" className="text-xs font-bold uppercase tracking-wider text-gray-500">WhatsApp Number</Label>
+                        <Input
+                          id="whatsappNumber"
+                          value={formData.whatsappNumber}
+                          onChange={(e) => handleInputChange('whatsappNumber', e.target.value)}
+                          placeholder="Enter WhatsApp number"
+                          className="border-gray-200 focus:border-primary focus:ring-primary/20 h-11"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="whatsappGroupId" className="text-xs font-bold uppercase tracking-wider text-gray-500">WhatsApp Group ID</Label>
+                        <Input
+                          id="whatsappGroupId"
+                          value={formData.whatsappGroupId}
+                          onChange={(e) => handleInputChange('whatsappGroupId', e.target.value)}
+                          placeholder="e.g. 120363024892482@g.us"
+                          className="border-gray-200 focus:border-primary focus:ring-primary/20 h-11"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="whatsappType" className="text-xs font-bold uppercase tracking-wider text-gray-500">Default Notify Target</Label>
+                        <Select
+                          value={formData.whatsappType}
+                          onValueChange={(val: any) => handleInputChange('whatsappType', val)}
+                        >
+                          <SelectTrigger className="border-gray-200 focus:border-primary focus:ring-primary/20 h-11">
+                            <SelectValue placeholder="Type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="number">Individual Number</SelectItem>
+                            <SelectItem value="id">WhatsApp Group ID</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
 

@@ -1074,36 +1074,9 @@ export const sendMovementUpdateEmail = async (
       console.log('[EMAIL] ✅ sendMovementUpdateEmail email sent successfully');
     }
     
-    // Send WhatsApp messages (always attempt, regardless of email status)
-    const { sendMovementUpdateWhatsApp } = await import('./whatsappService');
-    const phoneNumbers: Array<{ number: string; recipient: string }> = [];
-    
-    if (partyWhatsApp) {
-      phoneNumbers.push({ number: partyWhatsApp, recipient: 'Party' });
-    }
-    if (guestMobile) {
-      phoneNumbers.push({ number: guestMobile, recipient: 'Guest' });
-    }
-    
-    if (phoneNumbers.length > 0) {
-      console.log(`[EMAIL] Attempting to send WhatsApp movement update to ${phoneNumbers.length} recipient(s)...`);
-      
-      // Send to all phone numbers
-      const whatsappPromises = phoneNumbers.map(async ({ number, recipient }) => {
-        try {
-          await sendMovementUpdateWhatsApp(number, partyName, voucherNumber, movementDetails);
-          console.log(`[EMAIL] ✅ WhatsApp movement update sent successfully to ${recipient}`);
-        } catch (error: any) {
-          console.error(`[EMAIL] ❌ Failed to send WhatsApp movement update to ${recipient}:`, error?.message || 'Unknown error');
-          console.error(`[EMAIL] Error details:`, error);
-          // Don't throw error to avoid breaking flow
-        }
-      });
-      
-      await Promise.allSettled(whatsappPromises);
-    } else {
-      console.log('[EMAIL] No phone numbers provided, skipping WhatsApp');
-    }
+    // Automatic WhatsApp sending for movement updates has been disabled to prevent duplicate/incorrect notifications.
+    // WhatsApp notifications are now sent manually via the "Send to WhatsApp" button in the Movements dashboard.
+    console.log('[EMAIL] Automatic WhatsApp movement update bypassed.');
     
     console.log('[EMAIL] ✅ sendMovementUpdateEmail completed successfully');
   } catch (error: any) {

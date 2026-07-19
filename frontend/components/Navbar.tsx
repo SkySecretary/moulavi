@@ -313,7 +313,7 @@ export default function Navbar() {
                     <User className="h-5 w-5" />
                   </button>
                 </SheetTrigger>
-                <SheetContent side="right" className="rounded-l-3xl border-l-0">
+                <SheetContent side="right" className="rounded-l-3xl border-l-0 flex flex-col h-full">
                   <SheetHeader className="pb-6 border-b">
                     <SheetTitle className="flex items-center gap-3 pt-4">
                       <div className="h-12 w-12 rounded-full bg-gradient-to-br from-secondary to-primary flex items-center justify-center text-white shadow-xl">
@@ -326,7 +326,7 @@ export default function Navbar() {
                     </SheetTitle>
                   </SheetHeader>
                   
-                  <div className="py-6 space-y-6">
+                  <div className="py-6 space-y-6 flex-1 overflow-y-auto pr-1">
                     <div className="space-y-1">
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-2">Navigation</p>
                       {mainTabs.map((tab) => (

@@ -9,6 +9,7 @@ import { umrahVisaAPI } from '@/lib/api';
 import { TimePicker } from '@/components/ui/time-picker';
 import { toDisplayDate, fromDisplayDate } from '@/lib/umrah/validation';
 import { DatePicker } from '@/components/ui/date-picker';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 interface MovementsTableProps {
   movements: Movement[];
@@ -225,51 +226,34 @@ export const MovementsTable: React.FC<MovementsTableProps> = ({
                 />
               </td>
               <td className="p-2">
-                <Select
+                <SearchableSelect
+                  options={getAllLocations().map((loc) => ({
+                    value: loc.id,
+                    label: `${loc.name} (${loc.city || loc.cityMaster?.name || ''})`
+                  }))}
                   value={movement.fromLocationId || ''}
                   onValueChange={(value) => onUpdateMovement(index, 'fromLocationId', value)}
                   disabled={disabled}
-                >
-                  <SelectTrigger className="h-8 text-[10px] font-bold text-slate-900 border-gray-200 bg-white">
-                    <SelectValue placeholder="Origin" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
-                    {getAllLocations().map((loc) => (
-                      <SelectItem key={loc.id} value={loc.id} className="text-[10px] font-medium">
-                        {loc.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Origin"
+                  className="h-8 text-[10px] font-bold"
+                />
               </td>
               <td className="p-2">
-                <Select
+                <SearchableSelect
+                  options={getAllLocations().map((loc) => {
+                    const cityName = loc.city || loc.cityMaster?.name || '';
+                    const displayCity = movement.viabadrOverride ? 'Viabadr' : cityName;
+                    return {
+                      value: loc.id,
+                      label: `${loc.name} (${displayCity})`
+                    };
+                  })}
                   value={movement.toLocationId || ''}
                   onValueChange={(value) => onUpdateMovement(index, 'toLocationId', value)}
                   disabled={disabled}
-                >
-                  <SelectTrigger className="h-8 text-[10px] font-bold text-slate-900 border-gray-200 bg-white">
-                    <SelectValue placeholder="Destination">
-                      {movement.toLocationId && (() => {
-                        const location = locationMasters.find(lm => lm.id === movement.toLocationId);
-                        const cityName = location?.city || location?.cityMaster?.name || '';
-                        const displayCity = movement.viabadrOverride ? 'Viabadr' : cityName;
-                        return location ? `${location.name} (${displayCity})` : '';
-                      })()}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
-                    {getAllLocations().map((loc) => {
-                      const cityName = loc.city || loc.cityMaster?.name || '';
-                      const displayCity = movement.viabadrOverride ? 'Viabadr' : cityName;
-                      return (
-                        <SelectItem key={loc.id} value={loc.id} className="text-[10px] font-medium">
-                          {loc.name} ({displayCity})
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
+                  placeholder="Destination"
+                  className="h-8 text-[10px] font-bold"
+                />
               </td>
               <td className="p-2 text-center">
                 {(isMadinahCity(movement.fromLocationId) || isMadinahCity(movement.toLocationId)) && (

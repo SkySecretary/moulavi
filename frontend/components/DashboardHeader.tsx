@@ -256,69 +256,123 @@ export default function DashboardHeader({
                             </span>
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-1.5 gap-x-4 text-xs text-slate-300">
-                            <div className="flex items-center space-x-1">
-                              <Building className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
-                              <span className="text-slate-400">Agency:</span>
-                              <span className="font-semibold text-slate-200 truncate">{result.booking.party.partyName}</span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-2.5 gap-x-6 text-[11px] text-slate-350 bg-slate-900/30 p-4 rounded-lg border border-slate-800/80 mt-3">
+                            <div className="flex items-center space-x-1.5">
+                              <span className="text-slate-450 uppercase font-black tracking-wider text-[9px]">Group Number:</span>
+                              <span className="font-bold text-white text-xs">{result.booking?.groupNumber || '—'}</span>
                             </div>
-                            <div className="flex items-center space-x-1">
-                              <span className="text-slate-400">Booking:</span>
-                              <span className="font-semibold text-indigo-300 font-mono">{result.booking.bookingReference}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <span className="text-slate-400">Voucher:</span>
-                              {result.booking.voucher ? (
-                                <span className="font-semibold text-emerald-400 font-mono">
+                            <div className="flex items-center space-x-1.5">
+                              <span className="text-slate-450 uppercase font-black tracking-wider text-[9px]">Voucher No:</span>
+                              {result.booking?.voucher ? (
+                                <span className="font-extrabold text-emerald-400 font-mono text-xs">
                                   {result.booking.voucher.voucherNumber}
                                 </span>
                               ) : (
-                                <span className="text-slate-500 italic">No Voucher</span>
+                                <span className="text-slate-500 italic">None</span>
                               )}
                             </div>
-                            <div className="flex items-center space-x-1 sm:col-span-2">
-                              <span className="text-slate-400">Visa Status:</span>
-                              <span className={`font-semibold ${
-                                result.mutamerStatus.toLowerCase().includes('review')
-                                  ? 'text-rose-400 font-bold'
-                                  : 'text-slate-200'
-                              }`}>
+                            <div className="flex items-center space-x-1.5">
+                              <span className="text-slate-450 uppercase font-black tracking-wider text-[9px]">Agency/Party:</span>
+                              <span className="font-bold text-slate-200 truncate max-w-[150px]" title={result.booking?.party?.partyName || ''}>
+                                {result.booking?.party?.partyName || '—'}
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-1.5">
+                              <span className="text-slate-450 uppercase font-black tracking-wider text-[9px]">Umrah Company:</span>
+                              <span className="font-bold text-slate-200 truncate max-w-[150px]" title={result.booking?.umrahCompany || ''}>
+                                {result.booking?.umrahCompany || '—'}
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-1.5">
+                              <span className="text-slate-450 uppercase font-black tracking-wider text-[9px]">Transport Co:</span>
+                              <span className="font-bold text-sky-400">
+                                {result.booking?.voucher?.transportCompanyName || '—'}
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-1.5">
+                              <span className="text-slate-450 uppercase font-black tracking-wider text-[9px]">Visa Status:</span>
+                              <span className={`font-black ${result.mutamerStatus?.toLowerCase().includes('review') ? 'text-rose-400' : 'text-slate-200'}`}>
                                 {result.mutamerStatus}
                               </span>
                             </div>
+                            <div className="flex flex-col space-y-0.5 sm:col-span-1">
+                              <span className="text-slate-450 uppercase font-black tracking-wider text-[9px]">Entry Date (KSA):</span>
+                              <span className="font-bold text-slate-200">
+                                {result.entryDate ? new Date(result.entryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '—'}
+                                {result.daysInKingdom !== null && (
+                                  <span className="ml-1.5 text-[9px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-black">
+                                    {result.daysInKingdom} Days in KSA
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                            <div className="flex flex-col space-y-0.5 sm:col-span-1">
+                              <span className="text-slate-450 uppercase font-black tracking-wider text-[9px]">Exit Date (KSA):</span>
+                              <span className="font-bold text-slate-200">
+                                {result.exitDate ? new Date(result.exitDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '—'}
+                              </span>
+                            </div>
+                            <div className="flex flex-col space-y-0.5 sm:col-span-1">
+                              <span className="text-slate-450 uppercase font-black tracking-wider text-[9px]">Booking Ref:</span>
+                              <span className="font-bold text-indigo-300 font-mono text-xs">{result.booking?.bookingReference || '—'}</span>
+                            </div>
+
+                            <div className="flex flex-col space-y-0.5 sm:col-span-1">
+                              <span className="text-slate-450 uppercase font-black tracking-wider text-[9px]">Makkah Hotel:</span>
+                              <span className="font-bold text-slate-200 truncate" title={result.booking?.makkaHotel || ''}>{result.booking?.makkaHotel || '—'}</span>
+                            </div>
+                            <div className="flex flex-col space-y-0.5 sm:col-span-1">
+                              <span className="text-slate-450 uppercase font-black tracking-wider text-[9px]">Madinah Hotel:</span>
+                              <span className="font-bold text-slate-200 truncate" title={result.booking?.madinaHotel || ''}>{result.booking?.madinaHotel || '—'}</span>
+                            </div>
+                            
+                            {result.booking?.iqama ? (
+                              <div className="flex flex-col space-y-0.5 sm:col-span-3 border-t border-slate-800/80 pt-2 mt-1">
+                                <span className="text-slate-450 uppercase font-black tracking-wider text-[9px]">Sponsor / Iqama Details:</span>
+                                <div className="flex flex-wrap gap-x-4 text-xs font-semibold text-amber-400">
+                                  <span><span className="text-slate-450 uppercase font-black tracking-wider text-[9px] mr-1 text-slate-400">Host:</span> {result.booking.iqama.hostName}</span>
+                                  <span><span className="text-slate-450 uppercase font-black tracking-wider text-[9px] mr-1 text-slate-400">Iqama:</span> {result.booking.iqama.iqamaNumber}</span>
+                                  <span><span className="text-slate-450 uppercase font-black tracking-wider text-[9px] mr-1 text-slate-400">Phone:</span> {result.booking.iqama.phoneNumber}</span>
+                                </div>
+                              </div>
+                            ) : null}
                           </div>
                         </div>
 
                         {/* Actions Block */}
                         <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end border-t border-slate-700/50 md:border-t-0 pt-3 md:pt-0">
-                          <Button
-                            onClick={() => handleDownloadPDF(result.booking.id, result.booking.bookingReference)}
-                            disabled={downloadingId === result.booking.id}
-                            size="sm"
-                            className="bg-slate-750 hover:bg-slate-700 border border-slate-650 text-slate-100 h-8 text-xs font-medium"
-                          >
-                            {downloadingId === result.booking.id ? (
-                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                            ) : (
-                              <FileText className="h-3 w-3 mr-1 text-slate-400" />
-                            )}
-                            PDF
-                          </Button>
-
-                          <NextLink 
-                            href={`/dashboard/umrah-visa/visa-management/edit/${result.booking.id}`}
-                            onClick={() => setIsSearchOpen(false)}
-                          >
+                          {result.booking && (
                             <Button
+                              onClick={() => handleDownloadPDF(result.booking.id, result.booking.bookingReference)}
+                              disabled={downloadingId === result.booking.id}
                               size="sm"
-                              className="bg-indigo-650 hover:bg-indigo-600 text-white h-8 text-xs font-medium border-0"
+                              className="bg-slate-750 hover:bg-slate-700 border border-slate-650 text-slate-100 h-8 text-xs font-medium"
                             >
-                              <Edit2 className="h-3 w-3 mr-1" />
-                              Edit
+                              {downloadingId === result.booking.id ? (
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              ) : (
+                                <FileText className="h-3 w-3 mr-1 text-slate-400" />
+                              )}
+                              PDF
                             </Button>
-                          </NextLink>
+                          )}
 
-                          {result.booking.voucher && (
+                          {result.booking && (
+                            <NextLink 
+                              href={`/dashboard/umrah-visa/visa-management/edit/${result.booking.id}`}
+                              onClick={() => setIsSearchOpen(false)}
+                            >
+                              <Button
+                                size="sm"
+                                className="bg-indigo-650 hover:bg-indigo-600 text-white h-8 text-xs font-medium border-0"
+                              >
+                                <Edit2 className="h-3 w-3 mr-1" />
+                                Edit
+                              </Button>
+                            </NextLink>
+                          )}
+
+                          {result.booking?.voucher && (
                             <NextLink 
                               href={`/dashboard/services/voucher/view/${result.booking.voucher.id}`}
                               onClick={() => setIsSearchOpen(false)}
@@ -333,18 +387,20 @@ export default function DashboardHeader({
                             </NextLink>
                           )}
 
-                          <NextLink 
-                            href={`/dashboard/masters/party/${result.booking.party.id}`}
-                            onClick={() => setIsSearchOpen(false)}
-                          >
-                            <Button
-                              size="sm"
-                              className="bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-200 h-8 text-xs font-medium"
+                          {result.booking?.party && (
+                            <NextLink 
+                              href={`/dashboard/masters/party/${result.booking.party.id}`}
+                              onClick={() => setIsSearchOpen(false)}
                             >
-                              <Building className="h-3 w-3 mr-1 text-slate-400" />
-                              Agency
-                            </Button>
-                          </NextLink>
+                              <Button
+                                size="sm"
+                                className="bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-200 h-8 text-xs font-medium"
+                              >
+                                <Building className="h-3 w-3 mr-1 text-slate-400" />
+                                Agency
+                              </Button>
+                            </NextLink>
+                          )}
                         </div>
                       </div>
                     ))}

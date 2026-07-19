@@ -1890,6 +1890,46 @@ export class NusukService {
       }
     });
 
+    // Calculate visa breakdown by type (individual with hotel/iqama, group)
+    const bookingStats = await prisma.umrahVisaBooking.findMany({
+      where: {
+        isDeleted: false,
+        ...(partyId ? { partyId } : {})
+      },
+      select: {
+        visaType: true,
+        accommodationType: true,
+        passengerCount: true
+      }
+    });
+
+    const visaBreakdown = {
+      individual: {
+        hotel: { bookings: 0, passengers: 0 },
+        iqama: { bookings: 0, passengers: 0 },
+        unspecified: { bookings: 0, passengers: 0 }
+      },
+      group: { bookings: 0, passengers: 0 }
+    };
+
+    for (const booking of bookingStats) {
+      if (booking.visaType === 'individual_visa') {
+        if (booking.accommodationType === 'hotel') {
+          visaBreakdown.individual.hotel.bookings++;
+          visaBreakdown.individual.hotel.passengers += booking.passengerCount || 0;
+        } else if (booking.accommodationType === 'iqama') {
+          visaBreakdown.individual.iqama.bookings++;
+          visaBreakdown.individual.iqama.passengers += booking.passengerCount || 0;
+        } else {
+          visaBreakdown.individual.unspecified.bookings++;
+          visaBreakdown.individual.unspecified.passengers += booking.passengerCount || 0;
+        }
+      } else if (booking.visaType === 'group_visa') {
+        visaBreakdown.group.bookings++;
+        visaBreakdown.group.passengers += booking.passengerCount || 0;
+      }
+    }
+
     if (role !== 'customer' && role !== 'party') {
       // Admin dashboard
       // Fetch latest 5 active mismatches
@@ -2005,7 +2045,8 @@ export class NusukService {
           consulateReview,
           passengersInKSA,
           passengersToArrive
-        }
+        },
+        visaBreakdown
       };
     } else {
       // Customer dashboard
@@ -2128,7 +2169,8 @@ export class NusukService {
         advice,
         accuracy,
         totalAllMismatches,
-        resolvedMismatchesCount
+        resolvedMismatchesCount,
+        visaBreakdown
       };
     }
   }
@@ -2261,35 +2303,121 @@ export class NusukService {
                 partyName: true
               }
             },
+            umrahVisaProvider: {
+              select: {
+                id: true,
+                partyName: true
+              }
+            },
             vouchers: {
               select: {
                 id: true,
-                voucherNumber: true
+                voucherNumber: true,
+                transportCompany: {
+                  select: {
+                    partyName: true
+                  }
+                }
               },
               take: 1
+            },
+            hotelBookings: {
+              where: {
+                isAlternate: false
+              },
+              include: {
+                hotel: {
+                  select: {
+                    id: true,
+                    name: true,
+                    city: true
+                  }
+                },
+                city: {
+                  select: {
+                    id: true,
+                    name: true
+                  }
+                }
+              }
+            },
+            sponsorIqamaDetails: {
+              where: {
+                isAlternate: false
+              },
+              select: {
+                iqamaSponserName: true,
+                iqamaNumber: true,
+                sponserMobileNumber: true
+              }
             }
           }
         }
       }
     });
 
-    return passengers.map(p => ({
-      id: p.id,
-      fullName: p.fullName,
-      passportNumber: p.passportNumber,
-      mutamerStatus: p.mutamerStatus || 'N/A',
-      currentlyInKingdom: p.currentlyInKingdom || 'No',
-      booking: {
-        id: p.booking.id,
-        bookingReference: p.booking.bookingReference,
-        status: p.booking.status,
-        party: {
-          id: p.booking.party.id,
-          partyName: p.booking.party.partyName
-        },
-        voucher: p.booking.vouchers[0] || null
+    return passengers.map(p => {
+      // Find Makkah and Madinah hotels
+      let makkaHotelName = '';
+      let madinaHotelName = '';
+      
+      if (p.booking.hotelBookings) {
+        p.booking.hotelBookings.forEach((hb: any) => {
+          const cityName = hb.city?.name?.toLowerCase() || '';
+          if (cityName.includes('makkah') || cityName.includes('makka') || cityName.includes('mcca') || cityName.includes('meca')) {
+            makkaHotelName = hb.hotel?.name || '';
+          } else if (cityName.includes('madinah') || cityName.includes('madina') || cityName.includes('medina')) {
+            madinaHotelName = hb.hotel?.name || '';
+          }
+        });
       }
-    }));
+
+      const iqamaInfo = p.booking.sponsorIqamaDetails?.[0] || null;
+      const voucher = p.booking.vouchers?.[0] || null;
+
+      // Calculate days in Kingdom if entered
+      let daysInKingdom = null;
+      if (p.entryDate) {
+        const entry = new Date(p.entryDate);
+        const today = new Date();
+        const diffTime = Math.abs(today.getTime() - entry.getTime());
+        daysInKingdom = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      }
+
+      return {
+        id: p.id,
+        fullName: p.fullName,
+        passportNumber: p.passportNumber,
+        mutamerStatus: p.mutamerStatus || 'N/A',
+        currentlyInKingdom: p.currentlyInKingdom || 'No',
+        entryDate: p.entryDate,
+        exitDate: p.exitDate,
+        daysInKingdom,
+        booking: {
+          id: p.booking.id,
+          bookingReference: p.booking.bookingReference,
+          groupNumber: p.booking.groupNumber || 'N/A',
+          status: p.booking.status,
+          party: {
+            id: p.booking.party.id,
+            partyName: p.booking.party.partyName
+          },
+          umrahCompany: p.booking.umrahVisaProvider?.partyName || 'N/A',
+          voucher: voucher ? {
+            id: voucher.id,
+            voucherNumber: voucher.voucherNumber,
+            transportCompanyName: voucher.transportCompany?.partyName || 'N/A'
+          } : null,
+          makkaHotel: makkaHotelName || 'N/A',
+          madinaHotel: madinaHotelName || 'N/A',
+          iqama: iqamaInfo ? {
+            hostName: iqamaInfo.iqamaSponserName,
+            iqamaNumber: iqamaInfo.iqamaNumber,
+            phoneNumber: iqamaInfo.sponserMobileNumber
+          } : null
+        }
+      };
+    });
   }
 }
 

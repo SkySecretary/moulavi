@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getUser, hasRole } from '@/lib/auth';
-import { voucherAPI, umrahVisaMasterAPI, cityMasterAPI, locationMasterAPI, transportRouteMasterAPI } from '@/lib/api';
+import { voucherAPI, umrahVisaMasterAPI, cityMasterAPI, locationMasterAPI, transportRouteMasterAPI, partyAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar, Plane, Users, Building, MapPin, Mail, ArrowLeft, Clock, Route, Ticket, Truck, Plus, X, ArrowRight } from 'lucide-react';
 import { TimePicker } from '@/components/ui/time-picker';
 import { extractDateFromISO } from '@/lib/umrah/validation';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 export default function EditVoucherPage() {
   const router = useRouter();
@@ -37,6 +38,8 @@ export default function EditVoucherPage() {
   const [cities, setCities] = useState<any[]>([]);
   const [locationMasters, setLocationMasters] = useState<any[]>([]);
   const [transportRoutes, setTransportRoutes] = useState<any[]>([]);
+  const [transportCompanies, setTransportCompanies] = useState<any[]>([]);
+  const [transportCompanyId, setTransportCompanyId] = useState('');
 
   useEffect(() => {
     if (!user || !hasRole(['admin', 'staff', 'party'])) {
@@ -50,24 +53,32 @@ export default function EditVoucherPage() {
 
   const fetchMasterData = async () => {
     try {
-      const [airportsRes, citiesRes, locationsRes, routesRes] = await Promise.all([
+      const [airportsRes, citiesRes, locationsRes, routesRes, partiesRes] = await Promise.all([
         umrahVisaMasterAPI.getAirports(),
         cityMasterAPI.getActive(),
         locationMasterAPI.getActive(),
-        transportRouteMasterAPI.getActive()
+        transportRouteMasterAPI.getActive(),
+        partyAPI.getAll({ limit: 1000 })
       ]);
       
       const fetchedAirports = airportsRes.data.locationMasters || airportsRes.data.airports || [];
       const fetchedCities = citiesRes.data.cityMasters || citiesRes.data || [];
       const fetchedLocations = locationsRes.data.locationMasters || locationsRes.data || [];
       const fetchedRoutes = routesRes.data.transportRouteMasters || routesRes.data || [];
+      const partiesData = partiesRes.data?.data?.parties || partiesRes.data?.parties || [];
 
-      console.log(`[DEBUG] Master Data Loaded: Airports=${fetchedAirports.length}, Cities=${fetchedCities.length}, Locations=${fetchedLocations.length}, Routes=${fetchedRoutes.length}`);
+      console.log(`[DEBUG] Master Data Loaded: Airports=${fetchedAirports.length}, Cities=${fetchedCities.length}, Locations=${fetchedLocations.length}, Routes=${fetchedRoutes.length}, Parties=${partiesData.length}`);
 
       setAirports(fetchedAirports);
       setCities(fetchedCities);
       setLocationMasters(fetchedLocations);
       setTransportRoutes(fetchedRoutes);
+
+      const suppliers = partiesData.filter((p: any) => p.isSupplier);
+      setTransportCompanies(suppliers.filter((p: any) => {
+        const types = p.supplierServiceTypes || [];
+        return Array.isArray(types) && types.includes('transport_service');
+      }));
     } catch (err) {
       console.error('Failed to fetch master data:', err);
     }
@@ -89,6 +100,7 @@ export default function EditVoucherPage() {
       setHotelSchedules(Array.isArray(v.hotelSchedules) ? v.hotelSchedules : []);
       setMovementDetails(Array.isArray(v.movementDetails) ? v.movementDetails : []);
       setFlightDetails(Array.isArray(v.flightDetails) ? v.flightDetails : []);
+      setTransportCompanyId(v.transportCompanyId || '');
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.error || 'Failed to load voucher');
@@ -121,6 +133,7 @@ export default function EditVoucherPage() {
           hotelSchedules,
           movementDetails,
           flightDetails,
+          transportCompanyId,
         });
         toast.success('Voucher updated successfully');
       }
@@ -316,7 +329,7 @@ export default function EditVoucherPage() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-4">
                     <div className="space-y-1">
                       <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Guest Mobile</p>
                       <Input
@@ -334,6 +347,25 @@ export default function EditVoucherPage() {
                         onChange={(e) => setReservationDate(e.target.value)}
                         disabled={!isAdminOrStaff}
                       />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Transport Company</p>
+                      <Select
+                        value={transportCompanyId}
+                        onValueChange={setTransportCompanyId}
+                        disabled={!isAdminOrStaff}
+                      >
+                        <SelectTrigger className="w-full bg-white border-gray-200 h-10">
+                          <SelectValue placeholder="Select Transport Co." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {transportCompanies.map((tc) => (
+                            <SelectItem key={tc.id} value={tc.id}>
+                              {tc.partyName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </CardContent>
@@ -433,25 +465,21 @@ export default function EditVoucherPage() {
                             </div>
                             <div>
                               <label className="text-xs text-gray-600 mb-1 block">Hotel Name</label>
-                              <Select 
-                                value={locationMasters.find(l => l.name?.toLowerCase().trim() === hotel.hotelName?.toLowerCase().trim())?.id || ''} 
+                              <SearchableSelect
+                                options={locationMasters
+                                  .filter(l => l.locationType === 'HOTEL' && (!hotel.location || l.city?.toLowerCase() === hotel.location.toLowerCase() || l.cityMaster?.name?.toLowerCase() === hotel.location.toLowerCase()))
+                                  .map(l => ({
+                                    value: l.id,
+                                    label: `${l.name} (${l.city})`
+                                  }))}
+                                value={locationMasters.find(l => l.name?.toLowerCase().trim() === hotel.hotelName?.toLowerCase().trim())?.id || ''}
                                 onValueChange={(val) => {
                                   const loc = locationMasters.find(l => l.id === val);
                                   updateHotelSchedule(index, 'hotelName', loc?.name || '');
                                 }}
                                 disabled={!isAdminOrStaff}
-                              >
-                                <SelectTrigger className="w-full h-10 bg-white border-gray-200">
-                                  <SelectValue placeholder="Select hotel" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {locationMasters
-                                    .filter(l => l.locationType === 'HOTEL' && (!hotel.location || l.city?.toLowerCase() === hotel.location.toLowerCase() || l.cityMaster?.name?.toLowerCase() === hotel.location.toLowerCase()))
-                                    .map(l => (
-                                      <SelectItem key={l.id} value={l.id}>{l.name} ({l.city})</SelectItem>
-                                    ))}
-                                </SelectContent>
-                              </Select>
+                                placeholder="Select hotel"
+                              />
                             </div>
                             <div>
                               <label className="text-xs text-gray-600 mb-1 block">Check-In</label>
@@ -546,8 +574,12 @@ export default function EditVoucherPage() {
                                 />
                               </td>
                               <td className="p-2">
-                                <Select 
-                                  value={movement.fromLocationId || ''} 
+                                <SearchableSelect
+                                  options={locationMasters.map((l) => ({
+                                    value: l.id,
+                                    label: `${l.name} (${l.city || ''})`
+                                  }))}
+                                  value={movement.fromLocationId || ''}
                                   onValueChange={(val) => {
                                     const loc = locationMasters.find(l => l.id === val);
                                     updateMovement(index, {
@@ -557,22 +589,17 @@ export default function EditVoucherPage() {
                                     });
                                   }}
                                   disabled={!isAdminOrStaff}
-                                >
-                                  <SelectTrigger className="h-8 text-[10px] font-bold border-gray-200 bg-white">
-                                    <SelectValue placeholder="Select Origin" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {locationMasters.map(l => (
-                                      <SelectItem key={l.id} value={l.id} className="text-[10px]">
-                                        {l.name} ({l.city})
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                  placeholder="Select Origin"
+                                  className="h-8 text-[10px] font-bold"
+                                />
                               </td>
                               <td className="p-2">
-                                <Select 
-                                  value={movement.toLocationId || ''} 
+                                <SearchableSelect
+                                  options={locationMasters.map((l) => ({
+                                    value: l.id,
+                                    label: `${l.name} (${l.city || ''})`
+                                  }))}
+                                  value={movement.toLocationId || ''}
                                   onValueChange={(val) => {
                                     const loc = locationMasters.find(l => l.id === val);
                                     updateMovement(index, {
@@ -582,18 +609,9 @@ export default function EditVoucherPage() {
                                     });
                                   }}
                                   disabled={!isAdminOrStaff}
-                                >
-                                  <SelectTrigger className="h-8 text-[10px] font-bold border-gray-200 bg-white">
-                                    <SelectValue placeholder="Select Destination" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {locationMasters.map(l => (
-                                      <SelectItem key={l.id} value={l.id} className="text-[10px]">
-                                        {l.name} ({l.city})
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                  placeholder="Select Destination"
+                                  className="h-8 text-[10px] font-bold"
+                                />
                               </td>
                               <td className="p-2 bg-primary/5">
                                 <div className="space-y-1.5">
