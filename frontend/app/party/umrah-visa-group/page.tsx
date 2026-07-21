@@ -50,6 +50,9 @@ export default function GroupUmrahVisaPage() {
     addHotelBooking,
     removeHotelBooking,
     hasStepDataChanged,
+    globalAllowOneWayTicket,
+    globalAllowWithoutTicket,
+    selectedParty,
   } = useGroupUmrahBooking();
 
 
@@ -201,6 +204,8 @@ export default function GroupUmrahVisaPage() {
             getHotelsForLocation={getHotelsForLocation}
             onAddHotelBooking={addHotelBooking}
             onRemoveHotelBooking={removeHotelBooking}
+            allowOneWayOption={globalAllowOneWayTicket || selectedParty?.allowOneWayTicket}
+            allowWithoutTicketOption={globalAllowWithoutTicket || selectedParty?.allowWithoutTicket}
           />
         );
 

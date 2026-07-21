@@ -371,16 +371,16 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
     }
 
     // Additional validations - convert date strings to Date objects for validation
-    const arrivalDateObj = parseSafeDate(step2Data.arrivalDate);
-    const departureDateObj = step2Data.isOneWay
+    const arrivalDateObj = parseSafeDate(step2Data.arrivalDate) || new Date();
+    const departureDateObj = (step2Data.isWithoutTicket || step2Data.isOneWay)
       ? arrivalDateObj
-      : parseSafeDate(step2Data.departureDate);
+      : (parseSafeDate(step2Data.departureDate) || arrivalDateObj);
     const dateRangeValidation = validateDateRange(arrivalDateObj, departureDateObj);
     if (!dateRangeValidation.valid) {
       return res.status(400).json({ error: dateRangeValidation.error });
     }
 
-    if (step2Data.isOneWay && step3Data.accommodationType !== 'iqama') {
+    if (!step2Data.isWithoutTicket && step2Data.isOneWay && step3Data.accommodationType !== 'iqama') {
       return res.status(400).json({ error: 'One-way setting is only permitted with Iqama stay.' });
     }
 
@@ -530,6 +530,7 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
           status: initialStatus,
           visaType: 'individual_visa',
           isOneWay: !!step2Data.isOneWay,
+          isWithoutTicket: !!step2Data.isWithoutTicket,
           oneWayContactName: step2Data.isOneWay ? (step2Data.oneWayContactName || null) : null,
           oneWayWhatsapp: step2Data.isOneWay ? (step2Data.oneWayWhatsapp || null) : null,
           accommodationType: step3Data.accommodationType,
@@ -539,24 +540,32 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
       });
 
       // 3. Create UmrahTravelDetails - combine date and time before storing
-      const arrivalDateTime = combineDateTime(step2Data.arrivalDate, step2Data.arrivalTime);
-      const departureDateTime = step2Data.isOneWay
+      const arrivalDateTime = combineDateTime(step2Data.arrivalDate || new Date().toISOString().split('T')[0], step2Data.arrivalTime || '00:00');
+      const departureDateTime = (step2Data.isWithoutTicket || step2Data.isOneWay)
         ? arrivalDateTime
-        : combineDateTime(step2Data.departureDate || '', step2Data.departureTime || '');
+        : combineDateTime(step2Data.departureDate || '', step2Data.departureTime || '00:00');
       
       if (!arrivalDateTime || !departureDateTime) {
         throw new Error('Invalid arrival or departure date/time');
+      }
+
+      let placeholderAirportId = step2Data.arrivalAirportId;
+      if (step2Data.isWithoutTicket && !placeholderAirportId) {
+        const firstAirport = await tx.locationMaster.findFirst({
+          where: { locationType: 'AIRPORT', isActive: true }
+        });
+        placeholderAirportId = firstAirport?.id || '';
       }
 
       const travelDetails = await tx.umrahTravelDetails.create({
         data: {
           bookingId: booking.id,
           arrivalDateTime,
-          arrivalAirportId: step2Data.arrivalAirportId,
-          arrivalFlightNumber: step2Data.arrivalFlightNumber,
+          arrivalAirportId: placeholderAirportId,
+          arrivalFlightNumber: step2Data.isWithoutTicket ? 'NT-0000' : step2Data.arrivalFlightNumber,
           departureDateTime,
-          departureAirportId: step2Data.isOneWay ? step2Data.arrivalAirportId : step2Data.departureAirportId!,
-          departureFlightNumber: step2Data.isOneWay ? 'OW-9999' : step2Data.departureFlightNumber!,
+          departureAirportId: step2Data.isWithoutTicket ? placeholderAirportId : (step2Data.isOneWay ? step2Data.arrivalAirportId : step2Data.departureAirportId!),
+          departureFlightNumber: step2Data.isWithoutTicket ? 'NT-0000' : (step2Data.isOneWay ? 'OW-9999' : step2Data.departureFlightNumber!),
           brn: step2Data.brn || null,
         },
       });
@@ -1026,17 +1035,19 @@ router.patch('/:bookingId/travel-details', authenticate, async (req, res) => {
     }
 
     const isOneWay = req.body.isOneWay !== undefined ? Boolean(req.body.isOneWay) : (booking.isOneWay || false);
+    const isWithoutTicket = req.body.isWithoutTicket !== undefined ? Boolean(req.body.isWithoutTicket) : (booking.isWithoutTicket || false);
     const accommodationType = booking.accommodationType;
 
-    if (isOneWay && accommodationType !== 'iqama') {
+    if (!isWithoutTicket && isOneWay && accommodationType !== 'iqama') {
       return res.status(400).json({ error: 'One-way setting is only permitted with Iqama stay.' });
     }
     
-    if (req.body.isOneWay !== undefined) {
+    if (req.body.isOneWay !== undefined || req.body.isWithoutTicket !== undefined) {
       await prisma.umrahVisaBooking.update({
         where: { id: bookingId },
         data: { 
-          isOneWay: Boolean(req.body.isOneWay),
+          isOneWay: req.body.isOneWay !== undefined ? Boolean(req.body.isOneWay) : undefined,
+          isWithoutTicket: req.body.isWithoutTicket !== undefined ? Boolean(req.body.isWithoutTicket) : undefined,
           oneWayContactName: req.body.isOneWay ? (req.body.oneWayContactName || null) : null,
           oneWayWhatsapp: req.body.isOneWay ? (req.body.oneWayWhatsapp || null) : null,
         }
@@ -1073,7 +1084,7 @@ router.patch('/:bookingId/travel-details', authenticate, async (req, res) => {
     }
     
     let departureDateTime = incomingDepartureDateTime ? new Date(incomingDepartureDateTime) : undefined;
-    if (isOneWay) {
+    if (isWithoutTicket || isOneWay) {
       departureDateTime = arrivalDateTime;
     } else if (!departureDateTime && departureDate) {
       departureDateTime = combineDateTime(departureDate, departureTime || '12:00');
@@ -1092,12 +1103,21 @@ router.patch('/:bookingId/travel-details', authenticate, async (req, res) => {
     });
 
     const finalArrivalDateTime = arrivalDateTime ?? existing?.arrivalDateTime ?? new Date();
-    const finalArrivalAirportId = req.body?.arrivalAirportId ?? existing?.arrivalAirportId;
-    const finalArrivalFlightNumber = arrivalFlightNumber ?? existing?.arrivalFlightNumber ?? '';
+    
+    let fallbackAirportId = req.body?.arrivalAirportId ?? existing?.arrivalAirportId;
+    if (isWithoutTicket && !fallbackAirportId) {
+      const firstAirport = await prisma.locationMaster.findFirst({
+        where: { locationType: 'AIRPORT', isActive: true }
+      });
+      fallbackAirportId = firstAirport?.id || '';
+    }
 
-    const finalDepartureDateTime = isOneWay ? finalArrivalDateTime : (departureDateTime ?? existing?.departureDateTime ?? new Date());
-    const finalDepartureAirportId = isOneWay ? finalArrivalAirportId : (req.body?.departureAirportId ?? existing?.departureAirportId);
-    const finalDepartureFlightNumber = isOneWay ? 'OW-9999' : (departureFlightNumber ?? existing?.departureFlightNumber ?? '');
+    const finalArrivalAirportId = fallbackAirportId;
+    const finalArrivalFlightNumber = isWithoutTicket ? 'NT-0000' : (arrivalFlightNumber ?? existing?.arrivalFlightNumber ?? '');
+
+    const finalDepartureDateTime = (isWithoutTicket || isOneWay) ? finalArrivalDateTime : (departureDateTime ?? existing?.departureDateTime ?? new Date());
+    const finalDepartureAirportId = (isWithoutTicket || isOneWay) ? finalArrivalAirportId : (req.body?.departureAirportId ?? existing?.departureAirportId);
+    const finalDepartureFlightNumber = isWithoutTicket ? 'NT-0000' : (isOneWay ? 'OW-9999' : (departureFlightNumber ?? existing?.departureFlightNumber ?? ''));
 
     const travel = await prisma.umrahTravelDetails.upsert({
       where: {

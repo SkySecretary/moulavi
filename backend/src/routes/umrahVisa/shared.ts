@@ -220,24 +220,25 @@ export const findCityByName = async (cityName: string) => {
 // They will be combined into datetime before storing in the database
 export const step2Schema = z.object({
   isOneWay: z.boolean().optional().nullable(),
-  arrivalDate: z.string(), // YYYY-MM-DD format
-  arrivalTime: z.string(), // HH:mm format
-  arrivalAirportId: z.string().uuid(),
-  arrivalFlightNumber: z.string().regex(FLIGHT_NUMBER_REGEX, 'Invalid arrival flight number format (e.g., 6E-6083)'),
-  departureDate: z.string().optional().nullable(), // YYYY-MM-DD format
-  departureTime: z.string().optional().nullable(), // HH:mm format
-  departureAirportId: z.string().uuid().optional().nullable().or(z.literal('')),
-  departureFlightNumber: z.string().optional().nullable(),
+  isWithoutTicket: z.boolean().optional().nullable(),
+  arrivalDate: z.string().optional().nullable().or(z.literal('')),
+  arrivalTime: z.string().optional().nullable().or(z.literal('')),
+  arrivalAirportId: z.string().optional().nullable().or(z.literal('')),
+  arrivalFlightNumber: z.string().optional().nullable().or(z.literal('')),
+  departureDate: z.string().optional().nullable().or(z.literal('')),
+  departureTime: z.string().optional().nullable().or(z.literal('')),
+  departureAirportId: z.string().optional().nullable().or(z.literal('')),
+  departureFlightNumber: z.string().optional().nullable().or(z.literal('')),
   brn: z.string().optional(),
-  passengerCount: z.number().min(1).max(50).optional(), // Number of passengers (for both individual and group bookings - now in Step 2)
+  passengerCount: z.number().min(1).max(50).optional(),
   transportBookings: z.array(z.object({
     fromLocationId: z.string().uuid(),
     toLocationId: z.string().uuid(),
     vehicleType: z.string(),
     paxCount: z.number().min(1),
     price: z.number().min(0),
-    travelDate: z.string().optional(), // YYYY-MM-DD format
-    travelTime: z.string().optional(), // HH:mm format
+    travelDate: z.string().optional(),
+    travelTime: z.string().optional(),
   })).optional(),
   hotelBookings: z.array(z.object({
     cityId: z.string().uuid(),
@@ -247,6 +248,17 @@ export const step2Schema = z.object({
     brn: z.array(z.string()).optional(),
   })).optional(),
 }).refine((data) => {
+  if (data.isWithoutTicket) {
+    return true;
+  }
+  
+  if (!data.arrivalDate || !data.arrivalTime || !data.arrivalAirportId || !data.arrivalFlightNumber) {
+    return false;
+  }
+  if (!FLIGHT_NUMBER_REGEX.test(data.arrivalFlightNumber)) {
+    return false;
+  }
+
   if (!data.isOneWay) {
     if (!data.departureFlightNumber || !FLIGHT_NUMBER_REGEX.test(data.departureFlightNumber)) {
       return false;
@@ -255,8 +267,8 @@ export const step2Schema = z.object({
   }
   return true;
 }, {
-  message: "Departure flight details and a valid flight number format are required for round-trip bookings",
-  path: ["departureFlightNumber"]
+  message: "Flight details and valid flight number formats are required based on ticket options selected",
+  path: ["arrivalFlightNumber"]
 });
 
 // Step 3 schema - used by both individual and group

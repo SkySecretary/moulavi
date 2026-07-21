@@ -509,6 +509,7 @@ export const nusukAPI = {
     syncSchedule?: string;
     syncType?: string;
     allowOneWayTicket?: boolean;
+    allowWithoutTicket?: boolean;
   }) => api.post('/nusuk/settings', data),
   triggerSync: (partyId?: string) => api.post('/nusuk/sync', { partyId }),
   getMismatches: (params?: { 

@@ -54,7 +54,8 @@ export default function CreatePartyDialog({
     nusuk_active_entity_id: '',
     nusuk_active_entity_type_id: '',
     nusuk_external_agent_codes: '',
-    allow_one_way_ticket: false
+    allow_one_way_ticket: false,
+    allow_without_ticket: false
   });
   const [documentFiles, setDocumentFiles] = useState<{
     gst_certificate?: File;
@@ -101,7 +102,8 @@ export default function CreatePartyDialog({
           nusuk_active_entity_id: (editingParty as any).nusukActiveEntityId || '',
           nusuk_active_entity_type_id: (editingParty as any).nusukActiveEntityTypeId || '',
           nusuk_external_agent_codes: (editingParty as any).nusukExternalAgentCodes || '',
-          allow_one_way_ticket: (editingParty as any).allowOneWayTicket ?? false
+          allow_one_way_ticket: (editingParty as any).allowOneWayTicket ?? false,
+          allow_without_ticket: (editingParty as any).allowWithoutTicket ?? false
         });
       } else {
         setFormData({
@@ -130,7 +132,8 @@ export default function CreatePartyDialog({
           nusuk_active_entity_id: '',
           nusuk_active_entity_type_id: '',
           nusuk_external_agent_codes: '',
-          allow_one_way_ticket: false
+          allow_one_way_ticket: false,
+          allow_without_ticket: false
         });
       }
       setDocumentFiles({});
@@ -860,18 +863,47 @@ export default function CreatePartyDialog({
             <div className="flex items-center space-x-2 mt-2">
               <input
                 type="checkbox"
-                id="allow_one_way_ticket"
-                checked={formData.allow_one_way_ticket}
-                onChange={(e) => handleInputChange('allow_one_way_ticket', e.target.checked)}
-                className="rounded"
+                id="allow_without_ticket"
+                checked={formData.allow_without_ticket}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  handleInputChange('allow_without_ticket', checked);
+                  if (!checked) {
+                    handleInputChange('allow_one_way_ticket', false);
+                  }
+                }}
+                className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
               />
               <Label 
-                htmlFor="allow_one_way_ticket" 
-                className="cursor-pointer font-semibold text-slate-800"
+                htmlFor="allow_without_ticket" 
+                className="cursor-pointer font-bold text-slate-800 select-none text-sm"
               >
-                Allow One Way Ticket (Onward Only)
+                Allow Booking Without Ticket
               </Label>
             </div>
+
+            {formData.allow_without_ticket && (
+              <div className="flex items-center space-x-2 pl-4 py-2 border-l-2 border-indigo-500 mt-2 animate-in slide-in-from-top-2 duration-200">
+                <input
+                  type="checkbox"
+                  id="allow_one_way_ticket"
+                  checked={formData.allow_one_way_ticket}
+                  onChange={(e) => handleInputChange('allow_one_way_ticket', e.target.checked)}
+                  className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
+                />
+                <div className="flex flex-col">
+                  <Label 
+                    htmlFor="allow_one_way_ticket" 
+                    className="cursor-pointer font-bold text-slate-800 select-none text-xs"
+                  >
+                    Oneway/Onward Ticket Only
+                  </Label>
+                  <span className="text-[10px] text-muted-foreground">
+                    When enabled, requires only the onward flight ticket instead of none at all.
+                  </span>
+                </div>
+              </div>
+            )}
             {editingParty && editingParty.userId ? (
               <p className="text-xs text-gray-500 ml-6">
                 ✓ Login account already exists for this party

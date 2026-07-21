@@ -83,6 +83,7 @@ export default function NusukSettingsPage() {
     syncSchedule: '08:00, 20:00',
     syncType: 'excel',
     allowOneWayTicket: false,
+    allowWithoutTicket: false,
     isValid: true,
     lastSyncedAt: null as string | null,
   });
@@ -116,6 +117,7 @@ export default function NusukSettingsPage() {
             syncSchedule: response.data.syncSchedule || '08:00, 20:00',
             syncType: response.data.syncType || 'excel',
             allowOneWayTicket: response.data.allowOneWayTicket ?? false,
+            allowWithoutTicket: response.data.allowWithoutTicket ?? false,
             isValid: response.data.isValid ?? true,
             lastSyncedAt: response.data.lastSyncedAt || null,
           });
@@ -156,6 +158,7 @@ export default function NusukSettingsPage() {
         syncSchedule: settingsData.syncSchedule,
         syncType: settingsData.syncType,
         allowOneWayTicket: settingsData.allowOneWayTicket,
+        allowWithoutTicket: settingsData.allowWithoutTicket,
       });
       setSettingsData(prev => ({ ...prev, isValid: true }));
       toast.success('Nusuk settings saved successfully');
@@ -461,20 +464,41 @@ export default function NusukSettingsPage() {
 
                     <div className="flex items-center justify-between p-4 bg-slate-50 border rounded-lg">
                       <div className="space-y-0.5">
-                        <Label htmlFor="allowOneWayTicket" className="text-sm font-semibold text-slate-800">
-                          Allow One Way Ticket (Onward Only)
+                        <Label htmlFor="allowWithoutTicket" className="text-sm font-semibold text-slate-800">
+                          Allow Bookings Without Ticket
                         </Label>
                         <p className="text-xs text-muted-foreground">
-                          Ignore departure flight fields, skip return ticket upload requirement, and display mandatory departure warning on booking flows.
+                          Allows completing bookings without onward or return flight details.
                         </p>
                       </div>
                       <Switch
-                        id="allowOneWayTicket"
-                        checked={settingsData.allowOneWayTicket}
-                        onCheckedChange={(checked) => setSettingsData({ ...settingsData, allowOneWayTicket: checked })}
+                        id="allowWithoutTicket"
+                        checked={settingsData.allowWithoutTicket}
+                        onCheckedChange={(checked) => setSettingsData({ ...settingsData, allowWithoutTicket: checked })}
                         disabled={saving || syncing}
                       />
                     </div>
+
+                    {settingsData.allowWithoutTicket && (
+                      <div className="flex items-center space-x-2 pl-4 py-2 border-l-2 border-indigo-500 animate-in slide-in-from-top-2 duration-200">
+                        <input
+                          type="checkbox"
+                          id="allowOneWayTicket"
+                          checked={settingsData.allowOneWayTicket}
+                          onChange={(e) => setSettingsData({ ...settingsData, allowOneWayTicket: e.target.checked })}
+                          disabled={saving || syncing}
+                          className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
+                        />
+                        <div className="flex flex-col">
+                          <Label htmlFor="allowOneWayTicket" className="text-xs font-bold text-slate-800 cursor-pointer select-none">
+                            Oneway/Onward Ticket Only
+                          </Label>
+                          <span className="text-[10px] text-muted-foreground">
+                            When enabled, requires only the onward flight ticket instead of none at all.
+                          </span>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="flex justify-end gap-3 pt-2">
                       <Button

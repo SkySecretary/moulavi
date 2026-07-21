@@ -285,6 +285,7 @@ export class NusukService {
     syncSchedule?: string;
     syncType?: string;
     allowOneWayTicket?: boolean;
+    allowWithoutTicket?: boolean;
   }) {
     const existing = await prisma.nusukSetting.findFirst();
     if (existing) {
@@ -301,6 +302,7 @@ export class NusukService {
           syncSchedule: data.syncSchedule ?? existing.syncSchedule,
           syncType: data.syncType ?? existing.syncType,
           allowOneWayTicket: data.allowOneWayTicket ?? existing.allowOneWayTicket,
+          allowWithoutTicket: data.allowWithoutTicket ?? existing.allowWithoutTicket,
           isValid: true // Reset valid status on update
         }
       });
@@ -317,6 +319,7 @@ export class NusukService {
           syncSchedule: data.syncSchedule ?? '08:00, 20:00',
           syncType: data.syncType ?? 'excel',
           allowOneWayTicket: data.allowOneWayTicket ?? false,
+          allowWithoutTicket: data.allowWithoutTicket ?? false,
           isValid: true
         }
       });

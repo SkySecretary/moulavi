@@ -29,6 +29,7 @@ interface TravelDetailsStepProps {
   onAddHotelBooking?: () => void;
   onRemoveHotelBooking?: (index: number) => void;
   allowOneWayOption?: boolean;
+  allowWithoutTicketOption?: boolean;
 }
 
 export const TravelDetailsStep: React.FC<TravelDetailsStepProps> = ({
@@ -46,6 +47,7 @@ export const TravelDetailsStep: React.FC<TravelDetailsStepProps> = ({
   onAddHotelBooking,
   onRemoveHotelBooking,
   allowOneWayOption = false,
+  allowWithoutTicketOption = false,
 }) => {
   const [durationDays, setDurationDays] = React.useState(0);
   const [durationError, setDurationError] = React.useState('');
@@ -159,6 +161,7 @@ export const TravelDetailsStep: React.FC<TravelDetailsStepProps> = ({
             onDateChange={handleDateChange}
             onAirportChange={handleAirportChange}
             allowOneWayOption={allowOneWayOption}
+            allowWithoutTicketOption={allowWithoutTicketOption}
           />
         </div>
       </div>

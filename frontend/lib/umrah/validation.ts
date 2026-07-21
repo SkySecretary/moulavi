@@ -251,41 +251,59 @@ export const validateStep1 = (data: Step1Data): string | null => {
 };
 
 export const validateStep2 = (data: Step2Data, airports: any[], step1Data?: Step1Data, umrahVisaMaster?: UmrahVisaMaster): string | null => {
-  if (!data.arrivalDate || !data.arrivalTime || !data.arrivalAirportId || !data.arrivalFlightNumber) {
-    return 'Please fill in all required arrival details';
-  }
-
-  if (!isValidStrictDate(data.arrivalDate)) {
-    return 'Arrival date must be in DD/MM/YY format';
-  }
-
-  if (!data.isOneWay) {
-    if (!data.departureDate || !data.departureTime || !data.departureAirportId || !data.departureFlightNumber) {
-      return 'Please fill in all required departure details';
+  if (data.isWithoutTicket) {
+    if (!data.arrivalDate || !data.departureDate) {
+      return 'Please enter your planned arrival and departure dates';
     }
-
+    if (!isValidStrictDate(data.arrivalDate)) {
+      return 'Planned arrival date must be in DD/MM/YY format';
+    }
     if (!isValidStrictDate(data.departureDate)) {
-      return 'Departure date must be in DD/MM/YY format';
+      return 'Planned departure date must be in DD/MM/YY format';
     }
-  }
-
-  // Passenger count is required in Step 2 for both individual and group bookings
-  if (!data.passengerCount || data.passengerCount < 1) {
-    return 'Number of passengers (pax) is required and must be at least 1';
-  }
-
-  if (!FLIGHT_NUMBER_REGEX.test(data.arrivalFlightNumber)) {
-    return 'Invalid arrival flight number format (e.g., 6E-6083 or SV-123)';
-  }
-
-  if (!data.isOneWay) {
-    if (!data.departureFlightNumber || !FLIGHT_NUMBER_REGEX.test(data.departureFlightNumber)) {
-      return 'Invalid departure flight number format (e.g., 6E-6083 or SV-123)';
+    if (!data.passengerCount || data.passengerCount < 1) {
+      return 'Number of passengers (pax) is required and must be at least 1';
     }
-
     const durationResult = calculateDuration(data.arrivalDate, data.departureDate);
     if (durationResult.error) {
       return durationResult.error;
+    }
+  } else {
+    if (!data.arrivalDate || !data.arrivalTime || !data.arrivalAirportId || !data.arrivalFlightNumber) {
+      return 'Please fill in all required arrival details';
+    }
+
+    if (!isValidStrictDate(data.arrivalDate)) {
+      return 'Arrival date must be in DD/MM/YY format';
+    }
+
+    if (!data.isOneWay) {
+      if (!data.departureDate || !data.departureTime || !data.departureAirportId || !data.departureFlightNumber) {
+        return 'Please fill in all required departure details';
+      }
+
+      if (!isValidStrictDate(data.departureDate)) {
+        return 'Departure date must be in DD/MM/YY format';
+      }
+    }
+
+    if (!data.passengerCount || data.passengerCount < 1) {
+      return 'Number of passengers (pax) is required and must be at least 1';
+    }
+
+    if (!FLIGHT_NUMBER_REGEX.test(data.arrivalFlightNumber)) {
+      return 'Invalid arrival flight number format (e.g., 6E-6083 or SV-123)';
+    }
+
+    if (!data.isOneWay) {
+      if (!data.departureFlightNumber || !FLIGHT_NUMBER_REGEX.test(data.departureFlightNumber)) {
+        return 'Invalid departure flight number format (e.g., 6E-6083 or SV-123)';
+      }
+
+      const durationResult = calculateDuration(data.arrivalDate, data.departureDate);
+      if (durationResult.error) {
+        return durationResult.error;
+      }
     }
   }
 
