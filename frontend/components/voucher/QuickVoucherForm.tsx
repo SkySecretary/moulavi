@@ -171,6 +171,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
     flights: formData.flightDetails,
     hotels: formData.hotelSchedules,
     transport: formData.transportOptions,
+    routeId: selectedRouteId,
   });
 
   useEffect(() => {
@@ -178,23 +179,25 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
     const flightsChanged = JSON.stringify(prev.flights) !== JSON.stringify(formData.flightDetails);
     const hotelsChanged = JSON.stringify(prev.hotels) !== JSON.stringify(formData.hotelSchedules);
     const transportChanged = JSON.stringify(prev.transport) !== JSON.stringify(formData.transportOptions);
+    const routeChanged = prev.routeId !== selectedRouteId;
 
-    if (flightsChanged || hotelsChanged || transportChanged) {
+    if (flightsChanged || hotelsChanged || transportChanged || routeChanged) {
       setIsManualEdit(false);
       prevDepsRef.current = {
         flights: formData.flightDetails,
         hotels: formData.hotelSchedules,
         transport: formData.transportOptions,
+        routeId: selectedRouteId,
       };
     }
-  }, [formData.flightDetails, formData.hotelSchedules, formData.transportOptions]);
+  }, [formData.flightDetails, formData.hotelSchedules, formData.transportOptions, selectedRouteId]);
 
   // Auto-generate movements based on hotels, flights, and transport options
   useEffect(() => {
     if (isManualEdit) return;
 
-    // Check if transport options are selected
-    if (formData.transportOptions.length === 0) {
+    // Do NOT clear movements if selectedRouteId is empty
+    if (!selectedRouteId) {
       if (formData.movementDetails.length > 0) {
         setFormData(prev => ({ ...prev, movementDetails: [] }));
         setLastGeneratedHash('');
@@ -222,8 +225,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
       return;
     }
 
-    const selectedRouteIds = new Set(formData.transportOptions.map(o => o.routeId));
-    const selectedRoutes = routes.filter(r => selectedRouteIds.has(r.id));
+    const selectedRoutes = routes.filter(r => r.id === selectedRouteId);
 
     if (selectedRoutes.length === 0) return;
 
@@ -287,12 +289,12 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
   }, [
     formData.flightDetails,
     formData.hotelSchedules,
-    formData.transportOptions,
     routes,
     locations,
     ziyaraths,
     isManualEdit,
     lastGeneratedHash,
+    selectedRouteId,
   ]);
 
   // Load Master Data
@@ -1820,7 +1822,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
 
               <div className="space-y-1">
                 <Label className="text-[9px] font-bold text-muted-foreground uppercase ml-0.5">Select Route</Label>
-                <Select value={selectedRouteId || ''} onValueChange={(v) => { setSelectedRouteId(v); setFormData({...formData, transportOptions: []}); }}>
+                <Select value={selectedRouteId || ''} onValueChange={(v) => { handleRouteSelect(v); setFormData(prev => ({...prev, transportOptions: []})); }}>
                   <SelectTrigger className="h-8 rounded-lg text-[10px] font-bold w-full overflow-hidden truncate">
                     <SelectValue placeholder="Target Sector" />
                   </SelectTrigger>
