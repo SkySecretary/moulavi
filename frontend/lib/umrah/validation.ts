@@ -685,7 +685,8 @@ export const validateStep6 = (
   step3Data: Step3Data,
   passengerCount: number,
   isGroupVisa: boolean = false,
-  isOneWay: boolean = false
+  isOneWay: boolean = false,
+  isWithoutTicket: boolean = false
 ): string | null => {
   const isIndividualWithoutGroupNumber = !isGroupVisa && step1Data.bookingMode !== 'group_number';
 
@@ -714,7 +715,7 @@ export const validateStep6 = (
   }
 
   // 5) onward ticket (mandatory)
-  if (!isGroupVisa) {
+  if (!isGroupVisa && !isWithoutTicket) {
     if (!data.onwardTickets || data.onwardTickets.length === 0) {
       return 'Onward ticket copy is required.';
     }
@@ -724,7 +725,7 @@ export const validateStep6 = (
   }
 
   // 6) return ticket (mandatory)
-  if (!isGroupVisa && !isOneWay) {
+  if (!isGroupVisa && !isWithoutTicket && !isOneWay) {
     if (!data.returnTickets || data.returnTickets.length === 0) {
       return 'Return ticket copy is required.';
     }

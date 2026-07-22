@@ -461,43 +461,14 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
           )}
 
           {/* Section 5: Onward Flight Ticket (mandatory) */}
-          <SectionUploader 
-            field="onwardTickets"
-            label="Onward Flight Tickets"
-            description="Onward flight reservation or ticket copies. (Required)"
-            required
-            showTicketConfirmation
-            files={getFieldFiles('onwardTickets')}
-            disabled={disabled}
-            data={data}
-            onChange={onChange}
-            handleFilesSelectForField={handleFilesSelectForField}
-            handleRemoveFileForField={handleRemoveFileForField}
-            handlePassportNumberChange={handlePassportNumberChange}
-          />
-
-          {/* Section 6: Return Flight Ticket copy or Red Protocol Notice */}
-          {step2Data?.isOneWay ? (
-            <Card className="p-5 rounded-xl border border-rose-200 bg-rose-50 shadow-sm space-y-2">
-              <div className="flex items-center gap-2 text-rose-700 font-bold">
-                <ShieldAlert className="h-5 w-5 animate-pulse" />
-                <span className="text-xs uppercase tracking-wider">Mandatory Departure Ticket Protocol</span>
-              </div>
-              <p className="text-xs text-rose-950 leading-relaxed font-semibold">
-                This is a One-Way (Onward Only) booking. A departure/return ticket is <span className="underline font-black">strictly mandatory</span> and must be collected as soon as possible.
-              </p>
-              <p className="text-[10px] text-rose-700/90 leading-normal">
-                ⚠️ Failure to upload a valid departure ticket copy before travel will cause immediate system blocking and severe financial penalties from regulatory authorities. The return flight must be scheduled within 90 days of the pilgrim's arrival date.
-              </p>
-            </Card>
-          ) : (
+          {!step2Data?.isWithoutTicket && (
             <SectionUploader 
-              field="returnTickets"
-              label="Return Flight Tickets"
-              description="Return flight reservation or ticket copies. (Required)"
+              field="onwardTickets"
+              label="Onward Flight Tickets"
+              description="Onward flight reservation or ticket copies. (Required)"
               required
               showTicketConfirmation
-              files={getFieldFiles('returnTickets')}
+              files={getFieldFiles('onwardTickets')}
               disabled={disabled}
               data={data}
               onChange={onChange}
@@ -505,6 +476,39 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
               handleRemoveFileForField={handleRemoveFileForField}
               handlePassportNumberChange={handlePassportNumberChange}
             />
+          )}
+
+          {/* Section 6: Return Flight Ticket copy or Red Protocol Notice */}
+          {!step2Data?.isWithoutTicket && (
+            step2Data?.isOneWay ? (
+              <Card className="p-5 rounded-xl border border-rose-200 bg-rose-50 shadow-sm space-y-2">
+                <div className="flex items-center gap-2 text-rose-700 font-bold">
+                  <ShieldAlert className="h-5 w-5 animate-pulse" />
+                  <span className="text-xs uppercase tracking-wider">Mandatory Departure Ticket Protocol</span>
+                </div>
+                <p className="text-xs text-rose-950 leading-relaxed font-semibold">
+                  This is a One-Way (Onward Only) booking. A departure/return ticket is <span className="underline font-black">strictly mandatory</span> and must be collected as soon as possible.
+                </p>
+                <p className="text-[10px] text-rose-700/90 leading-normal">
+                  ⚠️ Failure to upload a valid departure ticket copy before travel will cause immediate system blocking and severe financial penalties from regulatory authorities. The return flight must be scheduled within 90 days of the pilgrim's arrival date.
+                </p>
+              </Card>
+            ) : (
+              <SectionUploader 
+                field="returnTickets"
+                label="Return Flight Tickets"
+                description="Return flight reservation or ticket copies. (Required)"
+                required
+                showTicketConfirmation
+                files={getFieldFiles('returnTickets')}
+                disabled={disabled}
+                data={data}
+                onChange={onChange}
+                handleFilesSelectForField={handleFilesSelectForField}
+                handleRemoveFileForField={handleRemoveFileForField}
+                handlePassportNumberChange={handlePassportNumberChange}
+              />
+            )
           )}
 
           {/* Section 7: National Address (optional) */}

@@ -120,7 +120,7 @@ function CreateIndividualContent() {
         masterData.locationMasters
       );
       case 5: return validateStep5Movements(bookingState.step5Data, bookingState.step1Data, bookingState.step2Data, bookingState.step3Data, bookingState.step4Data, masterData.locationMasters);
-      case 6: return validateStep6(bookingState.step6Data || {}, bookingState.step1Data, bookingState.step3Data, bookingState.step2Data.passengerCount || bookingState.step1Data.passengerCount || 0, false, !!bookingState.step2Data.isOneWay);
+      case 6: return validateStep6(bookingState.step6Data || {}, bookingState.step1Data, bookingState.step3Data, bookingState.step2Data.passengerCount || bookingState.step1Data.passengerCount || 0, false, !!bookingState.step2Data.isOneWay, !!bookingState.step2Data.isWithoutTicket);
       default: return null;
     }
   };
