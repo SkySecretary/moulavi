@@ -9,6 +9,9 @@ import { toast } from 'sonner';
 import { voucherAPI, cityMasterAPI, locationMasterAPI, transportRouteMasterAPI, transportMasterAPI, partyAPI } from '@/lib/api';
 import { Loader2, Plus, Minus, Trash2, MapPin, Truck, Ticket, Users, User, Plane, Building, CheckCircle2 } from 'lucide-react';
 import { MovementsTable } from '@/components/umrah-booking/components/MovementsTable';
+import { TravelDetailsForm } from '@/components/umrah-booking/components/TravelDetailsForm';
+import { HotelBookingTable } from '@/components/umrah-booking/components/HotelBookingTable';
+import { Step2Data, HotelBooking } from '@/lib/umrah/types';
 import { generateMovementsFromRoutes } from '@/lib/umrah/generateMovements';
 import {
   Table,
@@ -989,112 +992,6 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
     }
   };
 
-  // Hotel functions
-  const addHotelSchedule = () => {
-    setFormData({
-      ...formData,
-      hotelSchedules: [
-        ...formData.hotelSchedules,
-        {
-          number: formData.hotelSchedules.length + 1,
-          location: '', // Will be set to city name when city is selected
-          hotelName: '',
-          checkIn: '',
-          checkOut: '',
-          days: 0,
-        },
-      ],
-    });
-  };
-
-  const removeHotelSchedule = (index: number) => {
-    const updated = formData.hotelSchedules.filter((_, i) => i !== index);
-    updated.forEach((h, idx) => {
-      h.number = idx + 1;
-    });
-    setFormData({ ...formData, hotelSchedules: updated });
-  };
-
-  const updateHotelSchedule = (index: number, field: keyof HotelSchedule, value: any) => {
-    const updated = [...formData.hotelSchedules];
-    updated[index] = { ...updated[index], [field]: value };
-    
-    // When city changes, clear hotel selection (no prefill)
-    if (field === 'cityId') {
-      updated[index].locationId = '';
-      updated[index].hotelName = '';
-      if (value) {
-        const city = cities.find(c => c.id === value);
-        if (city) {
-          updated[index].cityName = city.name;
-          updated[index].city = city.name;
-          updated[index].location = city.name; // Set location to city name (CityMaster)
-        }
-      } else {
-        updated[index].cityName = '';
-        updated[index].city = '';
-        updated[index].location = '';
-      }
-    }
-    
-    // When location changes, update hotel name and movements
-    if (field === 'locationId') {
-      const location = locations.find(l => l.id === value);
-      if (location) {
-        // IMPORTANT: location field should be city name (CityMaster), NOT hotel name
-        // hotelName should be the hotel name (LocationMaster enum HOTEL)
-        updated[index].location = updated[index].cityName || ''; // Keep city name, not hotel name
-        updated[index].hotelName = location.name; // Hotel name (LocationMaster)
-        // Update corresponding movements
-        updateMovementsForHotel(index, value);
-      }
-    }
-    
-    if (field === 'checkIn' || field === 'checkOut') {
-      updated[index].days = calculateDays(updated[index].checkIn, updated[index].checkOut);
-    }
-    setFormData({ ...formData, hotelSchedules: updated });
-  };
-
-  // Update movements when hotel changes
-  const updateMovementsForHotel = (hotelIndex: number, hotelLocationId: string) => {
-    const hotel = formData.hotelSchedules[hotelIndex];
-    if (!hotel || !hotel.cityName) return;
-
-    const location = locations.find(l => l.id === hotelLocationId);
-    if (!location) return;
-
-    const updatedMovements = formData.movementDetails.map((movement) => {
-      // Update movements that reference this hotel's city and have empty location
-      const isToCity = movement.to?.toLowerCase().trim() === hotel.cityName?.toLowerCase().trim() && 
-                       movement.toCityId === hotel.cityId && 
-                       !movement.toLocationId;
-      const isFromCity = movement.from?.toLowerCase().trim() === hotel.cityName?.toLowerCase().trim() && 
-                         movement.fromCityId === hotel.cityId && 
-                         !movement.fromLocationId;
-      
-      if (isToCity) {
-        return {
-          ...movement,
-          toLocationId: hotelLocationId,
-          toLocation: location.name,
-        };
-      }
-      
-      if (isFromCity) {
-        return {
-          ...movement,
-          fromLocationId: hotelLocationId,
-          fromLocation: location.name,
-        };
-      }
-      
-      return movement;
-    });
-    
-    setFormData(prev => ({ ...prev, movementDetails: updatedMovements }));
-  };
-
   // Movement functions
   const addMovementDetail = () => {
     setIsManualEdit(true);
@@ -1189,119 +1086,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
     setFormData(prev => ({ ...prev, movementDetails: updated }));
   };
 
-  // Flight functions
-  const addFlightDetail = () => {
-    setFormData({
-      ...formData,
-      flightDetails: [
-        ...formData.flightDetails,
-        {
-          type: 'AA',
-          date: '',
-          carrier: '',
-          number: '',
-          from: '',
-          to: '',
-          etd: '',
-          eta: '',
-        },
-      ],
-    });
-  };
 
-  const removeFlightDetail = (index: number) => {
-    const updated = formData.flightDetails.filter((_, i) => i !== index);
-    setFormData({ ...formData, flightDetails: updated });
-  };
-
-  const updateFlightDetail = (index: number, field: keyof FlightDetail, value: any) => {
-    const updated = [...formData.flightDetails];
-    updated[index] = { ...updated[index], [field]: value };
-    
-    // When from/to location changes, update display
-    if (field === 'fromLocationId') {
-      const location = airports.find(a => a.id === value);
-      if (location) {
-        updated[index].from = (location.code || location.name || '').substring(0, 10);
-      }
-    }
-    
-    if (field === 'toLocationId') {
-      const location = airports.find(a => a.id === value);
-      if (location) {
-        updated[index].to = (location.code || location.name || '').substring(0, 10);
-      }
-    }
-    
-    setFormData({ ...formData, flightDetails: updated });
-  };
-
-  // Keep these for backward compatibility or if needed elsewhere
-  const updateArrivalFlight = (field: keyof FlightDetail, value: any) => {
-    const index = formData.flightDetails.findIndex(f => f.type === 'AA');
-    if (index >= 0) {
-      updateFlightDetail(index, field, value);
-    } else {
-      const newFlight: FlightDetail = {
-        type: 'AA',
-        date: '',
-        carrier: '',
-        number: '',
-        from: '',
-        to: '',
-        etd: '',
-        eta: '',
-        [field]: value
-      };
-      setFormData({ ...formData, flightDetails: [...formData.flightDetails, newFlight] });
-    }
-  };
-
-  const updateDepartureFlight = (field: keyof FlightDetail, value: any) => {
-    const index = formData.flightDetails.findIndex(f => f.type === 'AD');
-    if (index >= 0) {
-      updateFlightDetail(index, field, value);
-    } else {
-      const newFlight: FlightDetail = {
-        type: 'AD',
-        date: '',
-        carrier: '',
-        number: '',
-        from: '',
-        to: '',
-        etd: '',
-        eta: '',
-        [field]: value
-      };
-      setFormData({ ...formData, flightDetails: [...formData.flightDetails, newFlight] });
-    }
-  };
-
-  const handleArrivalFlightNumberChange = (val: string) => {
-    const formatted = formatFlightNumber(val);
-    const carrier = formatted.includes('-') ? formatted.split('-')[0] : formatted.substring(0, 2);
-    const number = formatted.includes('-') ? formatted.split('-')[1] : formatted.substring(2);
-    
-    const index = formData.flightDetails.findIndex(f => f.type === 'AA');
-    if (index >= 0) {
-      const updated = [...formData.flightDetails];
-      updated[index] = { ...updated[index], carrier, number };
-      setFormData({ ...formData, flightDetails: updated });
-    }
-  };
-
-  const handleDepartureFlightNumberChange = (val: string) => {
-    const formatted = formatFlightNumber(val);
-    const carrier = formatted.includes('-') ? formatted.split('-')[0] : formatted.substring(0, 2);
-    const number = formatted.includes('-') ? formatted.split('-')[1] : formatted.substring(2);
-    
-    const index = formData.flightDetails.findIndex(f => f.type === 'AD');
-    if (index >= 0) {
-      const updated = [...formData.flightDetails];
-      updated[index] = { ...updated[index], carrier, number };
-      setFormData({ ...formData, flightDetails: updated });
-    }
-  };
 
   // Transport functions
   const updateTransportQuantity = (transportId: string, delta: number) => {
@@ -1375,6 +1160,160 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
   const departureFlightNum = departureFlight.carrier && departureFlight.number 
     ? `${departureFlight.carrier}-${departureFlight.number}` 
     : (departureFlight.carrier || departureFlight.number || '');
+  const travelData: Step2Data = {
+    arrivalDate: arrivalFlight.date || '',
+    arrivalTime: arrivalFlight.eta || '',
+    arrivalAirportId: arrivalFlight.fromLocationId || '',
+    arrivalFlightNumber: arrivalFlightNum,
+    departureDate: departureFlight.date || '',
+    departureTime: departureFlight.etd || '',
+    departureAirportId: departureFlight.toLocationId || '',
+    departureFlightNumber: departureFlightNum,
+  };
+
+  const handleTravelDetailsChange = (updates: Partial<Step2Data>) => {
+    const updatedFlights = [...formData.flightDetails];
+    const aaIndex = updatedFlights.findIndex(f => f.type === 'AA');
+    const adIndex = updatedFlights.findIndex(f => f.type === 'AD');
+
+    if (updates.arrivalDate !== undefined) {
+      if (aaIndex >= 0) updatedFlights[aaIndex].date = updates.arrivalDate;
+    }
+    if (updates.arrivalTime !== undefined) {
+      if (aaIndex >= 0) updatedFlights[aaIndex].eta = updates.arrivalTime;
+    }
+    if (updates.arrivalAirportId !== undefined) {
+      if (aaIndex >= 0) {
+        updatedFlights[aaIndex].fromLocationId = updates.arrivalAirportId;
+        const airport = airports.find(a => a.id === updates.arrivalAirportId);
+        updatedFlights[aaIndex].from = airport?.code || '';
+      }
+    }
+    if (updates.arrivalFlightNumber !== undefined) {
+      if (aaIndex >= 0) {
+        const formatted = formatFlightNumber(updates.arrivalFlightNumber);
+        updatedFlights[aaIndex].carrier = formatted.includes('-') ? formatted.split('-')[0] : formatted.substring(0, 2);
+        updatedFlights[aaIndex].number = formatted.includes('-') ? formatted.split('-')[1] : formatted.substring(2);
+      }
+    }
+
+    if (updates.departureDate !== undefined) {
+      if (adIndex >= 0) updatedFlights[adIndex].date = updates.departureDate;
+    }
+    if (updates.departureTime !== undefined) {
+      if (adIndex >= 0) updatedFlights[adIndex].etd = updates.departureTime;
+    }
+    if (updates.departureAirportId !== undefined) {
+      if (adIndex >= 0) {
+        updatedFlights[adIndex].toLocationId = updates.departureAirportId;
+        const airport = airports.find(a => a.id === updates.departureAirportId);
+        updatedFlights[adIndex].to = airport?.code || '';
+      }
+    }
+    if (updates.departureFlightNumber !== undefined) {
+      if (adIndex >= 0) {
+        const formatted = formatFlightNumber(updates.departureFlightNumber);
+        updatedFlights[adIndex].carrier = formatted.includes('-') ? formatted.split('-')[0] : formatted.substring(0, 2);
+        updatedFlights[adIndex].number = formatted.includes('-') ? formatted.split('-')[1] : formatted.substring(2);
+      }
+    }
+
+    setFormData({ ...formData, flightDetails: updatedFlights });
+  };
+
+  const hotelBookings: HotelBooking[] = formData.hotelSchedules.map((hs, idx) => {
+    let cityId = hs.cityId || '';
+    if (!cityId && hs.cityName) {
+      const matchedCity = cities.find(c => c.name.toLowerCase() === hs.cityName!.toLowerCase());
+      if (matchedCity) cityId = matchedCity.id;
+    }
+    
+    let hotelId = hs.locationId || '';
+    if (!hotelId && hs.hotelName) {
+      const matchedHotel = locations.find(l => l.name.toLowerCase() === hs.hotelName.toLowerCase() && l.locationType === 'HOTEL');
+      if (matchedHotel) hotelId = matchedHotel.id;
+    }
+
+    return {
+      id: String(idx),
+      cityId,
+      hotelId,
+      checkInDate: hs.checkIn,
+      checkOutDate: hs.checkOut,
+      brn: hs.brn ? hs.brn.split(',').map(s => s.trim()).filter(Boolean) : [],
+    };
+  });
+
+  const handleHotelBookingsChange = (bookings: HotelBooking[]) => {
+    const updatedSchedules: HotelSchedule[] = bookings.map((b, idx) => {
+      const city = cities.find(c => c.id === b.cityId);
+      const hotel = locations.find(l => l.id === b.hotelId);
+      
+      return {
+        number: idx + 1,
+        cityId: b.cityId,
+        cityName: city ? city.name : '',
+        city: city ? city.name : '',
+        locationId: b.hotelId,
+        location: city ? city.name : '',
+        hotelName: hotel ? hotel.name : '',
+        checkIn: b.checkInDate,
+        checkOut: b.checkOutDate,
+        days: calculateDays(b.checkInDate, b.checkOutDate),
+        brn: b.brn ? b.brn.join(', ') : '',
+      };
+    });
+    setFormData({ ...formData, hotelSchedules: updatedSchedules });
+  };
+
+  const updateHotelBooking = (index: number, field: keyof HotelBooking, value: any) => {
+    const updatedBookings = [...hotelBookings];
+    updatedBookings[index] = { ...updatedBookings[index], [field]: value };
+    handleHotelBookingsChange(updatedBookings);
+  };
+
+  const addHotelBooking = () => {
+    const updatedBookings = [...hotelBookings, {
+      cityId: '',
+      hotelId: '',
+      checkInDate: '',
+      checkOutDate: '',
+      brn: [],
+    }];
+    handleHotelBookingsChange(updatedBookings);
+  };
+
+  const removeHotelBooking = (index: number) => {
+    const updatedBookings = hotelBookings.filter((_, i) => i !== index);
+    handleHotelBookingsChange(updatedBookings);
+  };
+
+  const mappedLocations = cities.map((city: any) => ({
+    id: city.id,
+    destinationCode: city.name.substring(0, 3).toUpperCase(),
+    destinationName: city.name,
+    city: city.name,
+    cityId: city.id,
+    country: city.country?.countryName || 'Saudi Arabia',
+    isActive: city.isActive,
+  }));
+
+  const mappedHotels = locations.filter(l => l.locationType === 'HOTEL').map((hotel: any) => ({
+    id: hotel.id,
+    name: hotel.name,
+    hotelName: hotel.name,
+    code: hotel.code,
+    cityId: hotel.cityId,
+    city: hotel.cityMaster || { id: hotel.cityId, name: hotel.city },
+  }));
+
+  const getHotelsForLocation = (cityId: string) => {
+    return mappedHotels.filter(h => h.cityId === cityId);
+  };
+
+  const refreshHotels = async () => {
+    await loadMasterData();
+  };
 
   return (
     <div className="space-y-4 pb-4">
@@ -1466,222 +1405,17 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
           <div className="grid grid-cols-1 gap-4">
             {/* Flight Details */}
             <Card className="rounded-xl border-secondary/10 shadow-sm bg-white overflow-hidden">
-              <div className="px-4 py-2 border-b border-secondary/10 flex items-center justify-between bg-primary/5">
-                <div className="flex items-center gap-2">
-                  <Plane className="h-3.5 w-3.5 text-primary" />
-                  <span className="text-[11px] font-bold text-primary uppercase tracking-wider">Flight Details</span>
-                </div>
+              <div className="bg-primary/5 px-4 py-2.5 border-b border-secondary/10 flex items-center gap-2">
+                <Plane className="h-3.5 w-3.5 text-primary" />
+                <h3 className="text-[11px] font-bold text-primary uppercase tracking-wider">Flight & Travel Details</h3>
               </div>
-              <CardContent className="p-4 space-y-4">
-                {/* Desktop view */}
-                <div className="hidden lg:block overflow-hidden rounded-2xl border border-secondary/10 bg-white">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-primary/5">
-                        <th className="px-6 py-3 text-left text-[8px] font-black text-primary/40 uppercase tracking-[0.2em] w-[150px]">Vector</th>
-                        <th className="px-6 py-3 text-left text-[8px] font-black text-primary/40 uppercase tracking-[0.2em]">Entry/Exit Hub</th>
-                        <th className="px-6 py-3 text-left text-[8px] font-black text-primary/40 uppercase tracking-[0.2em] w-[220px]">Flight Number</th>
-                        <th className="px-6 py-3 text-left text-[8px] font-black text-primary/40 uppercase tracking-[0.2em] w-[150px]">Timeline</th>
-                        <th className="px-6 py-3 text-left text-[8px] font-black text-primary/40 uppercase tracking-[0.2em] w-[120px]">Time (24h)</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      <tr className="group hover:bg-emerald-50/20 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 border border-emerald-100 group-hover:scale-110 transition-all shadow-sm">
-                              <Plane className="h-4 w-4" />
-                            </div>
-                            <span className="text-xs font-black text-primary uppercase italic">Arrival</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <Select
-                            value={arrivalFlight.fromLocationId}
-                            onValueChange={(val) => updateArrivalFlight('fromLocationId', val)}
-                          >
-                            <SelectTrigger className="h-11 border-gray-100 rounded-lg font-semibold text-primary focus:ring-secondary/20 bg-gray-50/30 text-sm">
-                              <SelectValue placeholder="Select Hub" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-[300px]">
-                              {airports.map((airport) => (
-                                <SelectItem key={airport.id} value={airport.id} className="text-sm font-medium">
-                                  {airport.code} • {airport.name || airport.airportName} ({airport.city || airport.cityMaster?.name || ''})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </td>
-                        <td className="px-6 py-4">
-                          <Input
-                            placeholder="SV-XXXX"
-                            value={arrivalFlightNum}
-                            onChange={(e) => handleArrivalFlightNumberChange(e.target.value)}
-                            className="h-11 border-gray-100 rounded-lg font-bold text-secondary focus:ring-secondary/20 bg-gray-50/30 text-center tracking-widest text-sm"
-                          />
-                        </td>
-                        <td className="px-6 py-4">
-                          <DatePicker
-                            value={arrivalFlight.date}
-                            onChange={(val) => updateArrivalFlight('date', val)}
-                          />
-                        </td>
-                        <td className="px-6 py-4">
-                          <TimePicker
-                            value={arrivalFlight.eta || ''}
-                            onChange={(val) => updateArrivalFlight('eta', val)}
-                            className="h-11"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="group hover:bg-secondary/5 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-lg bg-primary/5 flex items-center justify-center text-primary border border-primary/10 group-hover:scale-110 transition-all shadow-sm">
-                              <Plane className="h-4 w-4 -rotate-45" />
-                            </div>
-                            <span className="text-xs font-black text-primary uppercase italic">Depart</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <Select
-                            value={departureFlight.toLocationId}
-                            onValueChange={(val) => updateDepartureFlight('toLocationId', val)}
-                          >
-                            <SelectTrigger className="h-11 border-gray-100 rounded-lg font-semibold text-primary focus:ring-secondary/20 bg-gray-50/30 text-sm">
-                              <SelectValue placeholder="Select Hub" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-[300px]">
-                              {airports.map((airport) => (
-                                <SelectItem key={airport.id} value={airport.id} className="text-sm font-medium">
-                                  {airport.code} • {airport.name || airport.airportName} ({airport.city || airport.cityMaster?.name || ''})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </td>
-                        <td className="px-6 py-4">
-                          <Input
-                            placeholder="SV-XXXX"
-                            value={departureFlightNum}
-                            onChange={(e) => handleDepartureFlightNumberChange(e.target.value)}
-                            className="h-11 border-gray-100 rounded-lg font-bold text-secondary focus:ring-secondary/20 bg-gray-50/30 text-center tracking-widest text-sm"
-                          />
-                        </td>
-                        <td className="px-6 py-4">
-                          <DatePicker
-                            value={departureFlight.date}
-                            onChange={(val) => updateDepartureFlight('date', val)}
-                          />
-                        </td>
-                        <td className="px-6 py-4">
-                          <TimePicker
-                            value={departureFlight.etd || ''}
-                            onChange={(val) => updateDepartureFlight('etd', val)}
-                            className="h-11"
-                          />
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Mobile view */}
-                <div className="lg:hidden space-y-4">
-                  {/* Arrival Segment */}
-                  <Card className="rounded-2xl border border-secondary/10 bg-white overflow-hidden">
-                    <div className="bg-emerald-50/30 px-4 py-2 border-b border-emerald-100 flex items-center gap-3">
-                      <Plane className="h-4 w-4 text-emerald-600" />
-                      <span className="text-[9px] font-black text-emerald-700 uppercase tracking-widest">Arrival Vector</span>
-                    </div>
-                    <CardContent className="p-4 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Timeline</Label>
-                          <DatePicker
-                            value={arrivalFlight.date}
-                            onChange={(val) => updateArrivalFlight('date', val)}
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Time (24h)</Label>
-                          <TimePicker value={arrivalFlight.eta || ''} onChange={(val) => updateArrivalFlight('eta', val)} className="h-10" />
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Hub</Label>
-                        <Select value={arrivalFlight.fromLocationId} onValueChange={(val) => updateArrivalFlight('fromLocationId', val)}>
-                          <SelectTrigger className="h-11 rounded-xl border-gray-100 bg-gray-50/30 font-semibold text-primary text-sm">
-                            <SelectValue placeholder="Select Hub" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-[300px]">
-                            {airports.map(a => (
-                              <SelectItem key={a.id} value={a.id} className="text-sm font-medium">
-                                {a.code} - {a.name || a.airportName} ({a.city || a.cityMaster?.name || ''})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Flight Number</Label>
-                        <Input
-                          placeholder="SV-XXXX"
-                          value={arrivalFlightNum}
-                          onChange={(e) => handleArrivalFlightNumberChange(e.target.value)}
-                          className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs"
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Departure Segment */}
-                  <Card className="rounded-2xl border border-secondary/10 bg-white overflow-hidden">
-                    <div className="bg-primary/5 px-4 py-2 border-b border-secondary/10 flex items-center gap-3">
-                      <Plane className="h-4 w-4 text-primary -rotate-45" />
-                      <span className="text-[9px] font-black text-primary/60 uppercase tracking-widest">Exit Vector</span>
-                    </div>
-                    <CardContent className="p-4 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Timeline</Label>
-                          <DatePicker
-                            value={departureFlight.date}
-                            onChange={(val) => updateDepartureFlight('date', val)}
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Time (24h)</Label>
-                          <TimePicker value={departureFlight.etd || ''} onChange={(val) => updateDepartureFlight('etd', val)} className="h-10" />
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Hub</Label>
-                        <Select value={departureFlight.toLocationId} onValueChange={(val) => updateDepartureFlight('toLocationId', val)}>
-                          <SelectTrigger className="h-11 rounded-xl border-gray-100 bg-gray-50/30 font-semibold text-primary text-sm">
-                            <SelectValue placeholder="Select Hub" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-[300px]">
-                            {airports.map(a => (
-                              <SelectItem key={a.id} value={a.id} className="text-sm font-medium">
-                                {a.code} - {a.name || a.airportName} ({a.city || a.cityMaster?.name || ''})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Flight Number</Label>
-                        <Input
-                          placeholder="SV-XXXX"
-                          value={departureFlightNum}
-                          onChange={(e) => handleDepartureFlightNumberChange(e.target.value)}
-                          className="h-10 rounded-xl border-gray-100 bg-gray-50/30 font-bold text-xs"
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
+              <CardContent className="p-4">
+                <TravelDetailsForm
+                  data={travelData}
+                  onChange={handleTravelDetailsChange}
+                  airports={airports}
+                  disabled={submitting || loadingMasters}
+                />
               </CardContent>
             </Card>
 
@@ -1690,54 +1424,34 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
               <div className="px-4 py-2 border-b border-secondary/10 flex items-center justify-between bg-primary/5">
                 <div className="flex items-center gap-2">
                   <Building className="h-3.5 w-3.5 text-primary" />
-                  <span className="text-[11px] font-bold text-primary uppercase tracking-wider">Hotel Schedule</span>
+                  <span className="text-[11px] font-bold text-primary uppercase tracking-wider">Hotel Stay Schedule</span>
                 </div>
-                <Button variant="outline" size="sm" onClick={addHotelSchedule} className="h-7 px-3 rounded-md border-secondary/20 text-primary font-bold text-[9px] uppercase hover:bg-secondary transition-all">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={addHotelBooking} 
+                  className="h-7 px-3 rounded-md border-secondary/20 text-primary font-bold text-[9px] uppercase hover:bg-secondary transition-all"
+                  disabled={submitting || loadingMasters}
+                >
                   <Plus className="h-3.5 w-3.5 mr-1" /> Add Stay
                 </Button>
               </div>
               <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader className="bg-muted/20">
-                      <TableRow className="hover:bg-transparent border-0 h-8">
-                        <TableHead className="px-4 text-[9px] font-bold uppercase w-[40px]">Sr</TableHead>
-                        <TableHead className="text-[9px] font-bold uppercase">City</TableHead>
-                        <TableHead className="text-[9px] font-bold uppercase">Hotel Name</TableHead>
-                        <TableHead className="text-[9px] font-bold uppercase w-[180px]">In/Out</TableHead>
-                        <TableHead className="text-[9px] font-bold uppercase w-[90px]">BRN</TableHead>
-                        <TableHead className="w-[40px]"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {formData.hotelSchedules.map((hotel, idx) => (
-                        <TableRow key={idx} className="h-10 border-gray-50">
-                          <TableCell className="px-4 text-[10px] font-bold text-primary">{idx + 1}</TableCell>
-                          <TableCell>
-                            <Select value={hotel.cityId} onValueChange={(v) => updateHotelSchedule(idx, 'cityId', v)}>
-                              <SelectTrigger className="h-7 rounded border-gray-100 text-[9px] w-24"><SelectValue placeholder="City" /></SelectTrigger>
-                              <SelectContent>{cities.map(c => <SelectItem key={c.id} value={c.id} className="text-[9px]">{c.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell>
-                            <Select value={hotel.locationId} onValueChange={(v) => updateHotelSchedule(idx, 'locationId', v)}>
-                              <SelectTrigger className="h-7 rounded border-gray-100 text-[9px]"><SelectValue placeholder="Select Hotel" /></SelectTrigger>
-                              <SelectContent>{getHotelsForCity(cities.find(c => c.id === hotel.cityId)?.name).map(h => <SelectItem key={h.id} value={h.id} className="text-[9px]">{h.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              <DatePicker value={hotel.checkIn} onChange={(v) => updateHotelSchedule(idx, 'checkIn', v)} className="h-7" />
-                              <DatePicker value={hotel.checkOut} onChange={(v) => updateHotelSchedule(idx, 'checkOut', v)} className="h-7" />
-                            </div>
-                          </TableCell>
-                          <TableCell><Input placeholder="BRN" value={hotel.brn} onChange={(e) => updateHotelSchedule(idx, 'brn', e.target.value)} className="h-7 rounded border-gray-100 text-[9px]" /></TableCell>
-                          <TableCell className="px-2 text-right"><Button variant="ghost" size="icon" onClick={() => removeHotelSchedule(idx)} className="h-6 w-6 text-muted-foreground hover:text-destructive"><Trash2 className="h-3 w-3" /></Button></TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                <HotelBookingTable
+                  hotelBookings={hotelBookings}
+                  locations={mappedLocations}
+                  hotels={mappedHotels}
+                  getHotelsForLocation={getHotelsForLocation}
+                  onUpdateBooking={updateHotelBooking}
+                  onRemoveBooking={removeHotelBooking}
+                  onAddBooking={addHotelBooking}
+                  disabled={submitting || loadingMasters}
+                  showAddButton={false}
+                  arrivalDate={arrivalFlight.date}
+                  departureDate={departureFlight.date}
+                  onHotelsRefresh={refreshHotels}
+                  hideInventory={true}
+                />
               </CardContent>
             </Card>
 
