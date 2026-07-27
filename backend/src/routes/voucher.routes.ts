@@ -1248,6 +1248,8 @@ router.put(
       movementDetails,
       flightDetails,
       transportCompanyId,
+      partyId,
+      umrahCompanyId,
     } = req.body;
 
     const voucher = await prisma.voucher.findUnique({
@@ -1269,6 +1271,8 @@ router.put(
           ...(paxCount !== undefined && { paxCount }),
           ...(reservationDate !== undefined && { reservationDate: new Date(reservationDate) }),
           ...(transportCompanyId !== undefined && { transportCompanyId: transportCompanyId || null }),
+          ...(partyId !== undefined && { partyId: partyId || null }),
+          ...(umrahCompanyId !== undefined && { umrahCompanyId: umrahCompanyId || null }),
           version: voucher.version + 1,
         },
       });

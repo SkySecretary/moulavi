@@ -57,9 +57,10 @@ router.get('/bookings', authenticate, async (req, res) => {
       where.partyId = partyId;
     }
     
-    if (status && status !== 'all') {
-      if (Array.isArray(status)) where.status = { in: status };
-      else where.status = status;
+    const statusQuery = status || req.query['status[]'];
+    if (statusQuery && statusQuery !== 'all') {
+      if (Array.isArray(statusQuery)) where.status = { in: statusQuery };
+      else where.status = statusQuery as string;
     }
 
     if (tripStatus && tripStatus !== 'all') {

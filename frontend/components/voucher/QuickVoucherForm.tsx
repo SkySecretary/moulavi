@@ -876,6 +876,8 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
         paxCount: formData.paxCount,
         reservationDate: fromDisplayDate(formData.reservationDate),
         transportCompanyId: formData.transportCompanyId || null,
+        partyId: formData.partyId || null,
+        umrahCompanyId: formData.umrahCompanyId || null,
         hotelSchedules: formData.hotelSchedules.map((hs, idx) => ({
           number: idx + 1,
           location: hs.cityName || hs.location || '', // City name (CityMaster)

@@ -2519,17 +2519,26 @@ router.patch('/:bookingId/trip-status', authenticate, async (req, res) => {
     if (tripStatus === 'completed' && 
         booking.visaType === 'individual_visa' && 
         booking.accommodationType === 'hotel' && 
-        booking.status === 'group_assigned') {
+        (booking.status === 'group_assigned' || booking.status === 'documents_downloaded' || booking.status === 'pending')) {
       
       let isJeddahMadinah = false;
       
       // Check travel details airports
       if (booking.travelDetails) {
         for (const t of booking.travelDetails) {
+          const arrCode = t.arrivalAirport?.code?.toLowerCase() || '';
+          const depCode = t.departureAirport?.code?.toLowerCase() || '';
           const arrName = t.arrivalAirport?.name?.toLowerCase() || '';
           const depName = t.departureAirport?.name?.toLowerCase() || '';
-          if (arrName.includes('jeddah') || arrName.includes('madina') || arrName.includes('madinah') ||
-              depName.includes('jeddah') || depName.includes('madina') || depName.includes('madinah')) {
+          const arrCity = t.arrivalAirport?.city?.toLowerCase() || '';
+          const depCity = t.departureAirport?.city?.toLowerCase() || '';
+          
+          if (arrCode.includes('jed') || arrCode.includes('med') ||
+              depCode.includes('jed') || depCode.includes('med') ||
+              arrName.includes('jeddah') || arrName.includes('madina') || arrName.includes('madinah') ||
+              depName.includes('jeddah') || depName.includes('madina') || depName.includes('madinah') ||
+              arrCity.includes('jeddah') || arrCity.includes('madina') || arrCity.includes('madinah') ||
+              depCity.includes('jeddah') || depCity.includes('madina') || depCity.includes('madinah')) {
             isJeddahMadinah = true;
             break;
           }

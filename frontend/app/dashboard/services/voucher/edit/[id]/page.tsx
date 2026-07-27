@@ -39,7 +39,11 @@ export default function EditVoucherPage() {
   const [locationMasters, setLocationMasters] = useState<any[]>([]);
   const [transportRoutes, setTransportRoutes] = useState<any[]>([]);
   const [transportCompanies, setTransportCompanies] = useState<any[]>([]);
-  const [transportCompanyId, setTransportCompanyId] = useState('');
+  const [transportCompanyId, setTransportCompanyId] = useState('none');
+  const [parties, setParties] = useState<any[]>([]);
+  const [partyId, setPartyId] = useState('none');
+  const [umrahCompanies, setUmrahCompanies] = useState<any[]>([]);
+  const [umrahCompanyId, setUmrahCompanyId] = useState('none');
 
   useEffect(() => {
     if (!user || !hasRole(['admin', 'staff', 'party'])) {
@@ -74,10 +78,17 @@ export default function EditVoucherPage() {
       setLocationMasters(fetchedLocations);
       setTransportRoutes(fetchedRoutes);
 
+      setParties(partiesData.filter((p: any) => p.isCustomer));
+
       const suppliers = partiesData.filter((p: any) => p.isSupplier);
       setTransportCompanies(suppliers.filter((p: any) => {
         const types = p.supplierServiceTypes || [];
         return Array.isArray(types) && types.includes('transport_service');
+      }));
+
+      setUmrahCompanies(suppliers.filter((p: any) => {
+        const types = p.supplierServiceTypes || [];
+        return Array.isArray(types) && types.includes('umrah_service');
       }));
     } catch (err) {
       console.error('Failed to fetch master data:', err);
@@ -100,7 +111,9 @@ export default function EditVoucherPage() {
       setHotelSchedules(Array.isArray(v.hotelSchedules) ? v.hotelSchedules : []);
       setMovementDetails(Array.isArray(v.movementDetails) ? v.movementDetails : []);
       setFlightDetails(Array.isArray(v.flightDetails) ? v.flightDetails : []);
-      setTransportCompanyId(v.transportCompanyId || '');
+      setTransportCompanyId(v.transportCompanyId || 'none');
+      setPartyId(v.partyId || 'none');
+      setUmrahCompanyId(v.umrahCompanyId || 'none');
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.error || 'Failed to load voucher');
@@ -133,7 +146,9 @@ export default function EditVoucherPage() {
           hotelSchedules,
           movementDetails,
           flightDetails,
-          transportCompanyId,
+          transportCompanyId: transportCompanyId !== 'none' ? transportCompanyId : null,
+          partyId: partyId !== 'none' ? partyId : null,
+          umrahCompanyId: umrahCompanyId !== 'none' ? umrahCompanyId : null,
         });
         toast.success('Voucher updated successfully');
       }
@@ -329,7 +344,7 @@ export default function EditVoucherPage() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mt-4">
                     <div className="space-y-1">
                       <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Guest Mobile</p>
                       <Input
@@ -349,6 +364,46 @@ export default function EditVoucherPage() {
                       />
                     </div>
                     <div className="space-y-1">
+                      <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Agent (Party)</p>
+                      <Select
+                        value={partyId}
+                        onValueChange={setPartyId}
+                        disabled={!isAdminOrStaff}
+                      >
+                        <SelectTrigger className="w-full bg-white border-gray-200 h-10">
+                          <SelectValue placeholder="Select Agent" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {parties.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.partyName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Umrah Company</p>
+                      <Select
+                        value={umrahCompanyId}
+                        onValueChange={setUmrahCompanyId}
+                        disabled={!isAdminOrStaff}
+                      >
+                        <SelectTrigger className="w-full bg-white border-gray-200 h-10">
+                          <SelectValue placeholder="Select Umrah Co." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {umrahCompanies.map((uc) => (
+                            <SelectItem key={uc.id} value={uc.id}>
+                              {uc.partyName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
                       <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Transport Company</p>
                       <Select
                         value={transportCompanyId}
@@ -359,6 +414,7 @@ export default function EditVoucherPage() {
                           <SelectValue placeholder="Select Transport Co." />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
                           {transportCompanies.map((tc) => (
                             <SelectItem key={tc.id} value={tc.id}>
                               {tc.partyName}
