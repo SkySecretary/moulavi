@@ -194,6 +194,26 @@ export default function VoucherServicePage() {
     !invoiceRate || 
     Number(invoiceRate) < 0;
 
+  const formatRouteCity = (city: string) => {
+    if (!city) return 'N/A';
+    const c = city.trim().toUpperCase();
+    if (c === 'JEDDAH' || c === 'JED') return 'JED';
+    if (c === 'MAKKAH') return 'Makkah';
+    if (c === 'MADINAH') return 'Madinah';
+    return city.charAt(0).toUpperCase() + city.slice(1).toLowerCase();
+  };
+
+  const getRouteWiseTotals = () => {
+    const routeCounts: { [key: string]: number } = {};
+    currentMovements.forEach((m: any) => {
+      const fromCity = formatRouteCity(m.from);
+      const toCity = formatRouteCity(m.to);
+      const routeKey = `${fromCity} → ${toCity}`;
+      routeCounts[routeKey] = (routeCounts[routeKey] || 0) + 1;
+    });
+    return Object.entries(routeCounts).sort((a, b) => b[1] - a[1]);
+  };
+
   const loadVouchers = async () => {
     try {
       setLoadingVouchers(true);
@@ -891,6 +911,25 @@ export default function VoucherServicePage() {
                       </div>
                     </div>
                   </CardHeader>
+                  
+                  {/* Route-wise Totals Bar */}
+                  {currentMovements.length > 0 && (
+                    <div className="px-6 py-3 bg-slate-50/50 border-b border-gray-100 flex flex-wrap items-center gap-3">
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-1">Route Totals:</span>
+                      {getRouteWiseTotals().map(([route, count]) => (
+                        <div 
+                          key={route}
+                          className="flex items-center gap-2 bg-white border border-gray-200/80 rounded-full px-3 py-1 shadow-sm"
+                        >
+                          <span className="text-[10px] font-bold text-slate-700">{route}</span>
+                          <span className="h-5 min-w-[20px] px-1 bg-secondary text-white rounded-full flex items-center justify-center text-[9px] font-black leading-none">
+                            {count}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader className="bg-gray-50/30">
