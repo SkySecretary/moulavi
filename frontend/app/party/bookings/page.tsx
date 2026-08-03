@@ -52,6 +52,7 @@ export default function PartyBookingsPage() {
   const [arrivalDateTo, setArrivalDateTo] = useState('');
   const [filterMissingReturn, setFilterMissingReturn] = useState(false);
   const [missingReturnCount, setMissingReturnCount] = useState(0);
+  const [ticketStatus, setTicketStatus] = useState<string>('all');
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -70,7 +71,7 @@ export default function PartyBookingsPage() {
     }
     fetchBookings(pagination.page);
     fetchMissingReturnCount();
-  }, [pagination.page, pagination.limit, searchQuery, selectedStatus, selectedVisaType, arrivalDateFrom, arrivalDateTo, filterMissingReturn]);
+  }, [pagination.page, pagination.limit, searchQuery, selectedStatus, selectedVisaType, arrivalDateFrom, arrivalDateTo, filterMissingReturn, ticketStatus]);
 
   const fetchMissingReturnCount = async () => {
     try {
@@ -96,6 +97,7 @@ export default function PartyBookingsPage() {
         visaType: selectedVisaType === 'all' ? undefined : selectedVisaType,
         arrivalDateFrom,
         arrivalDateTo,
+        ticketStatus: ticketStatus !== 'all' ? ticketStatus : undefined
       };
 
       if (filterMissingReturn) {
@@ -345,7 +347,7 @@ export default function PartyBookingsPage() {
           </CardHeader>
           <CardContent className="pt-6">
             {/* Search and Filters grid */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
               <div className="relative col-span-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
@@ -378,6 +380,18 @@ export default function PartyBookingsPage() {
                 onChange={(val) => handleFilterChange('dateTo', fromDisplayDate(val))}
                 placeholder="Arrival To"
               />
+
+              <Select value={ticketStatus} onValueChange={(val) => { setTicketStatus(val); setPagination(prev => ({ ...prev, page: 1 })); }}>
+                <SelectTrigger className="h-10 text-xs font-semibold bg-white">
+                  <SelectValue placeholder="Ticket Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Tickets</SelectItem>
+                  <SelectItem value="full_ticket">Full Ticket</SelectItem>
+                  <SelectItem value="onward_ticket">Onward Ticket Only</SelectItem>
+                  <SelectItem value="without_ticket">Without Ticket</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Status filtering row */}
@@ -443,11 +457,26 @@ export default function PartyBookingsPage() {
                           <div className="font-semibold text-gray-900">{booking.groupNumber || 'Not Assigned'}</div>
                           <div className="text-gray-500 mt-0.5">{booking.groupName || '—'}</div>
                         </TableCell>
-                        <TableCell>
-                          <Badge variant={booking.visaType === 'group_visa' ? 'info' : 'outline'} className="text-[9px] font-bold px-1.5 uppercase">
-                            {booking.visaType === 'group_visa' ? 'GROUP' : 'INDIVIDUAL'}
-                          </Badge>
-                        </TableCell>
+                         <TableCell>
+                           <div className="flex flex-col gap-1 items-start">
+                             <Badge variant={booking.visaType === 'group_visa' ? 'info' : 'outline'} className="text-[9px] font-bold px-1.5 uppercase">
+                               {booking.visaType === 'group_visa' ? 'GROUP' : 'INDIVIDUAL'}
+                             </Badge>
+                             {booking.isWithoutTicket ? (
+                               <Badge variant="outline" className="text-[9px] bg-red-50 text-red-700 border-red-200 font-medium px-1.5 uppercase">
+                                 Without Ticket
+                               </Badge>
+                             ) : booking.isOneWay ? (
+                               <Badge variant="outline" className="text-[9px] bg-amber-50 text-amber-700 border-amber-200 font-medium px-1.5 uppercase">
+                                 Onward Only
+                               </Badge>
+                             ) : (
+                               <Badge variant="outline" className="text-[9px] bg-green-50 text-green-700 border-green-200 font-medium px-1.5 uppercase">
+                                 Full Ticket
+                               </Badge>
+                             )}
+                           </div>
+                         </TableCell>
                         <TableCell className="text-center font-bold text-gray-900">{booking.passengerCount}</TableCell>
                         <TableCell>
                           <div className="flex flex-col text-gray-650">
