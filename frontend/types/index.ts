@@ -221,6 +221,8 @@ export interface UmrahVisaBooking {
   groupNumber?: string;
   groupName?: string;
   hasGroupNumber?: boolean;
+  isOneWay?: boolean;
+  isWithoutTicket?: boolean;
   umrahVisaProviderId?: string;
   flightNumber: string;
   arrivalDate: string;

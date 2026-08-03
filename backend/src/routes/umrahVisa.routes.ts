@@ -25,7 +25,8 @@ router.get('/bookings', authenticate, async (req, res) => {
       visaType,
       sortBy = 'createdAt',
       sortOrder = 'desc',
-      archived
+      archived,
+      ticketStatus
     } = req.query;
     const pageNum = parseInt(page as string) || 1;
     const limitNum = parseInt(limit as string) || 10;
@@ -75,6 +76,16 @@ router.get('/bookings', authenticate, async (req, res) => {
     const { missingReturnTicket } = req.query;
     if (missingReturnTicket === 'true') {
       where.isOneWay = true;
+    }
+
+    if (ticketStatus === 'without_ticket') {
+      where.isWithoutTicket = true;
+    } else if (ticketStatus === 'onward_ticket') {
+      where.isWithoutTicket = false;
+      where.isOneWay = true;
+    } else if (ticketStatus === 'full_ticket') {
+      where.isWithoutTicket = false;
+      where.isOneWay = false;
     }
 
     // Search by group number, reference, or name

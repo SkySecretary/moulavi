@@ -47,6 +47,7 @@ export default function TripInfoPage() {
   const [arrivalDateTo, setArrivalDateTo] = useState('');
   const [departureDateFrom, setDepartureDateFrom] = useState('');
   const [departureDateTo, setDepartureDateTo] = useState('');
+  const [ticketStatus, setTicketStatus] = useState<string>('all');
   const [pendingLoadBasis, setPendingLoadBasis] = useState<'arrival' | 'departure'>('arrival');
   const [pendingBookingsCount, setPendingBookingsCount] = useState(0);
   const [pagination, setPagination] = useState({
@@ -221,7 +222,7 @@ export default function TripInfoPage() {
     fetchBookings(pagination.page);
     fetchPendingLoad();
     fetchPendingCount();
-  }, [pagination.page, pagination.limit, searchQuery, arrivalDateFrom, arrivalDateTo, departureDateFrom, departureDateTo, activeTab, iqamaSubTab, hotelSubTab, pendingLoadBasis]);
+  }, [pagination.page, pagination.limit, searchQuery, arrivalDateFrom, arrivalDateTo, departureDateFrom, departureDateTo, activeTab, iqamaSubTab, hotelSubTab, pendingLoadBasis, ticketStatus]);
 
   const fetchPendingLoad = async () => {
     try {
@@ -251,7 +252,8 @@ export default function TripInfoPage() {
       departureDateTo: departureDateTo,
       accommodationType: activeTab,
       status: ['group_assigned', 'voucher', 'bill'],
-      tripStatus: tripStatus
+      tripStatus: tripStatus,
+      ticketStatus: ticketStatus !== 'all' ? ticketStatus : undefined
     });
     const data = response.data;
 
@@ -874,6 +876,7 @@ export default function TripInfoPage() {
                       setDepartureDateFrom('');
                       setDepartureDateTo('');
                       setPendingLoadBasis('arrival');
+                      setTicketStatus('all');
                       setPagination(p => ({...p, page: 1})); 
                     }}
                     className={`px-6 py-2 text-sm font-black uppercase tracking-widest border-b-2 transition-colors ${
@@ -892,6 +895,7 @@ export default function TripInfoPage() {
                       setDepartureDateFrom('');
                       setDepartureDateTo('');
                       setPendingLoadBasis('arrival');
+                      setTicketStatus('all');
                       setPagination(p => ({...p, page: 1})); 
                     }}
                     className={`px-6 py-2 text-sm font-black uppercase tracking-widest border-b-2 transition-colors ${
@@ -947,7 +951,7 @@ export default function TripInfoPage() {
               </div>
 
               {/* Search and Filters */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                   <Input
@@ -977,6 +981,23 @@ export default function TripInfoPage() {
                   value={departureDateTo}
                   onChange={(val) => handleFilterChange('depDateTo', fromDisplayDate(val))}
                 />
+                <Select
+                  value={ticketStatus}
+                  onValueChange={(val) => {
+                    setTicketStatus(val);
+                    setPagination(prev => ({ ...prev, page: 1 }));
+                  }}
+                >
+                  <SelectTrigger className="w-full bg-white">
+                    <SelectValue placeholder="Ticket Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Tickets</SelectItem>
+                    <SelectItem value="full_ticket">Full Ticket</SelectItem>
+                    <SelectItem value="onward_ticket">Onward Ticket Only</SelectItem>
+                    <SelectItem value="without_ticket">Without Ticket</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Table */}
@@ -1025,8 +1046,21 @@ export default function TripInfoPage() {
                                   {booking.visaType === 'group_visa' ? 'Group Visa' : 'Individual Visa'}
                                 </Badge>
                                 {booking.hasMultipleGroup && (
-                                  <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-300">
+                                  <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-300 font-medium">
                                     Add to Existing
+                                  </Badge>
+                                )}
+                                {booking.isWithoutTicket ? (
+                                  <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200 font-medium">
+                                    Without Ticket
+                                  </Badge>
+                                ) : booking.isOneWay ? (
+                                  <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-medium">
+                                    Onward Only
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200 font-medium">
+                                    Full Ticket
                                   </Badge>
                                 )}
                               </div>
