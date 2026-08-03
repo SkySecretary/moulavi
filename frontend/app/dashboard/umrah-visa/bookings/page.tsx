@@ -54,6 +54,7 @@ export default function UmrahVisaPage() {
   const [selectedPartyId, setSelectedPartyId] = useState<string>('all');
   const [filterMissingReturn, setFilterMissingReturn] = useState(false);
   const [missingReturnCount, setMissingReturnCount] = useState(0);
+  const [ticketStatus, setTicketStatus] = useState<string>('all');
 
   useEffect(() => {
     if (queryPartyId) {
@@ -110,7 +111,7 @@ export default function UmrahVisaPage() {
   useEffect(() => {
     fetchBookings(pagination.page);
     fetchMissingReturnCount();
-  }, [pagination.page, pagination.limit, searchQuery, selectedStatus, selectedVisaType, arrivalDateFrom, arrivalDateTo, viewArchived, selectedPartyId, filterMissingReturn]);
+  }, [pagination.page, pagination.limit, searchQuery, selectedStatus, selectedVisaType, arrivalDateFrom, arrivalDateTo, viewArchived, selectedPartyId, filterMissingReturn, ticketStatus]);
 
   const fetchMissingReturnCount = async () => {
     try {
@@ -141,6 +142,7 @@ export default function UmrahVisaPage() {
         arrivalDateFrom,
         arrivalDateTo,
         archived: viewArchived ? 'true' : 'false',
+        ticketStatus: ticketStatus !== 'all' ? ticketStatus : undefined
       };
 
       if (filterMissingReturn) {
@@ -451,7 +453,7 @@ export default function UmrahVisaPage() {
                   </button>
                 </div>
                  {/* Search Bar and Filters */}
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mt-4">
                   <div className="relative md:col-span-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                     <Input
@@ -494,6 +496,17 @@ export default function UmrahVisaPage() {
                     onChange={(val) => handleFilterChange('dateTo', fromDisplayDate(val))}
                     placeholder="Arrival To"
                   />
+                  <Select value={ticketStatus} onValueChange={(val) => { setTicketStatus(val); setPagination(prev => ({ ...prev, page: 1 })); }}>
+                    <SelectTrigger className="w-full bg-white">
+                      <SelectValue placeholder="Ticket Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Tickets</SelectItem>
+                      <SelectItem value="full_ticket">Full Ticket</SelectItem>
+                      <SelectItem value="onward_ticket">Onward Ticket Only</SelectItem>
+                      <SelectItem value="without_ticket">Without Ticket</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Booking Count */}
@@ -550,11 +563,26 @@ export default function UmrahVisaPage() {
                       ) : (
                         bookings.map((booking) => (
                           <TableRow key={booking.id}>
-                            <TableCell>
-                              <Badge className={`${VISA_TYPE_CONFIG[booking.visaType as keyof typeof VISA_TYPE_CONFIG]?.color || 'bg-gray-100'} text-xs`}>
-                                {VISA_TYPE_CONFIG[booking.visaType as keyof typeof VISA_TYPE_CONFIG]?.label || booking.visaType || 'N/A'}
-                              </Badge>
-                            </TableCell>
+                             <TableCell>
+                               <div className="flex flex-col gap-1 items-start">
+                                 <Badge className={`${VISA_TYPE_CONFIG[booking.visaType as keyof typeof VISA_TYPE_CONFIG]?.color || 'bg-gray-100'} text-xs`}>
+                                   {VISA_TYPE_CONFIG[booking.visaType as keyof typeof VISA_TYPE_CONFIG]?.label || booking.visaType || 'N/A'}
+                                 </Badge>
+                                 {booking.isWithoutTicket ? (
+                                   <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200 font-medium">
+                                     Without Ticket
+                                   </Badge>
+                                 ) : booking.isOneWay ? (
+                                   <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-medium">
+                                     Onward Only
+                                   </Badge>
+                                 ) : (
+                                   <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200 font-medium">
+                                     Full Ticket
+                                   </Badge>
+                                 )}
+                               </div>
+                             </TableCell>
                             <TableCell>
                               <div className="flex flex-col">
                                 <span className="font-bold text-primary text-xs whitespace-nowrap">
