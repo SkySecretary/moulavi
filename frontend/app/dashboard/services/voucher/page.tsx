@@ -74,6 +74,7 @@ export default function VoucherServicePage() {
   const [activeMainTab, setActiveMainTab] = useState<'vouchers' | 'movements'>('vouchers');
   const [activeVoucherSubTab, setActiveVoucherSubTab] = useState<'all' | 'quick'>('all');
   const [activeMovementSubTab, setActiveMovementSubTab] = useState<'today' | 'tomorrow' | 'after-tomorrow' | 'specific-date'>('today');
+  const [selectedRouteFilter, setSelectedRouteFilter] = useState<string | null>(null);
   
   // Data States
   const [vouchers, setVouchers] = useState<any[]>([]);
@@ -470,6 +471,7 @@ export default function VoucherServicePage() {
     if (movementSearch) filters.push(`Search: ${movementSearch}`);
     if (selectedFrom) filters.push(`From: ${selectedFrom}`);
     if (selectedTo) filters.push(`To: ${selectedTo}`);
+    if (selectedRouteFilter) filters.push(`Route: ${selectedRouteFilter}`);
     
     const subtitle = filters.join(' | ');
 
@@ -479,7 +481,7 @@ export default function VoucherServicePage() {
     doc.setTextColor(100);
     doc.text(subtitle, 40, 60);
 
-    const tableData = currentMovements.map((m) => {
+    const tableData = currentRouteFilteredMovements.map((m) => {
       const mid = m.movementId || `${m.voucherId}-${m.movementIndex}`;
       const edited = editingMovements.get(mid) || m;
       
@@ -622,6 +624,14 @@ export default function VoucherServicePage() {
                           activeMovementSubTab === 'tomorrow' ? tomorrowMovements : 
                           activeMovementSubTab === 'after-tomorrow' ? afterTomorrowMovements :
                           specificDateMovements;
+  const currentRouteFilteredMovements = selectedRouteFilter
+    ? currentMovements.filter((m: any) => {
+        const fromCity = formatRouteCity(m.from);
+        const toCity = formatRouteCity(m.to);
+        const routeKey = `${fromCity} → ${toCity}`;
+        return routeKey === selectedRouteFilter;
+      })
+    : currentMovements;
   const currentMoveStats = activeMovementSubTab === 'today' ? todayStats : 
                            activeMovementSubTab === 'tomorrow' ? tomorrowStats : 
                            activeMovementSubTab === 'after-tomorrow' ? afterTomorrowStats :
@@ -841,7 +851,7 @@ export default function VoucherServicePage() {
                   {movementSearch && `Search: ${movementSearch} | `} {selectedFrom && `From: ${selectedFrom} | `} {selectedTo && `To: ${selectedTo}`}
                 </p>
               </div>
-              <Tabs value={activeMovementSubTab} onValueChange={(v: any) => setActiveMovementSubTab(v)} className="space-y-4">
+              <Tabs value={activeMovementSubTab} onValueChange={(v: any) => { setActiveMovementSubTab(v); setSelectedRouteFilter(null); }} className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-2 rounded-xl border shadow-sm no-capture">
                   <TabsList className="bg-gray-100 border p-1 h-9 rounded-lg">
                     <TabsTrigger value="today" className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-8 h-7 rounded-md transition-all">Today</TabsTrigger>
@@ -916,17 +926,35 @@ export default function VoucherServicePage() {
                   {currentMovements.length > 0 && (
                     <div className="px-6 py-3 bg-slate-50/50 border-b border-gray-100 flex flex-wrap items-center gap-3">
                       <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-1">Route Totals:</span>
-                      {getRouteWiseTotals().map(([route, count]) => (
-                        <div 
-                          key={route}
-                          className="flex items-center gap-2 bg-white border border-gray-200/80 rounded-full px-3 py-1 shadow-sm"
+                      {getRouteWiseTotals().map(([route, count]) => {
+                        const isSelected = selectedRouteFilter === route;
+                        return (
+                          <button 
+                            key={route}
+                            onClick={() => setSelectedRouteFilter(isSelected ? null : route)}
+                            className={`flex items-center gap-2 border rounded-full px-3 py-1 shadow-sm transition-all hover:scale-105 active:scale-95 ${
+                              isSelected 
+                                ? 'bg-secondary text-white border-secondary font-bold' 
+                                : 'bg-white text-slate-700 border-gray-200/80 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className="text-[10px] font-bold">{route}</span>
+                            <span className={`h-5 min-w-[20px] px-1 rounded-full flex items-center justify-center text-[9px] font-black leading-none ${
+                              isSelected ? 'bg-white text-secondary' : 'bg-secondary text-white'
+                            }`}>
+                              {count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                      {selectedRouteFilter && (
+                        <button
+                          onClick={() => setSelectedRouteFilter(null)}
+                          className="text-[9px] font-black uppercase text-rose-600 hover:text-rose-700 hover:underline transition-colors ml-auto px-2 py-1"
                         >
-                          <span className="text-[10px] font-bold text-slate-700">{route}</span>
-                          <span className="h-5 min-w-[20px] px-1 bg-secondary text-white rounded-full flex items-center justify-center text-[9px] font-black leading-none">
-                            {count}
-                          </span>
-                        </div>
-                      ))}
+                          Clear Route Filter
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -947,8 +975,8 @@ export default function VoucherServicePage() {
                     </TableHeader>
                     <TableBody>
                       {loadingMovements ? [...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={8} className="px-6"><Skeleton className="h-10 w-full" /></TableCell></TableRow>) : 
-                       currentMovements.length === 0 ? <TableRow><TableCell colSpan={8} className="text-center py-16 text-gray-400 font-medium tracking-tight">No travel movements matching your filters</TableCell></TableRow> :
-                       currentMovements.map(m => {
+                       currentRouteFilteredMovements.length === 0 ? <TableRow><TableCell colSpan={8} className="text-center py-16 text-gray-400 font-medium tracking-tight">No travel movements matching your filters</TableCell></TableRow> :
+                       currentRouteFilteredMovements.map(m => {
                         const mid = m.movementId || `${m.voucherId}-${m.movementIndex}`;
                         const edited = editingMovements.get(mid) || m;
                         return (

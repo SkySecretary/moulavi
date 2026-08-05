@@ -417,6 +417,22 @@ export default function PartyBookingsPage() {
               ))}
             </div>
 
+            {/* Ticket Breakdown Stats */}
+            {!isLoading && bookings.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 mt-4 text-xs font-semibold text-gray-500">
+                <span className="text-gray-400 uppercase tracking-wider text-[10px]">Ticket Breakdown:</span>
+                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-100 font-bold px-2 py-0.5">
+                  Full Ticket: {stats?.fullTicketCount ?? 0}
+                </Badge>
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-100 font-bold px-2 py-0.5">
+                  Onward Only: {stats?.onwardTicketCount ?? 0}
+                </Badge>
+                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-100 font-bold px-2 py-0.5">
+                  Without Ticket: {stats?.withoutTicketCount ?? 0}
+                </Badge>
+              </div>
+            )}
+
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-24 text-gray-500">
                 <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mb-2" />

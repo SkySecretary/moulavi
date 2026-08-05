@@ -510,8 +510,22 @@ export default function UmrahVisaPage() {
                 </div>
 
                 {/* Booking Count */}
-                <div className="text-sm text-gray-600">
-                  Showing {bookings.length} of {pagination.total} bookings
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-sm text-gray-600">
+                  <div>
+                    Showing {bookings.length} of {pagination.total} bookings
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ticket Breakdown:</span>
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-100 font-bold px-2 py-0.5">
+                      Full Ticket: {stats?.fullTicketCount ?? 0}
+                    </Badge>
+                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-100 font-bold px-2 py-0.5">
+                      Onward Only: {stats?.onwardTicketCount ?? 0}
+                    </Badge>
+                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-100 font-bold px-2 py-0.5">
+                      Without Ticket: {stats?.withoutTicketCount ?? 0}
+                    </Badge>
+                  </div>
                 </div>
 
                 {/* Status Filter Tabs */}

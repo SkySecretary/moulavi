@@ -41,6 +41,7 @@ export default function TripInfoPage() {
   const router = useRouter();
   const user = getUser();
   const [bookingList, setBookingList] = useState<UmrahVisaBooking[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [arrivalDateFrom, setArrivalDateFrom] = useState('');
@@ -287,6 +288,7 @@ export default function TripInfoPage() {
 
     setBookingList(bookingsData);
     setPagination(data.pagination);
+    setStats(data.stats);
   } catch (error) {
     console.error('Error fetching bookings:', error);
     toast.error('Failed to load bookings');
@@ -756,8 +758,22 @@ export default function TripInfoPage() {
           <Card>
             <CardHeader>
               <CardTitle>Trip Information</CardTitle>
-              <CardDescription>
-                Showing {bookingList.length} of {pagination.total} bookings
+              <CardDescription className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-2">
+                <span>Showing {bookingList.length} of {pagination.total} bookings</span>
+                {stats && (
+                  <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+                    <span className="text-gray-400 uppercase tracking-wider text-[10px]">Ticket Breakdown:</span>
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-100 font-bold px-2 py-0.5">
+                      Full Ticket: {stats.fullTicketCount ?? 0}
+                    </Badge>
+                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-100 font-bold px-2 py-0.5">
+                      Onward Only: {stats.onwardTicketCount ?? 0}
+                    </Badge>
+                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-100 font-bold px-2 py-0.5">
+                      Without Ticket: {stats.withoutTicketCount ?? 0}
+                    </Badge>
+                  </div>
+                )}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

@@ -227,9 +227,28 @@ router.get('/bookings', authenticate, async (req, res) => {
       ))
     ]);
 
+    const ticketStatsWhere = { ...statsWhere };
+    delete ticketStatsWhere.isWithoutTicket;
+    delete ticketStatsWhere.isOneWay;
+
+    const [withoutTicketCount, onwardTicketCount, fullTicketCount] = await Promise.all([
+      prisma.umrahVisaBooking.count({
+        where: { ...ticketStatsWhere, isWithoutTicket: true }
+      }),
+      prisma.umrahVisaBooking.count({
+        where: { ...ticketStatsWhere, isWithoutTicket: false, isOneWay: true }
+      }),
+      prisma.umrahVisaBooking.count({
+        where: { ...ticketStatsWhere, isWithoutTicket: false, isOneWay: false }
+      })
+    ]);
+
     const stats: any = {
       total: await prisma.umrahVisaBooking.count({ where: statsWhere }),
-      totalPassengers: totalPassengers._sum.passengerCount || 0
+      totalPassengers: totalPassengers._sum.passengerCount || 0,
+      withoutTicketCount,
+      onwardTicketCount,
+      fullTicketCount
     };
     
     ['pending', 'documents_downloaded', 'group_assigned', 'voucher', 'bill', 'booking_success', 'cancelled'].forEach((s, i) => {
