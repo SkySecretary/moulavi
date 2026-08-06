@@ -1028,9 +1028,7 @@ export default function TripInfoPage() {
                       <TableHead className="w-[180px]">Arrival Details</TableHead>
                       <TableHead className="w-[180px]">Departure Details</TableHead>
                       <TableHead className="w-[220px]">{activeTab === 'iqama' ? 'Iqama Details' : 'Hotel Details'}</TableHead>
-                      {activeTab === 'hotel' && (
-                        <TableHead className="w-[150px]">Visa Provider</TableHead>
-                      )}
+                      <TableHead className="w-[150px]">Umra Company</TableHead>
                       <TableHead className="w-[150px]">Updated By</TableHead>
                       {activeTab === 'hotel' && (
                         <TableHead className="w-[120px]">Booking Date</TableHead>
@@ -1587,24 +1585,22 @@ export default function TripInfoPage() {
                               )}
                             </TableCell>
 
-                            {activeTab === 'hotel' && (
-                              <TableCell>
-                                <div className="text-xs">
-                                  <div className="font-medium text-gray-900 flex items-center gap-1">
-                                    {booking.umrahVisaProvider?.partyName || 'N/A'}
-                                    {booking.umrahVisaProvider?.partyName && (
-                                      <button
-                                        onClick={() => copyToClipboard(booking.umrahVisaProvider!.partyName, 'Visa Provider')}
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
-                                        title="Copy visa provider"
-                                      >
-                                        <Copy className="h-3 w-3 text-gray-500" />
-                                      </button>
-                                    )}
-                                  </div>
+                            <TableCell>
+                              <div className="text-xs">
+                                <div className="font-medium text-gray-900 flex items-center gap-1">
+                                  {booking.umrahVisaProvider?.partyName || 'N/A'}
+                                  {booking.umrahVisaProvider?.partyName && (
+                                    <button
+                                      onClick={() => copyToClipboard(booking.umrahVisaProvider!.partyName, 'Umra Company')}
+                                      className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
+                                      title="Copy umra company"
+                                    >
+                                      <Copy className="h-3 w-3 text-gray-500" />
+                                    </button>
+                                  )}
                                 </div>
-                              </TableCell>
-                            )}
+                              </div>
+                            </TableCell>
 
                             <TableCell>
                               <div className="space-y-1 text-xs">
