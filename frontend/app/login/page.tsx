@@ -11,6 +11,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Globe, Lock, User, Loader2, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { authAPI } from '@/lib/api';
 import { setUser } from '@/lib/auth';
@@ -27,6 +34,29 @@ export default function Home() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isForgotOpen, setIsForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [isForgotLoading, setIsForgotLoading] = useState(false);
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail) {
+      toast.error('Please enter your email address');
+      return;
+    }
+    setIsForgotLoading(true);
+    try {
+      const response = await authAPI.forgotPassword(forgotEmail);
+      toast.success(response.data.message || 'Recovery email sent successfully!');
+      setIsForgotOpen(false);
+      setForgotEmail('');
+    } catch (error: any) {
+      const errMsg = error?.response?.data?.error || error?.message || 'Failed to send recovery email';
+      toast.error(errMsg);
+    } finally {
+      setIsForgotLoading(false);
+    }
+  };
 
   const {
     register,
@@ -184,7 +214,13 @@ export default function Home() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="password" className="text-[10px] font-black text-primary/40 uppercase tracking-widest ml-1">Access Key</Label>
-                    <a href="#" className="text-[10px] text-secondary hover:text-primary font-black uppercase tracking-widest transition-colors">Recover?</a>
+                    <button
+                      type="button"
+                      onClick={() => setIsForgotOpen(true)}
+                      className="text-[10px] text-secondary hover:text-primary font-black uppercase tracking-widest transition-colors"
+                    >
+                      Recover?
+                    </button>
                   </div>
                   <div className="relative">
                     <Input
@@ -252,6 +288,60 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      <Dialog open={isForgotOpen} onOpenChange={setIsForgotOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-8 bg-white border-0 shadow-2xl">
+          <DialogHeader className="space-y-3 text-center">
+            <DialogTitle className="text-2xl font-black text-primary uppercase tracking-tighter italic">Recover Access Key</DialogTitle>
+            <DialogDescription className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">
+              Enter your username / email to receive a recovery link
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleForgotPassword} className="space-y-6 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="forgotEmail" className="text-[10px] font-black text-primary/40 uppercase tracking-widest ml-1">Username / Email</Label>
+              <div className="relative">
+                <Input
+                  id="forgotEmail"
+                  type="email"
+                  placeholder="username@email.com"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  disabled={isForgotLoading}
+                  className="h-12 bg-gray-50 border-gray-100 rounded-xl font-bold text-primary focus:ring-secondary/20 pl-10 transition-all shadow-inner"
+                />
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/20" />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsForgotOpen(false)}
+                disabled={isForgotLoading}
+                className="flex-1 h-12 rounded-xl font-black uppercase tracking-widest text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isForgotLoading}
+                className="flex-1 h-12 bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest text-xs rounded-xl flex items-center justify-center gap-2"
+              >
+                {isForgotLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Sending...</span>
+                  </>
+                ) : (
+                  <span>Send Link</span>
+                )}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

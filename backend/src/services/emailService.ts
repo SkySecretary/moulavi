@@ -663,6 +663,53 @@ const EMAIL_TEMPLATES = {
     </body>
     </html>
   `,
+  passwordReset: (resetLink: string) => `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Reset Your Password - NuSync</title>
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background-color: #f8f9fa; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+        .header { background: #10b981; color: white; padding: 35px 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+        .content { padding: 35px; }
+        .greeting { font-size: 18px; font-weight: 600; margin-bottom: 20px; color: #10b981; }
+        .message { font-size: 15px; color: #475569; margin-bottom: 25px; }
+        .btn { display: inline-block; padding: 12px 24px; background-color: #10b981; color: white !important; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px; margin-top: 15px; transition: background-color 0.2s; }
+        .footer { background: #0f172a; color: #94a3b8; padding: 30px 20px; text-align: center; font-size: 12px; }
+        .footer-logo { font-size: 18px; font-weight: bold; color: #f8fafc; margin-bottom: 10px; }
+        .footer-text { margin: 4px 0; color: #64748b; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Password Reset Request</h1>
+        </div>
+        <div class="content">
+          <div class="greeting">Hello,</div>
+          <div class="message">
+            We received a request to reset the password for your NuSync account. Click the button below to choose a new password. This link is valid for 1 hour.
+          </div>
+          <div style="text-align: center; margin-bottom: 25px;">
+            <a href="${resetLink}" class="btn">Reset Password</a>
+          </div>
+          <div class="message" style="font-size: 13px; color: #94a3b8;">
+            If you did not request a password reset, you can safely ignore this email.
+          </div>
+        </div>
+        <div class="footer">
+          <div class="footer-logo">NuSync</div>
+          <div class="footer-text">NuSync Travel Technology Solutions</div>
+          <div class="footer-text">© 2026 NuSync. All rights reserved.</div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `,
 } as const;
 
 // Utility function to send email with error handling
@@ -1343,6 +1390,25 @@ export const sendVerificationEmail = async (
   } catch (error: any) {
     console.error('[EMAIL] ❌ sendVerificationEmail failed:', error?.message);
     throw new Error('Failed to send verification email');
+  }
+};
+
+export const sendPasswordResetEmail = async (
+  to: string,
+  resetLink: string
+): Promise<void> => {
+  const mailOptions: nodemailer.SendMailOptions = {
+    from: EMAIL_CONFIG.from,
+    to,
+    subject: 'Reset Password - NuSync Moulavi Travels',
+    html: EMAIL_TEMPLATES.passwordReset(resetLink),
+  };
+
+  try {
+    await sendEmail(mailOptions);
+  } catch (error: any) {
+    console.error('[EMAIL] ❌ sendPasswordResetEmail failed:', error?.message);
+    throw new Error('Failed to send password reset email');
   }
 };
 

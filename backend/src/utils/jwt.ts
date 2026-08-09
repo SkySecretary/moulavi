@@ -29,3 +29,11 @@ export const getRefreshTokenExpiry = (): Date => {
   expiry.setDate(expiry.getDate() + days);
   return expiry;
 };
+
+export const generateResetToken = (payload: { id: string; email: string }): string => {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+};
+
+export const verifyResetToken = (token: string): { id: string; email: string } => {
+  return jwt.verify(token, JWT_SECRET) as { id: string; email: string };
+};

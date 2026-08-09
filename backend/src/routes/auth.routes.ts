@@ -11,6 +11,8 @@ import {
   generateRefreshToken,
   verifyRefreshToken,
   getRefreshTokenExpiry,
+  generateResetToken,
+  verifyResetToken,
 } from '../utils/jwt';
 
 const router = Router();
@@ -512,6 +514,103 @@ router.post(
         error: 'Failed to send bulk WhatsApp messages',
         details: error?.message || 'Unknown error',
       });
+    }
+  })
+);
+
+// Forgot Password Endpoint
+router.post(
+  '/forgot-password',
+  [
+    body('email').isEmail().withMessage('Please provide a valid email address').normalizeEmail(),
+  ],
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        error: 'Validation failed', 
+        details: errors.array() 
+      });
+    }
+
+    const { email } = req.body;
+
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (!user) {
+      // Return 200 for security, so we don't disclose registered emails
+      return res.json({ 
+        success: true, 
+        message: 'If that email address is in our database, we will send you an email with instructions to reset your password.' 
+      });
+    }
+
+    // Generate reset token
+    const token = generateResetToken({ id: user.id, email: user.email });
+
+    // Link: FRONTEND_URL/reset-password?token=TOKEN
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const resetLink = `${frontendUrl}/reset-password?token=${token}`;
+
+    try {
+      const { sendPasswordResetEmail } = await import('../services/emailService');
+      await sendPasswordResetEmail(user.email, resetLink);
+      res.json({ 
+        success: true, 
+        message: 'If that email address is in our database, we will send you an email with instructions to reset your password.' 
+      });
+    } catch (error: any) {
+      console.error('[Forgot Password] Email send error:', error);
+      res.status(500).json({ error: 'Failed to send password reset email.' });
+    }
+  })
+);
+
+// Reset Password Endpoint
+router.post(
+  '/reset-password',
+  [
+    body('token').isString().notEmpty().withMessage('Reset token is required'),
+    body('newPassword').isString().isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
+  ],
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        error: 'Validation failed', 
+        details: errors.array() 
+      });
+    }
+
+    const { token, newPassword } = req.body;
+
+    try {
+      // Verify token
+      const decoded = verifyResetToken(token);
+
+      // Hash new password
+      const hashedPassword = await hashPassword(newPassword);
+
+      // Update password
+      await prisma.user.update({
+        where: { id: decoded.id },
+        data: { password: hashedPassword }
+      });
+
+      // Clear refresh tokens
+      await prisma.refreshToken.deleteMany({
+        where: { userId: decoded.id }
+      });
+
+      res.json({ 
+        success: true, 
+        message: 'Your password has been successfully reset. You can now log in with your new password.' 
+      });
+    } catch (error: any) {
+      console.error('[Reset Password] Reset error:', error);
+      res.status(400).json({ error: 'Invalid or expired password reset token.' });
     }
   })
 );

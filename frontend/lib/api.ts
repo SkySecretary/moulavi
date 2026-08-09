@@ -70,6 +70,12 @@ export const authAPI = {
     api.post('/auth/logout', { refreshToken }),
   
   getMe: () => api.get('/auth/me'),
+
+  forgotPassword: (email: string) =>
+    api.post('/auth/forgot-password', { email }),
+
+  resetPassword: (data: any) =>
+    api.post('/auth/reset-password', data),
 };
 
 // Party API
