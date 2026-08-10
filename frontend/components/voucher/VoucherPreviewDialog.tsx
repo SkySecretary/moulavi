@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Minus, Trash2, Truck, Users, MapPin, Loader2 } from 'lucide-react';
+import { Plus, Minus, Trash2, Truck, Users, MapPin, Loader2, ChevronUp, ChevronDown, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
 import { umrahVisaAPI, transportMasterAPI, transportRouteMasterAPI, cityMasterAPI, locationMasterAPI, partyAPI } from '@/lib/api';
 import api from '@/lib/api';
@@ -112,6 +112,92 @@ interface TransportOption {
   quantity: number;
 }
 
+// Searchable dropdown for hotel selector that works inline to prevent portal focus/click trap bugs in Dialogs
+function HotelSearchSelect({ 
+  value, 
+  onValueChange, 
+  availableHotels, 
+  disabled, 
+  placeholder 
+}: { 
+  value: string; 
+  onValueChange: (val: string) => void; 
+  availableHotels: any[]; 
+  disabled?: boolean; 
+  placeholder: string; 
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  const selectedHotel = availableHotels.find(h => h.id === value);
+  const filtered = availableHotels.filter(h => 
+    (h.name || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => {
+          setIsOpen(!isOpen);
+          setSearch("");
+        }}
+        className="w-full h-10 flex items-center justify-between px-3 border border-slate-200 rounded-md bg-white text-xs font-semibold disabled:opacity-50 disabled:bg-gray-50 text-left transition-all hover:border-gray-300 focus:outline-none"
+      >
+        <span className="truncate">{selectedHotel ? selectedHotel.name : placeholder}</span>
+        <span className="text-[9px] text-gray-400">▼</span>
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-0 mt-1 w-full bg-white border border-slate-200 rounded-md shadow-xl z-50 p-2 space-y-2 max-h-60 flex flex-col">
+          <Input
+            autoFocus
+            type="text"
+            placeholder="Search hotel..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-8 text-xs font-bold"
+          />
+          <div className="overflow-y-auto flex-1 space-y-0.5 min-h-0">
+            {filtered.length === 0 ? (
+              <div className="text-center py-2 text-xs text-gray-400">No hotels found</div>
+            ) : (
+              filtered.map((h) => (
+                <button
+                  key={h.id}
+                  type="button"
+                  onClick={() => {
+                    onValueChange(h.id);
+                    setIsOpen(false);
+                  }}
+                  className={cn(
+                    "w-full text-left px-2 py-1.5 text-xs rounded hover:bg-slate-100 transition-colors font-bold",
+                    value === h.id ? "bg-slate-50 text-primary font-black" : "text-gray-700"
+                  )}
+                >
+                  {h.name}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function VoucherPreviewDialog({
   open,
   onOpenChange,
@@ -122,6 +208,42 @@ export function VoucherPreviewDialog({
   const [submitting, setSubmitting] = useState(false);
   const user = getUser();
   const isAdminOrStaff = hasRole(['admin', 'staff']);
+  
+  // Drag and drop states/functions
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (index: number) => {
+    if (draggedIndex === null || draggedIndex === index) return;
+    const updated = [...voucherData.movementDetails];
+    const [draggedItem] = updated.splice(draggedIndex, 1);
+    updated.splice(index, 0, draggedItem);
+    // Re-number the Sr column
+    updated.forEach((m, idx) => {
+      m.sr = idx + 1;
+    });
+    setVoucherData({ ...voucherData, movementDetails: updated });
+    setDraggedIndex(null);
+  };
+
+  const moveMovement = (index: number, direction: number) => {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= voucherData.movementDetails.length) return;
+    const updated = [...voucherData.movementDetails];
+    const temp = updated[index];
+    updated[index] = updated[nextIndex];
+    updated[nextIndex] = temp;
+    // Re-number
+    updated.forEach((m, idx) => { m.sr = idx + 1; });
+    setVoucherData({ ...voucherData, movementDetails: updated });
+  };
   
   // Master Data
   const [cities, setCities] = useState<any[]>([]);
@@ -860,7 +982,7 @@ export function VoucherPreviewDialog({
                               </Select>
                             </TableCell>
                             <TableCell>
-                              <Select
+                              <HotelSearchSelect
                                 value={(hotel as any).hotelId || ''}
                                 onValueChange={(value) => {
                                   const selectedHotel = availableHotels.find(l => l.id === value);
@@ -874,25 +996,10 @@ export function VoucherPreviewDialog({
                                     setVoucherData({ ...voucherData, hotelSchedules: updated });
                                   }
                                 }}
+                                availableHotels={availableHotels}
                                 disabled={!isAdminOrStaff || !hotel.cityId}
-                              >
-                                <SelectTrigger className="w-full">
-                                  <SelectValue placeholder={hotel.cityId ? "Select Hotel" : "Select city first"} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {availableHotels.length === 0 ? (
-                                    <SelectItem value="no-hotels" disabled>
-                                      {hotel.cityId ? "No hotels in this city" : "Select city first"}
-                                    </SelectItem>
-                                  ) : (
-                                    availableHotels.map((loc) => (
-                                      <SelectItem key={loc.id} value={loc.id}>
-                                        {loc.name}
-                                      </SelectItem>
-                                    ))
-                                  )}
-                                </SelectContent>
-                              </Select>
+                                placeholder={hotel.cityId ? "Select Hotel" : "Select city first"}
+                              />
                             </TableCell>
                           <TableCell>{hotel.days}</TableCell>
                           <TableCell>
@@ -950,7 +1057,7 @@ export function VoucherPreviewDialog({
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-12">Sr</TableHead>
+                        <TableHead className="w-[85px] no-capture">Sr</TableHead>
                         <TableHead className="w-32">Date</TableHead>
                         <TableHead className="w-24">Time (24h)</TableHead>
                         <TableHead className="min-w-[100px]">From City</TableHead>
@@ -967,8 +1074,43 @@ export function VoucherPreviewDialog({
                     </TableHeader>
                     <TableBody>
                       {voucherData.movementDetails.map((movement, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell>{movement.sr}</TableCell>
+                        <TableRow 
+                          key={idx}
+                          draggable={isAdminOrStaff}
+                          onDragStart={() => handleDragStart(idx)}
+                          onDragOver={(e) => handleDragOver(e, idx)}
+                          onDrop={() => handleDrop(idx)}
+                          className={cn(
+                            "cursor-move transition-colors duration-150",
+                            draggedIndex === idx ? "opacity-40 bg-gray-100" : "hover:bg-slate-50/50"
+                          )}
+                        >
+                          <TableCell className="flex items-center gap-1 min-w-[85px] h-16">
+                            {isAdminOrStaff && (
+                              <div className="flex flex-col items-center gap-0.5 no-capture">
+                                <button
+                                  type="button"
+                                  disabled={idx === 0}
+                                  onClick={() => moveMovement(idx, -1)}
+                                  className="p-0.5 text-gray-400 hover:text-primary disabled:opacity-30 disabled:hover:text-gray-400"
+                                >
+                                  <ChevronUp className="h-3 w-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={idx === voucherData.movementDetails.length - 1}
+                                  onClick={() => moveMovement(idx, 1)}
+                                  className="p-0.5 text-gray-400 hover:text-primary disabled:opacity-30 disabled:hover:text-gray-400"
+                                >
+                                  <ChevronDown className="h-3 w-3" />
+                                </button>
+                              </div>
+                            )}
+                            {isAdminOrStaff && (
+                              <GripVertical className="h-4 w-4 text-gray-300 cursor-grab active:cursor-grabbing no-capture" />
+                            )}
+                            <span className="font-semibold">{movement.sr}</span>
+                          </TableCell>
                           <TableCell>
                             <DatePicker
                               value={movement.date}
@@ -978,10 +1120,11 @@ export function VoucherPreviewDialog({
                             />
                           </TableCell>
                           <TableCell>
-                            <TimePicker
+                            <Input
+                              type="time"
                               value={movement.time}
-                              onChange={(val) => handleMovementChange(idx, 'time', val)}
-                              className="w-32"
+                              onChange={(e) => handleMovementChange(idx, 'time', e.target.value)}
+                              className="w-32 h-10 font-medium text-sm bg-white"
                               disabled={!isAdminOrStaff}
                             />
                           </TableCell>
@@ -1319,17 +1462,19 @@ export function VoucherPreviewDialog({
                             <span className="text-[10px] font-bold text-slate-400">JED</span>
                           </TableCell>
                           <TableCell>
-                            <TimePicker
+                            <Input
+                              type="time"
                               value={formatTime(flight.etd)}
-                              onChange={(val) => handleFlightChange(idx, 'etd', val)}
+                              onChange={(e) => handleFlightChange(idx, 'etd', e.target.value)}
                               className="h-8 w-24 text-[10px] font-bold text-slate-900 border-slate-200 bg-white"
                               disabled={!isAdminOrStaff}
                             />
                           </TableCell>
                           <TableCell>
-                            <TimePicker
+                            <Input
+                              type="time"
                               value={formatTime(flight.eta)}
-                              onChange={(val) => handleFlightChange(idx, 'eta', val)}
+                              onChange={(e) => handleFlightChange(idx, 'eta', e.target.value)}
                               className="h-8 w-24 text-[10px] font-bold text-slate-900 border-slate-200 bg-white"
                               disabled={!isAdminOrStaff}
                             />
