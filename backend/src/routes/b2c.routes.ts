@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import { generateAccessToken } from '../utils/jwt';
 import { InventoryService } from '../services/inventoryService';
 import { sendCustomWhatsApp } from '../services/whatsappService';
+import { FlightService } from '../services/flightService';
 
 const router = Router();
 
@@ -263,6 +264,24 @@ router.post(
         vat,
         total: Math.round(grandTotal),
       },
+    });
+  })
+);
+
+// ==========================================
+// 3.5. Flight Lookup API
+// ==========================================
+router.get(
+  '/flights/search',
+  asyncHandler(async (req: any, res: Response) => {
+    const origin = (req.query.origin as string) || 'JED';
+    const destination = (req.query.destination as string) || 'DXB';
+    const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
+
+    const flights = await FlightService.searchFlights(origin, destination, date);
+    res.json({
+      success: true,
+      data: flights
     });
   })
 );
@@ -542,14 +561,35 @@ router.post(
     }
 
     if (movements && Array.isArray(movements)) {
+      const defaultCity = await prisma.cityMaster.findFirst();
+      const defaultCityId = defaultCity?.id || '';
+
       for (const m of movements) {
+        const fromLocId = m.fromLocationId || makkahHotelId || defaultAirportId;
+        const toLocId = m.toLocationId || madinahHotelId || defaultAirportId;
+        
+        const fromLoc = await prisma.locationMaster.findUnique({ where: { id: fromLocId } });
+        const toLoc = await prisma.locationMaster.findUnique({ where: { id: toLocId } });
+
+        const fromCityId = fromLoc?.cityId || defaultCityId;
+        const toCityId = toLoc?.cityId || defaultCityId;
+
+        // Ensure dates are parsed correctly
+        let travelDate = new Date(checkInDate);
+        if (m.time) {
+          const [hours, minutes] = m.time.split(':');
+          travelDate.setUTCHours(parseInt(hours, 10) || 12);
+          travelDate.setUTCMinutes(parseInt(minutes, 10) || 0);
+        }
+
         await prisma.umrahMovementDetail.create({
           data: {
             bookingId: booking.id,
-            date: m.date ? new Date(m.date) : new Date(checkInDate),
-            time: m.time || '12:00',
-            fromLocationId: m.fromLocationId,
-            toLocationId: m.toLocationId,
+            travelDateTime: travelDate,
+            fromLocationId: fromLocId,
+            toLocationId: toLocId,
+            fromCityId,
+            toCityId,
             isAlternate: false,
           }
         });

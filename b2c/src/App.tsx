@@ -140,6 +140,8 @@ export default function App() {
   const [bookingFinished, setBookingFinished] = useState(false);
   const [bookingRef, setBookingRef] = useState('');
   const [passportFile, setPassportFile] = useState<File | null>(null);
+  const [liveFlights, setLiveFlights] = useState<any[]>([]);
+  const [isSearchingFlights, setIsSearchingFlights] = useState(false);
 
   const [traveler, setTraveler] = useState({
     fullName: '',
@@ -293,6 +295,25 @@ export default function App() {
       const file = e.target.files[0];
       setPassportFile(file);
       alert(`Passport file "${file.name}" uploaded successfully. Please fill out your details manually below.`);
+    }
+  };
+
+  const triggerFlightSearch = async () => {
+    setIsSearchingFlights(true);
+    try {
+      const depApt = airports.find(a => a.id === flightInfo.arrivalAirportId)?.name?.split('(')[1]?.substring(0, 3) || 'JED';
+      const arrApt = airports.find(a => a.id === flightInfo.departureAirportId)?.name?.split('(')[1]?.substring(0, 3) || 'DXB';
+      const res = await fetch(`/api/b2c/flights/search?origin=${depApt}&destination=${arrApt}&date=${dates.checkIn}`);
+      const resData = await res.json();
+      if (resData.success && resData.data) {
+        setLiveFlights(resData.data);
+      } else {
+        alert('Could not find live carrier schedules for these dates.');
+      }
+    } catch (err) {
+      alert('Error fetching live carrier schedules.');
+    } finally {
+      setIsSearchingFlights(false);
     }
   };
 
@@ -921,6 +942,54 @@ export default function App() {
                         {!flightInfo.isWithoutTicket ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '0.5rem' }}>
                             
+                            {/* Live Flight Schedule Lookup */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '0.5rem' }}>
+                              <button 
+                                type="button" 
+                                className="tab-btn" 
+                                style={{ alignSelf: 'flex-start', padding: '0.5rem 1.25rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }} 
+                                onClick={triggerFlightSearch}
+                                disabled={isSearchingFlights}
+                              >
+                                {isSearchingFlights ? (
+                                  <>
+                                    <svg className="animate-spin" viewBox="0 0 24 24" fill="none" style={{ width: '14px', height: '14px' }}>
+                                      <circle cx="12" cy="12" r="10" stroke="var(--primary)" strokeWidth="4" strokeDasharray="30 30" />
+                                    </svg>
+                                    Searching Live API...
+                                  </>
+                                ) : 'Search Live Flight Schedules'}
+                              </button>
+
+                              {liveFlights.length > 0 && (
+                                <div style={{ backgroundColor: 'var(--primary-light)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--gold-border)' }}>
+                                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary)', display: 'block', marginBottom: '0.75rem' }}>Select Approved Carrier Schedule</span>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    {liveFlights.map((lf, idx) => (
+                                      <div 
+                                        key={idx} 
+                                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer', backgroundColor: 'white' }}
+                                        onClick={() => {
+                                          setFlightInfo(prev => ({
+                                            ...prev,
+                                            arrivalFlightNumber: lf.flightNumber,
+                                            arrivalTime: lf.departureTime,
+                                          }));
+                                          alert(`Selected Live flight: ${lf.carrier} (${lf.flightNumber}) at ${lf.departureTime}`);
+                                        }}
+                                      >
+                                        <div>
+                                          <span style={{ fontSize: '0.85rem', fontWeight: 700, display: 'block', color: 'var(--text-dark)' }}>{lf.carrier} ({lf.flightNumber})</span>
+                                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Departs: {lf.departureTime} | Arrives: {lf.arrivalTime}</span>
+                                        </div>
+                                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--secondary)' }}>{lf.price} SAR</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
                             {/* Arrival flights */}
                             <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem' }}>
                               <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>Arrival Flight Info</h4>
