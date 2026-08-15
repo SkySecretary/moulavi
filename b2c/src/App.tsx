@@ -51,42 +51,127 @@ const MOCK_PACKAGES = [
 ];
 
 const AIRPORTS = [
-  // Saudi Airports
+  // Saudi Arabia
   { id: 'apt-jed', name: 'Jeddah - King Abdulaziz Intl (JED)', city: 'Jeddah' },
   { id: 'apt-med', name: 'Madinah - Prince Mohammad Bin Abdulaziz (MED)', city: 'Madinah' },
   { id: 'apt-ruh', name: 'Riyadh - King Khalid Intl (RUH)', city: 'Riyadh' },
   { id: 'apt-dmm', name: 'Dammam - King Fahd Intl (DMM)', city: 'Dammam' },
-  // Gulf / Middle East
+  { id: 'apt-ahb', name: 'Abha Intl Airport (AHB)', city: 'Abha' },
+  { id: 'apt-tuf', name: 'Taif Intl Airport (TUF)', city: 'Taif' },
+  { id: 'apt-gzi', name: 'Gizan Regional Airport (GZI)', city: 'Gizan' },
+  
+  // GCC & Middle East
   { id: 'apt-dxb', name: 'Dubai Intl Airport (DXB)', city: 'Dubai' },
   { id: 'apt-auh', name: 'Abu Dhabi Intl (AUH)', city: 'Abu Dhabi' },
+  { id: 'apt-shj', name: 'Sharjah Intl (SHJ)', city: 'Sharjah' },
   { id: 'apt-doh', name: 'Doha - Hamad Intl (DOH)', city: 'Doha' },
   { id: 'apt-mct', name: 'Muscat Intl (MCT)', city: 'Muscat' },
   { id: 'apt-kuw', name: 'Kuwait Intl (KWI)', city: 'Kuwait' },
+  { id: 'apt-bah', name: 'Bahrain Intl (BAH)', city: 'Bahrain' },
   { id: 'apt-cai', name: 'Cairo Intl (CAI)', city: 'Cairo' },
+  { id: 'apt-hbe', name: 'Alexandria - Borg El Arab (HBE)', city: 'Alexandria' },
+  { id: 'apt-amm', name: 'Amman - Queen Alia Intl (AMM)', city: 'Amman' },
+  { id: 'apt-bey', name: 'Beirut - Rafic Hariri Intl (BEY)', city: 'Beirut' },
   { id: 'apt-ist', name: 'Istanbul Airport (IST)', city: 'Istanbul' },
-  // Europe
+  { id: 'apt-saw', name: 'Istanbul - Sabiha Gokcen (SAW)', city: 'Istanbul' },
+  { id: 'apt-esb', name: 'Ankara Esenboga (ESB)', city: 'Ankara' },
+  
+  // United Kingdom & Ireland
   { id: 'apt-lhr', name: 'London Heathrow (LHR)', city: 'London' },
   { id: 'apt-lgw', name: 'London Gatwick (LGW)', city: 'London' },
+  { id: 'apt-stn', name: 'London Stansted (STN)', city: 'London' },
+  { id: 'apt-man', name: 'Manchester Airport (MAN)', city: 'Manchester' },
+  { id: 'apt-bhx', name: 'Birmingham Airport (BHX)', city: 'Birmingham' },
+  { id: 'apt-gla', name: 'Glasgow Airport (GLA)', city: 'Glasgow' },
+  { id: 'apt-dub', name: 'Dublin Airport (DUB)', city: 'Dublin' },
+
+  // Europe
   { id: 'apt-cdg', name: 'Paris Charles de Gaulle (CDG)', city: 'Paris' },
+  { id: 'apt-ory', name: 'Paris Orly (ORY)', city: 'Paris' },
   { id: 'apt-fra', name: 'Frankfurt Airport (FRA)', city: 'Frankfurt' },
-  // Americas
-  { id: 'apt-jfk', name: 'New York JFK (JFK)', city: 'New York' },
-  { id: 'apt-lax', name: 'Los Angeles Intl (LAX)', city: 'Los Angeles' },
-  { id: 'apt-ord', name: 'Chicago O\'Hare (ORD)', city: 'Chicago' },
-  { id: 'apt-yyz', name: 'Toronto Pearson (YYZ)', city: 'Toronto' },
-  // Indian Subcontinent
+  { id: 'apt-muc', name: 'Munich Airport (MUC)', city: 'Munich' },
+  { id: 'apt-ams', name: 'Amsterdam - Schiphol (AMS)', city: 'Amsterdam' },
+  { id: 'apt-bru', name: 'Brussels Airport (BRU)', city: 'Brussels' },
+  { id: 'apt-zrh', name: 'Zurich Airport (ZRH)', city: 'Zurich' },
+  { id: 'apt-fco', name: 'Rome - Fiumicino (FCO)', city: 'Rome' },
+  { id: 'apt-mxp', name: 'Milan - Malpensa (MXP)', city: 'Milan' },
+  { id: 'apt-mad', name: 'Madrid - Barajas (MAD)', city: 'Madrid' },
+  { id: 'apt-bcn', name: 'Barcelona - El Prat (BCN)', city: 'Barcelona' },
+  { id: 'apt-vie', name: 'Vienna Intl (VIE)', city: 'Vienna' },
+  { id: 'apt-ath', name: 'Athens Intl (ATH)', city: 'Athens' },
+  { id: 'apt-cph', name: 'Copenhagen Airport (CPH)', city: 'Copenhagen' },
+  { id: 'apt-arn', name: 'Stockholm - Arlanda (ARN)', city: 'Stockholm' },
+  { id: 'apt-osl', name: 'Oslo - Gardermoen (OSL)', city: 'Oslo' },
+  { id: 'apt-hel', name: 'Helsinki Vantaa (HEL)', city: 'Helsinki' },
+
+  // Indian Subcontinent (Huge Umrah volumes)
   { id: 'apt-del', name: 'Delhi - Indira Gandhi Intl (DEL)', city: 'Delhi' },
   { id: 'apt-bom', name: 'Mumbai - Chhatrapati Shivaji (BOM)', city: 'Mumbai' },
+  { id: 'apt-blr', name: 'Bengaluru - Kempegowda (BLR)', city: 'Bengaluru' },
+  { id: 'apt-maa', name: 'Chennai Intl (MAA)', city: 'Chennai' },
+  { id: 'apt-hyd', name: 'Hyderabad - Rajiv Gandhi (HYD)', city: 'Hyderabad' },
+  { id: 'apt-ccu', name: 'Kolkata - Netaji Subhas (CCU)', city: 'Kolkata' },
+  { id: 'apt-cok', name: 'Kochi - Cochin Intl (COK)', city: 'Kochi' },
+  { id: 'apt-ccj', name: 'Kozhikode - Calicut Intl (CCJ)', city: 'Kozhikode' },
+  { id: 'apt-trv', name: 'Trivandrum Intl (TRV)', city: 'Trivandrum' },
   { id: 'apt-khi', name: 'Karachi - Jinnah Intl (KHI)', city: 'Karachi' },
   { id: 'apt-lhe', name: 'Lahore - Allama Iqbal Intl (LHE)', city: 'Lahore' },
+  { id: 'apt-isb', name: 'Islamabad Intl (ISB)', city: 'Islamabad' },
+  { id: 'apt-pew', name: 'Peshawar - Bacha Khan (PEW)', city: 'Peshawar' },
+  { id: 'apt-mux', name: 'Multan Intl (MUX)', city: 'Multan' },
   { id: 'apt-dac', name: 'Dhaka - Hazrat Shahjalal (DAC)', city: 'Dhaka' },
-  // Southeast Asia
+  { id: 'apt-cgp', name: 'Chittagong - Shah Amanat (CGP)', city: 'Chittagong' },
+  { id: 'apt-cmb', name: 'Colombo - Bandaranaike (CMB)', city: 'Colombo' },
+
+  // Southeast Asia (Huge Umrah volumes)
   { id: 'apt-cgk', name: 'Jakarta - Soekarno-Hatta (CGK)', city: 'Jakarta' },
+  { id: 'apt-sub', name: 'Surabaya - Juanda Intl (SUB)', city: 'Surabaya' },
+  { id: 'apt-kno', name: 'Medan - Kualanamu Intl (KNO)', city: 'Medan' },
   { id: 'apt-kul', name: 'Kuala Lumpur Intl (KUL)', city: 'Kuala Lumpur' },
   { id: 'apt-sin', name: 'Singapore Changi (SIN)', city: 'Singapore' },
+  { id: 'apt-bkk', name: 'Bangkok - Suvarnabhumi (BKK)', city: 'Bangkok' },
+  { id: 'apt-mnl', name: 'Manila - Ninoy Aquino (MNL)', city: 'Manila' },
+
+  // Central Asia
+  { id: 'apt-tas', name: 'Tashkent - Islam Karimov (TAS)', city: 'Tashkent' },
+  { id: 'apt-ala', name: 'Almaty Intl Airport (ALA)', city: 'Almaty' },
+
+  // North America
+  { id: 'apt-jfk', name: 'New York - John F. Kennedy (JFK)', city: 'New York' },
+  { id: 'apt-ewr', name: 'Newark Liberty Intl (EWR)', city: 'Newark' },
+  { id: 'apt-iad', name: 'Washington Dulles Intl (IAD)', city: 'Washington' },
+  { id: 'apt-ord', name: 'Chicago O\'Hare (ORD)', city: 'Chicago' },
+  { id: 'apt-lax', name: 'Los Angeles Intl (LAX)', city: 'Los Angeles' },
+  { id: 'apt-sfo', name: 'San Francisco Intl (SFO)', city: 'San Francisco' },
+  { id: 'apt-iah', name: 'Houston - George Bush Intl (IAH)', city: 'Houston' },
+  { id: 'apt-dfw', name: 'Dallas/Fort Worth Intl (DFW)', city: 'Dallas' },
+  { id: 'apt-mia', name: 'Miami Intl Airport (MIA)', city: 'Miami' },
+  { id: 'apt-yyz', name: 'Toronto Pearson (YYZ)', city: 'Toronto' },
+  { id: 'apt-yvr', name: 'Vancouver Intl (YVR)', city: 'Vancouver' },
+  { id: 'apt-yul', name: 'Montreal - Pierre Elliott Trudeau (YUL)', city: 'Montreal' },
+
   // Africa
   { id: 'apt-jnb', name: 'Johannesburg - OR Tambo (JNB)', city: 'Johannesburg' },
-  { id: 'apt-los', name: 'Lagos - Murtala Muhammed (LOS)', city: 'Lagos' }
+  { id: 'apt-cpt', name: 'Cape Town Intl (CPT)', city: 'Cape Town' },
+  { id: 'apt-los', name: 'Lagos - Murtala Muhammed (LOS)', city: 'Lagos' },
+  { id: 'apt-abv', name: 'Abuja - Nnamdi Azikiwe (ABV)', city: 'Abuja' },
+  { id: 'apt-cas', name: 'Casablanca - Mohammed V (CMN)', city: 'Casablanca' },
+  { id: 'apt-tun', name: 'Tunis - Carthage Intl (TUN)', city: 'Tunis' },
+  { id: 'apt-alg', name: 'Algiers - Houari Boumediene (ALG)', city: 'Algiers' },
+  { id: 'apt-add', name: 'Addis Ababa - Bole Intl (ADD)', city: 'Addis Ababa' },
+  { id: 'apt-nbo', name: 'Nairobi - Jomo Kenyatta (NBO)', city: 'Nairobi' },
+  { id: 'apt-dkr', name: 'Dakar - Blaise Diagne (DSS)', city: 'Dakar' },
+
+  // East Asia & Oceania
+  { id: 'apt-hnd', name: 'Tokyo - Haneda (HND)', city: 'Tokyo' },
+  { id: 'apt-nrt', name: 'Tokyo - Narita (NRT)', city: 'Tokyo' },
+  { id: 'apt-icn', name: 'Seoul - Incheon Intl (ICN)', city: 'Seoul' },
+  { id: 'apt-pvk', name: 'Beijing Capital Intl (PEK)', city: 'Beijing' },
+  { id: 'apt-pvg', name: 'Shanghai Pudong (PVG)', city: 'Shanghai' },
+  { id: 'apt-hkg', name: 'Hong Kong Intl (HKG)', city: 'Hong Kong' },
+  { id: 'apt-syd', name: 'Sydney - Kingsford Smith (SYD)', city: 'Sydney' },
+  { id: 'apt-mel', name: 'Melbourne Airport (MEL)', city: 'Melbourne' },
+  { id: 'apt-akl', name: 'Auckland Airport (AKL)', city: 'Auckland' }
 ];
 
 const DEFAULT_HOTELS = [
