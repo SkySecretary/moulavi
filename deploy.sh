@@ -12,7 +12,7 @@ RELEASE_PATH="$REMOTE_ROOT/releases/$TIMESTAMP"
 SHARED_PATH="$REMOTE_ROOT/shared"
 CURRENT_PATH="$REMOTE_ROOT/current"
 SSH_KEY="/Users/awadnejil/.ssh/id_rsa_deploy"
-SSH_CMD="ssh -i $SSH_KEY"
+SSH_CMD="ssh -i $SSH_KEY -o ServerAliveInterval=30 -o ServerAliveCountMax=5 -o TCPKeepAlive=yes"
 
 echo "🚀 Starting optimized deployment to $SERVER_IP..."
 
@@ -43,7 +43,7 @@ echo "📤 Uploading backend and frontend..."
 rsync -avz -e "$SSH_CMD" --exclude "node_modules" --exclude "dist" --exclude "dev.db" --exclude "uploads" --exclude ".env" backend/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/backend/
 rsync -avz -e "$SSH_CMD" backend/dist/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/backend/dist/
 rsync -avz -e "$SSH_CMD" --exclude "node_modules" --exclude ".next" --exclude ".env*" frontend/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/frontend/
-rsync -avz -e "$SSH_CMD" frontend/.next/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/frontend/.next/
+rsync -avz -e "$SSH_CMD" --exclude "cache" frontend/.next/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/frontend/.next/
 
 # Step 3: Finalize and Restart in one final SSH session
 echo "⚙️  Finalizing and Restarting..."
