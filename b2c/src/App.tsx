@@ -140,10 +140,13 @@ export default function App() {
   const [bookingFinished, setBookingFinished] = useState(false);
   const [bookingRef, setBookingRef] = useState('');
   const [passportFile, setPassportFile] = useState<File | null>(null);
-  const [liveFlights, setLiveFlights] = useState<any[]>([]);
-  const [isSearchingFlights, setIsSearchingFlights] = useState(false);
+  const [liveArrivalFlights, setLiveArrivalFlights] = useState<any[]>([]);
+  const [liveDepartureFlights, setLiveDepartureFlights] = useState<any[]>([]);
+  const [isSearchingArrival, setIsSearchingArrival] = useState(false);
+  const [isSearchingDeparture, setIsSearchingDeparture] = useState(false);
   const [flightBookingMode, setFlightBookingMode] = useState<'book' | 'own'>('book');
-  const [selectedFlight, setSelectedFlight] = useState<any>(null);
+  const [selectedArrivalFlight, setSelectedArrivalFlight] = useState<any>(null);
+  const [selectedDepartureFlight, setSelectedDepartureFlight] = useState<any>(null);
   const [skipOwnFlightDetails, setSkipOwnFlightDetails] = useState(false);
 
   const [traveler, setTraveler] = useState({
@@ -234,6 +237,10 @@ export default function App() {
       if (!selectedMakkahHotelId || !selectedMadinahHotelId || !selectedRouteId) return;
 
       try {
+        const arrivalCost = selectedArrivalFlight?.price || 0;
+        const departureCost = selectedDepartureFlight?.price || 0;
+        const totalFlightCost = arrivalCost + departureCost;
+
         const response = await fetch('/api/b2c/builder/quote', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -245,7 +252,7 @@ export default function App() {
             travelersCount: dates.travelers,
             transportOptionId: selectedRouteId,
             flightOptionId: flightBookingMode === 'own' ? 'none' : 'flight-live',
-            flightPrice: flightBookingMode === 'own' ? 0 : (selectedFlight?.price || 0)
+            flightPrice: totalFlightCost
           })
         });
         const resData = await response.json();
@@ -266,7 +273,7 @@ export default function App() {
       
       const mPrice = (mHotel?.pricePerNight || 350) * dates.makkahNights;
       const dPrice = (dHotel?.pricePerNight || 300) * dates.madinahNights;
-      const fPrice = flightBookingMode === 'own' ? 0 : (selectedFlight?.price || 0) * dates.travelers;
+      const fPrice = flightBookingMode === 'own' ? 0 : ((selectedArrivalFlight?.price || 0) + (selectedDepartureFlight?.price || 0)) * dates.travelers;
       const vPrice = dates.accommodationType === 'iqama' ? 0 : 450 * dates.travelers;
       const rPrice = Number(rt?.price) || 500;
 
@@ -289,7 +296,8 @@ export default function App() {
     selectedMadinahHotelId, 
     selectedRouteId, 
     flightBookingMode,
-    selectedFlight,
+    selectedArrivalFlight,
+    selectedDepartureFlight,
     hotels,
     routes
   ]);
@@ -304,21 +312,36 @@ export default function App() {
   };
 
   const triggerFlightSearch = async () => {
-    setIsSearchingFlights(true);
+    setIsSearchingArrival(true);
+    setIsSearchingDeparture(true);
     try {
-      const depApt = airports.find(a => a.id === flightInfo.arrivalAirportId)?.name?.split('(')[1]?.substring(0, 3) || 'JED';
-      const arrApt = airports.find(a => a.id === flightInfo.departureAirportId)?.name?.split('(')[1]?.substring(0, 3) || 'DXB';
-      const res = await fetch(`/api/b2c/flights/search?origin=${depApt}&destination=${arrApt}&date=${dates.checkIn}`);
-      const resData = await res.json();
-      if (resData.success && resData.data) {
-        setLiveFlights(resData.data);
+      const homeApt = airports.find(a => a.id === flightInfo.arrivalAirportId)?.name?.split('(')[1]?.substring(0, 3) || 'DXB';
+      const checkInDateObj = new Date(dates.checkIn);
+      const departureDateObj = new Date(checkInDateObj.getTime() + (dates.makkahNights + dates.madinahNights) * 86400000);
+      const departureDateStr = departureDateObj.toISOString().split('T')[0];
+
+      // Inbound Search
+      const resIn = await fetch(`/api/b2c/flights/search?origin=${homeApt}&destination=JED&date=${dates.checkIn}`);
+      const dataIn = await resIn.json();
+      if (dataIn.success && dataIn.data) {
+        setLiveArrivalFlights(dataIn.data);
       } else {
-        alert('Could not find live carrier schedules for these dates.');
+        setLiveArrivalFlights([]);
+      }
+
+      // Outbound Search
+      const resOut = await fetch(`/api/b2c/flights/search?origin=JED&destination=${homeApt}&date=${departureDateStr}`);
+      const dataOut = await resOut.json();
+      if (dataOut.success && dataOut.data) {
+        setLiveDepartureFlights(dataOut.data);
+      } else {
+        setLiveDepartureFlights([]);
       }
     } catch (err) {
       alert('Error fetching live carrier schedules.');
     } finally {
-      setIsSearchingFlights(false);
+      setIsSearchingArrival(false);
+      setIsSearchingDeparture(false);
     }
   };
 
@@ -399,11 +422,11 @@ export default function App() {
         transportOptionId: selectedRouteId,
         accommodationType: dates.accommodationType,
         isWithoutTicket: isWithoutTkt,
-        arrivalFlightNumber: isWithoutTkt ? 'NT-0000' : (flightBookingMode === 'own' ? flightInfo.arrivalFlightNumber : (selectedFlight?.flightNumber || 'SV-300')),
-        arrivalDateTime: isWithoutTkt ? `${dates.checkIn}T12:00:00.000Z` : (flightBookingMode === 'own' ? `${flightInfo.arrivalDate}T${flightInfo.arrivalTime}:00.000Z` : `${dates.checkIn}T${selectedFlight?.departureTime || '08:00'}:00.000Z`),
+        arrivalFlightNumber: isWithoutTkt ? 'NT-0000' : (flightBookingMode === 'own' ? flightInfo.arrivalFlightNumber : (selectedArrivalFlight?.flightNumber || 'SV-300')),
+        arrivalDateTime: isWithoutTkt ? `${dates.checkIn}T12:00:00.000Z` : (flightBookingMode === 'own' ? `${flightInfo.arrivalDate}T${flightInfo.arrivalTime}:00.000Z` : `${dates.checkIn}T${selectedArrivalFlight?.departureTime || '08:00'}:00.000Z`),
         arrivalAirportId: flightInfo.arrivalAirportId,
-        departureFlightNumber: isWithoutTkt ? 'NT-0000' : (flightBookingMode === 'own' ? flightInfo.departureFlightNumber : (selectedFlight?.flightNumber || 'SV-301')),
-        departureDateTime: isWithoutTkt ? `${dates.checkIn}T12:00:00.000Z` : (flightBookingMode === 'own' ? `${flightInfo.departureDate}T${flightInfo.departureTime}:00.000Z` : `${dates.checkIn}T${selectedFlight?.arrivalTime || '22:00'}:00.000Z`),
+        departureFlightNumber: isWithoutTkt ? 'NT-0000' : (flightBookingMode === 'own' ? flightInfo.departureFlightNumber : (selectedDepartureFlight?.flightNumber || 'SV-301')),
+        departureDateTime: isWithoutTkt ? `${dates.checkIn}T12:00:00.000Z` : (flightBookingMode === 'own' ? `${flightInfo.departureDate}T${flightInfo.departureTime}:00.000Z` : `${dates.checkIn}T${selectedDepartureFlight?.arrivalTime || '22:00'}:00.000Z`),
         departureAirportId: flightInfo.departureAirportId,
         iqamaNumber: iqamaDetails.iqamaNumber,
         iqamaSponserName: iqamaDetails.iqamaSponserName,
@@ -952,7 +975,8 @@ export default function App() {
                             className={`option-item ${flightBookingMode === 'own' ? 'selected' : ''}`}
                             onClick={() => {
                               setFlightBookingMode('own');
-                              setSelectedFlight(null);
+                              setSelectedArrivalFlight(null);
+                              setSelectedDepartureFlight(null);
                             }}
                             style={{ padding: '1rem', cursor: 'pointer', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}
                           >
@@ -966,7 +990,7 @@ export default function App() {
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                             <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem', backgroundColor: 'var(--bg-light)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                               <div className="search-field">
-                                <label>Departure Airport</label>
+                                <label>Departure Airport (Home)</label>
                                 <select 
                                   className="search-input"
                                   value={flightInfo.arrivalAirportId}
@@ -978,7 +1002,7 @@ export default function App() {
                                 </select>
                               </div>
                               <div className="search-field">
-                                <label>Flight Date</label>
+                                <label>Inbound Date</label>
                                 <input 
                                   type="date" 
                                   className="search-input" 
@@ -991,9 +1015,9 @@ export default function App() {
                                 className="search-submit-btn" 
                                 style={{ gridColumn: 'span 2', display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', padding: '0.75rem' }}
                                 onClick={triggerFlightSearch}
-                                disabled={isSearchingFlights}
+                                disabled={isSearchingArrival || isSearchingDeparture}
                               >
-                                {isSearchingFlights ? (
+                                {isSearchingArrival || isSearchingDeparture ? (
                                   <>
                                     <svg className="animate-spin" viewBox="0 0 24 24" fill="none" style={{ width: '16px', height: '16px' }}>
                                       <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="4" strokeDasharray="30 30" />
@@ -1002,55 +1026,90 @@ export default function App() {
                                   </>
                                 ) : (
                                   <>
-                                    <Compass className="h-4 w-4" /> Search Live Flights
+                                    <Compass className="h-4 w-4" /> Search Live Inbound & Outbound Flights
                                   </>
                                 )}
                               </button>
                             </div>
 
                             {/* Live Flight Selection Results */}
-                            {liveFlights.length > 0 ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary)' }}>Available Live Carrier Schedules:</span>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                  {liveFlights.map((lf, idx) => (
-                                    <div 
-                                      key={idx} 
-                                      style={{ 
-                                        display: 'flex', 
-                                        justifyContent: 'space-between', 
-                                        alignItems: 'center', 
-                                        padding: '1rem', 
-                                        border: selectedFlight?.flightNumber === lf.flightNumber ? '2px solid var(--primary)' : '1px solid var(--border-color)', 
-                                        borderRadius: '12px', 
-                                        cursor: 'pointer', 
-                                        backgroundColor: selectedFlight?.flightNumber === lf.flightNumber ? 'var(--primary-light)' : 'white',
-                                        transition: 'var(--transition)'
-                                      }}
-                                      onClick={() => setSelectedFlight(lf)}
-                                    >
-                                      <div>
-                                        <span style={{ fontSize: '0.9rem', fontWeight: 800, display: 'block', color: 'var(--text-dark)' }}>{lf.carrier} ({lf.flightNumber})</span>
-                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Departure: {lf.departureTime} | Arrival: {lf.arrivalTime}</span>
+                            <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                              
+                              {/* Inbound flight block */}
+                              <div>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>1. Select Inbound Flight (Home → KSA)</span>
+                                {liveArrivalFlights.length > 0 ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    {liveArrivalFlights.map((lf, idx) => (
+                                      <div 
+                                        key={idx} 
+                                        style={{ 
+                                          display: 'flex', 
+                                          justifyContent: 'space-between', 
+                                          alignItems: 'center', 
+                                          padding: '0.75rem', 
+                                          border: selectedArrivalFlight?.flightNumber === lf.flightNumber ? '2px solid var(--primary)' : '1px solid var(--border-color)', 
+                                          borderRadius: '8px', 
+                                          cursor: 'pointer', 
+                                          backgroundColor: selectedArrivalFlight?.flightNumber === lf.flightNumber ? 'var(--primary-light)' : 'white'
+                                        }}
+                                        onClick={() => setSelectedArrivalFlight(lf)}
+                                      >
+                                        <div>
+                                          <span style={{ fontSize: '0.8rem', fontWeight: 700, display: 'block', color: 'var(--text-dark)' }}>{lf.carrier} ({lf.flightNumber})</span>
+                                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Departs: {lf.departureTime} | Arrives: {lf.arrivalTime}</span>
+                                        </div>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--secondary)' }}>{lf.price} SAR</span>
                                       </div>
-                                      <div style={{ textAlign: 'right' }}>
-                                        <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--secondary)', display: 'block' }}>{lf.price} SAR</span>
-                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>per pilgrim</span>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div style={{ padding: '1.5rem', textAlign: 'center', border: '1px dashed var(--border-color)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                                    No inbound flights fetched.
+                                  </div>
+                                )}
                               </div>
-                            ) : (
-                              <div style={{ padding: '2rem', textAlign: 'center', border: '1px dashed var(--border-color)', borderRadius: '12px', color: 'var(--text-muted)' }}>
-                                <Info className="h-6 w-6 mx-auto mb-2 text-secondary" />
-                                <p>No flight schedules loaded yet. Click <b>Search Live Flights</b> to fetch live schedules.</p>
-                              </div>
-                            )}
 
-                            {selectedFlight && (
+                              {/* Outbound flight block */}
+                              <div>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>2. Select Outbound Flight (KSA → Home)</span>
+                                {liveDepartureFlights.length > 0 ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    {liveDepartureFlights.map((lf, idx) => (
+                                      <div 
+                                        key={idx} 
+                                        style={{ 
+                                          display: 'flex', 
+                                          justifyContent: 'space-between', 
+                                          alignItems: 'center', 
+                                          padding: '0.75rem', 
+                                          border: selectedDepartureFlight?.flightNumber === lf.flightNumber ? '2px solid var(--primary)' : '1px solid var(--border-color)', 
+                                          borderRadius: '8px', 
+                                          cursor: 'pointer', 
+                                          backgroundColor: selectedDepartureFlight?.flightNumber === lf.flightNumber ? 'var(--primary-light)' : 'white'
+                                        }}
+                                        onClick={() => setSelectedDepartureFlight(lf)}
+                                      >
+                                        <div>
+                                          <span style={{ fontSize: '0.8rem', fontWeight: 700, display: 'block', color: 'var(--text-dark)' }}>{lf.carrier} ({lf.flightNumber})</span>
+                                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Departs: {lf.departureTime} | Arrives: {lf.arrivalTime}</span>
+                                        </div>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--secondary)' }}>{lf.price} SAR</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div style={{ padding: '1.5rem', textAlign: 'center', border: '1px dashed var(--border-color)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                                    No outbound flights fetched.
+                                  </div>
+                                )}
+                              </div>
+
+                            </div>
+
+                            {selectedArrivalFlight && selectedDepartureFlight && (
                               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', padding: '1rem', backgroundColor: 'var(--primary-light)', borderRadius: '8px', border: '1px solid var(--gold-border)', color: 'var(--primary)', fontWeight: 700, fontSize: '0.85rem' }}>
-                                <CheckCircle className="h-5 w-5" /> Selected Flight: {selectedFlight.carrier} ({selectedFlight.flightNumber}) - {selectedFlight.price * dates.travelers} SAR total cost included.
+                                <CheckCircle className="h-5 w-5" /> Selected Inbound: {selectedArrivalFlight.flightNumber} | Outbound: {selectedDepartureFlight.flightNumber} - {((selectedArrivalFlight.price + selectedDepartureFlight.price) * dates.travelers)} SAR total cost included.
                               </div>
                             )}
                           </div>
@@ -1181,7 +1240,7 @@ export default function App() {
                           <button className="nav-back-btn" onClick={() => setStep(1)}>Back</button>
                           <button 
                             className="book-btn" 
-                            disabled={flightBookingMode === 'book' && !selectedFlight}
+                            disabled={flightBookingMode === 'book' && (!selectedArrivalFlight || !selectedDepartureFlight)}
                             onClick={() => setStep(3)}
                           >
                             Configure Stays <ChevronRight className="h-4 w-4" />
@@ -1674,7 +1733,13 @@ export default function App() {
                             </div>
                             <div className="summary-row">
                               <span className="summary-label">Flight Selection</span>
-                              <span className="summary-value">{flightInfo.isWithoutTicket ? 'Without Ticket' : `${flightInfo.arrivalFlightNumber} / ${flightInfo.departureFlightNumber}`}</span>
+                              <span className="summary-value">
+                                {flightBookingMode === 'own' 
+                                  ? (skipOwnFlightDetails ? 'Without Ticket' : `${flightInfo.arrivalFlightNumber} / ${flightInfo.departureFlightNumber}`)
+                                  : (selectedArrivalFlight && selectedDepartureFlight 
+                                      ? `${selectedArrivalFlight.flightNumber} / ${selectedDepartureFlight.flightNumber}` 
+                                      : 'No Flights Selected')}
+                              </span>
                             </div>
                           </>
                         )}
