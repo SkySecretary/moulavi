@@ -142,6 +142,9 @@ export default function App() {
   const [passportFile, setPassportFile] = useState<File | null>(null);
   const [liveFlights, setLiveFlights] = useState<any[]>([]);
   const [isSearchingFlights, setIsSearchingFlights] = useState(false);
+  const [flightBookingMode, setFlightBookingMode] = useState<'book' | 'own'>('book');
+  const [selectedFlight, setSelectedFlight] = useState<any>(null);
+  const [skipOwnFlightDetails, setSkipOwnFlightDetails] = useState(false);
 
   const [traveler, setTraveler] = useState({
     fullName: '',
@@ -241,7 +244,8 @@ export default function App() {
             madinahNights: dates.madinahNights,
             travelersCount: dates.travelers,
             transportOptionId: selectedRouteId,
-            flightOptionId: flightInfo.isWithoutTicket ? 'none' : 'flight-custom'
+            flightOptionId: flightBookingMode === 'own' ? 'none' : 'flight-live',
+            flightPrice: flightBookingMode === 'own' ? 0 : (selectedFlight?.price || 0)
           })
         });
         const resData = await response.json();
@@ -262,8 +266,8 @@ export default function App() {
       
       const mPrice = (mHotel?.pricePerNight || 350) * dates.makkahNights;
       const dPrice = (dHotel?.pricePerNight || 300) * dates.madinahNights;
-      const fPrice = flightInfo.isWithoutTicket ? 0 : 950 * dates.travelers;
-      const vPrice = dates.accommodationType === 'iqama' ? 0 : 450 * dates.travelers; // Iqama does not pay full visa cost
+      const fPrice = flightBookingMode === 'own' ? 0 : (selectedFlight?.price || 0) * dates.travelers;
+      const vPrice = dates.accommodationType === 'iqama' ? 0 : 450 * dates.travelers;
       const rPrice = Number(rt?.price) || 500;
 
       const subtotal = mPrice + dPrice + fPrice + vPrice + rPrice;
@@ -284,8 +288,9 @@ export default function App() {
     selectedMakkahHotelId, 
     selectedMadinahHotelId, 
     selectedRouteId, 
-    flightInfo.isWithoutTicket, 
-    hotels, 
+    flightBookingMode,
+    selectedFlight,
+    hotels,
     routes
   ]);
 
@@ -377,6 +382,8 @@ export default function App() {
 
     setIsProcessingCheckout(true);
     try {
+      const isWithoutTkt = flightBookingMode === 'own' && skipOwnFlightDetails;
+      
       const payload = {
         fullName: traveler.fullName,
         passportNumber: traveler.passportNumber,
@@ -391,12 +398,12 @@ export default function App() {
         madinahHotelId: selectedMadinahHotelId,
         transportOptionId: selectedRouteId,
         accommodationType: dates.accommodationType,
-        isWithoutTicket: flightInfo.isWithoutTicket,
-        arrivalFlightNumber: flightInfo.arrivalFlightNumber,
-        arrivalDateTime: `${flightInfo.arrivalDate}T${flightInfo.arrivalTime}:00.000Z`,
+        isWithoutTicket: isWithoutTkt,
+        arrivalFlightNumber: isWithoutTkt ? 'NT-0000' : (flightBookingMode === 'own' ? flightInfo.arrivalFlightNumber : (selectedFlight?.flightNumber || 'SV-300')),
+        arrivalDateTime: isWithoutTkt ? `${dates.checkIn}T12:00:00.000Z` : (flightBookingMode === 'own' ? `${flightInfo.arrivalDate}T${flightInfo.arrivalTime}:00.000Z` : `${dates.checkIn}T${selectedFlight?.departureTime || '08:00'}:00.000Z`),
         arrivalAirportId: flightInfo.arrivalAirportId,
-        departureFlightNumber: flightInfo.departureFlightNumber,
-        departureDateTime: `${flightInfo.departureDate}T${flightInfo.departureTime}:00.000Z`,
+        departureFlightNumber: isWithoutTkt ? 'NT-0000' : (flightBookingMode === 'own' ? flightInfo.departureFlightNumber : (selectedFlight?.flightNumber || 'SV-301')),
+        departureDateTime: isWithoutTkt ? `${dates.checkIn}T12:00:00.000Z` : (flightBookingMode === 'own' ? `${flightInfo.departureDate}T${flightInfo.departureTime}:00.000Z` : `${dates.checkIn}T${selectedFlight?.arrivalTime || '22:00'}:00.000Z`),
         departureAirportId: flightInfo.departureAirportId,
         iqamaNumber: iqamaDetails.iqamaNumber,
         iqamaSponserName: iqamaDetails.iqamaSponserName,
@@ -927,172 +934,256 @@ export default function App() {
                     {step === 2 && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                         
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', backgroundColor: 'var(--primary-light)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                          <input 
-                            type="checkbox" 
-                            id="isWithoutTicket" 
-                            checked={flightInfo.isWithoutTicket}
-                            onChange={(e) => setFlightInfo({ ...flightInfo, isWithoutTicket: e.target.checked })}
-                          />
-                          <label htmlFor="isWithoutTicket" style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary)', cursor: 'pointer' }}>
-                            I will purchase my own flight tickets (Without Ticket option)
-                          </label>
+                        {/* Selector for flight search mode vs own ticket */}
+                        <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                          <div 
+                            className={`option-item ${flightBookingMode === 'book' ? 'selected' : ''}`}
+                            onClick={() => {
+                              setFlightBookingMode('book');
+                              setSkipOwnFlightDetails(false);
+                            }}
+                            style={{ padding: '1rem', cursor: 'pointer', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}
+                          >
+                            <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>Book Flights with Package</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Search and select live schedules</span>
+                          </div>
+                          
+                          <div 
+                            className={`option-item ${flightBookingMode === 'own' ? 'selected' : ''}`}
+                            onClick={() => {
+                              setFlightBookingMode('own');
+                              setSelectedFlight(null);
+                            }}
+                            style={{ padding: '1rem', cursor: 'pointer', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}
+                          >
+                            <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>I Have My Own Ticket</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Provide ticket details or skip</span>
+                          </div>
                         </div>
 
-                        {!flightInfo.isWithoutTicket ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '0.5rem' }}>
-                            
-                            {/* Live Flight Schedule Lookup */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '0.5rem' }}>
+                        {/* MODE A: LIVE FLIGHT SEARCH & BOOKING */}
+                        {flightBookingMode === 'book' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                            <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem', backgroundColor: 'var(--bg-light)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                              <div className="search-field">
+                                <label>Departure Airport</label>
+                                <select 
+                                  className="search-input"
+                                  value={flightInfo.arrivalAirportId}
+                                  onChange={(e) => setFlightInfo({ ...flightInfo, arrivalAirportId: e.target.value })}
+                                >
+                                  {airports.map(apt => (
+                                    <option key={apt.id} value={apt.id}>{apt.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="search-field">
+                                <label>Flight Date</label>
+                                <input 
+                                  type="date" 
+                                  className="search-input" 
+                                  value={dates.checkIn}
+                                  onChange={(e) => setDates({ ...dates, checkIn: e.target.value })}
+                                />
+                              </div>
                               <button 
                                 type="button" 
-                                className="tab-btn" 
-                                style={{ alignSelf: 'flex-start', padding: '0.5rem 1.25rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }} 
+                                className="search-submit-btn" 
+                                style={{ gridColumn: 'span 2', display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', padding: '0.75rem' }}
                                 onClick={triggerFlightSearch}
                                 disabled={isSearchingFlights}
                               >
                                 {isSearchingFlights ? (
                                   <>
-                                    <svg className="animate-spin" viewBox="0 0 24 24" fill="none" style={{ width: '14px', height: '14px' }}>
-                                      <circle cx="12" cy="12" r="10" stroke="var(--primary)" strokeWidth="4" strokeDasharray="30 30" />
+                                    <svg className="animate-spin" viewBox="0 0 24 24" fill="none" style={{ width: '16px', height: '16px' }}>
+                                      <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="4" strokeDasharray="30 30" />
                                     </svg>
                                     Searching Live API...
                                   </>
-                                ) : 'Search Live Flight Schedules'}
+                                ) : (
+                                  <>
+                                    <Compass className="h-4 w-4" /> Search Live Flights
+                                  </>
+                                )}
                               </button>
+                            </div>
 
-                              {liveFlights.length > 0 && (
-                                <div style={{ backgroundColor: 'var(--primary-light)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--gold-border)' }}>
-                                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary)', display: 'block', marginBottom: '0.75rem' }}>Select Approved Carrier Schedule</span>
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                    {liveFlights.map((lf, idx) => (
-                                      <div 
-                                        key={idx} 
-                                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer', backgroundColor: 'white' }}
-                                        onClick={() => {
-                                          setFlightInfo(prev => ({
-                                            ...prev,
-                                            arrivalFlightNumber: lf.flightNumber,
-                                            arrivalTime: lf.departureTime,
-                                          }));
-                                          alert(`Selected Live flight: ${lf.carrier} (${lf.flightNumber}) at ${lf.departureTime}`);
-                                        }}
-                                      >
-                                        <div>
-                                          <span style={{ fontSize: '0.85rem', fontWeight: 700, display: 'block', color: 'var(--text-dark)' }}>{lf.carrier} ({lf.flightNumber})</span>
-                                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Departs: {lf.departureTime} | Arrives: {lf.arrivalTime}</span>
-                                        </div>
-                                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--secondary)' }}>{lf.price} SAR</span>
+                            {/* Live Flight Selection Results */}
+                            {liveFlights.length > 0 ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary)' }}>Available Live Carrier Schedules:</span>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                  {liveFlights.map((lf, idx) => (
+                                    <div 
+                                      key={idx} 
+                                      style={{ 
+                                        display: 'flex', 
+                                        justifyContent: 'space-between', 
+                                        alignItems: 'center', 
+                                        padding: '1rem', 
+                                        border: selectedFlight?.flightNumber === lf.flightNumber ? '2px solid var(--primary)' : '1px solid var(--border-color)', 
+                                        borderRadius: '12px', 
+                                        cursor: 'pointer', 
+                                        backgroundColor: selectedFlight?.flightNumber === lf.flightNumber ? 'var(--primary-light)' : 'white',
+                                        transition: 'var(--transition)'
+                                      }}
+                                      onClick={() => setSelectedFlight(lf)}
+                                    >
+                                      <div>
+                                        <span style={{ fontSize: '0.9rem', fontWeight: 800, display: 'block', color: 'var(--text-dark)' }}>{lf.carrier} ({lf.flightNumber})</span>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Departure: {lf.departureTime} | Arrival: {lf.arrivalTime}</span>
                                       </div>
-                                    ))}
+                                      <div style={{ textAlign: 'right' }}>
+                                        <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--secondary)', display: 'block' }}>{lf.price} SAR</span>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>per pilgrim</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ padding: '2rem', textAlign: 'center', border: '1px dashed var(--border-color)', borderRadius: '12px', color: 'var(--text-muted)' }}>
+                                <Info className="h-6 w-6 mx-auto mb-2 text-secondary" />
+                                <p>No flight schedules loaded yet. Click <b>Search Live Flights</b> to fetch live schedules.</p>
+                              </div>
+                            )}
+
+                            {selectedFlight && (
+                              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', padding: '1rem', backgroundColor: 'var(--primary-light)', borderRadius: '8px', border: '1px solid var(--gold-border)', color: 'var(--primary)', fontWeight: 700, fontSize: '0.85rem' }}>
+                                <CheckCircle className="h-5 w-5" /> Selected Flight: {selectedFlight.carrier} ({selectedFlight.flightNumber}) - {selectedFlight.price * dates.travelers} SAR total cost included.
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* MODE B: OWN TICKETS (MANUAL FORM OR SKIP) */}
+                        {flightBookingMode === 'own' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', backgroundColor: 'var(--primary-light)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                              <input 
+                                type="checkbox" 
+                                id="skipOwnFlightDetails" 
+                                checked={skipOwnFlightDetails}
+                                onChange={(e) => setSkipOwnFlightDetails(e.target.checked)}
+                              />
+                              <label htmlFor="skipOwnFlightDetails" style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary)', cursor: 'pointer' }}>
+                                Skip flight details entry completely (I will supply them later)
+                              </label>
+                            </div>
+
+                            {!skipOwnFlightDetails ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '0.5rem' }}>
+                                
+                                {/* Arrival flights */}
+                                <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem' }}>
+                                  <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>Arrival Flight Info</h4>
+                                  <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                    <div className="search-field">
+                                      <label>Carrier / Flight Number</label>
+                                      <input 
+                                        type="text" 
+                                        className="search-input" 
+                                        value={flightInfo.arrivalFlightNumber}
+                                        onChange={(e) => setFlightInfo({ ...flightInfo, arrivalFlightNumber: e.target.value })}
+                                      />
+                                    </div>
+                                    <div className="search-field">
+                                      <label>Arrival Airport</label>
+                                      <select 
+                                        className="search-input"
+                                        value={flightInfo.arrivalAirportId}
+                                        onChange={(e) => setFlightInfo({ ...flightInfo, arrivalAirportId: e.target.value })}
+                                      >
+                                        {airports.map(apt => (
+                                          <option key={apt.id} value={apt.id}>{apt.name}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    <div className="search-field">
+                                      <label>Arrival Date</label>
+                                      <input 
+                                        type="date" 
+                                        className="search-input" 
+                                        value={flightInfo.arrivalDate}
+                                        onChange={(e) => setFlightInfo({ ...flightInfo, arrivalDate: e.target.value })}
+                                      />
+                                    </div>
+                                    <div className="search-field">
+                                      <label>Arrival Time</label>
+                                      <input 
+                                        type="time" 
+                                        className="search-input" 
+                                        value={flightInfo.arrivalTime}
+                                        onChange={(e) => setFlightInfo({ ...flightInfo, arrivalTime: e.target.value })}
+                                      />
+                                    </div>
                                   </div>
                                 </div>
-                              )}
-                            </div>
 
-                            {/* Arrival flights */}
-                            <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem' }}>
-                              <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>Arrival Flight Info</h4>
-                              <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                <div className="search-field">
-                                  <label>Carrier / Flight Number</label>
-                                  <input 
-                                    type="text" 
-                                    className="search-input" 
-                                    value={flightInfo.arrivalFlightNumber}
-                                    onChange={(e) => setFlightInfo({ ...flightInfo, arrivalFlightNumber: e.target.value })}
-                                  />
+                                {/* Departure flights */}
+                                <div>
+                                  <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>Departure Flight Info</h4>
+                                  <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                    <div className="search-field">
+                                      <label>Carrier / Flight Number</label>
+                                      <input 
+                                        type="text" 
+                                        className="search-input" 
+                                        value={flightInfo.departureFlightNumber}
+                                        onChange={(e) => setFlightInfo({ ...flightInfo, departureFlightNumber: e.target.value })}
+                                      />
+                                    </div>
+                                    <div className="search-field">
+                                      <label>Departure Airport</label>
+                                      <select 
+                                        className="search-input"
+                                        value={flightInfo.departureAirportId}
+                                        onChange={(e) => setFlightInfo({ ...flightInfo, departureAirportId: e.target.value })}
+                                      >
+                                        {airports.map(apt => (
+                                          <option key={apt.id} value={apt.id}>{apt.name}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    <div className="search-field">
+                                      <label>Departure Date</label>
+                                      <input 
+                                        type="date" 
+                                        className="search-input" 
+                                        value={flightInfo.departureDate}
+                                        onChange={(e) => setFlightInfo({ ...flightInfo, departureDate: e.target.value })}
+                                      />
+                                    </div>
+                                    <div className="search-field">
+                                      <label>Departure Time</label>
+                                      <input 
+                                        type="time" 
+                                        className="search-input" 
+                                        value={flightInfo.departureTime}
+                                        onChange={(e) => setFlightInfo({ ...flightInfo, departureTime: e.target.value })}
+                                      />
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="search-field">
-                                  <label>Arrival Airport</label>
-                                  <select 
-                                    className="search-input"
-                                    value={flightInfo.arrivalAirportId}
-                                    onChange={(e) => setFlightInfo({ ...flightInfo, arrivalAirportId: e.target.value })}
-                                  >
-                                    {airports.map(apt => (
-                                      <option key={apt.id} value={apt.id}>{apt.name}</option>
-                                    ))}
-                                  </select>
-                                </div>
-                                <div className="search-field">
-                                  <label>Arrival Date</label>
-                                  <input 
-                                    type="date" 
-                                    className="search-input" 
-                                    value={flightInfo.arrivalDate}
-                                    onChange={(e) => setFlightInfo({ ...flightInfo, arrivalDate: e.target.value })}
-                                  />
-                                </div>
-                                <div className="search-field">
-                                  <label>Arrival Time</label>
-                                  <input 
-                                    type="time" 
-                                    className="search-input" 
-                                    value={flightInfo.arrivalTime}
-                                    onChange={(e) => setFlightInfo({ ...flightInfo, arrivalTime: e.target.value })}
-                                  />
-                                </div>
+
                               </div>
-                            </div>
-
-                            {/* Departure flights */}
-                            <div>
-                              <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>Departure Flight Info</h4>
-                              <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                <div className="search-field">
-                                  <label>Carrier / Flight Number</label>
-                                  <input 
-                                    type="text" 
-                                    className="search-input" 
-                                    value={flightInfo.departureFlightNumber}
-                                    onChange={(e) => setFlightInfo({ ...flightInfo, departureFlightNumber: e.target.value })}
-                                  />
-                                </div>
-                                <div className="search-field">
-                                  <label>Departure Airport</label>
-                                  <select 
-                                    className="search-input"
-                                    value={flightInfo.departureAirportId}
-                                    onChange={(e) => setFlightInfo({ ...flightInfo, departureAirportId: e.target.value })}
-                                  >
-                                    {airports.map(apt => (
-                                      <option key={apt.id} value={apt.id}>{apt.name}</option>
-                                    ))}
-                                  </select>
-                                </div>
-                                <div className="search-field">
-                                  <label>Departure Date</label>
-                                  <input 
-                                    type="date" 
-                                    className="search-input" 
-                                    value={flightInfo.departureDate}
-                                    onChange={(e) => setFlightInfo({ ...flightInfo, departureDate: e.target.value })}
-                                  />
-                                </div>
-                                <div className="search-field">
-                                  <label>Departure Time</label>
-                                  <input 
-                                    type="time" 
-                                    className="search-input" 
-                                    value={flightInfo.departureTime}
-                                    onChange={(e) => setFlightInfo({ ...flightInfo, departureTime: e.target.value })}
-                                  />
-                                </div>
+                            ) : (
+                              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                <Info className="h-8 w-8 mx-auto mb-2 text-secondary" />
+                                <p>You have selected to <b>Skip</b> entering flight details. We will request them from you closer to departure.</p>
                               </div>
-                            </div>
+                            )}
 
-                          </div>
-                        ) : (
-                          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                            <Info className="h-8 w-8 mx-auto mb-2 text-secondary" />
-                            <p>You have selected the <b>Without Ticket</b> option. No flight details will be cleared on checkout.</p>
                           </div>
                         )}
 
                         <div className="step-nav">
                           <button className="nav-back-btn" onClick={() => setStep(1)}>Back</button>
-                          <button className="book-btn" onClick={() => setStep(3)}>
+                          <button 
+                            className="book-btn" 
+                            disabled={flightBookingMode === 'book' && !selectedFlight}
+                            onClick={() => setStep(3)}
+                          >
                             Configure Stays <ChevronRight className="h-4 w-4" />
                           </button>
                         </div>
