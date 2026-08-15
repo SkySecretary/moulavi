@@ -5,7 +5,6 @@ import {
   Building, 
   Car, 
   FileText, 
-  CreditCard, 
   CheckCircle, 
   ChevronRight, 
   ShieldCheck, 
@@ -99,7 +98,6 @@ export default function App() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [otpVerified, setOtpVerified] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [bookingFinished, setBookingFinished] = useState(false);
   const [bookingRef, setBookingRef] = useState('');
@@ -109,10 +107,7 @@ export default function App() {
     passportNumber: '',
     nationality: 'United States',
     mobile: '',
-    email: '',
-    cardNumber: '4111 2222 3333 4444',
-    cardExpiry: '12/29',
-    cardCvv: '123'
+    email: ''
   });
 
   // 1. Fetch system masters from ERP backend
@@ -234,22 +229,17 @@ export default function App() {
     routes
   ]);
 
-  // Simulate Passport OCR Scan
-  const simulatePassportScan = () => {
-    setIsScanning(true);
-    setTimeout(() => {
-      setTraveler(prev => ({
-        ...prev,
-        fullName: 'Johnathan Doe',
-        passportNumber: 'EP9832104',
-        nationality: 'United States',
-      }));
-      setIsScanning(false);
-      alert('Passport details extracted and verified!');
-    }, 2000);
+  const [passportFile, setPassportFile] = useState<File | null>(null);
+
+  const handlePassportUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setPassportFile(file);
+      alert(`Passport file "${file.name}" uploaded successfully. Please fill out your details manually below.`);
+    }
   };
 
-  // Simulate OTP Verification via WhatsApp Service
+  // OTP Verification via WhatsApp Service
   const requestOtp = async () => {
     if (!traveler.mobile) {
       alert('Please enter your mobile number first');
@@ -257,7 +247,7 @@ export default function App() {
     }
     setOtpSent(true);
     try {
-      await fetch('/api/b2c/auth/otp-request', {
+      const response = await fetch('/api/b2c/auth/otp-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -266,39 +256,40 @@ export default function App() {
           fullName: traveler.fullName || 'Pilgrim'
         })
       });
+      const resData = await response.json();
+      if (!response.ok || !resData.success) {
+        alert(resData.error || 'Failed to dispatch verification code. Please check your number.');
+      } else {
+        alert('Verification code sent to your WhatsApp!');
+      }
     } catch (err) {
-      console.log('Sending mock WhatsApp OTP notification...');
+      alert('Failed to connect to the WhatsApp OTP gateway.');
     }
   };
 
   const verifyOtp = async () => {
-    if (otpCode === '1234') {
-      setOtpVerified(true);
-      setOtpSent(false);
-    } else {
-      try {
-        const response = await fetch('/api/b2c/auth/otp-verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            mobileNumber: traveler.mobile,
-            otp: otpCode
-          })
-        });
-        const resData = await response.json();
-        if (resData.success) {
-          setOtpVerified(true);
-          setOtpSent(false);
-        } else {
-          alert('Invalid OTP. Please enter 1234 to verify.');
-        }
-      } catch (err) {
-        alert('Invalid OTP. Please enter 1234 to verify.');
+    try {
+      const response = await fetch('/api/b2c/auth/otp-verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mobileNumber: traveler.mobile,
+          otp: otpCode
+        })
+      });
+      const resData = await response.json();
+      if (resData.success) {
+        setOtpVerified(true);
+        setOtpSent(false);
+      } else {
+        alert(resData.error || 'Invalid OTP code. Please enter the correct code sent to your WhatsApp.');
       }
+    } catch (err) {
+      alert('OTP verification failed. Please try again.');
     }
   };
 
-  // Complete checkout payment & dispatch e-Visa
+  // Complete checkout and lock allotments
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otpVerified) {
@@ -334,19 +325,13 @@ export default function App() {
         setBookingRef(resData.bookingReference);
         setBookingFinished(true);
       } else {
-        simulateSuccessfulCheckout();
+        alert(resData.error || 'Failed to complete booking. Please verify hotel allotments.');
       }
     } catch (err) {
-      simulateSuccessfulCheckout();
+      alert('Checkout failed due to network error.');
     } finally {
       setIsProcessingCheckout(false);
     }
-  };
-
-  const simulateSuccessfulCheckout = () => {
-    const randomSuffix = Math.floor(100000 + Math.random() * 900000);
-    setBookingRef(`UMR-2026-${randomSuffix}`);
-    setBookingFinished(true);
   };
 
   const selectedMakkahHotelName = hotels.find(h => h.id === selectedMakkahHotelId)?.name || 'Pullman Zamzam Makkah (5★)';
@@ -883,22 +868,20 @@ export default function App() {
                         
                         {/* Passport Scanner */}
                         <div>
-                          <span className="price-label" style={{ fontWeight: 700, marginBottom: '0.5rem', display: 'block' }}>Ministry verification passport OCR</span>
-                          <div className="scan-box" onClick={simulatePassportScan}>
-                            {isScanning ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-                                <svg className="animate-spin" viewBox="0 0 24 24" fill="none" style={{ width: '40px', height: '40px' }}>
-                                  <circle cx="12" cy="12" r="10" stroke="var(--primary)" strokeWidth="4" strokeDasharray="30 30" />
-                                </svg>
-                                <span className="scan-title">Extracting pilgrim manifest fields...</span>
-                              </div>
-                            ) : (
-                              <>
-                                <Camera className="h-8 w-8 mx-auto text-primary" />
-                                <h4 className="scan-title">Simulate Passport Scan</h4>
-                                <p className="scan-desc">Click here to scan traveler passport image and pre-populate fields instantly</p>
-                              </>
-                            )}
+                          <span className="price-label" style={{ fontWeight: 700, marginBottom: '0.5rem', display: 'block' }}>Ministry verification passport upload</span>
+                          <div className="scan-box" onClick={() => document.getElementById('passport-file-input')?.click()}>
+                            <input 
+                              type="file" 
+                              id="passport-file-input" 
+                              style={{ display: 'none' }} 
+                              accept="image/*,application/pdf"
+                              onChange={handlePassportUpload}
+                            />
+                            <Camera className="h-8 w-8 mx-auto text-primary" />
+                            <h4 className="scan-title">
+                              {passportFile ? `Uploaded: ${passportFile.name}` : 'Upload Passport Copy'}
+                            </h4>
+                            <p className="scan-desc">Click here to upload your passport image or PDF for e-Visa records</p>
                           </div>
                         </div>
 
@@ -994,25 +977,6 @@ export default function App() {
                           )}
                         </div>
 
-                        {/* Credit Card Gate */}
-                        <div>
-                          <span className="price-label" style={{ fontWeight: 700, marginBottom: '0.75rem', display: 'block' }}>Mada / Visa / Credit Card Payment</span>
-                          <div className="search-grid" style={{ gridTemplateColumns: '2fr 1fr 1fr', gap: '1.25rem' }}>
-                            <div className="search-field">
-                              <label>Card Number</label>
-                              <input type="text" className="search-input" defaultValue="4111 2222 3333 4444" required />
-                            </div>
-                            <div className="search-field">
-                              <label>Expiry</label>
-                              <input type="text" className="search-input" defaultValue="12/29" required />
-                            </div>
-                            <div className="search-field">
-                              <label>CVV</label>
-                              <input type="password" className="search-input" defaultValue="123" required />
-                            </div>
-                          </div>
-                        </div>
-
                         {/* Submit Checkout */}
                         <div className="step-nav">
                           <button 
@@ -1040,11 +1004,11 @@ export default function App() {
                                 <svg className="animate-spin" viewBox="0 0 24 24" fill="none" style={{ width: '18px', height: '18px' }}>
                                   <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="4" strokeDasharray="30 30" />
                                 </svg>
-                                Processing Visa & Booking Allotments...
+                                Confirming Allotments & Generating eVisa...
                               </>
                             ) : (
                               <>
-                                <CreditCard className="h-4 w-4" /> Pay & Generate e-Visa ({quotePrices.total} SAR)
+                                <CheckCircle className="h-4 w-4" /> Confirm Booking & Generate eVisa ({quotePrices.total} SAR)
                               </>
                             )}
                           </button>
