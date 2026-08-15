@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Compass, 
   Sparkles, 
@@ -7,6 +7,7 @@ import {
   FileText, 
   CheckCircle, 
   ChevronRight, 
+  ChevronDown, 
   ShieldCheck, 
   FileCheck, 
   Camera, 
@@ -103,6 +104,140 @@ const DEFAULT_ROUTES = [
   { id: 'r-3', routeType: 'Madinah → Makkah → Jeddah', price: 600 }
 ];
 
+interface SearchableSelectOption {
+  id: string;
+  name: string;
+  city?: string;
+}
+
+function SearchableSelect({ 
+  options, 
+  value, 
+  onChange, 
+  placeholder 
+}: { 
+  options: SearchableSelectOption[]; 
+  value: string; 
+  onChange: (val: string) => void; 
+  placeholder: string; 
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedOpt = options.find(o => o.id === value);
+  const filtered = options.filter(o => 
+    o.name.toLowerCase().includes(search.toLowerCase()) || 
+    (o.city && o.city.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
+      <div 
+        onClick={() => { setIsOpen(!isOpen); setSearch(''); }}
+        style={{
+          padding: '0.65rem 1rem',
+          border: '1px solid var(--border-color)',
+          borderRadius: '8px',
+          backgroundColor: 'white',
+          cursor: 'pointer',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontSize: '0.85rem',
+          minHeight: '42px'
+        }}
+      >
+        <span style={{ color: selectedOpt ? 'var(--text-dark)' : 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+          {selectedOpt ? selectedOpt.name : placeholder}
+        </span>
+        <ChevronDown className="h-4 w-4 text-secondary flex-shrink-0" />
+      </div>
+
+      {isOpen && (
+        <div style={{
+          position: 'absolute',
+          top: '105%',
+          left: 0,
+          right: 0,
+          backgroundColor: 'white',
+          border: '1px solid var(--border-color)',
+          borderRadius: '8px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+          zIndex: 9999,
+          maxHeight: '260px',
+          overflowY: 'auto',
+          padding: '0.5rem'
+        }}>
+          <input 
+            type="text"
+            placeholder="Type city or airport name to search..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '0.55rem',
+              border: '1px solid var(--border-color)',
+              borderRadius: '6px',
+              marginBottom: '0.5rem',
+              fontSize: '0.8rem',
+              outline: 'none',
+              boxSizing: 'border-box'
+            }}
+            onClick={(e) => e.stopPropagation()}
+            autoFocus
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            {filtered.length > 0 ? (
+              filtered.map(opt => (
+                <div
+                  key={opt.id}
+                  onClick={() => {
+                    onChange(opt.id);
+                    setIsOpen(false);
+                  }}
+                  style={{
+                    padding: '0.55rem 0.75rem',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    borderRadius: '4px',
+                    backgroundColor: opt.id === value ? 'var(--primary-light)' : 'transparent',
+                    color: opt.id === value ? 'var(--primary)' : 'var(--text-dark)',
+                    fontWeight: opt.id === value ? 'bold' : 'normal',
+                    transition: 'background-color 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (opt.id !== value) e.currentTarget.style.backgroundColor = '#f5f7f6';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (opt.id !== value) e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  {opt.name}
+                </div>
+              ))
+            ) : (
+              <div style={{ padding: '0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                No matching records found
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<'packages' | 'builder'>('packages');
   const [packages, setPackages] = useState<any[]>([]);
@@ -145,6 +280,8 @@ export default function App() {
   const [selectedMadinahHotelId, setSelectedMadinahHotelId] = useState('');
   const [selectedRouteId, setSelectedRouteId] = useState('');
   const [selectedVehicleType, setSelectedVehicleType] = useState('SUV');
+  const [makkahSearch, setMakkahSearch] = useState('');
+  const [madinahSearch, setMadinahSearch] = useState('');
 
   // Custom Interactive Itinerary Builder (Movements)
   const [movements, setMovements] = useState<any[]>([
@@ -1052,27 +1189,21 @@ export default function App() {
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                   <div className="search-field">
                                     <label>From Port</label>
-                                    <select 
-                                      className="search-input"
+                                    <SearchableSelect 
+                                      options={airports}
                                       value={flightInfo.onwardFromPortId}
-                                      onChange={(e) => setFlightInfo({ ...flightInfo, onwardFromPortId: e.target.value })}
-                                    >
-                                      {airports.map(apt => (
-                                        <option key={apt.id} value={apt.id}>{apt.name}</option>
-                                      ))}
-                                    </select>
+                                      onChange={(val) => setFlightInfo({ ...flightInfo, onwardFromPortId: val })}
+                                      placeholder="Search departure airport..."
+                                    />
                                   </div>
                                   <div className="search-field">
                                     <label>To Port (Saudi Airport)</label>
-                                    <select 
-                                      className="search-input"
+                                    <SearchableSelect 
+                                      options={airports}
                                       value={flightInfo.onwardToPortId}
-                                      onChange={(e) => setFlightInfo({ ...flightInfo, onwardToPortId: e.target.value })}
-                                    >
-                                      {airports.map(apt => (
-                                        <option key={apt.id} value={apt.id}>{apt.name}</option>
-                                      ))}
-                                    </select>
+                                      onChange={(val) => setFlightInfo({ ...flightInfo, onwardToPortId: val })}
+                                      placeholder="Search destination airport..."
+                                    />
                                   </div>
                                 </div>
                               </div>
@@ -1083,27 +1214,21 @@ export default function App() {
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                   <div className="search-field">
                                     <label>From Port (Saudi Airport)</label>
-                                    <select 
-                                      className="search-input"
+                                    <SearchableSelect 
+                                      options={airports}
                                       value={flightInfo.returnFromPortId}
-                                      onChange={(e) => setFlightInfo({ ...flightInfo, returnFromPortId: e.target.value })}
-                                    >
-                                      {airports.map(apt => (
-                                        <option key={apt.id} value={apt.id}>{apt.name}</option>
-                                      ))}
-                                    </select>
+                                      onChange={(val) => setFlightInfo({ ...flightInfo, returnFromPortId: val })}
+                                      placeholder="Search departure airport..."
+                                    />
                                   </div>
                                   <div className="search-field">
                                     <label>To Port</label>
-                                    <select 
-                                      className="search-input"
+                                    <SearchableSelect 
+                                      options={airports}
                                       value={flightInfo.returnToPortId}
-                                      onChange={(e) => setFlightInfo({ ...flightInfo, returnToPortId: e.target.value })}
-                                    >
-                                      {airports.map(apt => (
-                                        <option key={apt.id} value={apt.id}>{apt.name}</option>
-                                      ))}
-                                    </select>
+                                      onChange={(val) => setFlightInfo({ ...flightInfo, returnToPortId: val })}
+                                      placeholder="Search destination airport..."
+                                    />
                                   </div>
                                 </div>
                               </div>
@@ -1265,15 +1390,12 @@ export default function App() {
                                     </div>
                                     <div className="search-field">
                                       <label>Departure Port</label>
-                                      <select 
-                                        className="search-input"
+                                      <SearchableSelect 
+                                        options={airports}
                                         value={flightInfo.onwardFromPortId}
-                                        onChange={(e) => setFlightInfo({ ...flightInfo, onwardFromPortId: e.target.value })}
-                                      >
-                                        {airports.map(apt => (
-                                          <option key={apt.id} value={apt.id}>{apt.name}</option>
-                                        ))}
-                                      </select>
+                                        onChange={(val) => setFlightInfo({ ...flightInfo, onwardFromPortId: val })}
+                                        placeholder="Search departure port..."
+                                      />
                                     </div>
                                     <div className="search-field">
                                       <label>Onward Date</label>
@@ -1311,15 +1433,12 @@ export default function App() {
                                     </div>
                                     <div className="search-field">
                                       <label>Arrival Port</label>
-                                      <select 
-                                        className="search-input"
+                                      <SearchableSelect 
+                                        options={airports}
                                         value={flightInfo.returnToPortId}
-                                        onChange={(e) => setFlightInfo({ ...flightInfo, returnToPortId: e.target.value })}
-                                      >
-                                        {airports.map(apt => (
-                                          <option key={apt.id} value={apt.id}>{apt.name}</option>
-                                        ))}
-                                      </select>
+                                        onChange={(val) => setFlightInfo({ ...flightInfo, returnToPortId: val })}
+                                        placeholder="Search arrival port..."
+                                      />
                                     </div>
                                     <div className="search-field">
                                       <label>Return Date</label>
@@ -1411,28 +1530,44 @@ export default function App() {
                           <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>
                             <Building className="h-4 w-4 text-primary" /> Makkah Hotel Allotments
                           </h4>
-                          <div className="options-list">
-                            {hotels.filter(h => h.city?.toLowerCase().includes('makkah') || h.name?.toLowerCase().includes('makkah')).map((h) => (
-                              <div 
-                                key={h.id}
-                                className={`option-item ${selectedMakkahHotelId === h.id ? 'selected' : ''}`}
-                                onClick={() => setSelectedMakkahHotelId(h.id)}
-                              >
-                                <div className="option-left">
-                                  <div className="option-circle">
-                                    <div className="option-circle-inner" />
+                          <input 
+                            type="text" 
+                            placeholder="Search Makkah hotels..." 
+                            className="search-input" 
+                            style={{ marginBottom: '1rem', width: '100%', boxSizing: 'border-box' }} 
+                            value={makkahSearch} 
+                            onChange={(e) => setMakkahSearch(e.target.value)} 
+                          />
+                          <div className="options-list" style={{ maxHeight: '280px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+                            {hotels
+                              .filter(h => h.city?.toLowerCase().includes('makkah') || h.name?.toLowerCase().includes('makkah'))
+                              .filter(h => h.name.toLowerCase().includes(makkahSearch.toLowerCase()))
+                              .map((h) => (
+                                <div 
+                                  key={h.id}
+                                  className={`option-item ${selectedMakkahHotelId === h.id ? 'selected' : ''}`}
+                                  onClick={() => setSelectedMakkahHotelId(h.id)}
+                                >
+                                  <div className="option-left">
+                                    <div className="option-circle">
+                                      <div className="option-circle-inner" />
+                                    </div>
+                                    <div className="option-info">
+                                      <span className="option-name">{h.name}</span>
+                                      <span className="option-subtitle">Direct bed allotment lock</span>
+                                    </div>
                                   </div>
-                                  <div className="option-info">
-                                    <span className="option-name">{h.name}</span>
-                                    <span className="option-subtitle">Direct bed allotment lock</span>
+                                  <div className="option-right">
+                                    <span className="option-price">{(h.pricePerNight || 350) * dates.makkahNights} SAR</span>
+                                    <span className="option-subtitle">{h.pricePerNight || 350} SAR/night</span>
                                   </div>
                                 </div>
-                                <div className="option-right">
-                                  <span className="option-price">{(h.pricePerNight || 350) * dates.makkahNights} SAR</span>
-                                  <span className="option-subtitle">{h.pricePerNight || 350} SAR/night</span>
-                                </div>
+                              ))}
+                            {hotels.filter(h => h.city?.toLowerCase().includes('makkah') || h.name?.toLowerCase().includes('makkah')).filter(h => h.name.toLowerCase().includes(makkahSearch.toLowerCase())).length === 0 && (
+                              <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                                No Makkah hotels match "{makkahSearch}"
                               </div>
-                            ))}
+                            )}
                           </div>
                         </div>
 
@@ -1442,30 +1577,46 @@ export default function App() {
                             <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>
                               <Building className="h-4 w-4 text-primary" /> Madinah Hotel Allotments
                             </h4>
-                            <div className="options-list">
-                              {hotels.filter(h => h.city?.toLowerCase().includes('madinah') || h.name?.toLowerCase().includes('madinah') || h.city?.toLowerCase().includes('medina')).map((h) => (
-                                <div 
-                                  key={h.id}
-                                  className={`option-item ${selectedMadinahHotelId === h.id ? 'selected' : ''}`}
-                                  onClick={() => setSelectedMadinahHotelId(h.id)}
-                                >
-                                <div className="option-left">
-                                  <div className="option-circle">
-                                    <div className="option-circle-inner" />
+                            <input 
+                              type="text" 
+                              placeholder="Search Madinah hotels..." 
+                              className="search-input" 
+                              style={{ marginBottom: '1rem', width: '100%', boxSizing: 'border-box' }} 
+                              value={madinahSearch} 
+                              onChange={(e) => setMadinahSearch(e.target.value)} 
+                            />
+                            <div className="options-list" style={{ maxHeight: '280px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+                              {hotels
+                                .filter(h => h.city?.toLowerCase().includes('madinah') || h.name?.toLowerCase().includes('madinah') || h.city?.toLowerCase().includes('medina'))
+                                .filter(h => h.name.toLowerCase().includes(madinahSearch.toLowerCase()))
+                                .map((h) => (
+                                  <div 
+                                    key={h.id}
+                                    className={`option-item ${selectedMadinahHotelId === h.id ? 'selected' : ''}`}
+                                    onClick={() => setSelectedMadinahHotelId(h.id)}
+                                  >
+                                    <div className="option-left">
+                                      <div className="option-circle">
+                                        <div className="option-circle-inner" />
+                                      </div>
+                                      <div className="option-info">
+                                        <span className="option-name">{h.name}</span>
+                                        <span className="option-subtitle">Direct bed allotment lock</span>
+                                      </div>
+                                    </div>
+                                    <div className="option-right">
+                                      <span className="option-price">{(h.pricePerNight || 300) * dates.madinahNights} SAR</span>
+                                      <span className="option-subtitle">{h.pricePerNight || 300} SAR/night</span>
+                                    </div>
                                   </div>
-                                  <div className="option-info">
-                                    <span className="option-name">{h.name}</span>
-                                    <span className="option-subtitle">Direct bed allotment lock</span>
-                                  </div>
+                                ))}
+                              {hotels.filter(h => h.city?.toLowerCase().includes('madinah') || h.name?.toLowerCase().includes('madinah') || h.city?.toLowerCase().includes('medina')).filter(h => h.name.toLowerCase().includes(madinahSearch.toLowerCase())).length === 0 && (
+                                <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                                  No Madinah hotels match "{madinahSearch}"
                                 </div>
-                                <div className="option-right">
-                                  <span className="option-price">{(h.pricePerNight || 300) * dates.madinahNights} SAR</span>
-                                  <span className="option-subtitle">{h.pricePerNight || 300} SAR/night</span>
-                                </div>
-                              </div>
-                            ))}
+                              )}
+                            </div>
                           </div>
-                        </div>
                         )}
 
                         <div className="step-nav">
