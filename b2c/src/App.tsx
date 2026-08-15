@@ -94,17 +94,18 @@ export default function App() {
     sponserMobileNumber: ''
   });
 
-  // Flight Details
   const [flightInfo, setFlightInfo] = useState({
     isWithoutTicket: false,
-    arrivalFlightNumber: 'SV-300',
-    arrivalDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
-    arrivalTime: '08:00',
-    arrivalAirportId: 'apt-jed',
-    departureFlightNumber: 'SV-301',
-    departureDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
-    departureTime: '22:00',
-    departureAirportId: 'apt-jed'
+    onwardFromPortId: 'apt-jed',
+    onwardToPortId: 'apt-jed',
+    onwardFlightNumber: 'SV-300',
+    onwardDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+    onwardTime: '08:00',
+    returnFromPortId: 'apt-jed',
+    returnToPortId: 'apt-jed',
+    returnFlightNumber: 'SV-301',
+    returnDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+    returnTime: '22:00',
   });
 
   const [selectedMakkahHotelId, setSelectedMakkahHotelId] = useState('');
@@ -193,17 +194,25 @@ export default function App() {
 
         if (airportList.length > 0) {
           setAirports(airportList);
+          const ksaAirports = airportList.filter((a: any) => a.city?.toLowerCase().includes('jeddah') || a.name?.toLowerCase().includes('jeddah') || a.city?.toLowerCase().includes('madinah') || a.name?.toLowerCase().includes('madinah'));
+          const fallbackKsaApt = ksaAirports[0]?.id || airportList[0].id;
+          const fallbackHomeApt = airportList.find((a: any) => !ksaAirports.includes(a))?.id || airportList[0].id;
+
           setFlightInfo(prev => ({
             ...prev,
-            arrivalAirportId: airportList[0].id,
-            departureAirportId: airportList[0].id
+            onwardFromPortId: fallbackHomeApt,
+            onwardToPortId: fallbackKsaApt,
+            returnFromPortId: fallbackKsaApt,
+            returnToPortId: fallbackHomeApt
           }));
         } else {
           setAirports(AIRPORTS);
           setFlightInfo(prev => ({
             ...prev,
-            arrivalAirportId: AIRPORTS[0].id,
-            departureAirportId: AIRPORTS[0].id
+            onwardFromPortId: AIRPORTS[2].id, // Riyadh as home
+            onwardToPortId: AIRPORTS[0].id, // JED as KSA destination
+            returnFromPortId: AIRPORTS[0].id,
+            returnToPortId: AIRPORTS[2].id
           }));
         }
 
@@ -315,13 +324,23 @@ export default function App() {
     setIsSearchingArrival(true);
     setIsSearchingDeparture(true);
     try {
-      const homeApt = airports.find(a => a.id === flightInfo.arrivalAirportId)?.name?.split('(')[1]?.substring(0, 3) || 'DXB';
+      const getIataCode = (id: string, fallback: string) => {
+        const name = airports.find(a => a.id === id)?.name || '';
+        const match = name.match(/\(([A-Z]{3})\)/);
+        return match ? match[1] : fallback;
+      };
+
+      const onwardOrigin = getIataCode(flightInfo.onwardFromPortId, 'DXB');
+      const onwardDest = getIataCode(flightInfo.onwardToPortId, 'JED');
+      const returnOrigin = getIataCode(flightInfo.returnFromPortId, 'JED');
+      const returnDest = getIataCode(flightInfo.returnToPortId, 'DXB');
+
       const checkInDateObj = new Date(dates.checkIn);
       const departureDateObj = new Date(checkInDateObj.getTime() + (dates.makkahNights + dates.madinahNights) * 86400000);
       const departureDateStr = departureDateObj.toISOString().split('T')[0];
 
-      // Inbound Search
-      const resIn = await fetch(`/api/b2c/flights/search?origin=${homeApt}&destination=JED&date=${dates.checkIn}`);
+      // Onward Flight Search
+      const resIn = await fetch(`/api/b2c/flights/search?origin=${onwardOrigin}&destination=${onwardDest}&date=${dates.checkIn}`);
       const dataIn = await resIn.json();
       if (dataIn.success && dataIn.data) {
         setLiveArrivalFlights(dataIn.data);
@@ -329,8 +348,8 @@ export default function App() {
         setLiveArrivalFlights([]);
       }
 
-      // Outbound Search
-      const resOut = await fetch(`/api/b2c/flights/search?origin=JED&destination=${homeApt}&date=${departureDateStr}`);
+      // Return Flight Search
+      const resOut = await fetch(`/api/b2c/flights/search?origin=${returnOrigin}&destination=${returnDest}&date=${departureDateStr}`);
       const dataOut = await resOut.json();
       if (dataOut.success && dataOut.data) {
         setLiveDepartureFlights(dataOut.data);
@@ -422,12 +441,12 @@ export default function App() {
         transportOptionId: selectedRouteId,
         accommodationType: dates.accommodationType,
         isWithoutTicket: isWithoutTkt,
-        arrivalFlightNumber: isWithoutTkt ? 'NT-0000' : (flightBookingMode === 'own' ? flightInfo.arrivalFlightNumber : (selectedArrivalFlight?.flightNumber || 'SV-300')),
-        arrivalDateTime: isWithoutTkt ? `${dates.checkIn}T12:00:00.000Z` : (flightBookingMode === 'own' ? `${flightInfo.arrivalDate}T${flightInfo.arrivalTime}:00.000Z` : `${dates.checkIn}T${selectedArrivalFlight?.departureTime || '08:00'}:00.000Z`),
-        arrivalAirportId: flightInfo.arrivalAirportId,
-        departureFlightNumber: isWithoutTkt ? 'NT-0000' : (flightBookingMode === 'own' ? flightInfo.departureFlightNumber : (selectedDepartureFlight?.flightNumber || 'SV-301')),
-        departureDateTime: isWithoutTkt ? `${dates.checkIn}T12:00:00.000Z` : (flightBookingMode === 'own' ? `${flightInfo.departureDate}T${flightInfo.departureTime}:00.000Z` : `${dates.checkIn}T${selectedDepartureFlight?.arrivalTime || '22:00'}:00.000Z`),
-        departureAirportId: flightInfo.departureAirportId,
+        arrivalFlightNumber: isWithoutTkt ? 'NT-0000' : (flightBookingMode === 'own' ? flightInfo.onwardFlightNumber : (selectedArrivalFlight?.flightNumber || 'SV-300')),
+        arrivalDateTime: isWithoutTkt ? `${dates.checkIn}T12:00:00.000Z` : (flightBookingMode === 'own' ? `${flightInfo.onwardDate}T${flightInfo.onwardTime}:00.000Z` : `${dates.checkIn}T${selectedArrivalFlight?.departureTime || '08:00'}:00.000Z`),
+        arrivalAirportId: flightBookingMode === 'own' ? flightInfo.onwardToPortId : (airports.find(a => a.id === flightInfo.onwardToPortId)?.id || 'apt-jed'),
+        departureFlightNumber: isWithoutTkt ? 'NT-0000' : (flightBookingMode === 'own' ? flightInfo.returnFlightNumber : (selectedDepartureFlight?.flightNumber || 'SV-301')),
+        departureDateTime: isWithoutTkt ? `${dates.checkIn}T12:00:00.000Z` : (flightBookingMode === 'own' ? `${flightInfo.returnDate}T${flightInfo.returnTime}:00.000Z` : `${dates.checkIn}T${selectedDepartureFlight?.arrivalTime || '22:00'}:00.000Z`),
+        departureAirportId: flightBookingMode === 'own' ? flightInfo.returnFromPortId : (airports.find(a => a.id === flightInfo.returnFromPortId)?.id || 'apt-jed'),
         iqamaNumber: iqamaDetails.iqamaNumber,
         iqamaSponserName: iqamaDetails.iqamaSponserName,
         sponserDob: iqamaDetails.sponserDob ? new Date(iqamaDetails.sponserDob).toISOString() : null,
@@ -592,13 +611,21 @@ export default function App() {
                   <div>
                     <h3 className="voucher-section-title">Flight Details</h3>
                     <div className="voucher-grid">
-                      <div className="voucher-info-group">
-                        <span className="voucher-info-label">Arrival Flight</span>
-                        <span className="voucher-info-val">{flightInfo.isWithoutTicket ? 'Without Ticket' : flightInfo.arrivalFlightNumber}</span>
+                       <div className="voucher-info-group">
+                        <span className="voucher-info-label">Onward Flight</span>
+                        <span className="voucher-info-val">
+                          {flightBookingMode === 'own' 
+                            ? (skipOwnFlightDetails ? 'Without Ticket' : flightInfo.onwardFlightNumber) 
+                            : (selectedArrivalFlight?.flightNumber || 'SV-300')}
+                        </span>
                       </div>
                       <div className="voucher-info-group">
-                        <span className="voucher-info-label">Departure Flight</span>
-                        <span className="voucher-info-val">{flightInfo.isWithoutTicket ? 'Without Ticket' : flightInfo.departureFlightNumber}</span>
+                        <span className="voucher-info-label">Return Flight</span>
+                        <span className="voucher-info-val">
+                          {flightBookingMode === 'own' 
+                            ? (skipOwnFlightDetails ? 'Without Ticket' : flightInfo.returnFlightNumber) 
+                            : (selectedDepartureFlight?.flightNumber || 'SV-301')}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -989,20 +1016,72 @@ export default function App() {
                         {flightBookingMode === 'book' && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                             <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem', backgroundColor: 'var(--bg-light)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                              <div className="search-field">
-                                <label>Departure Airport (Home)</label>
-                                <select 
-                                  className="search-input"
-                                  value={flightInfo.arrivalAirportId}
-                                  onChange={(e) => setFlightInfo({ ...flightInfo, arrivalAirportId: e.target.value })}
-                                >
-                                  {airports.map(apt => (
-                                    <option key={apt.id} value={apt.id}>{apt.name}</option>
-                                  ))}
-                                </select>
+                              
+                              {/* Onward Flight Ports */}
+                              <div style={{ gridColumn: 'span 2', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>Onward Flight Route (Home → KSA)</span>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                  <div className="search-field">
+                                    <label>From Port</label>
+                                    <select 
+                                      className="search-input"
+                                      value={flightInfo.onwardFromPortId}
+                                      onChange={(e) => setFlightInfo({ ...flightInfo, onwardFromPortId: e.target.value })}
+                                    >
+                                      {airports.map(apt => (
+                                        <option key={apt.id} value={apt.id}>{apt.name}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div className="search-field">
+                                    <label>To Port (Saudi Airport)</label>
+                                    <select 
+                                      className="search-input"
+                                      value={flightInfo.onwardToPortId}
+                                      onChange={(e) => setFlightInfo({ ...flightInfo, onwardToPortId: e.target.value })}
+                                    >
+                                      {airports.map(apt => (
+                                        <option key={apt.id} value={apt.id}>{apt.name}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="search-field">
-                                <label>Inbound Date</label>
+
+                              {/* Return Flight Ports */}
+                              <div style={{ gridColumn: 'span 2', paddingBottom: '0.5rem' }}>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>Return Flight Route (KSA → Home)</span>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                  <div className="search-field">
+                                    <label>From Port (Saudi Airport)</label>
+                                    <select 
+                                      className="search-input"
+                                      value={flightInfo.returnFromPortId}
+                                      onChange={(e) => setFlightInfo({ ...flightInfo, returnFromPortId: e.target.value })}
+                                    >
+                                      {airports.map(apt => (
+                                        <option key={apt.id} value={apt.id}>{apt.name}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div className="search-field">
+                                    <label>To Port</label>
+                                    <select 
+                                      className="search-input"
+                                      value={flightInfo.returnToPortId}
+                                      onChange={(e) => setFlightInfo({ ...flightInfo, returnToPortId: e.target.value })}
+                                    >
+                                      {airports.map(apt => (
+                                        <option key={apt.id} value={apt.id}>{apt.name}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Date Selection */}
+                              <div className="search-field" style={{ gridColumn: 'span 2' }}>
+                                <label>Onward Flight Date</label>
                                 <input 
                                   type="date" 
                                   className="search-input" 
@@ -1010,6 +1089,7 @@ export default function App() {
                                   onChange={(e) => setDates({ ...dates, checkIn: e.target.value })}
                                 />
                               </div>
+
                               <button 
                                 type="button" 
                                 className="search-submit-btn" 
@@ -1026,7 +1106,7 @@ export default function App() {
                                   </>
                                 ) : (
                                   <>
-                                    <Compass className="h-4 w-4" /> Search Live Inbound & Outbound Flights
+                                    <Compass className="h-4 w-4" /> Search Live Onward & Return Flights
                                   </>
                                 )}
                               </button>
@@ -1035,9 +1115,9 @@ export default function App() {
                             {/* Live Flight Selection Results */}
                             <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                               
-                              {/* Inbound flight block */}
+                              {/* Onward Flight Block */}
                               <div>
-                                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>1. Select Inbound Flight (Home → KSA)</span>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>1. Select Onward Flight (Home → KSA)</span>
                                 {liveArrivalFlights.length > 0 ? (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                     {liveArrivalFlights.map((lf, idx) => (
@@ -1065,14 +1145,14 @@ export default function App() {
                                   </div>
                                 ) : (
                                   <div style={{ padding: '1.5rem', textAlign: 'center', border: '1px dashed var(--border-color)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                                    No inbound flights fetched.
+                                    No onward flights fetched. Click Search above.
                                   </div>
                                 )}
                               </div>
 
-                              {/* Outbound flight block */}
+                              {/* Return Flight Block */}
                               <div>
-                                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>2. Select Outbound Flight (KSA → Home)</span>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>2. Select Return Flight (KSA → Home)</span>
                                 {liveDepartureFlights.length > 0 ? (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                     {liveDepartureFlights.map((lf, idx) => (
@@ -1100,7 +1180,7 @@ export default function App() {
                                   </div>
                                 ) : (
                                   <div style={{ padding: '1.5rem', textAlign: 'center', border: '1px dashed var(--border-color)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                                    No outbound flights fetched.
+                                    No return flights fetched. Click Search above.
                                   </div>
                                 )}
                               </div>
@@ -1109,9 +1189,17 @@ export default function App() {
 
                             {selectedArrivalFlight && selectedDepartureFlight && (
                               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', padding: '1rem', backgroundColor: 'var(--primary-light)', borderRadius: '8px', border: '1px solid var(--gold-border)', color: 'var(--primary)', fontWeight: 700, fontSize: '0.85rem' }}>
-                                <CheckCircle className="h-5 w-5" /> Selected Inbound: {selectedArrivalFlight.flightNumber} | Outbound: {selectedDepartureFlight.flightNumber} - {((selectedArrivalFlight.price + selectedDepartureFlight.price) * dates.travelers)} SAR total cost included.
+                                <CheckCircle className="h-5 w-5" /> Selected Onward: {selectedArrivalFlight.flightNumber} | Return: {selectedDepartureFlight.flightNumber} - {((selectedArrivalFlight.price + selectedDepartureFlight.price) * dates.travelers)} SAR total cost included.
                               </div>
                             )}
+
+                            {/* Warning Banner */}
+                            <div style={{ display: 'flex', gap: '0.75rem', padding: '1rem', backgroundColor: 'var(--secondary-light)', border: '1px solid var(--gold-border)', borderRadius: '8px', color: 'var(--text-dark)', fontSize: '0.85rem', lineHeight: '1.4' }}>
+                              <Info className="h-5 w-5 text-secondary flex-shrink-0" style={{ marginTop: '2px' }} />
+                              <div>
+                                <b>Important Booking Notice:</b> The flight schedules selected are subject to real-time seat availability. Your chosen flights will be officially confirmed only after payment is finalized (which will be processed following a verification call from our booking desk). If your selected flight becomes unavailable, our desk will secure a similar option for you at no extra charge.
+                              </div>
+                            </div>
                           </div>
                         )}
 
@@ -1135,23 +1223,23 @@ export default function App() {
                                 
                                 {/* Arrival flights */}
                                 <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem' }}>
-                                  <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>Arrival Flight Info</h4>
+                                  <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>Onward Flight Details</h4>
                                   <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                     <div className="search-field">
                                       <label>Carrier / Flight Number</label>
                                       <input 
                                         type="text" 
                                         className="search-input" 
-                                        value={flightInfo.arrivalFlightNumber}
-                                        onChange={(e) => setFlightInfo({ ...flightInfo, arrivalFlightNumber: e.target.value })}
+                                        value={flightInfo.onwardFlightNumber}
+                                        onChange={(e) => setFlightInfo({ ...flightInfo, onwardFlightNumber: e.target.value })}
                                       />
                                     </div>
                                     <div className="search-field">
-                                      <label>Arrival Airport</label>
+                                      <label>Departure Port</label>
                                       <select 
                                         className="search-input"
-                                        value={flightInfo.arrivalAirportId}
-                                        onChange={(e) => setFlightInfo({ ...flightInfo, arrivalAirportId: e.target.value })}
+                                        value={flightInfo.onwardFromPortId}
+                                        onChange={(e) => setFlightInfo({ ...flightInfo, onwardFromPortId: e.target.value })}
                                       >
                                         {airports.map(apt => (
                                           <option key={apt.id} value={apt.id}>{apt.name}</option>
@@ -1159,21 +1247,21 @@ export default function App() {
                                       </select>
                                     </div>
                                     <div className="search-field">
-                                      <label>Arrival Date</label>
+                                      <label>Onward Date</label>
                                       <input 
                                         type="date" 
                                         className="search-input" 
-                                        value={flightInfo.arrivalDate}
-                                        onChange={(e) => setFlightInfo({ ...flightInfo, arrivalDate: e.target.value })}
+                                        value={flightInfo.onwardDate}
+                                        onChange={(e) => setFlightInfo({ ...flightInfo, onwardDate: e.target.value })}
                                       />
                                     </div>
                                     <div className="search-field">
-                                      <label>Arrival Time</label>
+                                      <label>Onward Time</label>
                                       <input 
                                         type="time" 
                                         className="search-input" 
-                                        value={flightInfo.arrivalTime}
-                                        onChange={(e) => setFlightInfo({ ...flightInfo, arrivalTime: e.target.value })}
+                                        value={flightInfo.onwardTime}
+                                        onChange={(e) => setFlightInfo({ ...flightInfo, onwardTime: e.target.value })}
                                       />
                                     </div>
                                   </div>
@@ -1181,23 +1269,23 @@ export default function App() {
 
                                 {/* Departure flights */}
                                 <div>
-                                  <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>Departure Flight Info</h4>
+                                  <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>Return Flight Details</h4>
                                   <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                     <div className="search-field">
                                       <label>Carrier / Flight Number</label>
                                       <input 
                                         type="text" 
                                         className="search-input" 
-                                        value={flightInfo.departureFlightNumber}
-                                        onChange={(e) => setFlightInfo({ ...flightInfo, departureFlightNumber: e.target.value })}
+                                        value={flightInfo.returnFlightNumber}
+                                        onChange={(e) => setFlightInfo({ ...flightInfo, returnFlightNumber: e.target.value })}
                                       />
                                     </div>
                                     <div className="search-field">
-                                      <label>Departure Airport</label>
+                                      <label>Arrival Port</label>
                                       <select 
                                         className="search-input"
-                                        value={flightInfo.departureAirportId}
-                                        onChange={(e) => setFlightInfo({ ...flightInfo, departureAirportId: e.target.value })}
+                                        value={flightInfo.returnToPortId}
+                                        onChange={(e) => setFlightInfo({ ...flightInfo, returnToPortId: e.target.value })}
                                       >
                                         {airports.map(apt => (
                                           <option key={apt.id} value={apt.id}>{apt.name}</option>
@@ -1205,21 +1293,21 @@ export default function App() {
                                       </select>
                                     </div>
                                     <div className="search-field">
-                                      <label>Departure Date</label>
+                                      <label>Return Date</label>
                                       <input 
                                         type="date" 
                                         className="search-input" 
-                                        value={flightInfo.departureDate}
-                                        onChange={(e) => setFlightInfo({ ...flightInfo, departureDate: e.target.value })}
+                                        value={flightInfo.returnDate}
+                                        onChange={(e) => setFlightInfo({ ...flightInfo, returnDate: e.target.value })}
                                       />
                                     </div>
                                     <div className="search-field">
-                                      <label>Departure Time</label>
+                                      <label>Return Time</label>
                                       <input 
                                         type="time" 
                                         className="search-input" 
-                                        value={flightInfo.departureTime}
-                                        onChange={(e) => setFlightInfo({ ...flightInfo, departureTime: e.target.value })}
+                                        value={flightInfo.returnTime}
+                                        onChange={(e) => setFlightInfo({ ...flightInfo, returnTime: e.target.value })}
                                       />
                                     </div>
                                   </div>
@@ -1735,7 +1823,7 @@ export default function App() {
                               <span className="summary-label">Flight Selection</span>
                               <span className="summary-value">
                                 {flightBookingMode === 'own' 
-                                  ? (skipOwnFlightDetails ? 'Without Ticket' : `${flightInfo.arrivalFlightNumber} / ${flightInfo.departureFlightNumber}`)
+                                  ? (skipOwnFlightDetails ? 'Without Ticket' : `${flightInfo.onwardFlightNumber} / ${flightInfo.returnFlightNumber}`)
                                   : (selectedArrivalFlight && selectedDepartureFlight 
                                       ? `${selectedArrivalFlight.flightNumber} / ${selectedDepartureFlight.flightNumber}` 
                                       : 'No Flights Selected')}
