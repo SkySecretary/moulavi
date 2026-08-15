@@ -35,6 +35,7 @@ interface VoucherPdfData {
     checkIn: string;
     checkOut: string;
     brn?: string[] | null; // Added for BRN
+    cateringBrn?: string[] | null;
   }>;
   movementDetails: Array<{
     sr: number;

@@ -2039,7 +2039,7 @@ router.delete('/transport-bookings/:id', authenticate, async (req, res) => {
 router.post('/:bookingId/hotel-bookings', authenticate, async (req, res) => {
   try {
     const { bookingId } = req.params;
-    const { cityId, hotelId, checkInDate, checkOutDate, brn, additionalBrns, bedsQuantity } = req.body || {};
+    const { cityId, hotelId, checkInDate, checkOutDate, brn, cateringBrn, additionalBrns, bedsQuantity } = req.body || {};
     
     // Verify booking exists and has hotel accommodation type
     const booking = await prisma.umrahVisaBooking.findUnique({
@@ -2063,6 +2063,7 @@ router.post('/:bookingId/hotel-bookings', authenticate, async (req, res) => {
         checkInDate: checkInDate ? new Date(checkInDate) : new Date(),
         checkOutDate: checkOutDate ? new Date(checkOutDate) : new Date(),
         brn: brn ?? null,
+        cateringBrn: cateringBrn ?? null,
         additionalBrns: additionalBrns ? (additionalBrns as any) : null,
         bedsQuantity: bedsQuantity !== undefined && bedsQuantity !== null ? parseInt(bedsQuantity, 10) : null,
       },

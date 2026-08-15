@@ -539,6 +539,9 @@ router.post('/group/create-booking', authenticate, uploadGroup.fields([
                 brn: hotel.brn && Array.isArray(hotel.brn) && hotel.brn.length > 0 
                   ? hotel.brn 
                   : null,
+                cateringBrn: hotel.cateringBrn && Array.isArray(hotel.cateringBrn) && hotel.cateringBrn.length > 0 
+                  ? hotel.cateringBrn 
+                  : null,
                 additionalBrns: hotel.additionalBrns && Array.isArray(hotel.additionalBrns) && hotel.additionalBrns.length > 0
                   ? hotel.additionalBrns as any
                   : null,
@@ -1183,6 +1186,7 @@ router.post('/group/add-to-existing-booking', authenticate, uploadGroup.fields([
             checkInDate: h.checkInDate,
             checkOutDate: h.checkOutDate,
             brn: h.brn as any,
+            cateringBrn: h.cateringBrn as any,
             additionalBrns: h.additionalBrns as any,
             isAlternate: false
           }
@@ -1217,8 +1221,10 @@ router.post('/group/add-to-existing-booking', authenticate, uploadGroup.fields([
             sponserNationalShortAddress: iq.sponserNationalShortAddress,
             makkahHotelName: iq.makkahHotelName,
             makkahBrn: iq.makkahBrn,
+            makkahCateringBrn: iq.makkahCateringBrn,
             madinahHotelName: iq.madinahHotelName,
             madinahBrn: iq.madinahBrn,
+            madinahCateringBrn: iq.madinahCateringBrn,
             confirmationImagePath: iq.confirmationImagePath
           }
         });

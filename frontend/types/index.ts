@@ -305,6 +305,7 @@ export interface UmrahVisaBooking {
     checkIn: string;
     checkOut: string;
     brn?: any;
+    cateringBrn?: any;
     checkInDate?: string;
     checkOutDate?: string;
     hotel?: {
@@ -360,6 +361,8 @@ export interface UmrahVisaBooking {
   madinahHotelName?: string;
   madinahBrn?: string;
   flightBrn?: string;
+  makkahCateringBrn?: string;
+  madinahCateringBrn?: string;
 }
 
 

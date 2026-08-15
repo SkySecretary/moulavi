@@ -70,8 +70,10 @@ export default function EditUmrahVisaBookingPage() {
   // Iqama Hotel Details
   const [iqamaMakkahHotelName, setIqamaMakkahHotelName] = useState('');
   const [iqamaMakkahBrn, setIqamaMakkahBrn] = useState('');
+  const [iqamaMakkahCateringBrn, setIqamaMakkahCateringBrn] = useState('');
   const [iqamaMadinahHotelName, setIqamaMadinahHotelName] = useState('');
   const [iqamaMadinahBrn, setIqamaMadinahBrn] = useState('');
+  const [iqamaMadinahCateringBrn, setIqamaMadinahCateringBrn] = useState('');
   const [iqamaMakkahHotelId, setIqamaMakkahHotelId] = useState('');
   const [iqamaMadinahHotelId, setIqamaMadinahHotelId] = useState('');
   const [iqamaMakkahCityId, setIqamaMakkahCityId] = useState('');
@@ -234,8 +236,10 @@ export default function EditUmrahVisaBookingPage() {
           setIqamaNationalShortAddress(mainIqama.sponserNationalShortAddress || '');
           setIqamaMakkahHotelName(mainIqama.makkahHotelName || '');
           setIqamaMakkahBrn(mainIqama.makkahBrn || '');
+          setIqamaMakkahCateringBrn(mainIqama.makkahCateringBrn || '');
           setIqamaMadinahHotelName(mainIqama.madinahHotelName || '');
           setIqamaMadinahBrn(mainIqama.madinahBrn || '');
+          setIqamaMadinahCateringBrn(mainIqama.madinahCateringBrn || '');
         }
       }
 
@@ -461,6 +465,7 @@ export default function EditUmrahVisaBookingPage() {
               checkInDate: combineDateAndTime(h.checkInDate, '20:30'),
               checkOutDate: combineDateAndTime(h.checkOutDate, '20:30'),
               brn: h.brn,
+              cateringBrn: h.cateringBrn,
               additionalBrns: h.additionalBrns,
               bedsQuantity: h.bedsQuantity,
             };
@@ -479,8 +484,10 @@ export default function EditUmrahVisaBookingPage() {
           sponserNationalShortAddress: iqamaNationalShortAddress,
           makkahHotelName: iqamaMakkahHotelName,
           makkahBrn: iqamaMakkahBrn,
+          makkahCateringBrn: iqamaMakkahCateringBrn,
           madinahHotelName: iqamaMadinahHotelName,
           madinahBrn: iqamaMadinahBrn,
+          madinahCateringBrn: iqamaMadinahCateringBrn,
         });
       }
 
@@ -1139,6 +1146,16 @@ export default function EditUmrahVisaBookingPage() {
                           </div>
                         </div>
 
+                        {/* Makkah Catering BRN */}
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Makkah Catering BRN</label>
+                          <Input 
+                            value={iqamaMakkahCateringBrn} 
+                            onChange={(e) => setIqamaMakkahCateringBrn(e.target.value)} 
+                            placeholder="Catering BRN" 
+                          />
+                        </div>
+
                         {iqamaMakkahHotelId === 'custom' && (
                           <div className="space-y-1">
                             <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Custom Makkah Hotel Name</label>
@@ -1224,6 +1241,16 @@ export default function EditUmrahVisaBookingPage() {
                               </Button>
                             )}
                           </div>
+                        </div>
+
+                        {/* Madinah Catering BRN */}
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Madinah Catering BRN</label>
+                          <Input 
+                            value={iqamaMadinahCateringBrn} 
+                            onChange={(e) => setIqamaMadinahCateringBrn(e.target.value)} 
+                            placeholder="Catering BRN" 
+                          />
                         </div>
 
                         {iqamaMadinahHotelId === 'custom' && (

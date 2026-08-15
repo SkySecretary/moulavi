@@ -132,6 +132,7 @@ export interface HotelBooking {
   checkInDate: string;
   checkOutDate: string;
   brn?: string[];
+  cateringBrn?: string[];
   bedsQuantity?: number | null;
   additionalBrns?: {
     brnNumber: string;

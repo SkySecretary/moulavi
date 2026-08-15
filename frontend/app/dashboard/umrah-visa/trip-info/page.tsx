@@ -88,8 +88,10 @@ export default function TripInfoPage() {
   const [editingIqama, setEditingIqama] = useState<Record<string, {
     makkahHotelName: string;
     makkahBrn: string;
+    makkahCateringBrn: string;
     madinahHotelName: string;
     madinahBrn: string;
+    madinahCateringBrn: string;
     makkahHotelId?: string;
     madinahHotelId?: string;
     makkahCityId?: string;
@@ -266,8 +268,10 @@ export default function TripInfoPage() {
           // Map hotel details from sponsorIqamaDetails for Iqama bookings
           makkahHotelName: booking.accommodationType === 'iqama' && iqama?.makkahHotelName || null,
           makkahBrn: booking.accommodationType === 'iqama' && iqama?.makkahBrn || null,
+          makkahCateringBrn: booking.accommodationType === 'iqama' && iqama?.makkahCateringBrn || null,
           madinahHotelName: booking.accommodationType === 'iqama' && iqama?.madinahHotelName || null,
           madinahBrn: booking.accommodationType === 'iqama' && iqama?.madinahBrn || null,
+          madinahCateringBrn: booking.accommodationType === 'iqama' && iqama?.madinahCateringBrn || null,
         };
       });
 
@@ -279,8 +283,10 @@ export default function TripInfoPage() {
         iqamaEditing[booking.id] = {
           makkahHotelName: iqama?.makkahHotelName || '',
           makkahBrn: iqama?.makkahBrn || '',
+          makkahCateringBrn: iqama?.makkahCateringBrn || '',
           madinahHotelName: iqama?.madinahHotelName || '',
           madinahBrn: iqama?.madinahBrn || '',
+          madinahCateringBrn: iqama?.madinahCateringBrn || '',
         };
       }
     });
@@ -316,8 +322,10 @@ export default function TripInfoPage() {
       await umrahVisaAPI.updateAccommodation(bookingId, {
         makkahHotelName: data.makkahHotelName,
         makkahBrn: data.makkahBrn,
+        makkahCateringBrn: data.makkahCateringBrn,
         madinahHotelName: data.madinahHotelName,
         madinahBrn: data.madinahBrn,
+        madinahCateringBrn: data.madinahCateringBrn,
       });
       toast.success('Hotel details updated successfully');
       fetchBookings();
@@ -546,12 +554,16 @@ export default function TripInfoPage() {
 
         const hName = hotelBooking.hotel?.name || 'N/A';
         const hBrn = brnToString(hotelBooking.brn);
+        const hCateringBrn = brnToString((hotelBooking as any).cateringBrn);
         const hCheckIn = formatDateShort(hotelBooking.checkInDate);
         const hCheckOut = formatDateShort(hotelBooking.checkOutDate);
 
         if (hName !== 'N/A') {
           text += `🏨 *${label}:* ${hName}\n`;
           text += `📄 *Agreement No.:* ${hBrn}\n`;
+          if (hCateringBrn && hCateringBrn !== 'N/A') {
+            text += `🍽️ *Catering BRN:* ${hCateringBrn}\n`;
+          }
           text += `📅 *Check-in:* ${hCheckIn}\n`;
           text += `📅 *Check-out:* ${hCheckOut}\n`;
           if (hotelBooking.checkInDate && hotelBooking.checkOutDate) {
@@ -572,16 +584,26 @@ export default function TripInfoPage() {
 
         const mName = mainIqama.makkahHotelName || 'N/A';
         const mBrn = brnToString(mainIqama.makkahBrn);
+        const mCateringBrn = brnToString(mainIqama.makkahCateringBrn);
         const dName = mainIqama.madinahHotelName || 'N/A';
         const dBrn = brnToString(mainIqama.madinahBrn);
+        const dCateringBrn = brnToString(mainIqama.madinahCateringBrn);
 
         if (mName !== 'N/A') {
           text += `🏨 *${hotel1Label}:* ${mName}\n`;
-          text += `📄 *Agreement No.:* ${mBrn}\n\n`;
+          text += `📄 *Agreement No.:* ${mBrn}\n`;
+          if (mCateringBrn && mCateringBrn !== 'N/A') {
+            text += `🍽️ *Catering BRN:* ${mCateringBrn}\n`;
+          }
+          text += `\n`;
         }
         if (dName !== 'N/A') {
           text += `🏨 *${hotel2Label}:* ${dName}\n`;
-          text += `📄 *Agreement No.:* ${dBrn}\n\n`;
+          text += `📄 *Agreement No.:* ${dBrn}\n`;
+          if (dCateringBrn && dCateringBrn !== 'N/A') {
+            text += `🍽️ *Catering BRN:* ${dCateringBrn}\n`;
+          }
+          text += `\n`;
         }
       }
     }
@@ -1441,6 +1463,9 @@ export default function TripInfoPage() {
                                       <div className="pl-1">
                                         <span className="font-medium text-gray-800">{editingIqama[booking.id!]?.makkahHotelName || 'Not Set'}</span>
                                         <span className="text-gray-500 block">BRN: {editingIqama[booking.id!]?.makkahBrn || 'N/A'}</span>
+                                        {editingIqama[booking.id!]?.makkahCateringBrn && (
+                                          <span className="text-gray-500 block">Catering BRN: {editingIqama[booking.id!]?.makkahCateringBrn}</span>
+                                        )}
                                       </div>
                                     </div>
                                     <div className="mt-1">
@@ -1448,6 +1473,9 @@ export default function TripInfoPage() {
                                       <div className="pl-1">
                                         <span className="font-medium text-gray-800">{editingIqama[booking.id!]?.madinahHotelName || 'Not Set'}</span>
                                         <span className="text-gray-500 block">BRN: {editingIqama[booking.id!]?.madinahBrn || 'N/A'}</span>
+                                        {editingIqama[booking.id!]?.madinahCateringBrn && (
+                                          <span className="text-gray-500 block">Catering BRN: {editingIqama[booking.id!]?.madinahCateringBrn}</span>
+                                        )}
                                       </div>
                                     </div>
                                     
@@ -1574,6 +1602,29 @@ export default function TripInfoPage() {
                                               </button>
                                             )}
                                           </div>
+
+                                           {hotelBooking.cateringBrn && (Array.isArray(hotelBooking.cateringBrn) ? hotelBooking.cateringBrn.length > 0 : String(hotelBooking.cateringBrn).length > 0) && (
+                                             <div className="flex items-center gap-1">
+                                               <span className="text-gray-500">Catering BRN:</span>{' '}
+                                               <span className="font-medium">
+                                                 {Array.isArray(hotelBooking.cateringBrn) 
+                                                   ? hotelBooking.cateringBrn.join(', ') 
+                                                   : String(hotelBooking.cateringBrn)}
+                                               </span>
+                                               <button
+                                                 onClick={() => copyToClipboard(
+                                                   Array.isArray(hotelBooking.cateringBrn) 
+                                                     ? hotelBooking.cateringBrn.join(', ') 
+                                                     : String(hotelBooking.cateringBrn),
+                                                   'Catering BRN'
+                                                 )}
+                                                 className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
+                                                 title="Copy Catering BRN"
+                                               >
+                                                 <Copy className="h-3 w-3 text-gray-500" />
+                                               </button>
+                                             </div>
+                                           )}
                                         </div>
                                       </div>
                                       );
@@ -1936,6 +1987,20 @@ export default function TripInfoPage() {
                     )}
                   </div>
                 </div>
+
+                {/* Catering BRN Input */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">Catering BRN</label>
+                  <Input
+                    placeholder="Enter Catering BRN"
+                    value={editingIqama[activeHotelEditBookingId]?.makkahCateringBrn || ''}
+                    onChange={(e) => setEditingIqama({
+                      ...editingIqama,
+                      [activeHotelEditBookingId]: { ...editingIqama[activeHotelEditBookingId], makkahCateringBrn: e.target.value }
+                    })}
+                    className="bg-white"
+                  />
+                </div>
               </div>
 
               {/* Hotel 2 (defaults to Madinah) */}
@@ -2042,6 +2107,20 @@ export default function TripInfoPage() {
                       </Button>
                     )}
                   </div>
+                </div>
+
+                {/* Catering BRN Input */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">Catering BRN</label>
+                  <Input
+                    placeholder="Enter Catering BRN"
+                    value={editingIqama[activeHotelEditBookingId]?.madinahCateringBrn || ''}
+                    onChange={(e) => setEditingIqama({
+                      ...editingIqama,
+                      [activeHotelEditBookingId]: { ...editingIqama[activeHotelEditBookingId], madinahCateringBrn: e.target.value }
+                    })}
+                    className="bg-white"
+                  />
                 </div>
               </div>
             </div>

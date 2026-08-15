@@ -163,6 +163,7 @@ export const ManageAlternateInfoDialog: React.FC<ManageAlternateInfoDialogProps>
         checkInDate: toDisplayDate(extractDateFromISO(h.checkInDate)),
         checkOutDate: toDisplayDate(extractDateFromISO(h.checkOutDate)),
         brn: h.brn || [],
+        cateringBrn: h.cateringBrn || [],
       })),
       iqamaDetails: (() => {
         const altIqama = booking?.sponsorIqamaDetails?.find((i: any) => i.isAlternate);
@@ -240,6 +241,7 @@ export const ManageAlternateInfoDialog: React.FC<ManageAlternateInfoDialogProps>
               checkInDate: combineDateAndTime(h.checkInDate, '20:30'),
               checkOutDate: combineDateAndTime(h.checkOutDate, '20:30'),
               brn: h.brn || [],
+              cateringBrn: h.cateringBrn || [],
             }))
           : [],
         transportBookings: expandedTransports,

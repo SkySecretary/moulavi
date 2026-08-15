@@ -129,6 +129,7 @@ export const RecreateBookingDialog: React.FC<RecreateBookingDialogProps> = ({
         checkInDate: toDisplayDate(hb.checkInDate),
         checkOutDate: toDisplayDate(hb.checkOutDate),
         brn: hb.brn || '',
+        cateringBrn: hb.cateringBrn || '',
         isAlternate: false
       })));
     }
@@ -181,7 +182,8 @@ export const RecreateBookingDialog: React.FC<RecreateBookingDialogProps> = ({
           hotelId: h.hotelId,
           checkInDate: combineDateAndTime(h.checkInDate, '20:30'),
           checkOutDate: combineDateAndTime(h.checkOutDate, '20:30'),
-          brn: h.brn,
+          brn: h.brn ? (typeof h.brn === 'string' ? h.brn.split(',').map((s: string) => s.trim()).filter(Boolean) : h.brn) : [],
+          cateringBrn: h.cateringBrn ? (typeof h.cateringBrn === 'string' ? h.cateringBrn.split(',').map((s: string) => s.trim()).filter(Boolean) : h.cateringBrn) : [],
           isAlternate: false
         })),
         movements: movements.map((m: any) => ({
@@ -343,7 +345,7 @@ export const RecreateBookingDialog: React.FC<RecreateBookingDialogProps> = ({
                         <span>{h.cityName} - {h.hotelName}</span>
                         <span className="text-[10px] text-gray-400 font-normal">Hotel Booking #{idx + 1}</span>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                         <div className="space-y-1">
                           <Label className="text-[10px] font-bold text-gray-500">Check-In Date</Label>
                           <DatePicker
@@ -371,6 +373,18 @@ export const RecreateBookingDialog: React.FC<RecreateBookingDialogProps> = ({
                               setHotels(prev => prev.map((item, i) => i === idx ? { ...item, brn: val } : item));
                             }}
                             placeholder="BRN Code"
+                            className="text-xs h-9 bg-white font-mono"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px] font-bold text-gray-500">Catering BRN</Label>
+                          <Input
+                            value={h.cateringBrn}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setHotels(prev => prev.map((item, i) => i === idx ? { ...item, cateringBrn: val } : item));
+                            }}
+                            placeholder="Catering BRN"
                             className="text-xs h-9 bg-white font-mono"
                           />
                         </div>

@@ -389,6 +389,7 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
   const showInventory = isDashboard && !hideInventory;
   // Store raw input values for BRN fields to preserve commas while typing
   const [brnInputs, setBrnInputs] = useState<{ [key: number]: string }>({});
+  const [cateringBrnInputs, setCateringBrnInputs] = useState<{ [key: number]: string }>({});
   // Store raw input values for duration fields
   const [durationInputs, setDurationInputs] = useState<{ [key: number]: string }>({});
   // Search state for hotels
@@ -405,14 +406,23 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
   // Initialize BRN inputs from booking data
   React.useEffect(() => {
     const inputs: { [key: number]: string } = {};
+    const cateringInputs: { [key: number]: string } = {};
     hotelBookings.forEach((booking, index) => {
       if (booking.brn) {
         inputs[index] = Array.isArray(booking.brn) ? booking.brn.join(', ') : booking.brn;
       } else if (!brnInputs[index]) {
         inputs[index] = '';
       }
+      
+      const cBrn = (booking as any).cateringBrn;
+      if (cBrn) {
+        cateringInputs[index] = Array.isArray(cBrn) ? cBrn.join(', ') : cBrn;
+      } else if (!cateringBrnInputs[index]) {
+        cateringInputs[index] = '';
+      }
     });
     setBrnInputs(prev => ({ ...prev, ...inputs }));
+    setCateringBrnInputs(prev => ({ ...prev, ...cateringInputs }));
   }, [hotelBookings.length]);
 
   // Initialize duration inputs from booking data
@@ -496,6 +506,9 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
             </th>
             <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700 min-w-[300px]">
               BRN
+            </th>
+            <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700 min-w-[300px]">
+              Catering BRN
             </th>
             <th className="border border-gray-200 p-3 text-left text-sm font-medium text-gray-700 w-28">
               Beds Qty
@@ -722,6 +735,21 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                 </td>
                 <td className="border border-gray-200 p-3">
                   <Input
+                    type="text"
+                    placeholder="Catering BRN"
+                    value={cateringBrnInputs[index] ?? (Array.isArray((booking as any).cateringBrn) ? (booking as any).cateringBrn.join(', ') : ((booking as any).cateringBrn || ''))}
+                    onChange={(e) => {
+                      const inputValue = e.target.value;
+                      setCateringBrnInputs(prev => ({ ...prev, [index]: inputValue }));
+                      const cateringBrnArray = inputValue.split(',').map(brn => brn.trim()).filter(brn => brn.length > 0);
+                      onUpdateBooking(index, 'cateringBrn' as any, cateringBrnArray);
+                    }}
+                    className="h-10 text-sm w-full"
+                    disabled={disabled}
+                  />
+                </td>
+                <td className="border border-gray-200 p-3">
+                  <Input
                     type="number"
                     min="1"
                     placeholder="Beds"
@@ -814,9 +842,13 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                    </div>
                 </div>
                 <div className="space-y-1">
-                    <Label className="text-xs">BRN</Label>
-                    <Input value={brnInputs[index] ?? (Array.isArray(booking.brn) ? booking.brn.join(', ') : (booking.brn || ''))} onChange={(e) => { setBrnInputs({...brnInputs, [index]: e.target.value}); onUpdateBooking(index, 'brn', e.target.value.split(',').map(s => s.trim()).filter(Boolean)); }} />
-                 </div>
+                     <Label className="text-xs">BRN</Label>
+                     <Input value={brnInputs[index] ?? (Array.isArray(booking.brn) ? booking.brn.join(', ') : (booking.brn || ''))} onChange={(e) => { setBrnInputs({...brnInputs, [index]: e.target.value}); onUpdateBooking(index, 'brn', e.target.value.split(',').map(s => s.trim()).filter(Boolean)); }} />
+                  </div>
+                  <div className="space-y-1">
+                     <Label className="text-xs">Catering BRN</Label>
+                     <Input value={cateringBrnInputs[index] ?? (Array.isArray((booking as any).cateringBrn) ? (booking as any).cateringBrn.join(', ') : ((booking as any).cateringBrn || ''))} onChange={(e) => { setCateringBrnInputs({...cateringBrnInputs, [index]: e.target.value}); onUpdateBooking(index, 'cateringBrn' as any, e.target.value.split(',').map(s => s.trim()).filter(Boolean)); }} />
+                  </div>
                  <div className="space-y-1">
                     <Label className="text-xs">Additional BRNs</Label>
                     <Button

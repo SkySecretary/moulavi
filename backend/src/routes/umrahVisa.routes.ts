@@ -454,7 +454,7 @@ router.get('/missing-brn', authenticate, authorize('admin', 'staff', 'party'), a
 router.patch('/hotels/:hotelBookingId/brn', authenticate, authorize('admin', 'staff', 'party'), async (req, res) => {
   try {
     const { hotelBookingId } = req.params;
-    const { brn } = req.body;
+    const { brn, cateringBrn } = req.body;
     const user = (req as any).user;
 
     const existingHotel = await prisma.umrahHotelBooking.findUnique({
@@ -467,7 +467,10 @@ router.patch('/hotels/:hotelBookingId/brn', authenticate, authorize('admin', 'st
 
     const updatedHotel = await prisma.umrahHotelBooking.update({
       where: { id: hotelBookingId },
-      data: { brn },
+      data: { 
+        brn: brn !== undefined ? brn : undefined,
+        cateringBrn: cateringBrn !== undefined ? cateringBrn : undefined
+      },
     });
 
     await prisma.brnUpdateHistory.create({
@@ -1814,6 +1817,7 @@ router.patch('/:bookingId/alternate-info', authenticate, async (req, res) => {
               checkInDate: new Date(h.checkInDate),
               checkOutDate: new Date(h.checkOutDate),
               brn: h.brn || null,
+              cateringBrn: h.cateringBrn || null,
             })),
           });
         }
@@ -2033,8 +2037,10 @@ router.post('/:bookingId/recreate', authenticate, authorize('admin', 'staff'), a
               sponserNationalShortAddress: iq.sponserNationalShortAddress,
               makkahHotelName: iq.makkahHotelName,
               makkahBrn: iq.makkahBrn,
+              makkahCateringBrn: iq.makkahCateringBrn,
               madinahHotelName: iq.madinahHotelName,
               madinahBrn: iq.madinahBrn,
+              madinahCateringBrn: iq.madinahCateringBrn,
               confirmationImagePath: iq.confirmationImagePath
             }
           });
@@ -2052,6 +2058,7 @@ router.post('/:bookingId/recreate', authenticate, authorize('admin', 'staff'), a
               checkInDate: new Date(h.checkInDate),
               checkOutDate: new Date(h.checkOutDate),
               brn: h.brn ?? undefined,
+              cateringBrn: h.cateringBrn ?? undefined,
               isAlternate: h.isAlternate || false
             }
           });
@@ -2069,6 +2076,7 @@ router.post('/:bookingId/recreate', authenticate, authorize('admin', 'staff'), a
               checkInDate: h.checkInDate,
               checkOutDate: h.checkOutDate,
               brn: h.brn ?? undefined,
+              cateringBrn: h.cateringBrn ?? undefined,
               isAlternate: h.isAlternate
             }
           });

@@ -473,6 +473,7 @@ model UmrahHotelBooking {
   checkInDate  DateTime         @map("checkin_date")
   checkOutDate DateTime         @map("checkout_date")
   brn          Json?            @map("brn")
+  cateringBrn  Json?            @map("catering_brn")
   additionalBrns Json?            @map("additional_brns")
   bedsQuantity   Int?             @map("beds_quantity")
   createdAt    DateTime         @default(now()) @map("created_at")
@@ -505,8 +506,10 @@ model UmrahSponserIqamaDetails {
   createdAt                   DateTime         @default(now()) @map("created_at")
   updatedAt                   DateTime         @default(now()) @updatedAt @map("updated_at")
   madinahBrn                  String?          @map("madinah_brn")
+  madinahCateringBrn          String?          @map("madinah_catering_brn")
   madinahHotelName            String?          @map("madinah_hotel_name")
   makkahBrn                   String?          @map("makkah_brn")
+  makkahCateringBrn           String?          @map("makkah_catering_brn")
   makkahHotelName             String?          @map("makkah_hotel_name")
   booking                     UmrahVisaBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
@@ -659,6 +662,7 @@ model VoucherHotel {
   checkOut  DateTime @map("check_out")
   days      Int
   brn       String?
+  cateringBrn String?  @map("catering_brn")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
   voucher   Voucher  @relation(fields: [voucherId], references: [id], onDelete: Cascade)

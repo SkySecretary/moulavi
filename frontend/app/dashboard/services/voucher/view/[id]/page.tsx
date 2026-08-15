@@ -201,6 +201,9 @@ export default function ViewVoucherPage() {
                             {voucher.hotelSchedules.some((h: any) => h.brn) && (
                               <th className="py-3 px-4">BRN</th>
                             )}
+                            {voucher.hotelSchedules.some((h: any) => h.cateringBrn) && (
+                              <th className="py-3 px-4">Catering BRN</th>
+                            )}
                           </tr>
                         </thead>
                         <tbody>
@@ -235,6 +238,11 @@ export default function ViewVoucherPage() {
                               {voucher.hotelSchedules.some((h: any) => h.brn) && (
                                 <td className="py-3 px-4 text-sm text-gray-600">
                                   {Array.isArray(hotel.brn) ? hotel.brn.join(', ') : (hotel.brn || 'N/A')}
+                                </td>
+                              )}
+                              {voucher.hotelSchedules.some((h: any) => h.cateringBrn) && (
+                                <td className="py-3 px-4 text-sm text-gray-600">
+                                  {Array.isArray(hotel.cateringBrn) ? hotel.cateringBrn.join(', ') : (hotel.cateringBrn || 'N/A')}
                                 </td>
                               )}
                             </tr>

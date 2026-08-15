@@ -631,6 +631,9 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
                   brn: hotel.brn && Array.isArray(hotel.brn) && hotel.brn.length > 0 
                     ? hotel.brn 
                     : null,
+                  cateringBrn: hotel.cateringBrn && Array.isArray(hotel.cateringBrn) && hotel.cateringBrn.length > 0 
+                    ? hotel.cateringBrn 
+                    : null,
                   additionalBrns: hotel.additionalBrns && Array.isArray(hotel.additionalBrns) && hotel.additionalBrns.length > 0
                     ? hotel.additionalBrns as any
                     : null,
@@ -1180,8 +1183,10 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
       sponserNationalShortAddress,
       makkahHotelName,
       makkahBrn,
+      makkahCateringBrn,
       madinahHotelName,
       madinahBrn,
+      madinahCateringBrn,
       hotelBookings 
     } = req.body || {};
 
@@ -1230,8 +1235,10 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
           sponserNationalShortAddress: sponserNationalShortAddress ?? undefined,
           makkahHotelName: makkahHotelName ?? undefined,
           makkahBrn: makkahBrn ?? undefined,
+          makkahCateringBrn: makkahCateringBrn ?? undefined,
           madinahHotelName: madinahHotelName ?? undefined,
           madinahBrn: madinahBrn ?? undefined,
+          madinahCateringBrn: madinahCateringBrn ?? undefined,
         },
         create: {
           bookingId,
@@ -1243,8 +1250,10 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
           sponserNationalShortAddress: sponserNationalShortAddress || '',
           makkahHotelName: makkahHotelName || null,
           makkahBrn: makkahBrn || null,
+          makkahCateringBrn: makkahCateringBrn || null,
           madinahHotelName: madinahHotelName || null,
           madinahBrn: madinahBrn || null,
+          madinahCateringBrn: madinahCateringBrn || null,
         },
       });
 
@@ -1269,6 +1278,7 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
               checkInDate: parseSafeDate(h.checkInDate) || undefined,
               checkOutDate: parseSafeDate(h.checkOutDate) || undefined,
               brn: h.brn ?? undefined,
+              cateringBrn: h.cateringBrn ?? undefined,
               additionalBrns: h.additionalBrns ? (h.additionalBrns as any) : undefined,
               bedsQuantity: h.bedsQuantity !== undefined ? (h.bedsQuantity !== null ? parseInt(h.bedsQuantity, 10) : null) : undefined,
             },

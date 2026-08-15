@@ -142,6 +142,7 @@ export async function syncVoucherToBooking(tx: any, voucherId: string) {
       }
 
       const brnJson = vHotel.brn ? vHotel.brn.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+      const cateringBrnJson = vHotel.cateringBrn ? vHotel.cateringBrn.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
 
       if (hotelId && cityId) {
         if (existingHotel) {
@@ -153,6 +154,7 @@ export async function syncVoucherToBooking(tx: any, voucherId: string) {
               checkInDate: vHotel.checkIn,
               checkOutDate: vHotel.checkOut,
               brn: brnJson,
+              cateringBrn: cateringBrnJson,
             },
           });
         } else {
@@ -165,6 +167,7 @@ export async function syncVoucherToBooking(tx: any, voucherId: string) {
               checkInDate: vHotel.checkIn,
               checkOutDate: vHotel.checkOut,
               brn: brnJson,
+              cateringBrn: cateringBrnJson,
             },
           });
         }
@@ -370,6 +373,15 @@ export async function syncBookingToVoucher(tx: any, bookingId: string) {
         }
       }
 
+      let cateringBrnValue: string | null = null;
+      if (hb.cateringBrn) {
+        if (Array.isArray(hb.cateringBrn)) {
+          cateringBrnValue = hb.cateringBrn.join(', ');
+        } else if (typeof hb.cateringBrn === 'string') {
+          cateringBrnValue = hb.cateringBrn;
+        }
+      }
+
       const days = Math.ceil((new Date(hb.checkOutDate).getTime() - new Date(hb.checkInDate).getTime()) / (1000 * 60 * 60 * 24));
 
       return {
@@ -381,6 +393,7 @@ export async function syncBookingToVoucher(tx: any, bookingId: string) {
         checkOut: hb.checkOutDate,
         days: days || 0,
         brn: brnValue,
+        cateringBrn: cateringBrnValue,
       };
     });
 

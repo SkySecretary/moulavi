@@ -96,9 +96,11 @@ export default function ViewUmrahVisaBookingPage() {
         
         if (makkahHotel) {
           b.makkahBrn = Array.isArray(makkahHotel.brn) ? makkahHotel.brn.join(', ') : makkahHotel.brn;
+          b.makkahCateringBrn = Array.isArray(makkahHotel.cateringBrn) ? makkahHotel.cateringBrn.join(', ') : makkahHotel.cateringBrn;
         }
         if (madinaHotel) {
           b.madinaBrn = Array.isArray(madinaHotel.brn) ? madinaHotel.brn.join(', ') : madinaHotel.brn;
+          b.madinaCateringBrn = Array.isArray(madinaHotel.cateringBrn) ? madinaHotel.cateringBrn.join(', ') : madinaHotel.cateringBrn;
         }
       }
 
@@ -111,7 +113,9 @@ export default function ViewUmrahVisaBookingPage() {
           b.iqamaDob = mainIqama.sponserDob;
           b.iqamaMobile = mainIqama.sponserMobileNumber;
           b.makkahBrn = mainIqama.makkahBrn;
+          b.makkahCateringBrn = mainIqama.makkahCateringBrn;
           b.madinaBrn = mainIqama.madinahBrn;
+          b.madinaCateringBrn = mainIqama.madinahCateringBrn;
         }
       }
 
@@ -585,6 +589,7 @@ export default function ViewUmrahVisaBookingPage() {
                                   <th className="py-3 px-3 lg:px-4 text-left text-xs font-bold uppercase tracking-wide text-white">City</th>
                                   <th className="py-3 px-3 lg:px-4 text-left text-xs font-bold uppercase tracking-wide text-white">Hotel Name</th>
                                   <th className="py-3 px-3 lg:px-4 text-left text-xs font-bold uppercase tracking-wide text-white">BRN</th>
+                                  <th className="py-3 px-3 lg:px-4 text-left text-xs font-bold uppercase tracking-wide text-white">Catering BRN</th>
                                   <th className="py-3 px-3 lg:px-4 text-left text-xs font-bold uppercase tracking-wide text-white">Check-In</th>
                                   <th className="py-3 px-3 lg:px-4 text-left text-xs font-bold uppercase tracking-wide text-white">Check-Out</th>
                                 </tr>
@@ -596,6 +601,7 @@ export default function ViewUmrahVisaBookingPage() {
                                   const checkIn = h.checkInDate || h.checkIn;
                                   const checkOut = h.checkOutDate || h.checkOut;
                                   const brnDisplay = Array.isArray(h.brn) ? h.brn.join(', ') : (h.brn || 'N/A');
+                                  const cateringBrnDisplay = Array.isArray(h.cateringBrn) ? h.cateringBrn.join(', ') : (h.cateringBrn || 'N/A');
                                   
                                   return (
                                     <tr 
@@ -618,6 +624,9 @@ export default function ViewUmrahVisaBookingPage() {
                                       </td>
                                       <td className="py-3 px-3 lg:px-4">
                                         <Badge variant="outline" className="text-[10px] font-mono font-bold bg-gray-50">{brnDisplay}</Badge>
+                                      </td>
+                                      <td className="py-3 px-3 lg:px-4">
+                                        <Badge variant="outline" className="text-[10px] font-mono font-bold bg-gray-50">{cateringBrnDisplay}</Badge>
                                       </td>
                                       <td className="py-3 px-3 lg:px-4 whitespace-nowrap">
                                         <div className="flex items-center gap-2">
@@ -669,10 +678,22 @@ export default function ViewUmrahVisaBookingPage() {
                               <p className="text-base font-bold text-secondary tracking-tighter">{booking.makkahBrn}</p>
                             </div>
                           )}
+                          {booking.makkahCateringBrn && (
+                             <div className="bg-primary/5 rounded-lg p-4 border border-primary/10">
+                              <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Makkah Catering BRN</p>
+                              <p className="text-base font-bold text-secondary tracking-tighter">{booking.makkahCateringBrn}</p>
+                            </div>
+                          )}
                           {booking.madinaBrn && (
                              <div className="bg-primary/5 rounded-lg p-4 border border-primary/10">
                               <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Madinah BRN</p>
                               <p className="text-base font-bold text-secondary tracking-tighter">{booking.madinaBrn}</p>
+                            </div>
+                          )}
+                          {booking.madinaCateringBrn && (
+                             <div className="bg-primary/5 rounded-lg p-4 border border-primary/10">
+                              <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Madinah Catering BRN</p>
+                              <p className="text-base font-bold text-secondary tracking-tighter">{booking.madinaCateringBrn}</p>
                             </div>
                           )}
                         </div>

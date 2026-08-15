@@ -886,6 +886,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
           checkOut: fromDisplayDate(hs.checkOut),
           days: calculateDays(fromDisplayDate(hs.checkIn), fromDisplayDate(hs.checkOut)),
           brn: hs.brn || null,
+          cateringBrn: hs.cateringBrn || null,
         })),
         movementDetails: formData.movementDetails.map(m => ({
           sr: m.sr,
@@ -1243,6 +1244,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
       checkInDate: hs.checkIn,
       checkOutDate: hs.checkOut,
       brn: hs.brn ? hs.brn.split(',').map(s => s.trim()).filter(Boolean) : [],
+      cateringBrn: hs.cateringBrn ? hs.cateringBrn.split(',').map(s => s.trim()).filter(Boolean) : [],
     };
   });
 
@@ -1263,6 +1265,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
         checkOut: b.checkOutDate,
         days: calculateDays(b.checkInDate, b.checkOutDate),
         brn: b.brn ? b.brn.join(', ') : '',
+        cateringBrn: b.cateringBrn ? b.cateringBrn.join(', ') : '',
       };
     });
     setFormData({ ...formData, hotelSchedules: updatedSchedules });
@@ -1281,6 +1284,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
       checkInDate: '',
       checkOutDate: '',
       brn: [],
+      cateringBrn: [],
     }];
     handleHotelBookingsChange(updatedBookings);
   };

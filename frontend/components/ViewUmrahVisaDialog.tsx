@@ -71,11 +71,13 @@ export default function ViewUmrahVisaDialog({ bookingId, open, onOpenChange }: V
           b.makkahCheckIn = makkahHotel.checkInDate;
           b.makkahCheckOut = makkahHotel.checkOutDate;
           b.makkahBrn = Array.isArray(makkahHotel.brn) ? makkahHotel.brn.join(', ') : makkahHotel.brn;
+          b.makkahCateringBrn = Array.isArray(makkahHotel.cateringBrn) ? makkahHotel.cateringBrn.join(', ') : makkahHotel.cateringBrn;
         }
         if (madinaHotel) {
           b.madinaCheckIn = madinaHotel.checkInDate;
           b.madinaCheckOut = madinaHotel.checkOutDate;
           b.madinaBrn = Array.isArray(madinaHotel.brn) ? madinaHotel.brn.join(', ') : madinaHotel.brn;
+          b.madinaCateringBrn = Array.isArray(madinaHotel.cateringBrn) ? madinaHotel.cateringBrn.join(', ') : madinaHotel.cateringBrn;
         }
       }
 
@@ -88,7 +90,9 @@ export default function ViewUmrahVisaDialog({ bookingId, open, onOpenChange }: V
           b.iqamaDob = mainIqama.sponserDob;
           b.iqamaMobile = mainIqama.sponserMobileNumber;
           b.makkahBrn = mainIqama.makkahBrn;
+          b.makkahCateringBrn = mainIqama.makkahCateringBrn;
           b.madinaBrn = mainIqama.madinahBrn;
+          b.madinaCateringBrn = mainIqama.madinahCateringBrn;
         }
       }
       
@@ -403,10 +407,22 @@ export default function ViewUmrahVisaDialog({ bookingId, open, onOpenChange }: V
                         <p className="font-medium text-xs sm:text-sm">{booking.makkahBrn}</p>
                       </div>
                     )}
+                    {booking.makkahCateringBrn && (
+                      <div className="sm:col-span-2">
+                        <p className="text-xs sm:text-sm text-gray-500">Makkah Catering BRN</p>
+                        <p className="font-medium text-xs sm:text-sm">{booking.makkahCateringBrn}</p>
+                      </div>
+                    )}
                     {booking.madinaBrn && (
                       <div className="sm:col-span-2">
                         <p className="text-xs sm:text-sm text-gray-500">Madina Hotel BRN</p>
                         <p className="font-medium text-xs sm:text-sm">{booking.madinaBrn}</p>
+                      </div>
+                    )}
+                    {booking.madinaCateringBrn && (
+                      <div className="sm:col-span-2">
+                        <p className="text-xs sm:text-sm text-gray-500">Madina Catering BRN</p>
+                        <p className="font-medium text-xs sm:text-sm">{booking.madinaCateringBrn}</p>
                       </div>
                     )}
                   </div>
@@ -434,10 +450,22 @@ export default function ViewUmrahVisaDialog({ bookingId, open, onOpenChange }: V
                         <p className="font-medium text-xs sm:text-sm">{booking.makkahBrn}</p>
                       </div>
                     )}
+                    {booking.makkahCateringBrn && (
+                      <div>
+                        <p className="text-xs sm:text-sm text-gray-500">Makkah Catering BRN</p>
+                        <p className="font-medium text-xs sm:text-sm">{booking.makkahCateringBrn}</p>
+                      </div>
+                    )}
                     {booking.madinaBrn && (
                       <div>
                         <p className="text-xs sm:text-sm text-gray-500">Madina BRN</p>
                         <p className="font-medium text-xs sm:text-sm">{booking.madinaBrn}</p>
+                      </div>
+                    )}
+                    {booking.madinaCateringBrn && (
+                      <div>
+                        <p className="text-xs sm:text-sm text-gray-500">Madina Catering BRN</p>
+                        <p className="font-medium text-xs sm:text-sm">{booking.madinaCateringBrn}</p>
                       </div>
                     )}
                   </div>

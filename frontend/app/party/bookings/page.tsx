@@ -241,6 +241,7 @@ export default function PartyBookingsPage() {
           checkOut: hs.checkOut ? extractDateFromISO(hs.checkOut) : '',
           days: hs.days || 0,
           brn: hs.brn ? (hs.brn.includes(',') ? hs.brn.split(',').map((s: string) => s.trim()) : [hs.brn]) : [],
+          cateringBrn: hs.cateringBrn ? (hs.cateringBrn.includes(',') ? hs.cateringBrn.split(',').map((s: string) => s.trim()) : [hs.cateringBrn]) : [],
         })),
         movementDetails: (voucher.movementDetails || []).map((md: any) => ({
           sr: md.sr || 0,
