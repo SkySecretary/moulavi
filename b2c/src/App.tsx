@@ -12,7 +12,13 @@ import {
   Camera, 
   Lock,
   ArrowRight,
-  HeartHandshake
+  HeartHandshake,
+  ArrowUp,
+  ArrowDown,
+  Plus,
+  Trash2,
+  UserCheck,
+  Info
 } from 'lucide-react';
 
 // ==========================================
@@ -21,8 +27,8 @@ import {
 const MOCK_PACKAGES = [
   {
     id: 'pkg-economy',
-    title: 'Essential 7-Day Umrah Tour',
-    description: 'Perfect for a quick, spiritually fulfilling journey. Includes shared transfers and reliable accommodations close to the Holy Mosques.',
+    title: 'Essential 7-Day Umrah Tour (Land Only)',
+    description: 'Perfect for a quick, spiritually fulfilling journey. Includes visa processing, shared transfers, and reliable accommodations close to the Holy Mosques. Flights not included.',
     makkahNights: 4,
     madinahNights: 3,
     makkahHotel: { name: 'Elaf Kinda Hotel (4★)' },
@@ -32,8 +38,8 @@ const MOCK_PACKAGES = [
   },
   {
     id: 'pkg-premium',
-    title: 'Deluxe 10-Day Kaaba View',
-    description: 'Elevate your pilgrimage with 5-star hotels offering Kaaba views, combined with private SUV transfers and VIP Hajj terminal access.',
+    title: 'Deluxe 10-Day Kaaba View (Land Only)',
+    description: 'Elevate your pilgrimage with 5-star hotels offering Kaaba views, combined with private SUV transfers and VIP Hajj terminal access. Flights not included.',
     makkahNights: 6,
     madinahNights: 4,
     makkahHotel: { name: 'Swissôtel Makkah (5★)' },
@@ -43,10 +49,10 @@ const MOCK_PACKAGES = [
   }
 ];
 
-const FLIGHTS = [
-  { id: 'flt-nas', name: 'Flynas (Low Cost Direct)', price: 650 },
-  { id: 'flt-sv', name: 'Saudi Arabian Airlines (SV Direct)', price: 980 },
-  { id: 'flt-ek', name: 'Emirates Airlines (1 Stop VIP)', price: 1450 }
+const AIRPORTS = [
+  { id: 'apt-jed', name: 'Jeddah - King Abdulaziz Intl (JED)', city: 'Jeddah' },
+  { id: 'apt-med', name: 'Madinah - Prince Mohammad Bin Abdulaziz (MED)', city: 'Madinah' },
+  { id: 'apt-ruh', name: 'Riyadh - King Khalid Intl (RUH)', city: 'Riyadh' }
 ];
 
 const DEFAULT_HOTELS = [
@@ -69,6 +75,7 @@ export default function App() {
   const [packages, setPackages] = useState<any[]>([]);
   const [hotels, setHotels] = useState<any[]>([]);
   const [routes, setRoutes] = useState<any[]>([]);
+  const [airports, setAirports] = useState<any[]>(AIRPORTS);
 
   // Custom Builder Choices
   const [dates, setDates] = useState({
@@ -76,12 +83,43 @@ export default function App() {
     makkahNights: 4,
     madinahNights: 3,
     travelers: 2,
+    accommodationType: 'hotel', // 'hotel' or 'iqama'
+  });
+
+  // Iqama Sponsor Details
+  const [iqamaDetails, setIqamaDetails] = useState({
+    iqamaNumber: '',
+    iqamaSponserName: '',
+    sponserDob: '',
+    sponserMobileNumber: ''
+  });
+
+  // Flight Details
+  const [flightInfo, setFlightInfo] = useState({
+    isWithoutTicket: false,
+    arrivalFlightNumber: 'SV-300',
+    arrivalDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+    arrivalTime: '08:00',
+    arrivalAirportId: 'apt-jed',
+    departureFlightNumber: 'SV-301',
+    departureDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+    departureTime: '22:00',
+    departureAirportId: 'apt-jed'
   });
 
   const [selectedMakkahHotelId, setSelectedMakkahHotelId] = useState('');
   const [selectedMadinahHotelId, setSelectedMadinahHotelId] = useState('');
   const [selectedRouteId, setSelectedRouteId] = useState('');
-  const [selectedFlight, setSelectedFlight] = useState(FLIGHTS[1]);
+  const [selectedVehicleType, setSelectedVehicleType] = useState('SUV');
+
+  // Custom Interactive Itinerary Builder (Movements)
+  const [movements, setMovements] = useState<any[]>([
+    { id: 'm-1', type: 'transfer', name: 'Airport Arrival Transfer', from: 'Airport', to: 'Makkah Hotel', time: '09:30' },
+    { id: 'm-2', type: 'stay', name: 'Makkah Stay Allotment', from: 'Makkah', to: 'Locked Bed Room', time: '14:00' },
+    { id: 'm-3', type: 'transfer', name: 'Inter-City Transfer', from: 'Makkah Hotel', to: 'Madinah Hotel', time: '10:00' },
+    { id: 'm-4', type: 'stay', name: 'Madinah Stay Allotment', from: 'Madinah', to: 'Locked Bed Room', time: '14:00' },
+    { id: 'm-5', type: 'transfer', name: 'Departure Airport Transfer', from: 'Madinah Hotel', to: 'Airport', time: '18:00' }
+  ]);
 
   // Dynamic Quote pricing
   const [quotePrices, setQuotePrices] = useState({
@@ -101,6 +139,7 @@ export default function App() {
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [bookingFinished, setBookingFinished] = useState(false);
   const [bookingRef, setBookingRef] = useState('');
+  const [passportFile, setPassportFile] = useState<File | null>(null);
 
   const [traveler, setTraveler] = useState({
     fullName: '',
@@ -129,7 +168,8 @@ export default function App() {
 
         const allLocations = locationsRes.data?.locationMasters || locationsRes.data || [];
         const hotelList = allLocations.filter((loc: any) => loc.locationType === 'HOTEL' || loc.locationType === 'hotel');
-        
+        const airportList = allLocations.filter((loc: any) => loc.locationType === 'AIRPORT' || loc.locationType === 'airport');
+
         if (hotelList.length > 0) {
           setHotels(hotelList);
           const makHotels = hotelList.filter((h: any) => h.city?.toLowerCase().includes('makkah') || h.name?.toLowerCase().includes('makkah'));
@@ -141,6 +181,22 @@ export default function App() {
           setHotels(DEFAULT_HOTELS);
           setSelectedMakkahHotelId(DEFAULT_HOTELS[0].id);
           setSelectedMadinahHotelId(DEFAULT_HOTELS[3].id);
+        }
+
+        if (airportList.length > 0) {
+          setAirports(airportList);
+          setFlightInfo(prev => ({
+            ...prev,
+            arrivalAirportId: airportList[0].id,
+            departureAirportId: airportList[0].id
+          }));
+        } else {
+          setAirports(AIRPORTS);
+          setFlightInfo(prev => ({
+            ...prev,
+            arrivalAirportId: AIRPORTS[0].id,
+            departureAirportId: AIRPORTS[0].id
+          }));
         }
 
         const routeList = routesRes.data?.transportRouteMasters || routesRes.data || [];
@@ -157,6 +213,7 @@ export default function App() {
         setPackages(MOCK_PACKAGES);
         setHotels(DEFAULT_HOTELS);
         setRoutes(DEFAULT_ROUTES);
+        setAirports(AIRPORTS);
         setSelectedMakkahHotelId(DEFAULT_HOTELS[0].id);
         setSelectedMadinahHotelId(DEFAULT_HOTELS[3].id);
         setSelectedRouteId(DEFAULT_ROUTES[0].id);
@@ -182,7 +239,7 @@ export default function App() {
             madinahNights: dates.madinahNights,
             travelersCount: dates.travelers,
             transportOptionId: selectedRouteId,
-            flightOptionId: selectedFlight.id
+            flightOptionId: flightInfo.isWithoutTicket ? 'none' : 'flight-custom'
           })
         });
         const resData = await response.json();
@@ -203,8 +260,8 @@ export default function App() {
       
       const mPrice = (mHotel?.pricePerNight || 350) * dates.makkahNights;
       const dPrice = (dHotel?.pricePerNight || 300) * dates.madinahNights;
-      const fPrice = selectedFlight.price * dates.travelers;
-      const vPrice = 450 * dates.travelers; // e-Visa cost
+      const fPrice = flightInfo.isWithoutTicket ? 0 : 950 * dates.travelers;
+      const vPrice = dates.accommodationType === 'iqama' ? 0 : 450 * dates.travelers; // Iqama does not pay full visa cost
       const rPrice = Number(rt?.price) || 500;
 
       const subtotal = mPrice + dPrice + fPrice + vPrice + rPrice;
@@ -221,16 +278,16 @@ export default function App() {
     dates.makkahNights, 
     dates.madinahNights, 
     dates.travelers, 
+    dates.accommodationType,
     selectedMakkahHotelId, 
     selectedMadinahHotelId, 
     selectedRouteId, 
-    selectedFlight, 
+    flightInfo.isWithoutTicket, 
     hotels, 
     routes
   ]);
 
-  const [passportFile, setPassportFile] = useState<File | null>(null);
-
+  // Handle Passport Upload
   const handlePassportUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -311,7 +368,25 @@ export default function App() {
         travelersCount: dates.travelers,
         makkahHotelId: selectedMakkahHotelId,
         madinahHotelId: selectedMadinahHotelId,
-        transportOptionId: selectedRouteId
+        transportOptionId: selectedRouteId,
+        accommodationType: dates.accommodationType,
+        isWithoutTicket: flightInfo.isWithoutTicket,
+        arrivalFlightNumber: flightInfo.arrivalFlightNumber,
+        arrivalDateTime: `${flightInfo.arrivalDate}T${flightInfo.arrivalTime}:00.000Z`,
+        arrivalAirportId: flightInfo.arrivalAirportId,
+        departureFlightNumber: flightInfo.departureFlightNumber,
+        departureDateTime: `${flightInfo.departureDate}T${flightInfo.departureTime}:00.000Z`,
+        departureAirportId: flightInfo.departureAirportId,
+        iqamaNumber: iqamaDetails.iqamaNumber,
+        iqamaSponserName: iqamaDetails.iqamaSponserName,
+        sponserDob: iqamaDetails.sponserDob ? new Date(iqamaDetails.sponserDob).toISOString() : null,
+        sponserMobileNumber: iqamaDetails.sponserMobileNumber,
+        movements: movements.map(m => ({
+          date: dates.checkIn,
+          time: m.time,
+          fromLocationId: selectedMakkahHotelId,
+          toLocationId: selectedMadinahHotelId
+        }))
       };
 
       const response = await fetch('/api/b2c/booking/checkout', {
@@ -332,6 +407,39 @@ export default function App() {
     } finally {
       setIsProcessingCheckout(false);
     }
+  };
+
+  // Itinerary Builder Actions
+  const addMovement = (type: 'transfer' | 'ziyarat') => {
+    const newItem = {
+      id: `m-custom-${Date.now()}`,
+      type,
+      name: type === 'transfer' ? 'Custom Airport Transfer' : 'Makkah Historical Tour (Ziyarat)',
+      from: type === 'transfer' ? 'Airport' : 'Makkah Hotel',
+      to: type === 'transfer' ? 'Makkah Hotel' : 'Historical Sites',
+      time: '10:00'
+    };
+    setMovements([...movements, newItem]);
+  };
+
+  const removeMovement = (id: string) => {
+    setMovements(movements.filter(m => m.id !== id));
+  };
+
+  const moveItem = (index: number, direction: 'up' | 'down') => {
+    const nextIndex = direction === 'up' ? index - 1 : index + 1;
+    if (nextIndex < 0 || nextIndex >= movements.length) return;
+    const newMovements = [...movements];
+    const temp = newMovements[index];
+    newMovements[index] = newMovements[nextIndex];
+    newMovements[nextIndex] = temp;
+    setMovements(newMovements);
+  };
+
+  const updateTime = (index: number, time: string) => {
+    const newMovements = [...movements];
+    newMovements[index] = { ...newMovements[index], time };
+    setMovements(newMovements);
   };
 
   const selectedMakkahHotelName = hotels.find(h => h.id === selectedMakkahHotelId)?.name || 'Pullman Zamzam Makkah (5★)';
@@ -415,20 +523,31 @@ export default function App() {
                     <h3 className="voucher-section-title">Accommodation Allotments</h3>
                     <div className="voucher-grid">
                       <div className="voucher-info-group">
-                        <span className="voucher-info-label">Makkah Hotel</span>
-                        <span className="voucher-info-val">{selectedMakkahHotelName}</span>
+                        <span className="voucher-info-label">Accommodation Type</span>
+                        <span className="voucher-info-val" style={{ textTransform: 'uppercase' }}>{dates.accommodationType} Booking</span>
                       </div>
                       <div className="voucher-info-group">
-                        <span className="voucher-info-label">Makkah Nights</span>
-                        <span className="voucher-info-val">{dates.makkahNights} Nights (BRN Locked)</span>
+                        <span className="voucher-info-label">Makkah Hotel</span>
+                        <span className="voucher-info-val">{selectedMakkahHotelName} ({dates.makkahNights} Nights)</span>
                       </div>
                       <div className="voucher-info-group">
                         <span className="voucher-info-label">Madinah Hotel</span>
-                        <span className="voucher-info-val">{selectedMadinahHotelName}</span>
+                        <span className="voucher-info-val">{selectedMadinahHotelName} ({dates.madinahNights} Nights)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Flights Section */}
+                  <div>
+                    <h3 className="voucher-section-title">Flight Details</h3>
+                    <div className="voucher-grid">
+                      <div className="voucher-info-group">
+                        <span className="voucher-info-label">Arrival Flight</span>
+                        <span className="voucher-info-val">{flightInfo.isWithoutTicket ? 'Without Ticket' : flightInfo.arrivalFlightNumber}</span>
                       </div>
                       <div className="voucher-info-group">
-                        <span className="voucher-info-label">Madinah Nights</span>
-                        <span className="voucher-info-val">{dates.madinahNights} Nights (BRN Locked)</span>
+                        <span className="voucher-info-label">Departure Flight</span>
+                        <span className="voucher-info-val">{flightInfo.isWithoutTicket ? 'Without Ticket' : flightInfo.departureFlightNumber}</span>
                       </div>
                     </div>
                   </div>
@@ -443,11 +562,7 @@ export default function App() {
                       </div>
                       <div className="voucher-info-group">
                         <span className="voucher-info-label">Vehicle Type</span>
-                        <span className="voucher-info-val">Private SUV / VIP Coach</span>
-                      </div>
-                      <div className="voucher-info-group">
-                        <span className="voucher-info-label">Status</span>
-                        <span className="voucher-info-val" style={{ color: 'var(--primary)', fontWeight: 800 }}>VOUCHER GENERATED</span>
+                        <span className="voucher-info-val">{selectedVehicleType}</span>
                       </div>
                     </div>
                   </div>
@@ -562,7 +677,7 @@ export default function App() {
                   className={`tab-btn ${activeTab === 'packages' ? 'active' : ''}`}
                   onClick={() => setActiveTab('packages')}
                 >
-                  <Compass className="h-4 w-4" /> Ready Packages
+                  <Compass className="h-4 w-4" /> Ready Packages (Land Only)
                 </button>
                 <button 
                   className={`tab-btn ${activeTab === 'builder' ? 'active' : ''}`}
@@ -603,6 +718,10 @@ export default function App() {
                           <span className="package-hotel-label">Transport Route</span>
                           <span className="package-hotel-name">{pkg.transportRoute?.routeType || 'Jeddah - Makkah - Madinah'}</span>
                         </div>
+                        <div className="package-hotel-item" style={{ borderBottom: 'none' }}>
+                          <span className="package-hotel-label" style={{ color: 'var(--secondary)' }}>Flights Status</span>
+                          <span className="package-hotel-name" style={{ color: 'var(--secondary)' }}>Excluded (Land Only)</span>
+                        </div>
                       </div>
 
                       <div className="package-footer">
@@ -614,8 +733,12 @@ export default function App() {
                           className="book-btn"
                           onClick={() => {
                             setSelectedPackage(pkg);
+                            setSelectedMakkahHotelId(pkg.makkahHotelId || DEFAULT_HOTELS[0].id);
+                            setSelectedMadinahHotelId(pkg.madinahHotelId || DEFAULT_HOTELS[3].id);
+                            setSelectedRouteId(pkg.transportRouteId || DEFAULT_ROUTES[0].id);
+                            setDates(prev => ({ ...prev, makkahNights: pkg.makkahNights, madinahNights: pkg.madinahNights }));
                             setActiveTab('builder');
-                            setStep(4); // Advance immediately to Checkout
+                            setStep(2); // Go to Flights step
                           }}
                         >
                           Select <ChevronRight className="h-4 w-4" />
@@ -634,7 +757,7 @@ export default function App() {
                 <div className="progress-stepper">
                   <div className={`progress-step ${step === 1 ? 'active' : step > 1 ? 'completed' : ''}`}>
                     <div className="progress-circle">1</div>
-                    <span>Dates & Pax</span>
+                    <span>Accommodation Type</span>
                   </div>
                   <div className="progress-divider" />
                   <div className={`progress-step ${step === 2 ? 'active' : step > 2 ? 'completed' : ''}`}>
@@ -649,7 +772,17 @@ export default function App() {
                   <div className="progress-divider" />
                   <div className={`progress-step ${step === 4 ? 'active' : step > 4 ? 'completed' : ''}`}>
                     <div className="progress-circle">4</div>
-                    <span>Verification</span>
+                    <span>Transports</span>
+                  </div>
+                  <div className="progress-divider" />
+                  <div className={`progress-step ${step === 5 ? 'active' : step > 5 ? 'completed' : ''}`}>
+                    <div className="progress-circle">5</div>
+                    <span>Itinerary</span>
+                  </div>
+                  <div className="progress-divider" />
+                  <div className={`progress-step ${step === 6 ? 'active' : step > 6 ? 'completed' : ''}`}>
+                    <div className="progress-circle">6</div>
+                    <span>Checkout</span>
                   </div>
                 </div>
 
@@ -657,29 +790,35 @@ export default function App() {
                   <div className="builder-main">
                     <div className="stepper-header">
                       <h3 className="stepper-title">
-                        {step === 1 && "Confirm Pilgrim Count"}
-                        {step === 2 && "Choose Flights"}
-                        {step === 3 && "Select Hotel Allotments"}
-                        {step === 4 && "Visa Verification & Checkout"}
+                        {step === 1 && "Select Accommodation Type"}
+                        {step === 2 && "Configure Flight Ticket Details"}
+                        {step === 3 && "Configure Hotel Stay (Min 3 Days)"}
+                        {step === 4 && "Configure Ground transfers"}
+                        {step === 5 && "Customize Itinerary Movements"}
+                        {step === 6 && "eVisa Registration & Checkout"}
                       </h3>
-                      <span className="step-indicator">Step {step} of 4</span>
+                      <span className="step-indicator">Step {step} of 6</span>
                     </div>
 
-                    {/* Step 1: Verification of Counts */}
+                    {/* Step 1: Accommodation Type & Basic Info */}
                     {step === 1 && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        
                         <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                           <div className="search-field">
-                            <label>Check-in Date</label>
-                            <input 
-                              type="date" 
+                            <label>Accommodation Booking Type</label>
+                            <select 
                               className="search-input"
-                              value={dates.checkIn}
-                              onChange={(e) => setDates({ ...dates, checkIn: e.target.value })}
-                            />
+                              value={dates.accommodationType}
+                              onChange={(e) => setDates({ ...dates, accommodationType: e.target.value })}
+                            >
+                              <option value="hotel">Hotel Accommodation Only</option>
+                              <option value="iqama">Iqama Sponsor Allotments</option>
+                            </select>
                           </div>
+                          
                           <div className="search-field">
-                            <label>Total Pilgrims</label>
+                            <label>Pilgrims Count</label>
                             <select 
                               className="search-input"
                               value={dates.travelers}
@@ -692,81 +831,249 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '1rem' }}>
-                          <div className="search-field">
-                            <label>Makkah Stay (Nights)</label>
-                            <input 
-                              type="number" 
-                              className="search-input"
-                              min={1}
-                              value={dates.makkahNights}
-                              onChange={(e) => setDates({ ...dates, makkahNights: Math.max(1, parseInt(e.target.value, 10) || 1) })}
-                            />
+                        {/* Iqama Fields if active */}
+                        {dates.accommodationType === 'iqama' && (
+                          <div style={{ padding: '1.5rem', backgroundColor: 'var(--primary-light)', borderRadius: '12px', border: '1px solid var(--gold-border)', marginTop: '0.5rem' }}>
+                            <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '1rem' }}>
+                              <UserCheck className="h-4 w-4 text-primary" /> Sponsor Iqama Details
+                            </h4>
+                            <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                              <div className="search-field">
+                                <label>Sponsor Iqama Number</label>
+                                <input 
+                                  type="text" 
+                                  className="search-input" 
+                                  placeholder="1000000000" 
+                                  value={iqamaDetails.iqamaNumber}
+                                  onChange={(e) => setIqamaDetails({ ...iqamaDetails, iqamaNumber: e.target.value })}
+                                />
+                              </div>
+                              <div className="search-field">
+                                <label>Sponsor Full Name (Absher Matching)</label>
+                                <input 
+                                  type="text" 
+                                  className="search-input" 
+                                  placeholder="Sponsor Name" 
+                                  value={iqamaDetails.iqamaSponserName}
+                                  onChange={(e) => setIqamaDetails({ ...iqamaDetails, iqamaSponserName: e.target.value })}
+                                />
+                              </div>
+                              <div className="search-field">
+                                <label>Sponsor Date of Birth</label>
+                                <input 
+                                  type="date" 
+                                  className="search-input" 
+                                  value={iqamaDetails.sponserDob}
+                                  onChange={(e) => setIqamaDetails({ ...iqamaDetails, sponserDob: e.target.value })}
+                                />
+                              </div>
+                              <div className="search-field">
+                                <label>Sponsor Mobile Number</label>
+                                <input 
+                                  type="text" 
+                                  className="search-input" 
+                                  placeholder="+966 50 123 4567" 
+                                  value={iqamaDetails.sponserMobileNumber}
+                                  onChange={(e) => setIqamaDetails({ ...iqamaDetails, sponserMobileNumber: e.target.value })}
+                                />
+                              </div>
+                            </div>
+                            <p className="scan-desc" style={{ marginTop: '0.75rem', color: 'var(--text-muted)' }}>
+                              * Under B2C regulations, sponsor approvals must still be cleared in Absher via the Qabul services portal.
+                            </p>
                           </div>
-                          <div className="search-field">
-                            <label>Madinah Stay (Nights)</label>
-                            <input 
-                              type="number" 
-                              className="search-input"
-                              min={1}
-                              value={dates.madinahNights}
-                              onChange={(e) => setDates({ ...dates, madinahNights: Math.max(1, parseInt(e.target.value, 10) || 1) })}
-                            />
-                          </div>
+                        )}
+
+                        <div className="search-field">
+                          <label>Check-in Date</label>
+                          <input 
+                            type="date" 
+                            className="search-input"
+                            value={dates.checkIn}
+                            onChange={(e) => setDates({ ...dates, checkIn: e.target.value })}
+                          />
                         </div>
 
                         <div className="step-nav" style={{ justifyContent: 'flex-end' }}>
                           <button className="book-btn" onClick={() => setStep(2)}>
-                            Choose Flights <ChevronRight className="h-4 w-4" />
+                            Flight Details <ChevronRight className="h-4 w-4" />
                           </button>
                         </div>
                       </div>
                     )}
 
-                    {/* Step 2: Flights */}
+                    {/* Step 2: Flight Details */}
                     {step === 2 && (
-                      <div>
-                        <div className="options-list">
-                          {FLIGHTS.map((f) => (
-                            <div 
-                              key={f.id}
-                              className={`option-item ${selectedFlight.id === f.id ? 'selected' : ''}`}
-                              onClick={() => setSelectedFlight(f)}
-                            >
-                              <div className="option-left">
-                                <div className="option-circle">
-                                  <div className="option-circle-inner" />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', backgroundColor: 'var(--primary-light)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                          <input 
+                            type="checkbox" 
+                            id="isWithoutTicket" 
+                            checked={flightInfo.isWithoutTicket}
+                            onChange={(e) => setFlightInfo({ ...flightInfo, isWithoutTicket: e.target.checked })}
+                          />
+                          <label htmlFor="isWithoutTicket" style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary)', cursor: 'pointer' }}>
+                            I will purchase my own flight tickets (Without Ticket option)
+                          </label>
+                        </div>
+
+                        {!flightInfo.isWithoutTicket ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '0.5rem' }}>
+                            
+                            {/* Arrival flights */}
+                            <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem' }}>
+                              <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>Arrival Flight Info</h4>
+                              <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <div className="search-field">
+                                  <label>Carrier / Flight Number</label>
+                                  <input 
+                                    type="text" 
+                                    className="search-input" 
+                                    value={flightInfo.arrivalFlightNumber}
+                                    onChange={(e) => setFlightInfo({ ...flightInfo, arrivalFlightNumber: e.target.value })}
+                                  />
                                 </div>
-                                <div className="option-info">
-                                  <span className="option-name">{f.name}</span>
-                                  <span className="option-subtitle">Ministry authorized air manifest slot</span>
+                                <div className="search-field">
+                                  <label>Arrival Airport</label>
+                                  <select 
+                                    className="search-input"
+                                    value={flightInfo.arrivalAirportId}
+                                    onChange={(e) => setFlightInfo({ ...flightInfo, arrivalAirportId: e.target.value })}
+                                  >
+                                    {airports.map(apt => (
+                                      <option key={apt.id} value={apt.id}>{apt.name}</option>
+                                    ))}
+                                  </select>
                                 </div>
-                              </div>
-                              <div className="option-right">
-                                <span className="option-price">{f.price * dates.travelers} SAR</span>
-                                <span className="option-subtitle">{f.price} SAR/pax</span>
+                                <div className="search-field">
+                                  <label>Arrival Date</label>
+                                  <input 
+                                    type="date" 
+                                    className="search-input" 
+                                    value={flightInfo.arrivalDate}
+                                    onChange={(e) => setFlightInfo({ ...flightInfo, arrivalDate: e.target.value })}
+                                  />
+                                </div>
+                                <div className="search-field">
+                                  <label>Arrival Time</label>
+                                  <input 
+                                    type="time" 
+                                    className="search-input" 
+                                    value={flightInfo.arrivalTime}
+                                    onChange={(e) => setFlightInfo({ ...flightInfo, arrivalTime: e.target.value })}
+                                  />
+                                </div>
                               </div>
                             </div>
-                          ))}
-                        </div>
+
+                            {/* Departure flights */}
+                            <div>
+                              <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>Departure Flight Info</h4>
+                              <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <div className="search-field">
+                                  <label>Carrier / Flight Number</label>
+                                  <input 
+                                    type="text" 
+                                    className="search-input" 
+                                    value={flightInfo.departureFlightNumber}
+                                    onChange={(e) => setFlightInfo({ ...flightInfo, departureFlightNumber: e.target.value })}
+                                  />
+                                </div>
+                                <div className="search-field">
+                                  <label>Departure Airport</label>
+                                  <select 
+                                    className="search-input"
+                                    value={flightInfo.departureAirportId}
+                                    onChange={(e) => setFlightInfo({ ...flightInfo, departureAirportId: e.target.value })}
+                                  >
+                                    {airports.map(apt => (
+                                      <option key={apt.id} value={apt.id}>{apt.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="search-field">
+                                  <label>Departure Date</label>
+                                  <input 
+                                    type="date" 
+                                    className="search-input" 
+                                    value={flightInfo.departureDate}
+                                    onChange={(e) => setFlightInfo({ ...flightInfo, departureDate: e.target.value })}
+                                  />
+                                </div>
+                                <div className="search-field">
+                                  <label>Departure Time</label>
+                                  <input 
+                                    type="time" 
+                                    className="search-input" 
+                                    value={flightInfo.departureTime}
+                                    onChange={(e) => setFlightInfo({ ...flightInfo, departureTime: e.target.value })}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                          </div>
+                        ) : (
+                          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            <Info className="h-8 w-8 mx-auto mb-2 text-secondary" />
+                            <p>You have selected the <b>Without Ticket</b> option. No flight details will be cleared on checkout.</p>
+                          </div>
+                        )}
 
                         <div className="step-nav">
                           <button className="nav-back-btn" onClick={() => setStep(1)}>Back</button>
                           <button className="book-btn" onClick={() => setStep(3)}>
-                            Select Hotels <ChevronRight className="h-4 w-4" />
+                            Configure Stays <ChevronRight className="h-4 w-4" />
                           </button>
                         </div>
                       </div>
                     )}
 
-                    {/* Step 3: Hotel Allotments & Transports */}
+                    {/* Step 3: Hotel Stays */}
                     {step === 3 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                         
+                        {/* Minimum stay warning */}
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', padding: '1rem', backgroundColor: 'var(--secondary-light)', border: '1px solid var(--gold-border)', borderRadius: '8px', color: 'var(--text-dark)', fontSize: '0.85rem', fontWeight: 600 }}>
+                          <Info className="h-4 w-4 text-secondary" />
+                          <span>* Direct e-Visas require a minimum hotel stay allotment of at least 3 days.</span>
+                        </div>
+
+                        <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '0.5rem' }}>
+                          <div className="search-field">
+                            <label>Makkah Nights</label>
+                            <input 
+                              type="number" 
+                              className="search-input" 
+                              min={1} 
+                              value={dates.makkahNights}
+                              onChange={(e) => setDates({ ...dates, makkahNights: Math.max(1, parseInt(e.target.value) || 1) })}
+                            />
+                          </div>
+                          <div className="search-field">
+                            <label>Madinah Nights</label>
+                            <input 
+                              type="number" 
+                              className="search-input" 
+                              min={0} 
+                              value={dates.madinahNights}
+                              onChange={(e) => setDates({ ...dates, madinahNights: Math.max(0, parseInt(e.target.value) || 0) })}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Stays limit check */}
+                        {dates.makkahNights + dates.madinahNights < 3 && (
+                          <span style={{ color: 'var(--error)', fontSize: '0.8rem', fontWeight: 700 }}>
+                            ⚠️ Total nights (Makkah + Madinah) must be at least 3 nights!
+                          </span>
+                        )}
+
                         {/* Makkah Hotels */}
                         <div>
                           <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>
-                            <Building className="h-4 w-4 text-primary" /> Makkah Stay ({dates.makkahNights} Nights)
+                            <Building className="h-4 w-4 text-primary" /> Makkah Hotel Allotments
                           </h4>
                           <div className="options-list">
                             {hotels.filter(h => h.city?.toLowerCase().includes('makkah') || h.name?.toLowerCase().includes('makkah')).map((h) => (
@@ -781,7 +1088,7 @@ export default function App() {
                                   </div>
                                   <div className="option-info">
                                     <span className="option-name">{h.name}</span>
-                                    <span className="option-subtitle">Haram vicinity access</span>
+                                    <span className="option-subtitle">Direct bed allotment lock</span>
                                   </div>
                                 </div>
                                 <div className="option-right">
@@ -794,24 +1101,25 @@ export default function App() {
                         </div>
 
                         {/* Madinah Hotels */}
-                        <div>
-                          <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>
-                            <Building className="h-4 w-4 text-primary" /> Madinah Stay ({dates.madinahNights} Nights)
-                          </h4>
-                          <div className="options-list">
-                            {hotels.filter(h => h.city?.toLowerCase().includes('madinah') || h.name?.toLowerCase().includes('madinah') || h.city?.toLowerCase().includes('medina')).map((h) => (
-                              <div 
-                                key={h.id}
-                                className={`option-item ${selectedMadinahHotelId === h.id ? 'selected' : ''}`}
-                                onClick={() => setSelectedMadinahHotelId(h.id)}
-                              >
+                        {dates.madinahNights > 0 && (
+                          <div>
+                            <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>
+                              <Building className="h-4 w-4 text-primary" /> Madinah Hotel Allotments
+                            </h4>
+                            <div className="options-list">
+                              {hotels.filter(h => h.city?.toLowerCase().includes('madinah') || h.name?.toLowerCase().includes('madinah') || h.city?.toLowerCase().includes('medina')).map((h) => (
+                                <div 
+                                  key={h.id}
+                                  className={`option-item ${selectedMadinahHotelId === h.id ? 'selected' : ''}`}
+                                  onClick={() => setSelectedMadinahHotelId(h.id)}
+                                >
                                 <div className="option-left">
                                   <div className="option-circle">
                                     <div className="option-circle-inner" />
                                   </div>
                                   <div className="option-info">
                                     <span className="option-name">{h.name}</span>
-                                    <span className="option-subtitle">Prophet's Mosque vicinity access</span>
+                                    <span className="option-subtitle">Direct bed allotment lock</span>
                                   </div>
                                 </div>
                                 <div className="option-right">
@@ -822,12 +1130,45 @@ export default function App() {
                             ))}
                           </div>
                         </div>
+                        )}
+
+                        <div className="step-nav">
+                          <button className="nav-back-btn" onClick={() => setStep(2)}>Back</button>
+                          <button 
+                            className="book-btn" 
+                            disabled={dates.makkahNights + dates.madinahNights < 3}
+                            onClick={() => setStep(4)}
+                          >
+                            Ground Transport <ChevronRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 4: Ground Transfers */}
+                    {step === 4 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        
+                        {/* Vehicle Type Selection */}
+                        <div>
+                          <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>Select Vehicle Type</h4>
+                          <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                            {['SUV', 'Sedan', 'VIP Coach'].map(vt => (
+                              <div 
+                                key={vt} 
+                                className={`option-item ${selectedVehicleType === vt ? 'selected' : ''}`}
+                                onClick={() => setSelectedVehicleType(vt)}
+                                style={{ padding: '1rem', justifyContent: 'center' }}
+                              >
+                                <span className="option-name">{vt}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
 
                         {/* Transport Routes */}
                         <div>
-                          <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>
-                            <Car className="h-4 w-4 text-primary" /> Ground Transfer Route
-                          </h4>
+                          <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>Select Corridor Route</h4>
                           <div className="options-list">
                             {routes.map((r) => (
                               <div 
@@ -841,12 +1182,11 @@ export default function App() {
                                   </div>
                                   <div className="option-info">
                                     <span className="option-name">{r.routeType}</span>
-                                    <span className="option-subtitle">Ministry Tafweej manifest inclusion</span>
+                                    <span className="option-subtitle">Approved Ministry Tafweej routes</span>
                                   </div>
                                 </div>
                                 <div className="option-right">
                                   <span className="option-price">{r.price || 500} SAR</span>
-                                  <span className="option-subtitle">Route Flat Rate</span>
                                 </div>
                               </div>
                             ))}
@@ -854,19 +1194,112 @@ export default function App() {
                         </div>
 
                         <div className="step-nav">
-                          <button className="nav-back-btn" onClick={() => setStep(2)}>Back</button>
-                          <button className="book-btn" onClick={() => setStep(4)}>
-                            Proceed to Checkout <ChevronRight className="h-4 w-4" />
+                          <button className="nav-back-btn" onClick={() => setStep(3)}>Back</button>
+                          <button className="book-btn" onClick={() => setStep(5)}>
+                            Configure Itinerary <ChevronRight className="h-4 w-4" />
                           </button>
                         </div>
                       </div>
                     )}
 
-                    {/* Step 4: Checkout & Payment */}
-                    {step === 4 && (
+                    {/* Step 5: Interactive Movement Builder */}
+                    {step === 5 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <h4 className="summary-title" style={{ fontSize: '1.1rem', borderBottom: 'none', marginBottom: 0 }}>Custom Movement Manifest</h4>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button 
+                              type="button" 
+                              className="tab-btn" 
+                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                              onClick={() => addMovement('transfer')}
+                            >
+                              <Plus className="h-3 w-3" /> Add Transfer
+                            </button>
+                            <button 
+                              type="button" 
+                              className="tab-btn" 
+                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                              onClick={() => addMovement('ziyarat')}
+                            >
+                              <Plus className="h-3 w-3" /> Add Ziyarat
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Draggable/Interactive list */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                          {movements.map((m, index) => (
+                            <div 
+                              key={m.id}
+                              style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'space-between', 
+                                padding: '1rem', 
+                                backgroundColor: 'var(--bg-light)', 
+                                border: '1px solid var(--border-color)', 
+                                borderRadius: '12px',
+                                transition: 'var(--transition)'
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                {/* Reordering buttons */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: index === 0 ? 0.3 : 1 }} disabled={index === 0} onClick={() => moveItem(index, 'up')}><ArrowUp className="h-3.5 w-3.5" /></button>
+                                  <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: index === movements.length - 1 ? 0.3 : 1 }} disabled={index === movements.length - 1} onClick={() => moveItem(index, 'down')}><ArrowDown className="h-3.5 w-3.5" /></button>
+                                </div>
+
+                                <div className="feature-icon-wrapper" style={{ width: '36px', height: '36px', borderRadius: '8px', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  {m.type === 'transfer' ? <Car className="h-4 w-4" /> : m.type === 'stay' ? <Building className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary)' }}>{m.name}</span>
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{m.from} → {m.to}</span>
+                                </div>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                <div className="search-field" style={{ width: '90px' }}>
+                                  <input 
+                                    type="time" 
+                                    className="search-input" 
+                                    style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem' }} 
+                                    value={m.time}
+                                    onChange={(e) => updateTime(index, e.target.value)}
+                                  />
+                                </div>
+                                {m.type !== 'stay' && (
+                                  <button 
+                                    type="button" 
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)' }}
+                                    onClick={() => removeMovement(m.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
+
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="step-nav">
+                          <button className="nav-back-btn" onClick={() => setStep(4)}>Back</button>
+                          <button className="book-btn" onClick={() => setStep(6)}>
+                            Checkout & Verify <ChevronRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 6: Checkout & e-Visa */}
+                    {step === 6 && (
                       <form onSubmit={handleCheckout} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                         
-                        {/* Passport Scanner */}
+                        {/* Passport Upload */}
                         <div>
                           <span className="price-label" style={{ fontWeight: 700, marginBottom: '0.5rem', display: 'block' }}>Ministry verification passport upload</span>
                           <div className="scan-box" onClick={() => document.getElementById('passport-file-input')?.click()}>
@@ -966,7 +1399,6 @@ export default function App() {
                                 onChange={(e) => setOtpCode(e.target.value)}
                               />
                               <button type="button" className="nav-btn" onClick={verifyOtp}>Verify Code</button>
-                              <span className="scan-desc">Enter code <b>1234</b></span>
                             </div>
                           )}
 
@@ -987,7 +1419,7 @@ export default function App() {
                                 setActiveTab('packages');
                                 setSelectedPackage(null);
                               } else {
-                                setStep(3);
+                                setStep(5);
                               }
                             }}
                           >
@@ -1028,6 +1460,11 @@ export default function App() {
                       </h4>
                       
                       <div className="summary-items">
+                        <div className="summary-row">
+                          <span className="summary-label">Accommodation Type</span>
+                          <span className="summary-value" style={{ textTransform: 'uppercase' }}>{dates.accommodationType}</span>
+                        </div>
+                        
                         {selectedPackage ? (
                           <>
                             <div className="summary-row">
@@ -1065,17 +1502,19 @@ export default function App() {
                               <span className="summary-label">Makkah Accommodation</span>
                               <span className="summary-value">{selectedMakkahHotelName}</span>
                             </div>
-                            <div className="summary-row">
-                              <span className="summary-label">Madinah Accommodation</span>
-                              <span className="summary-value">{selectedMadinahHotelName}</span>
-                            </div>
+                            {dates.madinahNights > 0 && (
+                              <div className="summary-row">
+                                <span className="summary-label">Madinah Accommodation</span>
+                                <span className="summary-value">{selectedMadinahHotelName}</span>
+                              </div>
+                            )}
                             <div className="summary-row">
                               <span className="summary-label">Transport Route</span>
-                              <span className="summary-value">{selectedRouteName}</span>
+                              <span className="summary-value">{selectedRouteName} ({selectedVehicleType})</span>
                             </div>
                             <div className="summary-row">
                               <span className="summary-label">Flight Selection</span>
-                              <span className="summary-value">{selectedFlight.name}</span>
+                              <span className="summary-value">{flightInfo.isWithoutTicket ? 'Without Ticket' : `${flightInfo.arrivalFlightNumber} / ${flightInfo.departureFlightNumber}`}</span>
                             </div>
                           </>
                         )}

@@ -400,7 +400,20 @@ router.post(
       travelersCount, 
       makkahHotelId, 
       madinahHotelId,
-      transportOptionId
+      transportOptionId,
+      accommodationType,
+      isWithoutTicket,
+      arrivalFlightNumber,
+      arrivalDateTime,
+      arrivalAirportId,
+      departureFlightNumber,
+      departureDateTime,
+      departureAirportId,
+      iqamaNumber,
+      iqamaSponserName,
+      sponserDob,
+      sponserMobileNumber,
+      movements
     } = req.body;
 
     const adminUser = await prisma.user.findFirst({ where: { role: 'admin' } });
@@ -453,7 +466,8 @@ router.post(
         bookingReference: bookingRef,
         passengerCount: travelersCount || 1,
         visaType: 'individual_visa',
-        accommodationType: 'hotel',
+        accommodationType: accommodationType || 'hotel',
+        isWithoutTicket: !!isWithoutTicket,
         status: 'booking_success', 
         groupName: `B2C-${fullName.split(' ')[0]}`,
         passengers: {
@@ -468,17 +482,33 @@ router.post(
         travelDetails: {
           create: [
             {
-              arrivalDateTime: new Date(checkInDate),
-              arrivalAirportId: defaultAirportId,
-              arrivalFlightNumber: 'SV-300',
-              departureDateTime: new Date(new Date(checkInDate).getTime() + (makkahNights + madinahNights) * 86400000),
-              departureAirportId: defaultAirportId,
-              departureFlightNumber: 'SV-301',
+              arrivalDateTime: arrivalDateTime ? new Date(arrivalDateTime) : new Date(checkInDate),
+              arrivalAirportId: arrivalAirportId || defaultAirportId,
+              arrivalFlightNumber: isWithoutTicket ? 'NT-0000' : (arrivalFlightNumber || 'SV-300'),
+              departureDateTime: departureDateTime ? new Date(departureDateTime) : new Date(new Date(checkInDate).getTime() + (makkahNights + madinahNights) * 86400000),
+              departureAirportId: departureAirportId || defaultAirportId,
+              departureFlightNumber: isWithoutTicket ? 'NT-0000' : (departureFlightNumber || 'SV-301'),
             }
           ]
         }
       }
     });
+
+    if (accommodationType === 'iqama') {
+      await prisma.umrahSponserIqamaDetails.create({
+        data: {
+          bookingId: booking.id,
+          iqamaSponserName: iqamaSponserName || 'Sponsor Name',
+          iqamaNumber: iqamaNumber || '1000000000',
+          sponserDob: sponserDob ? new Date(sponserDob) : new Date(),
+          sponserMobileNumber: sponserMobileNumber || mobileNumber,
+          sponserNationalShortAddress: 'KSA Address',
+          isAlternate: false,
+          makkahHotelName: makkahHotel?.name || null,
+          madinahHotelName: madinahHotel?.name || null,
+        }
+      });
+    }
 
     if (makkahHotel) {
       await prisma.umrahHotelBooking.create({
@@ -509,6 +539,21 @@ router.post(
         }
       });
       await InventoryService.recalculateInventory(madinahHotel.id, 'B2C_LOCK_BRN_2');
+    }
+
+    if (movements && Array.isArray(movements)) {
+      for (const m of movements) {
+        await prisma.umrahMovementDetail.create({
+          data: {
+            bookingId: booking.id,
+            date: m.date ? new Date(m.date) : new Date(checkInDate),
+            time: m.time || '12:00',
+            fromLocationId: m.fromLocationId,
+            toLocationId: m.toLocationId,
+            isAlternate: false,
+          }
+        });
+      }
     }
 
     const voucherRef = `VCH-${randomSuffix}`;
