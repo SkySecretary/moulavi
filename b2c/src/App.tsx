@@ -525,7 +525,7 @@ export default function App() {
             <div className="logo-icon">N</div>
             <div className="logo-text">
               <h1>NUSYNC DIRECT</h1>
-              <span>Ministry Approved Consumer Channel</span>
+              <span>Verified B2C Consumer Channel</span>
             </div>
           </a>
           <div className="nav-links">
@@ -542,19 +542,19 @@ export default function App() {
           <div className="builder-main" style={{ maxWidth: '850px', margin: '0 auto' }}>
             <div className="success-alert">
               <CheckCircle className="h-5 w-5" />
-              Moulavi B2C e-Visa Application Approved & Allotment Lock Confirmed!
+              Moulavi B2C e-Visa Application & Allotment Lock Confirmed!
             </div>
 
             <h2 className="hero-title" style={{ color: 'var(--primary)', fontSize: '2rem', textAlign: 'center', marginBottom: '0.5rem' }}>Pilgrim Manifest Voucher</h2>
             <p className="hero-subtitle" style={{ color: 'var(--text-muted)', fontSize: '0.95rem', textAlign: 'center', marginBottom: '2.5rem' }}>
-              Your electronic visa has been validated. A digital copy of this Tafweej voucher has been dispatched via WhatsApp to {traveler.mobile}.
+              Your electronic visa application has been validated. A digital copy of this Tafweej voucher has been dispatched via WhatsApp to {traveler.mobile}.
             </p>
 
             <div className="voucher-card">
               <div className="voucher-header">
                 <div className="voucher-brand">
                   <h2>MOULAVI TRAVELS</h2>
-                  <p>Ministry of Hajj & Umrah Gateway</p>
+                  <p>Official e-Visa Gateway</p>
                 </div>
                 <div className="voucher-ref">
                   <span className="voucher-section-title" style={{ color: 'rgba(255,255,255,0.7)', borderBottom: 'none' }}>Reference ID</span>
@@ -579,7 +579,7 @@ export default function App() {
                       </div>
                       <div className="voucher-info-group">
                         <span className="voucher-info-label">eVisa Status</span>
-                        <span className="voucher-info-val" style={{ color: 'var(--primary)', fontWeight: 800 }}>✓ APPROVED</span>
+                        <span className="voucher-info-val" style={{ color: 'var(--primary)', fontWeight: 800 }}>✓ CONFIRMED</span>
                       </div>
                       <div className="voucher-info-group">
                         <span className="voucher-info-label">Total Travelers</span>
@@ -660,7 +660,7 @@ export default function App() {
                       <path d="M35,70 h10 v5 h-10 z M50,75 h20 v5 h-20 z" fill="var(--primary)" />
                     </svg>
                   </div>
-                  <span className="qr-desc">Scan to verify Ministry of Hajj Tafweej Manifest</span>
+                  <span className="qr-desc">Scan to verify Tafweej manifest clearances</span>
                 </div>
               </div>
             </div>
@@ -687,7 +687,7 @@ export default function App() {
             <span className="hero-tag">Kingdom of Saudi Arabia</span>
             <h2 className="hero-title">Direct e-Visa & Pilgrimage Booking Gateway</h2>
             <p className="hero-subtitle">
-              Verify hotel room allotments, select approved local carriers, and issue direct electronic visas instantly under Saudi Ministry regulations.
+              Verify hotel room allotments, select onward and return flight carriers, and issue direct electronic visas instantly.
             </p>
           </section>
 
@@ -957,7 +957,7 @@ export default function App() {
                               </div>
                             </div>
                             <p className="scan-desc" style={{ marginTop: '0.75rem', color: 'var(--text-muted)' }}>
-                              * Under B2C regulations, sponsor approvals must still be cleared in Absher via the Qabul services portal.
+                              * Sponsor approvals must still be cleared in Absher via the Qabul services portal.
                             </p>
                           </div>
                         )}
@@ -1489,7 +1489,7 @@ export default function App() {
                                   </div>
                                   <div className="option-info">
                                     <span className="option-name">{r.routeType}</span>
-                                    <span className="option-subtitle">Approved Ministry Tafweej routes</span>
+                                    <span className="option-subtitle">Official Tafweej corridors</span>
                                   </div>
                                 </div>
                                 <div className="option-right">
@@ -1608,7 +1608,7 @@ export default function App() {
                         
                         {/* Passport Upload */}
                         <div>
-                          <span className="price-label" style={{ fontWeight: 700, marginBottom: '0.5rem', display: 'block' }}>Ministry verification passport upload</span>
+                          <span className="price-label" style={{ fontWeight: 700, marginBottom: '0.5rem', display: 'block' }}>Passport verification copy upload</span>
                           <div className="scan-box" onClick={() => document.getElementById('passport-file-input')?.click()}>
                             <input 
                               type="file" 
@@ -1856,7 +1856,7 @@ export default function App() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.5rem', padding: '0.75rem', backgroundColor: 'var(--primary-light)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.75rem', color: 'var(--primary)' }}>
                           <ShieldCheck className="h-4 w-4" />
-                          <span>Ministry Direct API e-Visa Gate</span>
+                          <span>Direct API e-Visa Gate</span>
                         </div>
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.75rem', color: 'var(--primary)' }}>
                           <FileCheck className="h-4 w-4" />
@@ -1884,7 +1884,7 @@ export default function App() {
                 <div className="flow-step">
                   <div className="flow-badge">2</div>
                   <h5>Allot Room & Route</h5>
-                  <p>Choose approved Makkah & Madinah hotels to instantly secure locked BRN beds.</p>
+                  <p>Choose premium Makkah & Madinah hotels to instantly secure locked beds.</p>
                 </div>
                 <div className="flow-step">
                   <div className="flow-badge">3</div>
@@ -1901,7 +1901,7 @@ export default function App() {
                   <ShieldCheck className="h-6 w-6" />
                 </div>
                 <h4>Direct Integration</h4>
-                <p>Authorized connection to Ministry of Hajj & Umrah systems ensures seamless Tafweej clearances.</p>
+                <p>Direct integration ensures seamless clearances and instant visa validation.</p>
               </div>
               <div className="feature-box">
                 <div className="feature-icon-wrapper">
@@ -1915,7 +1915,7 @@ export default function App() {
                   <HeartHandshake className="h-6 w-6" />
                 </div>
                 <h4>24/7 Pilgrimage Support</h4>
-                <p>Our Saudi operations team supports you at Hajj terminals and hotel check-in desks.</p>
+                <p>Our Saudi operations team supports you at airport terminals and hotel check-in desks.</p>
               </div>
             </section>
 
@@ -1928,7 +1928,7 @@ export default function App() {
         <div className="footer-container">
           <div className="footer-column">
             <h4>Nusync Direct</h4>
-            <p style={{ marginBottom: '1rem' }}>Moulavi Travels is a licensed Umrah operator and e-Visa issuer approved under the Ministry of Hajj & Umrah, Kingdom of Saudi Arabia.</p>
+            <p style={{ marginBottom: '1rem' }}>Moulavi Travels is a licensed and verified operator offering direct electronic visas and custom pilgrimage packages.</p>
             <span className="footer-badge">KSA License #9823-U</span>
           </div>
           <div className="footer-column">
@@ -1950,7 +1950,7 @@ export default function App() {
             </ul>
           </div>
           <div className="footer-column">
-            <h4>Ministry Office</h4>
+            <h4>Head Office</h4>
             <p>Moulavi Travels KSA HQ</p>
             <p>King Abdulaziz Road, Makkah</p>
             <p style={{ marginTop: '0.5rem' }}>📞 +966 12 555 0199</p>
