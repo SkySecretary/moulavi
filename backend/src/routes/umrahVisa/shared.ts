@@ -246,6 +246,7 @@ export const step2Schema = z.object({
     checkInDate: z.string().transform((str) => new Date(str)),
     checkOutDate: z.string().transform((str) => new Date(str)),
     brn: z.array(z.string()).optional(),
+    cateringBrn: z.array(z.string()).optional().nullable(),
   })).optional(),
 }).refine((data) => {
   if (data.isWithoutTicket) {

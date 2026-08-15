@@ -566,7 +566,7 @@ export default function TripInfoPage() {
           }
           text += `📅 *Check-in:* ${hCheckIn}\n`;
           text += `📅 *Check-out:* ${hCheckOut}\n`;
-          if (hotelBooking.checkInDate && hotelBooking.checkOutDate) {
+          if (booking.visaType !== 'group_visa' && hotelBooking.checkInDate && hotelBooking.checkOutDate) {
             const inDate = new Date(hotelBooking.checkInDate);
             const outDate = new Date(hotelBooking.checkOutDate);
             const diffDays = Math.ceil((outDate.getTime() - inDate.getTime()) / (1000 * 60 * 60 * 24));
