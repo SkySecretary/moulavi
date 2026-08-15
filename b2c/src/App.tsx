@@ -172,12 +172,17 @@ function SearchableSelect({
     }
   });
 
-  const filtered = apiSearchUrl && search.trim().length >= 2
-    ? dynamicOptions 
-    : allMergedOptions.filter(o => 
-        o.name.toLowerCase().includes(search.toLowerCase()) || 
-        (o.city && o.city.toLowerCase().includes(search.toLowerCase()))
-      );
+  const localFiltered = allMergedOptions.filter(o => 
+    o.name.toLowerCase().includes(search.toLowerCase()) || 
+    (o.city && o.city.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const filtered = [...localFiltered];
+  dynamicOptions.forEach(opt => {
+    if (!filtered.some(o => o.id === opt.id)) {
+      filtered.push(opt);
+    }
+  });
 
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
