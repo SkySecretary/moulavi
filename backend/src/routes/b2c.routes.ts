@@ -282,7 +282,7 @@ router.post(
     const { mobileNumber, email, fullName } = req.body;
     const cleanMobile = mobileNumber.trim();
     
-    const code = '1234'; 
+    const code = Math.floor(1000 + Math.random() * 9000).toString(); 
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
     let consumer = await prisma.b2CConsumer.findUnique({
@@ -312,7 +312,7 @@ router.post(
     try {
       const message = `*Moulavi Travels B2C Direct Portal*\n\nYour 4-digit verification code is: *${code}*.\nExpires in 15 minutes.`;
       await sendCustomWhatsApp(cleanMobile, message);
-      console.log(`[B2C OTP] Verification code sent to ${cleanMobile}`);
+      console.log(`[B2C OTP] Verification code sent to ${cleanMobile}: ${code}`);
     } catch (err: any) {
       console.error('[B2C OTP] WhatsApp send failed:', err.message);
     }
