@@ -7,6 +7,8 @@ import { InventoryService } from '../services/inventoryService';
 import { sendCustomWhatsApp } from '../services/whatsappService';
 import { FlightService } from '../services/flightService';
 import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
 
 const router = Router();
 
@@ -287,38 +289,65 @@ router.get(
   })
 );
 
+let airportsData: any = null;
+
+function getAirportsData() {
+  if (!airportsData) {
+    try {
+      const filePath = path.join(__dirname, '../data/airports.json');
+      if (fs.existsSync(filePath)) {
+        const raw = fs.readFileSync(filePath, 'utf8');
+        airportsData = JSON.parse(raw);
+      } else {
+        airportsData = {};
+      }
+    } catch (err) {
+      console.error('Failed to load airports.json:', err);
+      airportsData = {};
+    }
+  }
+  return airportsData;
+}
+
 router.get(
   '/flights/airports',
   asyncHandler(async (req: any, res: Response) => {
-    const search = req.query.search as string;
-    if (!search || search.trim().length < 2) {
-      return res.json({ success: true, data: [] });
-    }
-    const apiKey = process.env.AVIATIONSTACK_API_KEY;
-    if (!apiKey) {
+    const search = (req.query.search as string || '').trim().toLowerCase();
+    if (!search || search.length < 2) {
       return res.json({ success: true, data: [] });
     }
 
-    try {
-      const url = `http://api.aviationstack.com/v1/airports`;
-      const response = await axios.get(url, {
-        params: {
-          access_key: apiKey,
-          search: search
-        }
-      });
-      if (response.data && response.data.data) {
-        const formatted = response.data.data.map((apt: any) => ({
-          id: `apt-${apt.iata_code?.toLowerCase()}`,
-          name: `${apt.city_name || apt.airport_name} - ${apt.airport_name} (${apt.iata_code})`,
-          city: apt.city_name || ''
-        }));
-        return res.json({ success: true, data: formatted });
+    const data = getAirportsData();
+    const results: any[] = [];
+
+    for (const key of Object.keys(data)) {
+      const apt = data[key];
+      if (!apt.iata) continue;
+
+      const name = (apt.name || '').toLowerCase();
+      const city = (apt.city || '').toLowerCase();
+      const iata = (apt.iata || '').toLowerCase();
+      const country = (apt.country || '').toLowerCase();
+
+      if (
+        iata === search ||
+        name.includes(search) ||
+        city.includes(search) ||
+        country.includes(search)
+      ) {
+        results.push({
+          id: `apt-${apt.iata.toLowerCase()}`,
+          name: `${apt.city || apt.name} - ${apt.name} (${apt.iata})`,
+          city: apt.city || ''
+        });
       }
-      res.json({ success: true, data: [] });
-    } catch (err) {
-      res.status(500).json({ success: false, error: 'Failed to search live airports' });
+
+      if (results.length >= 80) {
+        break;
+      }
     }
+
+    res.json({ success: true, data: results });
   })
 );
 
