@@ -12,7 +12,8 @@ import {
   FileCheck, 
   Camera, 
   Lock,
-  ArrowRight
+  ArrowRight,
+  HeartHandshake
 } from 'lucide-react';
 
 // ==========================================
@@ -365,8 +366,8 @@ export default function App() {
             </div>
           </a>
           <div className="nav-links">
-            <a href="#" className="nav-link" onClick={() => { setActiveTab('packages'); setStep(1); setBookingFinished(false); }}>Packages</a>
-            <a href="#" className="nav-link" onClick={() => { setActiveTab('builder'); setStep(1); setBookingFinished(false); }}>Custom Builder</a>
+            <button className="nav-link" style={{ background: 'none', border: 'none' }} onClick={() => { setActiveTab('packages'); setStep(1); setBookingFinished(false); }}>Ready Packages</button>
+            <button className="nav-link" style={{ background: 'none', border: 'none' }} onClick={() => { setActiveTab('builder'); setStep(1); setBookingFinished(false); }}>Custom Builder</button>
             <button className="nav-btn" onClick={() => { setActiveTab('builder'); setStep(1); setBookingFinished(false); }}>Get e-Visa</button>
           </div>
         </div>
@@ -415,7 +416,7 @@ export default function App() {
                       </div>
                       <div className="voucher-info-group">
                         <span className="voucher-info-label">eVisa Status</span>
-                        <span className="voucher-info-val" style={{ color: 'var(--success)', fontWeight: 800 }}>✓ APPROVED</span>
+                        <span className="voucher-info-val" style={{ color: 'var(--primary)', fontWeight: 800 }}>✓ APPROVED</span>
                       </div>
                       <div className="voucher-info-group">
                         <span className="voucher-info-label">Total Travelers</span>
@@ -461,7 +462,7 @@ export default function App() {
                       </div>
                       <div className="voucher-info-group">
                         <span className="voucher-info-label">Status</span>
-                        <span className="voucher-info-val" style={{ color: 'var(--success)', fontWeight: 800 }}>VOUCHER GENERATED</span>
+                        <span className="voucher-info-val" style={{ color: 'var(--primary)', fontWeight: 800 }}>VOUCHER GENERATED</span>
                       </div>
                     </div>
                   </div>
@@ -643,496 +644,611 @@ export default function App() {
 
             {/* Custom Builder Section */}
             {activeTab === 'builder' && (
-              <div className="builder-layout">
-                
-                <div className="builder-main">
-                  <div className="stepper-header">
-                    <h3 className="stepper-title">
-                      {step === 1 && "Confirm Pilgrim Count"}
-                      {step === 2 && "Choose Flights"}
-                      {step === 3 && "Select Hotel Allotments"}
-                      {step === 4 && "Visa Verification & Checkout"}
-                    </h3>
-                    <span className="step-indicator">Step {step} of 4</span>
+              <div>
+                {/* Stepper Progress Bar */}
+                <div className="progress-stepper">
+                  <div className={`progress-step ${step === 1 ? 'active' : step > 1 ? 'completed' : ''}`}>
+                    <div className="progress-circle">1</div>
+                    <span>Dates & Pax</span>
                   </div>
+                  <div className="progress-divider" />
+                  <div className={`progress-step ${step === 2 ? 'active' : step > 2 ? 'completed' : ''}`}>
+                    <div className="progress-circle">2</div>
+                    <span>Flights</span>
+                  </div>
+                  <div className="progress-divider" />
+                  <div className={`progress-step ${step === 3 ? 'active' : step > 3 ? 'completed' : ''}`}>
+                    <div className="progress-circle">3</div>
+                    <span>Stays</span>
+                  </div>
+                  <div className="progress-divider" />
+                  <div className={`progress-step ${step === 4 ? 'active' : step > 4 ? 'completed' : ''}`}>
+                    <div className="progress-circle">4</div>
+                    <span>Verification</span>
+                  </div>
+                </div>
 
-                  {/* Step 1: Verification of Counts */}
-                  {step === 1 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                      <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                        <div className="search-field">
-                          <label>Check-in Date</label>
-                          <input 
-                            type="date" 
-                            className="search-input"
-                            value={dates.checkIn}
-                            onChange={(e) => setDates({ ...dates, checkIn: e.target.value })}
-                          />
-                        </div>
-                        <div className="search-field">
-                          <label>Total Pilgrims</label>
-                          <select 
-                            className="search-input"
-                            value={dates.travelers}
-                            onChange={(e) => setDates({ ...dates, travelers: parseInt(e.target.value, 10) })}
-                          >
-                            {[1, 2, 3, 4, 5].map((n) => (
-                              <option key={n} value={n}>{n} Pilgrim{n > 1 ? 's' : ''}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '1rem' }}>
-                        <div className="search-field">
-                          <label>Makkah Stay (Nights)</label>
-                          <input 
-                            type="number" 
-                            className="search-input"
-                            min={1}
-                            value={dates.makkahNights}
-                            onChange={(e) => setDates({ ...dates, makkahNights: Math.max(1, parseInt(e.target.value, 10) || 1) })}
-                          />
-                        </div>
-                        <div className="search-field">
-                          <label>Madinah Stay (Nights)</label>
-                          <input 
-                            type="number" 
-                            className="search-input"
-                            min={1}
-                            value={dates.madinahNights}
-                            onChange={(e) => setDates({ ...dates, madinahNights: Math.max(1, parseInt(e.target.value, 10) || 1) })}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="step-nav" style={{ justifyContent: 'flex-end' }}>
-                        <button className="book-btn" onClick={() => setStep(2)}>
-                          Choose Flights <ChevronRight className="h-4 w-4" />
-                        </button>
-                      </div>
+                <div className="builder-layout">
+                  <div className="builder-main">
+                    <div className="stepper-header">
+                      <h3 className="stepper-title">
+                        {step === 1 && "Confirm Pilgrim Count"}
+                        {step === 2 && "Choose Flights"}
+                        {step === 3 && "Select Hotel Allotments"}
+                        {step === 4 && "Visa Verification & Checkout"}
+                      </h3>
+                      <span className="step-indicator">Step {step} of 4</span>
                     </div>
-                  )}
 
-                  {/* Step 2: Flights */}
-                  {step === 2 && (
-                    <div>
-                      <div className="options-list">
-                        {FLIGHTS.map((f) => (
-                          <div 
-                            key={f.id}
-                            className={`option-item ${selectedFlight.id === f.id ? 'selected' : ''}`}
-                            onClick={() => setSelectedFlight(f)}
-                          >
-                            <div className="option-left">
-                              <div className="option-circle">
-                                <div className="option-circle-inner" />
-                              </div>
-                              <div className="option-info">
-                                <span className="option-name">{f.name}</span>
-                                <span className="option-subtitle">Ministry authorized air manifest slot</span>
-                              </div>
-                            </div>
-                            <div className="option-right">
-                              <span className="option-price">{f.price * dates.travelers} SAR</span>
-                              <span className="option-subtitle">{f.price} SAR/pax</span>
-                            </div>
+                    {/* Step 1: Verification of Counts */}
+                    {step === 1 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                          <div className="search-field">
+                            <label>Check-in Date</label>
+                            <input 
+                              type="date" 
+                              className="search-input"
+                              value={dates.checkIn}
+                              onChange={(e) => setDates({ ...dates, checkIn: e.target.value })}
+                            />
                           </div>
-                        ))}
-                      </div>
-
-                      <div className="step-nav">
-                        <button className="nav-back-btn" onClick={() => setStep(1)}>Back</button>
-                        <button className="book-btn" onClick={() => setStep(3)}>
-                          Select Hotels <ChevronRight className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 3: Hotel Allotments & Transports */}
-                  {step === 3 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                      
-                      {/* Makkah Hotels */}
-                      <div>
-                        <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>
-                          <Building className="h-4 w-4 text-primary" /> Makkah Stay ({dates.makkahNights} Nights)
-                        </h4>
-                        <div className="options-list">
-                          {hotels.filter(h => h.city?.toLowerCase().includes('makkah') || h.name?.toLowerCase().includes('makkah')).map((h) => (
-                            <div 
-                              key={h.id}
-                              className={`option-item ${selectedMakkahHotelId === h.id ? 'selected' : ''}`}
-                              onClick={() => setSelectedMakkahHotelId(h.id)}
+                          <div className="search-field">
+                            <label>Total Pilgrims</label>
+                            <select 
+                              className="search-input"
+                              value={dates.travelers}
+                              onChange={(e) => setDates({ ...dates, travelers: parseInt(e.target.value, 10) })}
                             >
-                              <div className="option-left">
-                                <div className="option-circle">
-                                  <div className="option-circle-inner" />
-                                </div>
-                                <div className="option-info">
-                                  <span className="option-name">{h.name}</span>
-                                  <span className="option-subtitle">Haram vicinity access</span>
-                                </div>
-                              </div>
-                              <div className="option-right">
-                                <span className="option-price">{(h.pricePerNight || 350) * dates.makkahNights} SAR</span>
-                                <span className="option-subtitle">{h.pricePerNight || 350} SAR/night</span>
-                              </div>
-                            </div>
-                          ))}
+                              {[1, 2, 3, 4, 5].map((n) => (
+                                <option key={n} value={n}>{n} Pilgrim{n > 1 ? 's' : ''}</option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Madinah Hotels */}
-                      <div>
-                        <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>
-                          <Building className="h-4 w-4 text-primary" /> Madinah Stay ({dates.madinahNights} Nights)
-                        </h4>
-                        <div className="options-list">
-                          {hotels.filter(h => h.city?.toLowerCase().includes('madinah') || h.name?.toLowerCase().includes('madinah') || h.city?.toLowerCase().includes('medina')).map((h) => (
-                            <div 
-                              key={h.id}
-                              className={`option-item ${selectedMadinahHotelId === h.id ? 'selected' : ''}`}
-                              onClick={() => setSelectedMadinahHotelId(h.id)}
-                            >
-                              <div className="option-left">
-                                <div className="option-circle">
-                                  <div className="option-circle-inner" />
-                                </div>
-                                <div className="option-info">
-                                  <span className="option-name">{h.name}</span>
-                                  <span className="option-subtitle">Prophet's Mosque vicinity access</span>
-                                </div>
-                              </div>
-                              <div className="option-right">
-                                <span className="option-price">{(h.pricePerNight || 300) * dates.madinahNights} SAR</span>
-                                <span className="option-subtitle">{h.pricePerNight || 300} SAR/night</span>
-                              </div>
-                            </div>
-                          ))}
+                        <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '1rem' }}>
+                          <div className="search-field">
+                            <label>Makkah Stay (Nights)</label>
+                            <input 
+                              type="number" 
+                              className="search-input"
+                              min={1}
+                              value={dates.makkahNights}
+                              onChange={(e) => setDates({ ...dates, makkahNights: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                            />
+                          </div>
+                          <div className="search-field">
+                            <label>Madinah Stay (Nights)</label>
+                            <input 
+                              type="number" 
+                              className="search-input"
+                              min={1}
+                              value={dates.madinahNights}
+                              onChange={(e) => setDates({ ...dates, madinahNights: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                            />
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Transport Routes */}
-                      <div>
-                        <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>
-                          <Car className="h-4 w-4 text-primary" /> Ground Transfer Route
-                        </h4>
-                        <div className="options-list">
-                          {routes.map((r) => (
-                            <div 
-                              key={r.id}
-                              className={`option-item ${selectedRouteId === r.id ? 'selected' : ''}`}
-                              onClick={() => setSelectedRouteId(r.id)}
-                            >
-                              <div className="option-left">
-                                <div className="option-circle">
-                                  <div className="option-circle-inner" />
-                                </div>
-                                <div className="option-info">
-                                  <span className="option-name">{r.routeType}</span>
-                                  <span className="option-subtitle">Ministry Tafweej manifest inclusion</span>
-                                </div>
-                              </div>
-                              <div className="option-right">
-                                <span className="option-price">{r.price || 500} SAR</span>
-                                <span className="option-subtitle">Route Flat Rate</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="step-nav">
-                        <button className="nav-back-btn" onClick={() => setStep(2)}>Back</button>
-                        <button className="book-btn" onClick={() => setStep(4)}>
-                          Proceed to Checkout <ChevronRight className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 4: Checkout & Payment */}
-                  {step === 4 && (
-                    <form onSubmit={handleCheckout} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                      
-                      {/* Passport Scanner */}
-                      <div>
-                        <span className="price-label" style={{ fontWeight: 700, marginBottom: '0.5rem', display: 'block' }}>Ministry verification passport OCR</span>
-                        <div className="scan-box" onClick={simulatePassportScan}>
-                          {isScanning ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-                              <svg className="animate-spin" viewBox="0 0 24 24" fill="none" style={{ width: '40px', height: '40px' }}>
-                                <circle cx="12" cy="12" r="10" stroke="var(--primary)" strokeWidth="4" strokeDasharray="30 30" />
-                              </svg>
-                              <span className="scan-title">Extracting pilgrim manifest fields...</span>
-                            </div>
-                          ) : (
-                            <>
-                              <Camera className="h-8 w-8 mx-auto text-primary" />
-                              <h4 className="scan-title">Simulate Passport Scan</h4>
-                              <p className="scan-desc">Click here to scan traveler passport image and pre-populate fields instantly</p>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Traveler Fields */}
-                      <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                        <div className="search-field">
-                          <label>Pilgrim Full Name (Matching Passport)</label>
-                          <input 
-                            type="text" 
-                            required
-                            className="search-input" 
-                            placeholder="Johnathan Doe"
-                            value={traveler.fullName}
-                            onChange={(e) => setTraveler({ ...traveler, fullName: e.target.value })}
-                          />
-                        </div>
-                        <div className="search-field">
-                          <label>Passport Number</label>
-                          <input 
-                            type="text" 
-                            required
-                            className="search-input" 
-                            placeholder="EP9832104"
-                            value={traveler.passportNumber}
-                            onChange={(e) => setTraveler({ ...traveler, passportNumber: e.target.value })}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                        <div className="search-field">
-                          <label>Mobile Number (For WhatsApp Updates)</label>
-                          <input 
-                            type="tel" 
-                            required
-                            className="search-input" 
-                            placeholder="+966 50 123 4567"
-                            value={traveler.mobile}
-                            onChange={(e) => setTraveler({ ...traveler, mobile: e.target.value })}
-                          />
-                        </div>
-                        <div className="search-field">
-                          <label>Email Address</label>
-                          <input 
-                            type="email" 
-                            required
-                            className="search-input" 
-                            placeholder="pilgrim@example.com"
-                            value={traveler.email}
-                            onChange={(e) => setTraveler({ ...traveler, email: e.target.value })}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Passwordless OTP verification via WhatsApp */}
-                      <div className="otp-wrapper">
-                        <h4 className="otp-title">
-                          <Lock className="h-4 w-4 text-primary" /> WhatsApp OTP Verification
-                        </h4>
-                        <p className="otp-desc">Verify your contact number to lock your e-Visa slot.</p>
-                        
-                        {!otpSent && !otpVerified && (
-                          <button 
-                            type="button" 
-                            className="nav-btn" 
-                            disabled={!traveler.mobile}
-                            onClick={requestOtp}
-                          >
-                            Send OTP Code
+                        <div className="step-nav" style={{ justifyContent: 'flex-end' }}>
+                          <button className="book-btn" onClick={() => setStep(2)}>
+                            Choose Flights <ChevronRight className="h-4 w-4" />
                           </button>
-                        )}
+                        </div>
+                      </div>
+                    )}
 
-                        {otpSent && (
-                          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    {/* Step 2: Flights */}
+                    {step === 2 && (
+                      <div>
+                        <div className="options-list">
+                          {FLIGHTS.map((f) => (
+                            <div 
+                              key={f.id}
+                              className={`option-item ${selectedFlight.id === f.id ? 'selected' : ''}`}
+                              onClick={() => setSelectedFlight(f)}
+                            >
+                              <div className="option-left">
+                                <div className="option-circle">
+                                  <div className="option-circle-inner" />
+                                </div>
+                                <div className="option-info">
+                                  <span className="option-name">{f.name}</span>
+                                  <span className="option-subtitle">Ministry authorized air manifest slot</span>
+                                </div>
+                              </div>
+                              <div className="option-right">
+                                <span className="option-price">{f.price * dates.travelers} SAR</span>
+                                <span className="option-subtitle">{f.price} SAR/pax</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="step-nav">
+                          <button className="nav-back-btn" onClick={() => setStep(1)}>Back</button>
+                          <button className="book-btn" onClick={() => setStep(3)}>
+                            Select Hotels <ChevronRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 3: Hotel Allotments & Transports */}
+                    {step === 3 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                        
+                        {/* Makkah Hotels */}
+                        <div>
+                          <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>
+                            <Building className="h-4 w-4 text-primary" /> Makkah Stay ({dates.makkahNights} Nights)
+                          </h4>
+                          <div className="options-list">
+                            {hotels.filter(h => h.city?.toLowerCase().includes('makkah') || h.name?.toLowerCase().includes('makkah')).map((h) => (
+                              <div 
+                                key={h.id}
+                                className={`option-item ${selectedMakkahHotelId === h.id ? 'selected' : ''}`}
+                                onClick={() => setSelectedMakkahHotelId(h.id)}
+                              >
+                                <div className="option-left">
+                                  <div className="option-circle">
+                                    <div className="option-circle-inner" />
+                                  </div>
+                                  <div className="option-info">
+                                    <span className="option-name">{h.name}</span>
+                                    <span className="option-subtitle">Haram vicinity access</span>
+                                  </div>
+                                </div>
+                                <div className="option-right">
+                                  <span className="option-price">{(h.pricePerNight || 350) * dates.makkahNights} SAR</span>
+                                  <span className="option-subtitle">{h.pricePerNight || 350} SAR/night</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Madinah Hotels */}
+                        <div>
+                          <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>
+                            <Building className="h-4 w-4 text-primary" /> Madinah Stay ({dates.madinahNights} Nights)
+                          </h4>
+                          <div className="options-list">
+                            {hotels.filter(h => h.city?.toLowerCase().includes('madinah') || h.name?.toLowerCase().includes('madinah') || h.city?.toLowerCase().includes('medina')).map((h) => (
+                              <div 
+                                key={h.id}
+                                className={`option-item ${selectedMadinahHotelId === h.id ? 'selected' : ''}`}
+                                onClick={() => setSelectedMadinahHotelId(h.id)}
+                              >
+                                <div className="option-left">
+                                  <div className="option-circle">
+                                    <div className="option-circle-inner" />
+                                  </div>
+                                  <div className="option-info">
+                                    <span className="option-name">{h.name}</span>
+                                    <span className="option-subtitle">Prophet's Mosque vicinity access</span>
+                                  </div>
+                                </div>
+                                <div className="option-right">
+                                  <span className="option-price">{(h.pricePerNight || 300) * dates.madinahNights} SAR</span>
+                                  <span className="option-subtitle">{h.pricePerNight || 300} SAR/night</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Transport Routes */}
+                        <div>
+                          <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>
+                            <Car className="h-4 w-4 text-primary" /> Ground Transfer Route
+                          </h4>
+                          <div className="options-list">
+                            {routes.map((r) => (
+                              <div 
+                                key={r.id}
+                                className={`option-item ${selectedRouteId === r.id ? 'selected' : ''}`}
+                                onClick={() => setSelectedRouteId(r.id)}
+                              >
+                                <div className="option-left">
+                                  <div className="option-circle">
+                                    <div className="option-circle-inner" />
+                                  </div>
+                                  <div className="option-info">
+                                    <span className="option-name">{r.routeType}</span>
+                                    <span className="option-subtitle">Ministry Tafweej manifest inclusion</span>
+                                  </div>
+                                </div>
+                                <div className="option-right">
+                                  <span className="option-price">{r.price || 500} SAR</span>
+                                  <span className="option-subtitle">Route Flat Rate</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="step-nav">
+                          <button className="nav-back-btn" onClick={() => setStep(2)}>Back</button>
+                          <button className="book-btn" onClick={() => setStep(4)}>
+                            Proceed to Checkout <ChevronRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 4: Checkout & Payment */}
+                    {step === 4 && (
+                      <form onSubmit={handleCheckout} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        
+                        {/* Passport Scanner */}
+                        <div>
+                          <span className="price-label" style={{ fontWeight: 700, marginBottom: '0.5rem', display: 'block' }}>Ministry verification passport OCR</span>
+                          <div className="scan-box" onClick={simulatePassportScan}>
+                            {isScanning ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                                <svg className="animate-spin" viewBox="0 0 24 24" fill="none" style={{ width: '40px', height: '40px' }}>
+                                  <circle cx="12" cy="12" r="10" stroke="var(--primary)" strokeWidth="4" strokeDasharray="30 30" />
+                                </svg>
+                                <span className="scan-title">Extracting pilgrim manifest fields...</span>
+                              </div>
+                            ) : (
+                              <>
+                                <Camera className="h-8 w-8 mx-auto text-primary" />
+                                <h4 className="scan-title">Simulate Passport Scan</h4>
+                                <p className="scan-desc">Click here to scan traveler passport image and pre-populate fields instantly</p>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Traveler Fields */}
+                        <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                          <div className="search-field">
+                            <label>Pilgrim Full Name (Matching Passport)</label>
                             <input 
                               type="text" 
-                              maxLength={4}
+                              required
                               className="search-input" 
-                              style={{ width: '120px', letterSpacing: '0.3em', textAlign: 'center', fontSize: '1.25rem', padding: '0.5rem' }}
-                              placeholder="1234"
-                              value={otpCode}
-                              onChange={(e) => setOtpCode(e.target.value)}
+                              placeholder="Johnathan Doe"
+                              value={traveler.fullName}
+                              onChange={(e) => setTraveler({ ...traveler, fullName: e.target.value })}
                             />
-                            <button type="button" className="nav-btn" onClick={verifyOtp}>Verify Code</button>
-                            <span className="scan-desc">Enter code <b>1234</b></span>
                           </div>
-                        )}
+                          <div className="search-field">
+                            <label>Passport Number</label>
+                            <input 
+                              type="text" 
+                              required
+                              className="search-input" 
+                              placeholder="EP9832104"
+                              value={traveler.passportNumber}
+                              onChange={(e) => setTraveler({ ...traveler, passportNumber: e.target.value })}
+                            />
+                          </div>
+                        </div>
 
-                        {otpVerified && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--success)', fontWeight: 700, fontSize: '0.9rem' }}>
-                            <CheckCircle className="h-5 w-5" /> Phone Verified Successfully
+                        <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                          <div className="search-field">
+                            <label>Mobile Number (For WhatsApp Updates)</label>
+                            <input 
+                              type="tel" 
+                              required
+                              className="search-input" 
+                              placeholder="+966 50 123 4567"
+                              value={traveler.mobile}
+                              onChange={(e) => setTraveler({ ...traveler, mobile: e.target.value })}
+                            />
                           </div>
-                        )}
-                      </div>
+                          <div className="search-field">
+                            <label>Email Address</label>
+                            <input 
+                              type="email" 
+                              required
+                              className="search-input" 
+                              placeholder="pilgrim@example.com"
+                              value={traveler.email}
+                              onChange={(e) => setTraveler({ ...traveler, email: e.target.value })}
+                            />
+                          </div>
+                        </div>
 
-                      {/* Credit Card Gate */}
-                      <div>
-                        <span className="price-label" style={{ fontWeight: 700, marginBottom: '0.75rem', display: 'block' }}>Mada / Visa / Credit Card Payment</span>
-                        <div className="search-grid" style={{ gridTemplateColumns: '2fr 1fr 1fr', gap: '1.25rem' }}>
-                          <div className="search-field">
-                            <label>Card Number</label>
-                            <input type="text" className="search-input" defaultValue="4111 2222 3333 4444" required />
+                        {/* Passwordless OTP verification via WhatsApp */}
+                        <div className="otp-wrapper">
+                          <h4 className="otp-title">
+                            <Lock className="h-4 w-4 text-primary" /> WhatsApp OTP Verification
+                          </h4>
+                          <p className="otp-desc">Verify your contact number to lock your e-Visa slot.</p>
+                          
+                          {!otpSent && !otpVerified && (
+                            <button 
+                              type="button" 
+                              className="nav-btn" 
+                              disabled={!traveler.mobile}
+                              onClick={requestOtp}
+                            >
+                              Send OTP Code
+                            </button>
+                          )}
+
+                          {otpSent && (
+                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                              <input 
+                                type="text" 
+                                maxLength={4}
+                                className="search-input" 
+                                style={{ width: '120px', letterSpacing: '0.3em', textAlign: 'center', fontSize: '1.25rem', padding: '0.5rem' }}
+                                placeholder="1234"
+                                value={otpCode}
+                                onChange={(e) => setOtpCode(e.target.value)}
+                              />
+                              <button type="button" className="nav-btn" onClick={verifyOtp}>Verify Code</button>
+                              <span className="scan-desc">Enter code <b>1234</b></span>
+                            </div>
+                          )}
+
+                          {otpVerified && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)', fontWeight: 700, fontSize: '0.9rem' }}>
+                              <CheckCircle className="h-5 w-5" /> Phone Verified Successfully
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Credit Card Gate */}
+                        <div>
+                          <span className="price-label" style={{ fontWeight: 700, marginBottom: '0.75rem', display: 'block' }}>Mada / Visa / Credit Card Payment</span>
+                          <div className="search-grid" style={{ gridTemplateColumns: '2fr 1fr 1fr', gap: '1.25rem' }}>
+                            <div className="search-field">
+                              <label>Card Number</label>
+                              <input type="text" className="search-input" defaultValue="4111 2222 3333 4444" required />
+                            </div>
+                            <div className="search-field">
+                              <label>Expiry</label>
+                              <input type="text" className="search-input" defaultValue="12/29" required />
+                            </div>
+                            <div className="search-field">
+                              <label>CVV</label>
+                              <input type="password" className="search-input" defaultValue="123" required />
+                            </div>
                           </div>
-                          <div className="search-field">
-                            <label>Expiry</label>
-                            <input type="text" className="search-input" defaultValue="12/29" required />
-                          </div>
-                          <div className="search-field">
-                            <label>CVV</label>
-                            <input type="password" className="search-input" defaultValue="123" required />
-                          </div>
+                        </div>
+
+                        {/* Submit Checkout */}
+                        <div className="step-nav">
+                          <button 
+                            type="button" 
+                            className="nav-back-btn" 
+                            onClick={() => {
+                              if (selectedPackage) {
+                                setActiveTab('packages');
+                                setSelectedPackage(null);
+                              } else {
+                                setStep(3);
+                              }
+                            }}
+                          >
+                            Back
+                          </button>
+                          <button 
+                            type="submit" 
+                            className="book-btn" 
+                            disabled={!otpVerified || isProcessingCheckout}
+                            style={{ backgroundColor: 'var(--primary)', display: 'flex', gap: '0.75rem', alignItems: 'center' }}
+                          >
+                            {isProcessingCheckout ? (
+                              <>
+                                <svg className="animate-spin" viewBox="0 0 24 24" fill="none" style={{ width: '18px', height: '18px' }}>
+                                  <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="4" strokeDasharray="30 30" />
+                                </svg>
+                                Processing Visa & Booking Allotments...
+                              </>
+                            ) : (
+                              <>
+                                <CreditCard className="h-4 w-4" /> Pay & Generate e-Visa ({quotePrices.total} SAR)
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                      </form>
+                    )}
+
+                  </div>
+
+                  {/* Right Side Summary panel */}
+                  <div className="builder-sidebar">
+                    
+                    <div className="summary-card">
+                      <h4 className="summary-title">
+                        <FileText className="h-4 w-4" /> Package Itinerary
+                      </h4>
+                      
+                      <div className="summary-items">
+                        {selectedPackage ? (
+                          <>
+                            <div className="summary-row">
+                              <span className="summary-label">Selected Package</span>
+                              <span className="summary-value" style={{ color: 'var(--secondary)' }}>{selectedPackage.title}</span>
+                            </div>
+                            <div className="summary-row">
+                              <span className="summary-label">Makkah Nights</span>
+                              <span className="summary-value">{selectedPackage.makkahNights} Nights</span>
+                            </div>
+                            <div className="summary-row">
+                              <span className="summary-label">Madinah Nights</span>
+                              <span className="summary-value">{selectedPackage.madinahNights} Nights</span>
+                            </div>
+                            <div className="summary-row">
+                              <span className="summary-label">Makkah Hotel</span>
+                              <span className="summary-value">{selectedPackage.makkahHotel?.name || 'Swissôtel Makkah (5★)'}</span>
+                            </div>
+                            <div className="summary-row">
+                              <span className="summary-label">Madinah Hotel</span>
+                              <span className="summary-value">{selectedPackage.madinahHotel?.name || 'Anwar Al Madinah (5★)'}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="summary-row">
+                              <span className="summary-label">Makkah Nights</span>
+                              <span className="summary-value">{dates.makkahNights} Nights</span>
+                            </div>
+                            <div className="summary-row">
+                              <span className="summary-label">Madinah Nights</span>
+                              <span className="summary-value">{dates.madinahNights} Nights</span>
+                            </div>
+                            <div className="summary-row">
+                              <span className="summary-label">Makkah Accommodation</span>
+                              <span className="summary-value">{selectedMakkahHotelName}</span>
+                            </div>
+                            <div className="summary-row">
+                              <span className="summary-label">Madinah Accommodation</span>
+                              <span className="summary-value">{selectedMadinahHotelName}</span>
+                            </div>
+                            <div className="summary-row">
+                              <span className="summary-label">Transport Route</span>
+                              <span className="summary-value">{selectedRouteName}</span>
+                            </div>
+                            <div className="summary-row">
+                              <span className="summary-label">Flight Selection</span>
+                              <span className="summary-value">{selectedFlight.name}</span>
+                            </div>
+                          </>
+                        )}
+                        
+                        <div className="summary-row" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
+                          <span className="summary-label">eVisa Registration (Pax)</span>
+                          <span className="summary-value">{dates.travelers} Pilgrims</span>
                         </div>
                       </div>
 
-                      {/* Submit Checkout */}
-                      <div className="step-nav">
-                        <button 
-                          type="button" 
-                          className="nav-back-btn" 
-                          onClick={() => {
-                            if (selectedPackage) {
-                              setActiveTab('packages');
-                              setSelectedPackage(null);
-                            } else {
-                              setStep(3);
-                            }
-                          }}
-                        >
-                          Back
-                        </button>
-                        <button 
-                          type="submit" 
-                          className="book-btn" 
-                          disabled={!otpVerified || isProcessingCheckout}
-                          style={{ backgroundColor: 'var(--success)', display: 'flex', gap: '0.75rem', alignItems: 'center' }}
-                        >
-                          {isProcessingCheckout ? (
-                            <>
-                              <svg className="animate-spin" viewBox="0 0 24 24" fill="none" style={{ width: '18px', height: '18px' }}>
-                                <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="4" strokeDasharray="30 30" />
-                              </svg>
-                              Processing Visa & Booking Allotments...
-                            </>
-                          ) : (
-                            <>
-                              <CreditCard className="h-4 w-4" /> Pay & Generate e-Visa ({quotePrices.total} SAR)
-                            </>
-                          )}
-                        </button>
+                      <div className="summary-total">
+                        <span className="total-label">Subtotal</span>
+                        <span className="summary-value" style={{ fontWeight: 700 }}>{quotePrices.subtotal} SAR</span>
                       </div>
 
-                    </form>
-                  )}
-
-                </div>
-
-                {/* Right Side Summary panel */}
-                <div className="builder-sidebar">
-                  
-                  <div className="summary-card">
-                    <h4 className="summary-title">
-                      <FileText className="h-4 w-4" /> Package Itinerary
-                    </h4>
-                    
-                    <div className="summary-items">
-                      {selectedPackage ? (
-                        <>
-                          <div className="summary-row">
-                            <span className="summary-label">Selected Package</span>
-                            <span className="summary-value" style={{ color: 'var(--secondary)' }}>{selectedPackage.title}</span>
-                          </div>
-                          <div className="summary-row">
-                            <span className="summary-label">Makkah Nights</span>
-                            <span className="summary-value">{selectedPackage.makkahNights} Nights</span>
-                          </div>
-                          <div className="summary-row">
-                            <span className="summary-label">Madinah Nights</span>
-                            <span className="summary-value">{selectedPackage.madinahNights} Nights</span>
-                          </div>
-                          <div className="summary-row">
-                            <span className="summary-label">Makkah Hotel</span>
-                            <span className="summary-value">{selectedPackage.makkahHotel?.name || 'Swissôtel Makkah (5★)'}</span>
-                          </div>
-                          <div className="summary-row">
-                            <span className="summary-label">Madinah Hotel</span>
-                            <span className="summary-value">{selectedPackage.madinahHotel?.name || 'Anwar Al Madinah (5★)'}</span>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="summary-row">
-                            <span className="summary-label">Makkah Nights</span>
-                            <span className="summary-value">{dates.makkahNights} Nights</span>
-                          </div>
-                          <div className="summary-row">
-                            <span className="summary-label">Madinah Nights</span>
-                            <span className="summary-value">{dates.madinahNights} Nights</span>
-                          </div>
-                          <div className="summary-row">
-                            <span className="summary-label">Makkah Accommodation</span>
-                            <span className="summary-value">{selectedMakkahHotelName}</span>
-                          </div>
-                          <div className="summary-row">
-                            <span className="summary-label">Madinah Accommodation</span>
-                            <span className="summary-value">{selectedMadinahHotelName}</span>
-                          </div>
-                          <div className="summary-row">
-                            <span className="summary-label">Transport Route</span>
-                            <span className="summary-value">{selectedRouteName}</span>
-                          </div>
-                          <div className="summary-row">
-                            <span className="summary-label">Flight Selection</span>
-                            <span className="summary-value">{selectedFlight.name}</span>
-                          </div>
-                        </>
-                      )}
-                      
-                      <div className="summary-row" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
-                        <span className="summary-label">eVisa Registration (Pax)</span>
-                        <span className="summary-value">{dates.travelers} Pilgrims</span>
+                      <div className="summary-total" style={{ borderTop: 'none', paddingTop: 0 }}>
+                        <span className="total-label" style={{ fontWeight: 500, fontSize: '0.8rem', color: 'var(--text-muted)' }}>VAT (15%)</span>
+                        <span className="summary-value" style={{ fontWeight: 600 }}>{quotePrices.vat} SAR</span>
                       </div>
-                    </div>
 
-                    <div className="summary-total">
-                      <span className="total-label">Subtotal</span>
-                      <span className="summary-value" style={{ fontWeight: 700 }}>{quotePrices.subtotal} SAR</span>
-                    </div>
-
-                    <div className="summary-total" style={{ borderTop: 'none', paddingTop: 0 }}>
-                      <span className="total-label" style={{ fontWeight: 500, fontSize: '0.8rem', color: 'var(--text-muted)' }}>VAT (15%)</span>
-                      <span className="summary-value" style={{ fontWeight: 600 }}>{quotePrices.vat} SAR</span>
-                    </div>
-
-                    <div className="summary-total" style={{ borderTop: '1px solid var(--border-color)', marginTop: '0.5rem' }}>
-                      <span className="total-label">Total Cost</span>
-                      <span className="total-value">{quotePrices.total} SAR</span>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.5rem', padding: '0.75rem', backgroundColor: 'var(--primary-light)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.75rem', color: 'var(--primary)' }}>
-                        <ShieldCheck className="h-4 w-4" />
-                        <span>Ministry Direct API e-Visa Gate</span>
+                      <div className="summary-total" style={{ borderTop: '1px solid var(--border-color)', marginTop: '0.5rem' }}>
+                        <span className="total-label">Total Cost</span>
+                        <span className="total-value">{quotePrices.total} SAR</span>
                       </div>
-                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.75rem', color: 'var(--primary)' }}>
-                        <FileCheck className="h-4 w-4" />
-                        <span>Real-time Bed BRN Lock</span>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.5rem', padding: '0.75rem', backgroundColor: 'var(--primary-light)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.75rem', color: 'var(--primary)' }}>
+                          <ShieldCheck className="h-4 w-4" />
+                          <span>Ministry Direct API e-Visa Gate</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.75rem', color: 'var(--primary)' }}>
+                          <FileCheck className="h-4 w-4" />
+                          <span>Real-time Bed BRN Lock</span>
+                        </div>
                       </div>
+
                     </div>
 
                   </div>
 
                 </div>
-
               </div>
             )}
+
+            {/* How It Works Section */}
+            <section className="how-it-works">
+              <h3 className="section-title-white">How to Secure Your e-Visa</h3>
+              <div className="steps-flow">
+                <div className="flow-step">
+                  <div className="flow-badge">1</div>
+                  <h5>Scan Passport</h5>
+                  <p>Use our secure OCR scan to pre-populate details instantly with zero errors.</p>
+                </div>
+                <div className="flow-step">
+                  <div className="flow-badge">2</div>
+                  <h5>Allot Room & Route</h5>
+                  <p>Choose approved Makkah & Madinah hotels to instantly secure locked BRN beds.</p>
+                </div>
+                <div className="flow-step">
+                  <div className="flow-badge">3</div>
+                  <h5>Confirm & Go</h5>
+                  <p>Verify via WhatsApp OTP, submit payments, and receive your digital e-Visa manifest.</p>
+                </div>
+              </div>
+            </section>
+
+            {/* Trust Indicator / Features Section */}
+            <section className="features-section">
+              <div className="feature-box">
+                <div className="feature-icon-wrapper">
+                  <ShieldCheck className="h-6 w-6" />
+                </div>
+                <h4>Direct Integration</h4>
+                <p>Authorized connection to Ministry of Hajj & Umrah systems ensures seamless Tafweej clearances.</p>
+              </div>
+              <div className="feature-box">
+                <div className="feature-icon-wrapper">
+                  <FileCheck className="h-6 w-6" />
+                </div>
+                <h4>100% Locked BRNs</h4>
+                <p>We only display real inventory slots. Your hotel rooms are locked in real-time under contract.</p>
+              </div>
+              <div className="feature-box">
+                <div className="feature-icon-wrapper">
+                  <HeartHandshake className="h-6 w-6" />
+                </div>
+                <h4>24/7 Pilgrimage Support</h4>
+                <p>Our Saudi operations team supports you at Hajj terminals and hotel check-in desks.</p>
+              </div>
+            </section>
+
           </main>
         </>
       )}
+
+      {/* Premium Footer */}
+      <footer>
+        <div className="footer-container">
+          <div className="footer-column">
+            <h4>Nusync Direct</h4>
+            <p style={{ marginBottom: '1rem' }}>Moulavi Travels is a licensed Umrah operator and e-Visa issuer approved under the Ministry of Hajj & Umrah, Kingdom of Saudi Arabia.</p>
+            <span className="footer-badge">KSA License #9823-U</span>
+          </div>
+          <div className="footer-column">
+            <h4>Quick Links</h4>
+            <ul className="footer-links">
+              <li><button style={{ background: 'none', border: 'none', color: '#a4beb4', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => { setActiveTab('packages'); setStep(1); setBookingFinished(false); }}>Ready Packages</button></li>
+              <li><button style={{ background: 'none', border: 'none', color: '#a4beb4', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => { setActiveTab('builder'); setStep(1); setBookingFinished(false); }}>Custom Builder</button></li>
+              <li><a href="#">Visa Regulations</a></li>
+              <li><a href="#">Support Center</a></li>
+            </ul>
+          </div>
+          <div className="footer-column">
+            <h4>Allotments</h4>
+            <ul className="footer-links">
+              <li><a href="#">Makkah Hotel BRNs</a></li>
+              <li><a href="#">Madinah Hotel BRNs</a></li>
+              <li><a href="#">Ground Shuttle Routes</a></li>
+              <li><a href="#">Carrier flight schedules</a></li>
+            </ul>
+          </div>
+          <div className="footer-column">
+            <h4>Ministry Office</h4>
+            <p>Moulavi Travels KSA HQ</p>
+            <p>King Abdulaziz Road, Makkah</p>
+            <p style={{ marginTop: '0.5rem' }}>📞 +966 12 555 0199</p>
+            <p>✉️ support@umra.moulavi.in</p>
+          </div>
+        </div>
+        <div className="footer-bottom">
+          <p>© {new Date().getFullYear()} Nusync Direct / Moulavi Travels. All rights reserved under Saudi Vision 2030.</p>
+          <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><ShieldCheck className="h-4 w-4 text-secondary" /> Secure Checkout</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Lock className="h-4 w-4 text-secondary" /> SSL Encrypted</span>
+          </div>
+        </div>
+      </footer>
     </>
   );
 }
