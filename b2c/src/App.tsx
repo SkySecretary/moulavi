@@ -50,9 +50,42 @@ const MOCK_PACKAGES = [
 ];
 
 const AIRPORTS = [
+  // Saudi Airports
   { id: 'apt-jed', name: 'Jeddah - King Abdulaziz Intl (JED)', city: 'Jeddah' },
   { id: 'apt-med', name: 'Madinah - Prince Mohammad Bin Abdulaziz (MED)', city: 'Madinah' },
-  { id: 'apt-ruh', name: 'Riyadh - King Khalid Intl (RUH)', city: 'Riyadh' }
+  { id: 'apt-ruh', name: 'Riyadh - King Khalid Intl (RUH)', city: 'Riyadh' },
+  { id: 'apt-dmm', name: 'Dammam - King Fahd Intl (DMM)', city: 'Dammam' },
+  // Gulf / Middle East
+  { id: 'apt-dxb', name: 'Dubai Intl Airport (DXB)', city: 'Dubai' },
+  { id: 'apt-auh', name: 'Abu Dhabi Intl (AUH)', city: 'Abu Dhabi' },
+  { id: 'apt-doh', name: 'Doha - Hamad Intl (DOH)', city: 'Doha' },
+  { id: 'apt-mct', name: 'Muscat Intl (MCT)', city: 'Muscat' },
+  { id: 'apt-kuw', name: 'Kuwait Intl (KWI)', city: 'Kuwait' },
+  { id: 'apt-cai', name: 'Cairo Intl (CAI)', city: 'Cairo' },
+  { id: 'apt-ist', name: 'Istanbul Airport (IST)', city: 'Istanbul' },
+  // Europe
+  { id: 'apt-lhr', name: 'London Heathrow (LHR)', city: 'London' },
+  { id: 'apt-lgw', name: 'London Gatwick (LGW)', city: 'London' },
+  { id: 'apt-cdg', name: 'Paris Charles de Gaulle (CDG)', city: 'Paris' },
+  { id: 'apt-fra', name: 'Frankfurt Airport (FRA)', city: 'Frankfurt' },
+  // Americas
+  { id: 'apt-jfk', name: 'New York JFK (JFK)', city: 'New York' },
+  { id: 'apt-lax', name: 'Los Angeles Intl (LAX)', city: 'Los Angeles' },
+  { id: 'apt-ord', name: 'Chicago O\'Hare (ORD)', city: 'Chicago' },
+  { id: 'apt-yyz', name: 'Toronto Pearson (YYZ)', city: 'Toronto' },
+  // Indian Subcontinent
+  { id: 'apt-del', name: 'Delhi - Indira Gandhi Intl (DEL)', city: 'Delhi' },
+  { id: 'apt-bom', name: 'Mumbai - Chhatrapati Shivaji (BOM)', city: 'Mumbai' },
+  { id: 'apt-khi', name: 'Karachi - Jinnah Intl (KHI)', city: 'Karachi' },
+  { id: 'apt-lhe', name: 'Lahore - Allama Iqbal Intl (LHE)', city: 'Lahore' },
+  { id: 'apt-dac', name: 'Dhaka - Hazrat Shahjalal (DAC)', city: 'Dhaka' },
+  // Southeast Asia
+  { id: 'apt-cgk', name: 'Jakarta - Soekarno-Hatta (CGK)', city: 'Jakarta' },
+  { id: 'apt-kul', name: 'Kuala Lumpur Intl (KUL)', city: 'Kuala Lumpur' },
+  { id: 'apt-sin', name: 'Singapore Changi (SIN)', city: 'Singapore' },
+  // Africa
+  { id: 'apt-jnb', name: 'Johannesburg - OR Tambo (JNB)', city: 'Johannesburg' },
+  { id: 'apt-los', name: 'Lagos - Murtala Muhammed (LOS)', city: 'Lagos' }
 ];
 
 const DEFAULT_HOTELS = [
@@ -192,29 +225,25 @@ export default function App() {
           setSelectedMadinahHotelId(DEFAULT_HOTELS[3].id);
         }
 
-        if (airportList.length > 0) {
-          setAirports(airportList);
-          const ksaAirports = airportList.filter((a: any) => a.city?.toLowerCase().includes('jeddah') || a.name?.toLowerCase().includes('jeddah') || a.city?.toLowerCase().includes('madinah') || a.name?.toLowerCase().includes('madinah'));
-          const fallbackKsaApt = ksaAirports[0]?.id || airportList[0].id;
-          const fallbackHomeApt = airportList.find((a: any) => !ksaAirports.includes(a))?.id || airportList[0].id;
+        const mergedAirports = [...AIRPORTS];
+        airportList.forEach((apt: any) => {
+          if (!mergedAirports.some(a => a.id === apt.id || a.name.toLowerCase().includes(apt.name.toLowerCase()) || apt.name.toLowerCase().includes(a.name.toLowerCase()))) {
+            mergedAirports.push({ id: apt.id, name: apt.name, city: apt.city || '' });
+          }
+        });
+        setAirports(mergedAirports);
 
-          setFlightInfo(prev => ({
-            ...prev,
-            onwardFromPortId: fallbackHomeApt,
-            onwardToPortId: fallbackKsaApt,
-            returnFromPortId: fallbackKsaApt,
-            returnToPortId: fallbackHomeApt
-          }));
-        } else {
-          setAirports(AIRPORTS);
-          setFlightInfo(prev => ({
-            ...prev,
-            onwardFromPortId: AIRPORTS[2].id, // Riyadh as home
-            onwardToPortId: AIRPORTS[0].id, // JED as KSA destination
-            returnFromPortId: AIRPORTS[0].id,
-            returnToPortId: AIRPORTS[2].id
-          }));
-        }
+        const ksaAirports = mergedAirports.filter((a: any) => a.city?.toLowerCase().includes('jeddah') || a.name?.toLowerCase().includes('jeddah') || a.city?.toLowerCase().includes('madinah') || a.name?.toLowerCase().includes('madinah'));
+        const fallbackKsaApt = ksaAirports[0]?.id || mergedAirports[0].id;
+        const fallbackHomeApt = mergedAirports.find((a: any) => !ksaAirports.includes(a))?.id || mergedAirports[0].id;
+
+        setFlightInfo(prev => ({
+          ...prev,
+          onwardFromPortId: fallbackHomeApt,
+          onwardToPortId: fallbackKsaApt,
+          returnFromPortId: fallbackKsaApt,
+          returnToPortId: fallbackHomeApt
+        }));
 
         const routeList = routesRes.data?.transportRouteMasters || routesRes.data || [];
         if (routeList.length > 0) {
