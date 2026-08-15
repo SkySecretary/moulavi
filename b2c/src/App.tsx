@@ -114,15 +114,19 @@ function SearchableSelect({
   options, 
   value, 
   onChange, 
-  placeholder 
+  placeholder,
+  apiSearchUrl
 }: { 
   options: SearchableSelectOption[]; 
   value: string; 
   onChange: (val: string) => void; 
-  placeholder: string; 
+  placeholder: string;
+  apiSearchUrl?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [dynamicOptions, setDynamicOptions] = useState<SearchableSelectOption[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -135,11 +139,45 @@ function SearchableSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const selectedOpt = options.find(o => o.id === value);
-  const filtered = options.filter(o => 
-    o.name.toLowerCase().includes(search.toLowerCase()) || 
-    (o.city && o.city.toLowerCase().includes(search.toLowerCase()))
-  );
+  useEffect(() => {
+    if (!apiSearchUrl || !search || search.trim().length < 2) {
+      setDynamicOptions([]);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetch(`${apiSearchUrl}?search=${encodeURIComponent(search)}`);
+        const result = await res.json();
+        if (result.success && result.data) {
+          setDynamicOptions(result.data);
+        }
+      } catch (err) {
+        console.error('Error fetching live search options:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [search, apiSearchUrl]);
+
+  const allMergedOptions = [...options];
+  const selectedOpt = allMergedOptions.find(o => o.id === value) || dynamicOptions.find(o => o.id === value);
+  
+  dynamicOptions.forEach(opt => {
+    if (!allMergedOptions.some(o => o.id === opt.id)) {
+      allMergedOptions.push(opt);
+    }
+  });
+
+  const filtered = apiSearchUrl && search.trim().length >= 2
+    ? dynamicOptions 
+    : allMergedOptions.filter(o => 
+        o.name.toLowerCase().includes(search.toLowerCase()) || 
+        (o.city && o.city.toLowerCase().includes(search.toLowerCase()))
+      );
 
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
@@ -181,7 +219,7 @@ function SearchableSelect({
         }}>
           <input 
             type="text"
-            placeholder="Type city or airport name to search..."
+            placeholder={apiSearchUrl ? "Type city/IATA (e.g. LHR) to search live..." : "Type city or airport name to search..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{
@@ -197,6 +235,11 @@ function SearchableSelect({
             onClick={(e) => e.stopPropagation()}
             autoFocus
           />
+          {isLoading && (
+            <div style={{ padding: '0.35rem 0.5rem', fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}>
+              Searching live database...
+            </div>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             {filtered.length > 0 ? (
               filtered.map(opt => (
@@ -1194,6 +1237,7 @@ export default function App() {
                                       value={flightInfo.onwardFromPortId}
                                       onChange={(val) => setFlightInfo({ ...flightInfo, onwardFromPortId: val })}
                                       placeholder="Search departure airport..."
+                                      apiSearchUrl="/api/b2c/flights/airports"
                                     />
                                   </div>
                                   <div className="search-field">
@@ -1203,6 +1247,7 @@ export default function App() {
                                       value={flightInfo.onwardToPortId}
                                       onChange={(val) => setFlightInfo({ ...flightInfo, onwardToPortId: val })}
                                       placeholder="Search destination airport..."
+                                      apiSearchUrl="/api/b2c/flights/airports"
                                     />
                                   </div>
                                 </div>
@@ -1219,6 +1264,7 @@ export default function App() {
                                       value={flightInfo.returnFromPortId}
                                       onChange={(val) => setFlightInfo({ ...flightInfo, returnFromPortId: val })}
                                       placeholder="Search departure airport..."
+                                      apiSearchUrl="/api/b2c/flights/airports"
                                     />
                                   </div>
                                   <div className="search-field">
@@ -1228,6 +1274,7 @@ export default function App() {
                                       value={flightInfo.returnToPortId}
                                       onChange={(val) => setFlightInfo({ ...flightInfo, returnToPortId: val })}
                                       placeholder="Search destination airport..."
+                                      apiSearchUrl="/api/b2c/flights/airports"
                                     />
                                   </div>
                                 </div>
@@ -1395,6 +1442,7 @@ export default function App() {
                                         value={flightInfo.onwardFromPortId}
                                         onChange={(val) => setFlightInfo({ ...flightInfo, onwardFromPortId: val })}
                                         placeholder="Search departure port..."
+                                        apiSearchUrl="/api/b2c/flights/airports"
                                       />
                                     </div>
                                     <div className="search-field">
@@ -1438,6 +1486,7 @@ export default function App() {
                                         value={flightInfo.returnToPortId}
                                         onChange={(val) => setFlightInfo({ ...flightInfo, returnToPortId: val })}
                                         placeholder="Search arrival port..."
+                                        apiSearchUrl="/api/b2c/flights/airports"
                                       />
                                     </div>
                                     <div className="search-field">

@@ -6,6 +6,7 @@ import { generateAccessToken } from '../utils/jwt';
 import { InventoryService } from '../services/inventoryService';
 import { sendCustomWhatsApp } from '../services/whatsappService';
 import { FlightService } from '../services/flightService';
+import axios from 'axios';
 
 const router = Router();
 
@@ -283,6 +284,41 @@ router.get(
       success: true,
       data: flights
     });
+  })
+);
+
+router.get(
+  '/flights/airports',
+  asyncHandler(async (req: any, res: Response) => {
+    const search = req.query.search as string;
+    if (!search || search.trim().length < 2) {
+      return res.json({ success: true, data: [] });
+    }
+    const apiKey = process.env.AVIATIONSTACK_API_KEY;
+    if (!apiKey) {
+      return res.json({ success: true, data: [] });
+    }
+
+    try {
+      const url = `http://api.aviationstack.com/v1/airports`;
+      const response = await axios.get(url, {
+        params: {
+          access_key: apiKey,
+          search: search
+        }
+      });
+      if (response.data && response.data.data) {
+        const formatted = response.data.data.map((apt: any) => ({
+          id: `apt-${apt.iata_code?.toLowerCase()}`,
+          name: `${apt.city_name || apt.airport_name} - ${apt.airport_name} (${apt.iata_code})`,
+          city: apt.city_name || ''
+        }));
+        return res.json({ success: true, data: formatted });
+      }
+      res.json({ success: true, data: [] });
+    } catch (err) {
+      res.status(500).json({ success: false, error: 'Failed to search live airports' });
+    }
   })
 );
 
