@@ -1463,21 +1463,46 @@ export default function App() {
                                         key={idx} 
                                         style={{ 
                                           display: 'flex', 
-                                          justifyContent: 'space-between', 
-                                          alignItems: 'center', 
-                                          padding: '0.75rem', 
+                                          flexDirection: 'column',
+                                          gap: '0.5rem',
+                                          padding: '1rem', 
                                           border: selectedArrivalFlight?.flightNumber === lf.flightNumber ? '2px solid var(--primary)' : '1px solid var(--border-color)', 
-                                          borderRadius: '8px', 
+                                          borderRadius: '12px', 
                                           cursor: 'pointer', 
-                                          backgroundColor: selectedArrivalFlight?.flightNumber === lf.flightNumber ? 'var(--primary-light)' : 'white'
+                                          backgroundColor: selectedArrivalFlight?.flightNumber === lf.flightNumber ? 'var(--primary-light)' : 'white',
+                                          boxShadow: selectedArrivalFlight?.flightNumber === lf.flightNumber ? '0 4px 12px rgba(0,0,0,0.05)' : 'none',
+                                          transition: 'all 0.2s ease',
+                                          boxSizing: 'border-box'
                                         }}
                                         onClick={() => setSelectedArrivalFlight(lf)}
                                       >
-                                        <div>
-                                          <span style={{ fontSize: '0.8rem', fontWeight: 700, display: 'block', color: 'var(--text-dark)' }}>{lf.carrier} ({lf.flightNumber})</span>
-                                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Date: {flightInfo.onwardDate} | Departs: {lf.departureTime} | Arrives: {lf.arrivalTime}</span>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-dark)' }}>{lf.carrier}</span>
+                                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>{lf.flightNumber}</span>
+                                          </div>
+                                          <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--secondary)' }}>{lf.price} SAR</span>
                                         </div>
-                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--secondary)' }}>{lf.price} SAR</span>
+
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f9fbfb', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid #f0f4f3', boxSizing: 'border-box' }}>
+                                          <div style={{ textAlign: 'left' }}>
+                                            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--primary)', display: 'block' }}>{lf.departureTime}</span>
+                                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-dark)' }}>{getIataCode(flightInfo.onwardFromPortId)}</span>
+                                          </div>
+                                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', flexGrow: 1, textAlign: 'center' }}>
+                                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>{flightInfo.onwardDate}</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '60px', margin: '0 auto' }}>
+                                              <div style={{ width: '100%', height: '1px', backgroundColor: 'var(--border-color)', position: 'relative' }}>
+                                                <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: 'var(--secondary)', position: 'absolute', right: 0, top: '-1.5px' }} />
+                                              </div>
+                                            </div>
+                                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Direct</span>
+                                          </div>
+                                          <div style={{ textAlign: 'right' }}>
+                                            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--primary)', display: 'block' }}>{lf.arrivalTime}</span>
+                                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-dark)' }}>{getIataCode(flightInfo.onwardToPortId)}</span>
+                                          </div>
+                                        </div>
                                       </div>
                                     ))}
                                   </div>
@@ -1498,21 +1523,46 @@ export default function App() {
                                         key={idx} 
                                         style={{ 
                                           display: 'flex', 
-                                          justifyContent: 'space-between', 
-                                          alignItems: 'center', 
-                                          padding: '0.75rem', 
+                                          flexDirection: 'column',
+                                          gap: '0.5rem',
+                                          padding: '1rem', 
                                           border: selectedDepartureFlight?.flightNumber === lf.flightNumber ? '2px solid var(--primary)' : '1px solid var(--border-color)', 
-                                          borderRadius: '8px', 
+                                          borderRadius: '12px', 
                                           cursor: 'pointer', 
-                                          backgroundColor: selectedDepartureFlight?.flightNumber === lf.flightNumber ? 'var(--primary-light)' : 'white'
+                                          backgroundColor: selectedDepartureFlight?.flightNumber === lf.flightNumber ? 'var(--primary-light)' : 'white',
+                                          boxShadow: selectedDepartureFlight?.flightNumber === lf.flightNumber ? '0 4px 12px rgba(0,0,0,0.05)' : 'none',
+                                          transition: 'all 0.2s ease',
+                                          boxSizing: 'border-box'
                                         }}
                                         onClick={() => setSelectedDepartureFlight(lf)}
                                       >
-                                        <div>
-                                          <span style={{ fontSize: '0.8rem', fontWeight: 700, display: 'block', color: 'var(--text-dark)' }}>{lf.carrier} ({lf.flightNumber})</span>
-                                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Date: {flightInfo.returnDate} | Departs: {lf.departureTime} | Arrives: {lf.arrivalTime}</span>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-dark)' }}>{lf.carrier}</span>
+                                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>{lf.flightNumber}</span>
+                                          </div>
+                                          <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--secondary)' }}>{lf.price} SAR</span>
                                         </div>
-                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--secondary)' }}>{lf.price} SAR</span>
+
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f9fbfb', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid #f0f4f3', boxSizing: 'border-box' }}>
+                                          <div style={{ textAlign: 'left' }}>
+                                            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--primary)', display: 'block' }}>{lf.departureTime}</span>
+                                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-dark)' }}>{getIataCode(flightInfo.returnFromPortId)}</span>
+                                          </div>
+                                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', flexGrow: 1, textAlign: 'center' }}>
+                                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>{flightInfo.returnDate}</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '60px', margin: '0 auto' }}>
+                                              <div style={{ width: '100%', height: '1px', backgroundColor: 'var(--border-color)', position: 'relative' }}>
+                                                <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: 'var(--secondary)', position: 'absolute', right: 0, top: '-1.5px' }} />
+                                              </div>
+                                            </div>
+                                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Direct</span>
+                                          </div>
+                                          <div style={{ textAlign: 'right' }}>
+                                            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--primary)', display: 'block' }}>{lf.arrivalTime}</span>
+                                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-dark)' }}>{getIataCode(flightInfo.returnToPortId)}</span>
+                                          </div>
+                                        </div>
                                       </div>
                                     ))}
                                   </div>

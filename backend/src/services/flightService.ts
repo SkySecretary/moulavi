@@ -61,17 +61,11 @@ export class FlightService {
   private static getMockFlights(origin: string, destination: string, date: string) {
     const orig = (origin || 'LHR').toUpperCase();
     
-    const carriers = [
+    let carriers = [
       { code: 'SV', name: 'Saudi Arabian Airlines', basePrice: 1200 },
       { code: 'XY', name: 'Flynas', basePrice: 750 },
       { code: 'EK', name: 'Emirates', basePrice: 1600 },
-      { code: 'QR', name: 'Qatar Airways', basePrice: 1550 },
-      { code: 'GF', name: 'Gulf Air', basePrice: 1100 },
-      { code: 'WY', name: 'Oman Air', basePrice: 1050 },
-      { code: 'EY', name: 'Etihad Airways', basePrice: 1400 },
-      { code: 'FZ', name: 'flydubai', basePrice: 850 },
-      { code: 'KU', name: 'Kuwait Airways', basePrice: 1000 },
-      { code: 'MS', name: 'EgyptAir', basePrice: 900 }
+      { code: 'QR', name: 'Qatar Airways', basePrice: 1550 }
     ];
 
     let routeMultiplier = 1.0;
@@ -81,10 +75,32 @@ export class FlightService {
 
     if (isEuropeOrUS) {
       routeMultiplier = 2.4;
+      carriers = [
+        { code: 'BA', name: 'British Airways', basePrice: 1400 },
+        { code: 'SV', name: 'Saudi Arabian Airlines', basePrice: 1200 },
+        { code: 'EK', name: 'Emirates', basePrice: 1500 },
+        { code: 'QR', name: 'Qatar Airways', basePrice: 1450 },
+        { code: 'GF', name: 'Gulf Air', basePrice: 1150 }
+      ];
     } else if (isAsia) {
       routeMultiplier = 1.6;
+      carriers = [
+        { code: 'AI', name: 'Air India', basePrice: 1050 },
+        { code: '6E', name: 'IndiGo Airlines', basePrice: 950 },
+        { code: 'SV', name: 'Saudi Arabian Airlines', basePrice: 1200 },
+        { code: 'XY', name: 'Flynas', basePrice: 850 },
+        { code: 'IX', name: 'Air India Express', basePrice: 900 },
+        { code: 'GF', name: 'Gulf Air', basePrice: 1100 }
+      ];
     } else if (isGulf) {
       routeMultiplier = 0.8;
+      carriers = [
+        { code: 'EK', name: 'Emirates', basePrice: 950 },
+        { code: 'FZ', name: 'flydubai', basePrice: 700 },
+        { code: 'SV', name: 'Saudi Arabian Airlines', basePrice: 800 },
+        { code: 'XY', name: 'Flynas', basePrice: 650 },
+        { code: 'QR', name: 'Qatar Airways', basePrice: 900 }
+      ];
     }
 
     const schedules = [
