@@ -223,22 +223,58 @@ router.delete(
 router.post(
   '/builder/quote',
   asyncHandler(async (req: any, res: Response) => {
-    const { makkahHotelId, madinahHotelId, makkahNights, madinahNights, travelersCount, transportOptionId, flightOptionId } = req.body;
+    const { 
+      makkahHotelId, 
+      madinahHotelId, 
+      makkahNights, 
+      madinahNights, 
+      travelersCount, 
+      transportOptionId, 
+      flightOptionId,
+      flightPrice: bodyFlightPrice,
+      accommodationType
+    } = req.body;
 
     // Fetch resources
     const makkahHotel = makkahHotelId ? await prisma.locationMaster.findUnique({ where: { id: makkahHotelId } }) : null;
     const madinahHotel = madinahHotelId ? await prisma.locationMaster.findUnique({ where: { id: madinahHotelId } }) : null;
-    const route = transportOptionId ? await prisma.transportMaster.findUnique({ where: { id: transportOptionId } }) : null;
 
     // Fetch dynamic markup configs
     const markups = await prisma.b2CConfig.findMany({ where: { isActive: true } });
 
     // Define base cost constants
-    const makkahPriceNight = makkahHotel ? 300 : 0;
-    const madinahPriceNight = madinahHotel ? 250 : 0; 
-    const routePrice = route ? Number(route.price) || 200 : 0;
-    const flightPrice = flightOptionId === 'flt-nas' ? 650 : flightOptionId === 'flt-sv' ? 980 : 1450;
-    const visaCost = 450;
+    const makkahPriceNight = makkahHotel ? (Number((makkahHotel as any).pricePerNight || (makkahHotel as any).price) || (makkahHotel.name.includes("Swiss") ? 580 : makkahHotel.name.includes("Zamzam") ? 450 : 280)) : 0;
+    const madinahPriceNight = madinahHotel ? (Number((madinahHotel as any).pricePerNight || (madinahHotel as any).price) || (madinahHotel.name.includes("Oberoi") ? 650 : madinahHotel.name.includes("Mövenpick") ? 390 : 240)) : 0;
+    
+    let routePrice = 0;
+    if (transportOptionId) {
+      if (transportOptionId === 'r-1' || transportOptionId === 'r-3') {
+        routePrice = 600;
+      } else if (transportOptionId === 'r-2') {
+        routePrice = 400;
+      } else {
+        const rt = await prisma.transportRouteMaster.findUnique({
+          where: { id: transportOptionId },
+          include: { transports: true }
+        });
+        if (rt && rt.transports && rt.transports.length > 0) {
+          routePrice = Number(rt.transports[0].price) || 500;
+        } else {
+          routePrice = 500;
+        }
+      }
+    }
+
+    let flightPrice = 0;
+    if (flightOptionId !== 'none') {
+      if (typeof bodyFlightPrice === 'number') {
+        flightPrice = bodyFlightPrice;
+      } else {
+        flightPrice = flightOptionId === 'flt-nas' ? 650 : flightOptionId === 'flt-sv' ? 980 : 1450;
+      }
+    }
+
+    const visaCost = accommodationType === 'iqama' ? 0 : 450;
 
     let totalSubtotal = 
       (makkahPriceNight * makkahNights) +

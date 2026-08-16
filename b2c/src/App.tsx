@@ -560,7 +560,8 @@ export default function App() {
             travelersCount: dates.travelers,
             transportOptionId: selectedRouteId,
             flightOptionId: flightBookingMode === 'own' ? 'none' : 'flight-live',
-            flightPrice: totalFlightCost
+            flightPrice: totalFlightCost,
+            accommodationType: dates.accommodationType
           })
         });
         const resData = await response.json();
@@ -610,6 +611,12 @@ export default function App() {
     routes
   ]);
 
+  const getIataCode = (id: string) => {
+    const name = airports.find(a => a.id === id)?.name || '';
+    const match = name.match(/\(([A-Z]{3})\)/);
+    return match ? match[1] : id.replace('apt-', '').toUpperCase();
+  };
+
   // Handle Passport Upload
   const handlePassportUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -623,23 +630,13 @@ export default function App() {
     setIsSearchingArrival(true);
     setIsSearchingDeparture(true);
     try {
-      const getIataCode = (id: string, fallback: string) => {
-        const name = airports.find(a => a.id === id)?.name || '';
-        const match = name.match(/\(([A-Z]{3})\)/);
-        return match ? match[1] : fallback;
-      };
-
-      const onwardOrigin = getIataCode(flightInfo.onwardFromPortId, 'DXB');
-      const onwardDest = getIataCode(flightInfo.onwardToPortId, 'JED');
-      const returnOrigin = getIataCode(flightInfo.returnFromPortId, 'JED');
-      const returnDest = getIataCode(flightInfo.returnToPortId, 'DXB');
-
-      const checkInDateObj = new Date(dates.checkIn);
-      const departureDateObj = new Date(checkInDateObj.getTime() + (dates.makkahNights + dates.madinahNights) * 86400000);
-      const departureDateStr = departureDateObj.toISOString().split('T')[0];
+      const onwardOrigin = getIataCode(flightInfo.onwardFromPortId);
+      const onwardDest = getIataCode(flightInfo.onwardToPortId);
+      const returnOrigin = getIataCode(flightInfo.returnFromPortId);
+      const returnDest = getIataCode(flightInfo.returnToPortId);
 
       // Onward Flight Search
-      const resIn = await fetch(`/api/b2c/flights/search?origin=${onwardOrigin}&destination=${onwardDest}&date=${dates.checkIn}`);
+      const resIn = await fetch(`/api/b2c/flights/search?origin=${onwardOrigin}&destination=${onwardDest}&date=${flightInfo.onwardDate}`);
       const dataIn = await resIn.json();
       if (dataIn.success && dataIn.data) {
         setLiveArrivalFlights(dataIn.data);
@@ -648,7 +645,7 @@ export default function App() {
       }
 
       // Return Flight Search
-      const resOut = await fetch(`/api/b2c/flights/search?origin=${returnOrigin}&destination=${returnDest}&date=${departureDateStr}`);
+      const resOut = await fetch(`/api/b2c/flights/search?origin=${returnOrigin}&destination=${returnDest}&date=${flightInfo.returnDate}`);
       const dataOut = await resOut.json();
       if (dataOut.success && dataOut.data) {
         setLiveDepartureFlights(dataOut.data);
@@ -741,10 +738,10 @@ export default function App() {
         accommodationType: dates.accommodationType,
         isWithoutTicket: isWithoutTkt,
         arrivalFlightNumber: isWithoutTkt ? 'NT-0000' : (flightBookingMode === 'own' ? flightInfo.onwardFlightNumber : (selectedArrivalFlight?.flightNumber || 'SV-300')),
-        arrivalDateTime: isWithoutTkt ? `${dates.checkIn}T12:00:00.000Z` : (flightBookingMode === 'own' ? `${flightInfo.onwardDate}T${flightInfo.onwardTime}:00.000Z` : `${dates.checkIn}T${selectedArrivalFlight?.departureTime || '08:00'}:00.000Z`),
+        arrivalDateTime: isWithoutTkt ? `${dates.checkIn}T12:00:00.000Z` : (flightBookingMode === 'own' ? `${flightInfo.onwardDate}T${flightInfo.onwardTime}:00.000Z` : `${flightInfo.onwardDate}T${selectedArrivalFlight?.departureTime || '08:00'}:00.000Z`),
         arrivalAirportId: flightBookingMode === 'own' ? flightInfo.onwardToPortId : (airports.find(a => a.id === flightInfo.onwardToPortId)?.id || 'apt-jed'),
         departureFlightNumber: isWithoutTkt ? 'NT-0000' : (flightBookingMode === 'own' ? flightInfo.returnFlightNumber : (selectedDepartureFlight?.flightNumber || 'SV-301')),
-        departureDateTime: isWithoutTkt ? `${dates.checkIn}T12:00:00.000Z` : (flightBookingMode === 'own' ? `${flightInfo.returnDate}T${flightInfo.returnTime}:00.000Z` : `${dates.checkIn}T${selectedDepartureFlight?.arrivalTime || '22:00'}:00.000Z`),
+        departureDateTime: isWithoutTkt ? `${dates.checkIn}T12:00:00.000Z` : (flightBookingMode === 'own' ? `${flightInfo.returnDate}T${flightInfo.returnTime}:00.000Z` : `${flightInfo.returnDate}T${selectedDepartureFlight?.arrivalTime || '22:00'}:00.000Z`),
         departureAirportId: flightBookingMode === 'own' ? flightInfo.returnFromPortId : (airports.find(a => a.id === flightInfo.returnFromPortId)?.id || 'apt-jed'),
         iqamaNumber: iqamaDetails.iqamaNumber,
         iqamaSponserName: iqamaDetails.iqamaSponserName,
@@ -910,20 +907,40 @@ export default function App() {
                   <div>
                     <h3 className="voucher-section-title">Flight Details</h3>
                     <div className="voucher-grid">
-                       <div className="voucher-info-group">
-                        <span className="voucher-info-label">Onward Flight</span>
-                        <span className="voucher-info-val">
-                          {flightBookingMode === 'own' 
-                            ? (skipOwnFlightDetails ? 'Without Ticket' : flightInfo.onwardFlightNumber) 
-                            : (selectedArrivalFlight?.flightNumber || 'SV-300')}
+                      <div className="voucher-info-group">
+                        <span className="voucher-info-label">Onward Ticket</span>
+                        <span className="voucher-info-val" style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                          {flightBookingMode === 'own' && skipOwnFlightDetails ? (
+                            <span>Without Ticket</span>
+                          ) : (
+                            <>
+                              <span style={{ fontWeight: 700 }}>
+                                {flightBookingMode === 'own' ? flightInfo.onwardFlightNumber : (selectedArrivalFlight?.flightNumber || 'SV-300')} 
+                                &nbsp;({getIataCode(flightInfo.onwardFromPortId)} → {getIataCode(flightInfo.onwardToPortId)})
+                              </span>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                Date: {flightInfo.onwardDate} @ {flightBookingMode === 'own' ? flightInfo.onwardTime : (selectedArrivalFlight?.departureTime || '08:00')}
+                              </span>
+                            </>
+                          )}
                         </span>
                       </div>
                       <div className="voucher-info-group">
-                        <span className="voucher-info-label">Return Flight</span>
-                        <span className="voucher-info-val">
-                          {flightBookingMode === 'own' 
-                            ? (skipOwnFlightDetails ? 'Without Ticket' : flightInfo.returnFlightNumber) 
-                            : (selectedDepartureFlight?.flightNumber || 'SV-301')}
+                        <span className="voucher-info-label">Return Ticket</span>
+                        <span className="voucher-info-val" style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                          {flightBookingMode === 'own' && skipOwnFlightDetails ? (
+                            <span>Without Ticket</span>
+                          ) : (
+                            <>
+                              <span style={{ fontWeight: 700 }}>
+                                {flightBookingMode === 'own' ? flightInfo.returnFlightNumber : (selectedDepartureFlight?.flightNumber || 'SV-301')} 
+                                &nbsp;({getIataCode(flightInfo.returnFromPortId)} → {getIataCode(flightInfo.returnToPortId)})
+                              </span>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                Date: {flightInfo.returnDate} @ {flightBookingMode === 'own' ? flightInfo.returnTime : (selectedDepartureFlight?.arrivalTime || '22:00')}
+                              </span>
+                            </>
+                          )}
                         </span>
                       </div>
                     </div>
@@ -1113,7 +1130,14 @@ export default function App() {
                             setSelectedMakkahHotelId(pkg.makkahHotelId || DEFAULT_HOTELS[0].id);
                             setSelectedMadinahHotelId(pkg.madinahHotelId || DEFAULT_HOTELS[3].id);
                             setSelectedRouteId(pkg.transportRouteId || DEFAULT_ROUTES[0].id);
+                            const checkInDateObj = new Date(dates.checkIn);
+                            const returnDateObj = new Date(checkInDateObj.getTime() + (pkg.makkahNights + pkg.madinahNights) * 86400000);
                             setDates(prev => ({ ...prev, makkahNights: pkg.makkahNights, madinahNights: pkg.madinahNights }));
+                            setFlightInfo(prev => ({
+                              ...prev,
+                              onwardDate: dates.checkIn,
+                              returnDate: returnDateObj.toISOString().split('T')[0]
+                            }));
                             setActiveTab('builder');
                             setStep(2); // Go to Flights step
                           }}
@@ -1272,7 +1296,19 @@ export default function App() {
                         </div>
 
                         <div className="step-nav" style={{ justifyContent: 'flex-end' }}>
-                          <button className="book-btn" onClick={() => setStep(2)}>
+                          <button 
+                            className="book-btn" 
+                            onClick={() => {
+                              const checkInDateObj = new Date(dates.checkIn);
+                              const returnDateObj = new Date(checkInDateObj.getTime() + (dates.makkahNights + dates.madinahNights) * 86400000);
+                              setFlightInfo(prev => ({
+                                ...prev,
+                                onwardDate: dates.checkIn,
+                                returnDate: returnDateObj.toISOString().split('T')[0]
+                              }));
+                              setStep(2);
+                            }}
+                          >
                             Flight Details <ChevronRight className="h-4 w-4" />
                           </button>
                         </div>
@@ -1371,14 +1407,25 @@ export default function App() {
                               </div>
 
                               {/* Date Selection */}
-                              <div className="search-field" style={{ gridColumn: 'span 2' }}>
-                                <label>Onward Flight Date</label>
-                                <input 
-                                  type="date" 
-                                  className="search-input" 
-                                  value={dates.checkIn}
-                                  onChange={(e) => setDates({ ...dates, checkIn: e.target.value })}
-                                />
+                              <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <div className="search-field">
+                                  <label>Onward Flight Date</label>
+                                  <input 
+                                    type="date" 
+                                    className="search-input" 
+                                    value={flightInfo.onwardDate}
+                                    onChange={(e) => setFlightInfo({ ...flightInfo, onwardDate: e.target.value })}
+                                  />
+                                </div>
+                                <div className="search-field">
+                                  <label>Return Flight Date</label>
+                                  <input 
+                                    type="date" 
+                                    className="search-input" 
+                                    value={flightInfo.returnDate}
+                                    onChange={(e) => setFlightInfo({ ...flightInfo, returnDate: e.target.value })}
+                                  />
+                                </div>
                               </div>
 
                               <button 
@@ -1428,7 +1475,7 @@ export default function App() {
                                       >
                                         <div>
                                           <span style={{ fontSize: '0.8rem', fontWeight: 700, display: 'block', color: 'var(--text-dark)' }}>{lf.carrier} ({lf.flightNumber})</span>
-                                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Departs: {lf.departureTime} | Arrives: {lf.arrivalTime}</span>
+                                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Date: {flightInfo.onwardDate} | Departs: {lf.departureTime} | Arrives: {lf.arrivalTime}</span>
                                         </div>
                                         <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--secondary)' }}>{lf.price} SAR</span>
                                       </div>
@@ -1463,7 +1510,7 @@ export default function App() {
                                       >
                                         <div>
                                           <span style={{ fontSize: '0.8rem', fontWeight: 700, display: 'block', color: 'var(--text-dark)' }}>{lf.carrier} ({lf.flightNumber})</span>
-                                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Departs: {lf.departureTime} | Arrives: {lf.arrivalTime}</span>
+                                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Date: {flightInfo.returnDate} | Departs: {lf.departureTime} | Arrives: {lf.arrivalTime}</span>
                                         </div>
                                         <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--secondary)' }}>{lf.price} SAR</span>
                                       </div>
@@ -2138,15 +2185,24 @@ export default function App() {
                               <span className="summary-label">Transport Route</span>
                               <span className="summary-value">{selectedRouteName} ({selectedVehicleType})</span>
                             </div>
-                            <div className="summary-row">
-                              <span className="summary-label">Flight Selection</span>
-                              <span className="summary-value">
-                                {flightBookingMode === 'own' 
-                                  ? (skipOwnFlightDetails ? 'Without Ticket' : `${flightInfo.onwardFlightNumber} / ${flightInfo.returnFlightNumber}`)
-                                  : (selectedArrivalFlight && selectedDepartureFlight 
-                                      ? `${selectedArrivalFlight.flightNumber} / ${selectedDepartureFlight.flightNumber}` 
-                                      : 'No Flights Selected')}
-                              </span>
+                            <div className="summary-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.35rem' }}>
+                              <span className="summary-label">Flight Route & Schedule</span>
+                              <div className="summary-value" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingLeft: '0.5rem', borderLeft: '2px solid var(--secondary)', boxSizing: 'border-box' }}>
+                                {flightBookingMode === 'own' && skipOwnFlightDetails ? (
+                                  <span>Without Ticket (Own arrangements)</span>
+                                ) : (
+                                  <>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.8rem' }}>
+                                      <span>Onward: <b>{flightBookingMode === 'own' ? flightInfo.onwardFlightNumber : (selectedArrivalFlight?.flightNumber || 'SV-300')}</b> ({getIataCode(flightInfo.onwardFromPortId)} → {getIataCode(flightInfo.onwardToPortId)})</span>
+                                      <span style={{ color: 'var(--text-muted)' }}>{flightInfo.onwardDate} @ {flightBookingMode === 'own' ? flightInfo.onwardTime : (selectedArrivalFlight?.departureTime || '08:00')}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.8rem' }}>
+                                      <span>Return: <b>{flightBookingMode === 'own' ? flightInfo.returnFlightNumber : (selectedDepartureFlight?.flightNumber || 'SV-301')}</b> ({getIataCode(flightInfo.returnFromPortId)} → {getIataCode(flightInfo.returnToPortId)})</span>
+                                      <span style={{ color: 'var(--text-muted)' }}>{flightInfo.returnDate} @ {flightBookingMode === 'own' ? flightInfo.returnTime : (selectedDepartureFlight?.arrivalTime || '22:00')}</span>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </>
                         )}
