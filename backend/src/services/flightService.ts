@@ -17,8 +17,7 @@ export class FlightService {
         params: {
           access_key: this.AVIATIONSTACK_API_KEY,
           dep_iata: origin || 'JED',
-          arr_iata: destination || 'DXB',
-          flight_date: date
+          arr_iata: destination || 'DXB'
         },
         timeout: 8000
       });
@@ -35,6 +34,17 @@ export class FlightService {
         else if (isAsia) routeMultiplier = 1.6;
         else if (isGulf) routeMultiplier = 0.8;
 
+        const parseTime = (scheduledStr: string, fallback: string) => {
+          if (!scheduledStr) return fallback;
+          try {
+            const match = scheduledStr.match(/T(\d{2}:\d{2})/);
+            if (match) return match[1];
+            return new Date(scheduledStr).toISOString().split('T')[1].substring(0, 5);
+          } catch {
+            return fallback;
+          }
+        };
+
         return response.data.data.map((f: any, index: number) => {
           const basePrice = f.airline?.name?.includes('Emirates') || f.airline?.name?.includes('Qatar') ? 1600 : 1100;
           let price = Math.round(basePrice * routeMultiplier);
@@ -44,8 +54,8 @@ export class FlightService {
           return {
             carrier: f.airline?.name || 'Saudi Arabian Airlines',
             flightNumber: f.flight?.iata || `${f.airline?.iata || 'SV'}-${f.flight?.number || '300'}`,
-            departureTime: f.departure?.scheduled ? new Date(f.departure.scheduled).toISOString().split('T')[1].substring(0, 5) : '08:00',
-            arrivalTime: f.arrival?.scheduled ? new Date(f.arrival.scheduled).toISOString().split('T')[1].substring(0, 5) : '11:45',
+            departureTime: parseTime(f.departure?.scheduled, '08:00'),
+            arrivalTime: parseTime(f.arrival?.scheduled, '11:45'),
             price: price
           };
         });
