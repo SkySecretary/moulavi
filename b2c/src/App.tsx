@@ -1466,11 +1466,11 @@ export default function App() {
                                           flexDirection: 'column',
                                           gap: '0.5rem',
                                           padding: '1rem', 
-                                          border: selectedArrivalFlight?.flightNumber === lf.flightNumber ? '2px solid var(--primary)' : '1px solid var(--border-color)', 
+                                          border: selectedArrivalFlight && selectedArrivalFlight.flightNumber === lf.flightNumber && selectedArrivalFlight.departureTime === lf.departureTime && selectedArrivalFlight.carrier === lf.carrier ? '2px solid var(--primary)' : '1px solid var(--border-color)', 
                                           borderRadius: '12px', 
                                           cursor: 'pointer', 
-                                          backgroundColor: selectedArrivalFlight?.flightNumber === lf.flightNumber ? 'var(--primary-light)' : 'white',
-                                          boxShadow: selectedArrivalFlight?.flightNumber === lf.flightNumber ? '0 4px 12px rgba(0,0,0,0.05)' : 'none',
+                                          backgroundColor: selectedArrivalFlight && selectedArrivalFlight.flightNumber === lf.flightNumber && selectedArrivalFlight.departureTime === lf.departureTime && selectedArrivalFlight.carrier === lf.carrier ? 'var(--primary-light)' : 'white',
+                                          boxShadow: selectedArrivalFlight && selectedArrivalFlight.flightNumber === lf.flightNumber && selectedArrivalFlight.departureTime === lf.departureTime && selectedArrivalFlight.carrier === lf.carrier ? '0 4px 12px rgba(0,0,0,0.05)' : 'none',
                                           transition: 'all 0.2s ease',
                                           boxSizing: 'border-box'
                                         }}
@@ -1526,11 +1526,11 @@ export default function App() {
                                           flexDirection: 'column',
                                           gap: '0.5rem',
                                           padding: '1rem', 
-                                          border: selectedDepartureFlight?.flightNumber === lf.flightNumber ? '2px solid var(--primary)' : '1px solid var(--border-color)', 
+                                          border: selectedDepartureFlight && selectedDepartureFlight.flightNumber === lf.flightNumber && selectedDepartureFlight.departureTime === lf.departureTime && selectedDepartureFlight.carrier === lf.carrier ? '2px solid var(--primary)' : '1px solid var(--border-color)', 
                                           borderRadius: '12px', 
                                           cursor: 'pointer', 
-                                          backgroundColor: selectedDepartureFlight?.flightNumber === lf.flightNumber ? 'var(--primary-light)' : 'white',
-                                          boxShadow: selectedDepartureFlight?.flightNumber === lf.flightNumber ? '0 4px 12px rgba(0,0,0,0.05)' : 'none',
+                                          backgroundColor: selectedDepartureFlight && selectedDepartureFlight.flightNumber === lf.flightNumber && selectedDepartureFlight.departureTime === lf.departureTime && selectedDepartureFlight.carrier === lf.carrier ? 'var(--primary-light)' : 'white',
+                                          boxShadow: selectedDepartureFlight && selectedDepartureFlight.flightNumber === lf.flightNumber && selectedDepartureFlight.departureTime === lf.departureTime && selectedDepartureFlight.carrier === lf.carrier ? '0 4px 12px rgba(0,0,0,0.05)' : 'none',
                                           transition: 'all 0.2s ease',
                                           boxSizing: 'border-box'
                                         }}
