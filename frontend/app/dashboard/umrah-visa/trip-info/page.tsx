@@ -1457,25 +1457,91 @@ export default function TripInfoPage() {
                                   </div>
 
                                   {/* Current Saved/Edited Hotel & BRN Info */}
-                                  <div className="space-y-1.5 text-[10px] text-gray-600 bg-purple-50/50 p-2 rounded border border-purple-100">
-                                    <div>
+                                  <div className="space-y-2 text-[10px] text-gray-600 bg-purple-50/50 p-2 rounded border border-purple-100">
+                                    <div className="relative group">
                                       <span className="font-semibold text-purple-700 block text-[9px] uppercase">Hotel 1</span>
-                                      <div className="pl-1">
-                                        <span className="font-medium text-gray-800">{editingIqama[booking.id!]?.makkahHotelName || 'Not Set'}</span>
-                                        <span className="text-gray-500 block">BRN: {editingIqama[booking.id!]?.makkahBrn || 'N/A'}</span>
-                                        {editingIqama[booking.id!]?.makkahCateringBrn && (
-                                          <span className="text-gray-500 block">Catering BRN: {editingIqama[booking.id!]?.makkahCateringBrn}</span>
-                                        )}
+                                      <div className="pl-1 space-y-0.5">
+                                        <div className="flex items-center gap-1">
+                                          <span className="font-medium text-gray-800">{editingIqama[booking.id!]?.makkahHotelName || 'Not Set'}</span>
+                                          {editingIqama[booking.id!]?.makkahHotelName && (
+                                            <button
+                                              onClick={() => copyToClipboard(editingIqama[booking.id!]?.makkahHotelName, 'Hotel 1 Name')}
+                                              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
+                                              title="Copy hotel name"
+                                            >
+                                              <Copy className="h-3 w-3 text-gray-500" />
+                                            </button>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-1 text-gray-500">
+                                          <span>BRN:</span>{' '}
+                                          <span className="font-medium text-gray-700">{editingIqama[booking.id!]?.makkahBrn || 'N/A'}</span>
+                                          {editingIqama[booking.id!]?.makkahBrn && (
+                                            <button
+                                              onClick={() => copyToClipboard(editingIqama[booking.id!]?.makkahBrn, 'BRN')}
+                                              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
+                                              title="Copy BRN"
+                                            >
+                                              <Copy className="h-3 w-3 text-gray-500" />
+                                            </button>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-1 text-gray-500">
+                                          <span>Catering BRN:</span>{' '}
+                                          <span className="font-medium text-gray-700">{editingIqama[booking.id!]?.makkahCateringBrn || 'N/A'}</span>
+                                          {editingIqama[booking.id!]?.makkahCateringBrn && (
+                                            <button
+                                              onClick={() => copyToClipboard(editingIqama[booking.id!]?.makkahCateringBrn, 'Catering BRN')}
+                                              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
+                                              title="Copy Catering BRN"
+                                            >
+                                              <Copy className="h-3 w-3 text-gray-500" />
+                                            </button>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
-                                    <div className="mt-1">
+                                    <div className="mt-1 relative group border-t pt-1.5 border-purple-100">
                                       <span className="font-semibold text-purple-700 block text-[9px] uppercase">Hotel 2</span>
-                                      <div className="pl-1">
-                                        <span className="font-medium text-gray-800">{editingIqama[booking.id!]?.madinahHotelName || 'Not Set'}</span>
-                                        <span className="text-gray-500 block">BRN: {editingIqama[booking.id!]?.madinahBrn || 'N/A'}</span>
-                                        {editingIqama[booking.id!]?.madinahCateringBrn && (
-                                          <span className="text-gray-500 block">Catering BRN: {editingIqama[booking.id!]?.madinahCateringBrn}</span>
-                                        )}
+                                      <div className="pl-1 space-y-0.5">
+                                        <div className="flex items-center gap-1">
+                                          <span className="font-medium text-gray-800">{editingIqama[booking.id!]?.madinahHotelName || 'Not Set'}</span>
+                                          {editingIqama[booking.id!]?.madinahHotelName && (
+                                            <button
+                                              onClick={() => copyToClipboard(editingIqama[booking.id!]?.madinahHotelName, 'Hotel 2 Name')}
+                                              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
+                                              title="Copy hotel name"
+                                            >
+                                              <Copy className="h-3 w-3 text-gray-500" />
+                                            </button>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-1 text-gray-500">
+                                          <span>BRN:</span>{' '}
+                                          <span className="font-medium text-gray-700">{editingIqama[booking.id!]?.madinahBrn || 'N/A'}</span>
+                                          {editingIqama[booking.id!]?.madinahBrn && (
+                                            <button
+                                              onClick={() => copyToClipboard(editingIqama[booking.id!]?.madinahBrn, 'BRN')}
+                                              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
+                                              title="Copy BRN"
+                                            >
+                                              <Copy className="h-3 w-3 text-gray-500" />
+                                            </button>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-1 text-gray-500">
+                                          <span>Catering BRN:</span>{' '}
+                                          <span className="font-medium text-gray-700">{editingIqama[booking.id!]?.madinahCateringBrn || 'N/A'}</span>
+                                          {editingIqama[booking.id!]?.madinahCateringBrn && (
+                                            <button
+                                              onClick={() => copyToClipboard(editingIqama[booking.id!]?.madinahCateringBrn, 'Catering BRN')}
+                                              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
+                                              title="Copy Catering BRN"
+                                            >
+                                              <Copy className="h-3 w-3 text-gray-500" />
+                                            </button>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
                                     
@@ -1603,14 +1669,16 @@ export default function TripInfoPage() {
                                             )}
                                           </div>
 
-                                           {hotelBooking.cateringBrn && (Array.isArray(hotelBooking.cateringBrn) ? hotelBooking.cateringBrn.length > 0 : String(hotelBooking.cateringBrn).length > 0) && (
-                                             <div className="flex items-center gap-1">
-                                               <span className="text-gray-500">Catering BRN:</span>{' '}
-                                               <span className="font-medium">
-                                                 {Array.isArray(hotelBooking.cateringBrn) 
-                                                   ? hotelBooking.cateringBrn.join(', ') 
-                                                   : String(hotelBooking.cateringBrn)}
-                                               </span>
+                                           <div className="flex items-center gap-1">
+                                             <span className="text-gray-500">Catering BRN:</span>{' '}
+                                             <span className="font-medium">
+                                               {hotelBooking.cateringBrn 
+                                                 ? (Array.isArray(hotelBooking.cateringBrn) 
+                                                     ? hotelBooking.cateringBrn.join(', ') 
+                                                     : String(hotelBooking.cateringBrn))
+                                                 : 'N/A'}
+                                             </span>
+                                             {hotelBooking.cateringBrn && (Array.isArray(hotelBooking.cateringBrn) ? hotelBooking.cateringBrn.length > 0 : String(hotelBooking.cateringBrn).length > 0) && (
                                                <button
                                                  onClick={() => copyToClipboard(
                                                    Array.isArray(hotelBooking.cateringBrn) 
@@ -1623,8 +1691,8 @@ export default function TripInfoPage() {
                                                >
                                                  <Copy className="h-3 w-3 text-gray-500" />
                                                </button>
-                                             </div>
-                                           )}
+                                             )}
+                                           </div>
                                         </div>
                                       </div>
                                       );
