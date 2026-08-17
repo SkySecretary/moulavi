@@ -18,7 +18,8 @@ import {
   TrendingUp, 
   Calendar,
   Settings as SettingsIcon,
-  ChevronRight
+  ChevronRight,
+  Compass
 } from 'lucide-react';
 
 const masterItems = [
@@ -39,6 +40,8 @@ const masterItems = [
   { name: 'Hotel Inventory Master', icon: Building2, path: '/dashboard/masters/hotel-inventory', category: 'Services', description: 'Manage BRN inventory allocation and available beds' },
   { name: 'Nusuk API Integration', icon: SettingsIcon, path: '/dashboard/masters/nusuk', category: 'Services', description: 'Configure Nusuk authentication token and daily report synchronization' },
   { name: 'WhatsApp Channel Settings', icon: SettingsIcon, path: '/dashboard/masters/whatsapp', category: 'Services', description: 'Configure multi-channel WhatsApp API profiles and map them to system use cases' },
+  { name: 'B2C Tour Packages', icon: Compass, path: '/dashboard/masters/b2c-packages', category: 'Services', description: 'Manage tour packages and itineraries available for B2C consumer bookings' },
+  { name: 'B2C Markup Rules', icon: TrendingUp, path: '/dashboard/masters/b2c-pricing', category: 'Services', description: 'Manage public markup, margins, seasonal and service-specific rates' },
 ];
 
 const categories = ['General', 'Region', 'Financial', 'Transport', 'External', 'Services'];

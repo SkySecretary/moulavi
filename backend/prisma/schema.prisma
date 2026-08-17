@@ -140,6 +140,8 @@ model UmrahVisaBooking {
   umrahVisaProvider         Party?                     @relation("UmrahVisaProvider", fields: [umrahVisaProviderId], references: [id])
   transportCompany          Party?                     @relation("TransportCompanyBooking", fields: [transportCompanyId], references: [id])
   party                     Party                      @relation("BookingParty", fields: [partyId], references: [id], onDelete: Cascade)
+  consumerId                String?                    @map("consumer_id")
+  consumer                  B2CConsumer?               @relation("ConsumerBookings", fields: [consumerId], references: [id])
 
   @@index([partyId])
   @@index([status])
@@ -369,6 +371,8 @@ model LocationMaster {
   arrivalFlights      UmrahTravelDetails[]  @relation("ArrivalAirport")
   departureFlights    UmrahTravelDetails[]  @relation("DepartureAirport")
   inventories         HotelInventory[]
+  makkahPackages      PackageMaster[]       @relation("MakkahHotel")
+  madinahPackages     PackageMaster[]       @relation("MadinahHotel")
 
   @@unique([code, locationType])
   @@index([code])
@@ -407,6 +411,7 @@ model TransportRouteMaster {
   createdAt  DateTime          @default(now()) @map("created_at")
   updatedAt  DateTime          @default(now()) @updatedAt @map("updated_at")
   transports TransportMaster[]
+  packages   PackageMaster[]   @relation("TransportRoute")
   city4      CityMaster?       @relation("TransportRouteCity4", fields: [city4Id], references: [id])
   city3      CityMaster?       @relation("TransportRouteCity3", fields: [city3Id], references: [id])
   city2      CityMaster        @relation("TransportRouteCity2", fields: [city2Id], references: [id])
@@ -1003,6 +1008,58 @@ model WhatsappUseCaseMapping {
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@map("whatsapp_use_case_mappings")
+}
+
+model B2CConsumer {
+  id              String             @id @default(uuid())
+  fullName        String             @map("full_name")
+  email           String             @unique
+  mobileNumber    String             @unique @map("mobile_number")
+  otpToken        String?            @map("otp_token")
+  otpExpiresAt    DateTime?          @map("otp_expires_at")
+  isActive        Boolean            @default(true) @map("is_active")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @default(now()) @updatedAt @map("updated_at")
+  bookings        UmrahVisaBooking[] @relation("ConsumerBookings")
+
+  @@map("b2c_consumers")
+}
+
+model PackageMaster {
+  id               String          @id @default(uuid())
+  title            String
+  description      String
+  durationDays     Int             @map("duration_days")
+  makkahNights     Int             @map("makkah_nights")
+  madinahNights    Int             @map("madinah_nights")
+  makkahHotelId    String          @map("makkah_hotel_id")
+  madinahHotelId   String          @map("madinah_hotel_id")
+  transportRouteId String          @map("transport_route_id")
+  flightCost       Decimal         @map("flight_cost")
+  baseCost         Decimal         @map("base_cost")
+  price            Decimal
+  isActive         Boolean         @default(true) @map("is_active")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @default(now()) @updatedAt @map("updated_at")
+
+  makkahHotel      LocationMaster  @relation("MakkahHotel", fields: [makkahHotelId], references: [id])
+  madinahHotel     LocationMaster  @relation("MadinahHotel", fields: [madinahHotelId], references: [id])
+  transportRoute   TransportRouteMaster @relation("TransportRoute", fields: [transportRouteId], references: [id])
+
+  @@map("package_masters")
+}
+
+model B2CConfig {
+  id             String          @id @default(uuid())
+  ruleName       String          @map("rule_name")
+  markupType     String          @map("markup_type") // FIXED or PERCENTAGE
+  value          Decimal
+  targetService  String          @map("target_service") // GLOBAL, FLIGHT, HOTEL, TRANSPORT, VISA, PACKAGE
+  isActive       Boolean         @default(true) @map("is_active")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at")
+
+  @@map("b2c_configs")
 }
 
 
