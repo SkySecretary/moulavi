@@ -573,6 +573,32 @@ router.post(
       });
     }
 
+    // Validate that the airport IDs exist in the database, otherwise fallback to default
+    let validatedArrivalAirportId = defaultAirportId;
+    if (arrivalAirportId) {
+      const airportExists = await prisma.locationMaster.findUnique({ where: { id: arrivalAirportId } });
+      if (airportExists) {
+        validatedArrivalAirportId = arrivalAirportId;
+      }
+    }
+
+    let validatedDepartureAirportId = defaultAirportId;
+    if (departureAirportId) {
+      const airportExists = await prisma.locationMaster.findUnique({ where: { id: departureAirportId } });
+      if (airportExists) {
+        validatedDepartureAirportId = departureAirportId;
+      }
+    }
+
+    // Validate consumerId exists in B2CConsumer table
+    let validatedConsumerId = null;
+    if (consumerId) {
+      const consumerExists = await prisma.b2CConsumer.findUnique({ where: { id: consumerId } });
+      if (consumerExists) {
+        validatedConsumerId = consumerId;
+      }
+    }
+
     const makkahHotel = makkahHotelId ? await prisma.locationMaster.findUnique({ where: { id: makkahHotelId } }) : null;
     const madinahHotel = madinahHotelId ? await prisma.locationMaster.findUnique({ where: { id: madinahHotelId } }) : null;
 
@@ -582,7 +608,7 @@ router.post(
     const booking = await prisma.umrahVisaBooking.create({
       data: {
         partyId: b2cParty.id,
-        consumerId: consumerId || null,
+        consumerId: validatedConsumerId,
         bookingReference: bookingRef,
         passengerCount: travelersCount || 1,
         visaType: 'individual_visa',
@@ -603,10 +629,10 @@ router.post(
           create: [
             {
               arrivalDateTime: arrivalDateTime ? new Date(arrivalDateTime) : new Date(checkInDate),
-              arrivalAirportId: arrivalAirportId || defaultAirportId,
+              arrivalAirportId: validatedArrivalAirportId,
               arrivalFlightNumber: isWithoutTicket ? 'NT-0000' : (arrivalFlightNumber || 'SV-300'),
               departureDateTime: departureDateTime ? new Date(departureDateTime) : new Date(new Date(checkInDate).getTime() + (makkahNights + madinahNights) * 86400000),
-              departureAirportId: departureAirportId || defaultAirportId,
+              departureAirportId: validatedDepartureAirportId,
               departureFlightNumber: isWithoutTicket ? 'NT-0000' : (departureFlightNumber || 'SV-301'),
             }
           ]
@@ -669,9 +695,11 @@ router.post(
         const fromLocId = m.fromLocationId || makkahHotelId || defaultAirportId;
         const toLocId = m.toLocationId || madinahHotelId || defaultAirportId;
         
-        const fromLoc = await prisma.locationMaster.findUnique({ where: { id: fromLocId } });
-        const toLoc = await prisma.locationMaster.findUnique({ where: { id: toLocId } });
+        const fromLoc = fromLocId ? await prisma.locationMaster.findUnique({ where: { id: fromLocId } }) : null;
+        const toLoc = toLocId ? await prisma.locationMaster.findUnique({ where: { id: toLocId } }) : null;
 
+        const resolvedFromLocId = fromLoc?.id || defaultAirportId;
+        const resolvedToLocId = toLoc?.id || defaultAirportId;
         const fromCityId = fromLoc?.cityId || defaultCityId;
         const toCityId = toLoc?.cityId || defaultCityId;
 
@@ -687,8 +715,8 @@ router.post(
           data: {
             bookingId: booking.id,
             travelDateTime: travelDate,
-            fromLocationId: fromLocId,
-            toLocationId: toLocId,
+            fromLocationId: resolvedFromLocId,
+            toLocationId: resolvedToLocId,
             fromCityId,
             toCityId,
             isAlternate: false,
