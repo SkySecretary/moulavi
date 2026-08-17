@@ -32,18 +32,27 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+echo "📦 Building B2C..."
+(cd b2c && npm run build)
+if [ $? -ne 0 ]; then
+    echo "❌ B2C build failed! Aborting deployment."
+    exit 1
+fi
+
 
 # Step 1: Prep and Sync in one SSH ControlMaster context if possible, or just be very efficient.
 # We will create the release directory first.
 echo "📂 Creating release directory tree..."
-$SSH_CMD $SERVER_USER@$SERVER_IP "mkdir -p $RELEASE_PATH/backend/dist $RELEASE_PATH/backend/prisma $RELEASE_PATH/frontend/.next"
+$SSH_CMD $SERVER_USER@$SERVER_IP "mkdir -p $RELEASE_PATH/backend/dist $RELEASE_PATH/backend/prisma $RELEASE_PATH/frontend/.next $RELEASE_PATH/b2c/dist"
 
 # Step 2: Upload everything
-echo "📤 Uploading backend and frontend..."
+echo "📤 Uploading backend, frontend, and B2C..."
 rsync -avz -e "$SSH_CMD" --exclude "node_modules" --exclude "dist" --exclude "dev.db" --exclude "uploads" --exclude ".env" backend/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/backend/
 rsync -avz -e "$SSH_CMD" backend/dist/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/backend/dist/
 rsync -avz -e "$SSH_CMD" --exclude "node_modules" --exclude ".next" --exclude ".env*" frontend/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/frontend/
 rsync -avz -e "$SSH_CMD" --exclude "cache" frontend/.next/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/frontend/.next/
+rsync -avz -e "$SSH_CMD" --exclude "node_modules" --exclude "dist" b2c/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/b2c/
+rsync -avz -e "$SSH_CMD" b2c/dist/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/b2c/dist/
 
 # Step 3: Finalize and Restart in one final SSH session
 echo "⚙️  Finalizing and Restarting..."
