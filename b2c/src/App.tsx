@@ -420,9 +420,9 @@ export default function App() {
   // Custom Interactive Itinerary Builder (Movements)
   const [movements, setMovements] = useState<any[]>([
     { id: 'm-1', type: 'transfer', name: 'Airport Arrival Transfer', from: 'Airport', to: 'Makkah Hotel', time: '09:30' },
-    { id: 'm-2', type: 'stay', name: 'Makkah Stay Allotment', from: 'Makkah', to: 'Locked Bed Room', time: '14:00' },
+    { id: 'm-2', type: 'stay', name: 'Makkah Stay Allotment', from: 'Makkah', to: 'Reserved Room', time: '14:00' },
     { id: 'm-3', type: 'transfer', name: 'Inter-City Transfer', from: 'Makkah Hotel', to: 'Madinah Hotel', time: '10:00' },
-    { id: 'm-4', type: 'stay', name: 'Madinah Stay Allotment', from: 'Madinah', to: 'Locked Bed Room', time: '14:00' },
+    { id: 'm-4', type: 'stay', name: 'Madinah Stay Allotment', from: 'Madinah', to: 'Reserved Room', time: '14:00' },
     { id: 'm-5', type: 'transfer', name: 'Departure Airport Transfer', from: 'Madinah Hotel', to: 'Airport', time: '18:00' }
   ]);
 
@@ -822,7 +822,7 @@ export default function App() {
               toLocId = selectedMakkahHotelId;
             }
             return {
-              date: dates.checkIn,
+              date: getMovementDate(m.id),
               time: m.time,
               fromLocationId: fromLocId,
               toLocationId: toLocId
@@ -907,6 +907,29 @@ export default function App() {
   const returnFlightTotalCost = flightBookingMode === 'own' ? 0 : returnFlightUnitPrice * dates.travelers;
   const routePrice = Number(routes.find(r => r.id === selectedRouteId)?.price) || 500;
   const visaPriceTotal = dates.accommodationType === 'iqama' ? 0 : 450 * dates.travelers;
+
+  const getMovementDate = (movementId: string) => {
+    if (!dates.checkIn) return '';
+    try {
+      const checkInDateObj = new Date(dates.checkIn);
+      if (movementId === 'm-1' || movementId === 'm-2') {
+        return dates.checkIn;
+      }
+      if (movementId === 'm-3' || movementId === 'm-4') {
+        const makkahNightsMs = dates.makkahNights * 86400000;
+        const intercityDateObj = new Date(checkInDateObj.getTime() + makkahNightsMs);
+        return intercityDateObj.toISOString().split('T')[0];
+      }
+      if (movementId === 'm-5') {
+        const totalNightsMs = (dates.makkahNights + dates.madinahNights) * 86400000;
+        const departureDateObj = new Date(checkInDateObj.getTime() + totalNightsMs);
+        return departureDateObj.toISOString().split('T')[0];
+      }
+    } catch (e) {
+      // Fallback
+    }
+    return dates.checkIn;
+  };
 
   return (
     <>
@@ -1050,16 +1073,20 @@ export default function App() {
 
                   {/* Movements Section */}
                   <div>
-                    <h3 className="voucher-section-title">Ground Transport Manifest</h3>
-                    <div className="voucher-grid">
-                      <div className="voucher-info-group">
-                        <span className="voucher-info-label">Route</span>
-                        <span className="voucher-info-val">{selectedRouteName}</span>
-                      </div>
-                      <div className="voucher-info-group">
-                        <span className="voucher-info-label">Vehicle Type</span>
-                        <span className="voucher-info-val">{selectedVehicleType}</span>
-                      </div>
+                    <h3 className="voucher-section-title">Ground & Stay Itinerary Manifest</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+                      {movements.map((m) => (
+                        <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px dashed var(--border-color)', fontSize: '0.8rem' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{m.name}</span>
+                            <span style={{ color: 'var(--text-muted)' }}>{m.from} → {m.to}</span>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <span style={{ display: 'block', fontWeight: 600, color: 'var(--text-dark)' }}>{getMovementDate(m.id)}</span>
+                            <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Time: {m.time}</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -1125,8 +1152,25 @@ export default function App() {
                     </p>
                   </div>
                   <button 
-                    className="book-btn" 
-                    style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', fontWeight: 700, cursor: 'pointer' }}
+                    className="book-btn animate-pulse" 
+                    style={{ 
+                      width: '100%', 
+                      padding: '0.9rem', 
+                      justifyContent: 'center', 
+                      fontWeight: 800, 
+                      fontSize: '0.95rem',
+                      color: 'white',
+                      background: 'linear-gradient(135deg, var(--secondary) 0%, #e5a954 100%)',
+                      border: 'none',
+                      boxShadow: '0 4px 20px rgba(212, 147, 44, 0.45)',
+                      cursor: 'pointer',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}
                     onClick={() => {
                       setIsQuickEVisa(true);
                       setDates(prev => ({
@@ -1141,7 +1185,7 @@ export default function App() {
                       setBookingFinished(false);
                     }}
                   >
-                    Apply Quick eVisa <ChevronRight className="h-4 w-4" />
+                    Apply Quick eVisa <ChevronRight className="h-4 w-4" style={{ strokeWidth: 3 }} />
                   </button>
                 </div>
 
@@ -2167,7 +2211,10 @@ export default function App() {
 
                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                                   <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary)' }}>{m.name}</span>
-                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{m.from} → {m.to}</span>
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <span>{m.from} → {m.to}</span>
+                                    <span style={{ color: 'var(--secondary)', fontWeight: 600 }}>• {getMovementDate(m.id)}</span>
+                                  </span>
                                 </div>
                               </div>
 
@@ -2592,7 +2639,7 @@ export default function App() {
                         </div>
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.75rem', color: 'var(--primary)' }}>
                           <FileCheck className="h-4 w-4" />
-                          <span>Real-time Bed BRN Lock</span>
+                          <span>Real-time Room BRN Reservation</span>
                         </div>
                       </div>
 
@@ -2616,7 +2663,7 @@ export default function App() {
                 <div className="flow-step">
                   <div className="flow-badge">2</div>
                   <h5>Allot Room & Route</h5>
-                  <p>Choose premium Makkah & Madinah hotels to instantly secure locked beds.</p>
+                  <p>Choose premium Makkah & Madinah hotels to instantly secure reserved rooms.</p>
                 </div>
                 <div className="flow-step">
                   <div className="flow-badge">3</div>
@@ -2639,8 +2686,8 @@ export default function App() {
                 <div className="feature-icon-wrapper">
                   <FileCheck className="h-6 w-6" />
                 </div>
-                <h4>100% Locked BRNs</h4>
-                <p>We only display real inventory slots. Your hotel rooms are locked in real-time under contract.</p>
+                <h4>100% Confirmed BRNs</h4>
+                <p>We only display real inventory slots. Your hotel rooms are reserved in real-time under contract.</p>
               </div>
               <div className="feature-box">
                 <div className="feature-icon-wrapper">
