@@ -533,7 +533,8 @@ router.post(
       iqamaSponserName,
       sponserDob,
       sponserMobileNumber,
-      movements
+      movements,
+      passengers
     } = req.body;
 
     const adminUser = await prisma.user.findFirst({ where: { role: 'admin' } });
@@ -617,13 +618,21 @@ router.post(
         status: 'booking_success', 
         groupName: `B2C-${fullName.split(' ')[0]}`,
         passengers: {
-          create: [
-            {
-              fullName,
-              passportNumber,
-              nationality: nationality || 'US',
-            }
-          ]
+          create: (passengers && Array.isArray(passengers) && passengers.length > 0)
+            ? passengers.map((p: any) => ({
+                fullName: p.fullName || 'Pilgrim',
+                passportNumber: p.passportNumber || '',
+                nationality: p.nationality || 'US',
+                gender: p.gender || 'MALE',
+              }))
+            : [
+                {
+                  fullName: fullName || 'Pilgrim',
+                  passportNumber: passportNumber || '',
+                  nationality: nationality || 'US',
+                  gender: 'MALE',
+                }
+              ]
         },
         travelDetails: {
           create: [

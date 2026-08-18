@@ -19,7 +19,8 @@ import {
   Trash2,
   UserCheck,
   Info,
-  Zap
+  Zap,
+  Mail
 } from 'lucide-react';
 
 // ==========================================
@@ -486,6 +487,30 @@ export default function App() {
     email: ''
   });
 
+  const [passengers, setPassengers] = useState<Array<{
+    fullName: string;
+    passportNumber: string;
+    nationality: string;
+    gender: string;
+  }>>([
+    { fullName: '', passportNumber: '', nationality: 'United States', gender: 'MALE' }
+  ]);
+
+  useEffect(() => {
+    const count = dates.travelers || 1;
+    setPassengers(prev => {
+      const copy = [...prev];
+      if (copy.length < count) {
+        for (let i = copy.length; i < count; i++) {
+          copy.push({ fullName: '', passportNumber: '', nationality: 'United States', gender: 'MALE' });
+        }
+      } else if (copy.length > count) {
+        copy.splice(count);
+      }
+      return copy;
+    });
+  }, [dates.travelers]);
+
   // 1. Fetch system masters from ERP backend
   useEffect(() => {
     const loadSystemData = async () => {
@@ -753,6 +778,12 @@ export default function App() {
         nationality: traveler.nationality,
         mobileNumber: traveler.mobile,
         email: traveler.email,
+        passengers: passengers.map(p => ({
+          fullName: p.fullName,
+          passportNumber: p.passportNumber,
+          nationality: p.nationality,
+          gender: p.gender || 'MALE'
+        })),
         checkInDate: dates.checkIn,
         makkahNights: dates.makkahNights,
         madinahNights: dates.madinahNights,
@@ -772,12 +803,31 @@ export default function App() {
         iqamaSponserName: iqamaDetails.iqamaSponserName,
         sponserDob: iqamaDetails.sponserDob ? new Date(iqamaDetails.sponserDob).toISOString() : null,
         sponserMobileNumber: iqamaDetails.sponserMobileNumber,
-        movements: movements.map(m => ({
-          date: dates.checkIn,
-          time: m.time,
-          fromLocationId: selectedMakkahHotelId,
-          toLocationId: selectedMadinahHotelId
-        }))
+        movements: movements
+          .filter(m => m.type === 'transfer')
+          .map(m => {
+            let fromLocId = '';
+            let toLocId = '';
+            if (m.id === 'm-1') {
+              fromLocId = flightInfo.onwardToPortId || 'apt-jed';
+              toLocId = selectedMakkahHotelId;
+            } else if (m.id === 'm-3') {
+              fromLocId = selectedMakkahHotelId;
+              toLocId = selectedMadinahHotelId;
+            } else if (m.id === 'm-5') {
+              fromLocId = dates.madinahNights > 0 ? selectedMadinahHotelId : selectedMakkahHotelId;
+              toLocId = flightInfo.returnFromPortId || 'apt-jed';
+            } else {
+              fromLocId = selectedMakkahHotelId;
+              toLocId = selectedMakkahHotelId;
+            }
+            return {
+              date: dates.checkIn,
+              time: m.time,
+              fromLocationId: fromLocId,
+              toLocationId: toLocId
+            };
+          })
       };
 
       const response = await fetch('/api/b2c/booking/checkout', {
@@ -841,9 +891,22 @@ export default function App() {
     iqamaDetails.sponserMobileNumber.trim().length > 0
   );
 
+  const isPassengersValid = passengers.every(p => p.fullName.trim() !== '' && p.passportNumber.trim() !== '' && p.nationality.trim() !== '');
+
   const selectedMakkahHotelName = hotels.find(h => h.id === selectedMakkahHotelId)?.name || 'Pullman Zamzam Makkah (5★)';
   const selectedMadinahHotelName = hotels.find(h => h.id === selectedMadinahHotelId)?.name || 'Anwar Al Madinah Mövenpick (5★)';
   const selectedRouteName = routes.find(r => r.id === selectedRouteId)?.routeType || 'Jeddah → Makkah → Madinah';
+
+  const makkahHotelPrice = hotels.find(h => h.id === selectedMakkahHotelId)?.pricePerNight || 350;
+  const madinahHotelPrice = hotels.find(h => h.id === selectedMadinahHotelId)?.pricePerNight || 300;
+  const onwardFlightUnitPrice = selectedArrivalFlight?.price || 0;
+  const returnFlightUnitPrice = selectedDepartureFlight?.price || 0;
+  const makkahTotalCost = makkahHotelPrice * dates.makkahNights;
+  const madinahTotalCost = madinahHotelPrice * dates.madinahNights;
+  const onwardFlightTotalCost = flightBookingMode === 'own' ? 0 : onwardFlightUnitPrice * dates.travelers;
+  const returnFlightTotalCost = flightBookingMode === 'own' ? 0 : returnFlightUnitPrice * dates.travelers;
+  const routePrice = Number(routes.find(r => r.id === selectedRouteId)?.price) || 500;
+  const visaPriceTotal = dates.accommodationType === 'iqama' ? 0 : 450 * dates.travelers;
 
   return (
     <>
@@ -912,24 +975,14 @@ export default function App() {
                   
                   {/* Pilgrim Section */}
                   <div>
-                    <h3 className="voucher-section-title">Lead Pilgrim Details</h3>
-                    <div className="voucher-grid">
-                      <div className="voucher-info-group">
-                        <span className="voucher-info-label">Full Name</span>
-                        <span className="voucher-info-val">{traveler.fullName || 'Johnathan Doe'}</span>
-                      </div>
-                      <div className="voucher-info-group">
-                        <span className="voucher-info-label">Passport Number</span>
-                        <span className="voucher-info-val">{traveler.passportNumber || 'EP9832104'}</span>
-                      </div>
-                      <div className="voucher-info-group">
-                        <span className="voucher-info-label">eVisa Status</span>
-                        <span className="voucher-info-val" style={{ color: 'var(--primary)', fontWeight: 800 }}>✓ CONFIRMED</span>
-                      </div>
-                      <div className="voucher-info-group">
-                        <span className="voucher-info-label">Total Travelers</span>
-                        <span className="voucher-info-val">{dates.travelers} Pilgrims</span>
-                      </div>
+                    <h3 className="voucher-section-title">Pilgrim Manifest Details</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                      {passengers.map((p, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
+                          <span><b>{idx + 1}. {p.fullName || 'Pilgrim'}</b> ({p.nationality || 'US'})</span>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>Passport: {p.passportNumber || 'EP9832104'}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -2175,54 +2228,101 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* Traveler Fields */}
-                        <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                          <div className="search-field">
-                            <label>Pilgrim Full Name (Matching Passport)</label>
-                            <input 
-                              type="text" 
-                              required
-                              className="search-input" 
-                              placeholder="Johnathan Doe"
-                              value={traveler.fullName}
-                              onChange={(e) => setTraveler({ ...traveler, fullName: e.target.value })}
-                            />
-                          </div>
-                          <div className="search-field">
-                            <label>Passport Number</label>
-                            <input 
-                              type="text" 
-                              required
-                              className="search-input" 
-                              placeholder="EP9832104"
-                              value={traveler.passportNumber}
-                              onChange={(e) => setTraveler({ ...traveler, passportNumber: e.target.value })}
-                            />
-                          </div>
+                        {/* Dynamic Passenger Fields */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                          {passengers.map((p, idx) => (
+                            <div key={idx} style={{ padding: '1.5rem', border: '1px solid var(--border-color)', borderRadius: '12px', backgroundColor: 'var(--bg-light)' }}>
+                              <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <UserCheck className="h-4 w-4" /> Passenger #{idx + 1} Passport Details
+                              </h4>
+                              <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                                <div className="search-field">
+                                  <label>Full Name (Matching Passport)</label>
+                                  <input 
+                                    type="text" 
+                                    required
+                                    className="search-input" 
+                                    placeholder="e.g. John Doe"
+                                    value={p.fullName}
+                                    onChange={(e) => {
+                                      const copy = [...passengers];
+                                      copy[idx] = { ...copy[idx], fullName: e.target.value };
+                                      setPassengers(copy);
+                                      if (idx === 0) {
+                                        setTraveler(prev => ({ ...prev, fullName: e.target.value }));
+                                      }
+                                    }}
+                                  />
+                                </div>
+                                <div className="search-field">
+                                  <label>Passport Number</label>
+                                  <input 
+                                    type="text" 
+                                    required
+                                    className="search-input" 
+                                    placeholder="EP9832104"
+                                    value={p.passportNumber}
+                                    onChange={(e) => {
+                                      const copy = [...passengers];
+                                      copy[idx] = { ...copy[idx], passportNumber: e.target.value };
+                                      setPassengers(copy);
+                                      if (idx === 0) {
+                                        setTraveler(prev => ({ ...prev, passportNumber: e.target.value }));
+                                      }
+                                    }}
+                                  />
+                                </div>
+                                <div className="search-field">
+                                  <label>Nationality</label>
+                                  <input 
+                                    type="text" 
+                                    required
+                                    className="search-input" 
+                                    placeholder="e.g. IN or US"
+                                    value={p.nationality}
+                                    onChange={(e) => {
+                                      const copy = [...passengers];
+                                      copy[idx] = { ...copy[idx], nationality: e.target.value };
+                                      setPassengers(copy);
+                                      if (idx === 0) {
+                                        setTraveler(prev => ({ ...prev, nationality: e.target.value }));
+                                      }
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
 
-                        <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                          <div className="search-field">
-                            <label>Mobile Number (For WhatsApp Updates)</label>
-                            <input 
-                              type="tel" 
-                              required
-                              className="search-input" 
-                              placeholder="+966 50 123 4567"
-                              value={traveler.mobile}
-                              onChange={(e) => setTraveler({ ...traveler, mobile: e.target.value })}
-                            />
-                          </div>
-                          <div className="search-field">
-                            <label>Email Address</label>
-                            <input 
-                              type="email" 
-                              required
-                              className="search-input" 
-                              placeholder="pilgrim@example.com"
-                              value={traveler.email}
-                              onChange={(e) => setTraveler({ ...traveler, email: e.target.value })}
-                            />
+                        {/* Primary Booking Contact */}
+                        <div style={{ padding: '1.5rem', border: '1px solid var(--gold-border)', borderRadius: '12px', backgroundColor: 'var(--primary-light)' }}>
+                          <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-dark)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Mail className="h-4 w-4 text-primary" /> Primary Booking Contact Information
+                          </h4>
+                          <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                            <div className="search-field">
+                              <label>Primary Mobile Number (WhatsApp Alerts)</label>
+                              <input 
+                                type="tel" 
+                                required
+                                className="search-input" 
+                                placeholder="+966 50 123 4567"
+                                value={traveler.mobile}
+                                onChange={(e) => setTraveler({ ...traveler, mobile: e.target.value })}
+                              />
+                            </div>
+                            <div className="search-field">
+                              <label>Primary Email Address</label>
+                              <input 
+                                type="email" 
+                                required
+                                className="search-input" 
+                                placeholder="contact@example.com"
+                                value={traveler.email}
+                                onChange={(e) => setTraveler({ ...traveler, email: e.target.value })}
+                              />
+                            </div>
                           </div>
                         </div>
 
@@ -2287,7 +2387,7 @@ export default function App() {
                           <button 
                             type="submit" 
                             className="book-btn" 
-                            disabled={!otpVerified || isProcessingCheckout}
+                            disabled={!otpVerified || !isPassengersValid || isProcessingCheckout}
                             style={{ backgroundColor: 'var(--primary)', display: 'flex', gap: '0.75rem', alignItems: 'center' }}
                           >
                             {isProcessingCheckout ? (
@@ -2400,6 +2500,69 @@ export default function App() {
                             </div>
                           </>
                         )}
+                        
+                        {/* Cost Breakdown Details */}
+                        <div style={{ marginTop: '1rem', borderTop: '1px dashed var(--border-color)', paddingTop: '0.75rem', fontSize: '0.85rem' }}>
+                          <span style={{ fontWeight: 800, color: 'var(--text-dark)', marginBottom: '0.5rem', display: 'block' }}>Cost Breakdown</span>
+                          
+                          {/* Stays */}
+                          {dates.makkahNights > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>Makkah Stay ({dates.makkahNights} nights)</span>
+                              <span>{makkahTotalCost} SAR</span>
+                            </div>
+                          )}
+                          {dates.madinahNights > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>Madinah Stay ({dates.madinahNights} nights)</span>
+                              <span>{madinahTotalCost} SAR</span>
+                            </div>
+                          )}
+
+                          {/* Flights */}
+                          {flightBookingMode === 'book' && (
+                            <>
+                              {onwardFlightTotalCost > 0 && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                                  <span style={{ color: 'var(--text-muted)' }}>Onward Flight ({dates.travelers} pax)</span>
+                                  <span>{onwardFlightTotalCost} SAR</span>
+                                </div>
+                              )}
+                              {returnFlightTotalCost > 0 && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                                  <span style={{ color: 'var(--text-muted)' }}>Return Flight ({dates.travelers} pax)</span>
+                                  <span>{returnFlightTotalCost} SAR</span>
+                                </div>
+                              )}
+                            </>
+                          )}
+                          {flightBookingMode === 'own' && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>Self-booked Flights</span>
+                              <span style={{ color: 'var(--secondary)', fontWeight: 700 }}>Excluded</span>
+                            </div>
+                          )}
+
+                          {/* Transport */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Ground Shuttle Route</span>
+                            <span>{routePrice} SAR</span>
+                          </div>
+
+                          {/* Visa */}
+                          {dates.accommodationType !== 'iqama' && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>Visa Registration Fee ({dates.travelers} pax)</span>
+                              <span>{visaPriceTotal} SAR</span>
+                            </div>
+                          )}
+                          {dates.accommodationType === 'iqama' && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>Iqama Sponsor Visa</span>
+                              <span style={{ color: 'var(--secondary)', fontWeight: 700 }}>Waived (0 SAR)</span>
+                            </div>
+                          )}
+                        </div>
                         
                         <div className="summary-row" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
                           <span className="summary-label">eVisa Registration (Pax)</span>
