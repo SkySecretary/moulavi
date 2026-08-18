@@ -511,6 +511,24 @@ export default function App() {
     });
   }, [dates.travelers]);
 
+  const CURRENCIES = {
+    SAR: { symbol: 'SAR', rate: 1.0 },
+    INR: { symbol: '₹', rate: 22.2 },
+    AED: { symbol: 'AED', rate: 0.98 },
+    QAR: { symbol: 'QR', rate: 0.97 },
+    BDT: { symbol: 'BDT', rate: 31.8 },
+    KWD: { symbol: 'KD', rate: 0.082 }
+  };
+
+  const [selectedCurrency, setSelectedCurrency] = useState('SAR');
+
+  const formatPrice = (sarValue: number | string) => {
+    const amount = Number(sarValue) || 0;
+    const curr = CURRENCIES[selectedCurrency as keyof typeof CURRENCIES] || CURRENCIES.SAR;
+    const converted = Math.round(amount * curr.rate);
+    return `${converted.toLocaleString()} ${curr.symbol}`;
+  };
+
   // 1. Fetch system masters from ERP backend
   useEffect(() => {
     const loadSystemData = async () => {
@@ -943,7 +961,29 @@ export default function App() {
               <span>Verified B2C Consumer Channel</span>
             </div>
           </a>
-          <div className="nav-links">
+          <div className="nav-links" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <select
+              style={{
+                padding: '0.5rem 0.75rem',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                color: 'var(--primary)',
+                backgroundColor: 'var(--primary-light)',
+                border: '1px solid var(--gold-border)',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                outline: 'none'
+              }}
+              value={selectedCurrency}
+              onChange={(e) => setSelectedCurrency(e.target.value)}
+            >
+              <option value="SAR">🇸🇦 SAR</option>
+              <option value="INR">🇮🇳 INR</option>
+              <option value="AED">🇦🇪 AED</option>
+              <option value="QAR">🇶🇦 QAR</option>
+              <option value="BDT">🇧🇩 BDT</option>
+              <option value="KWD">🇰🇼 KWD</option>
+            </select>
             <button 
               className="nav-btn" 
               style={{ backgroundColor: 'var(--secondary)', color: 'white', fontWeight: 700, borderRadius: '8px', border: 'none', padding: '0.6rem 1.2rem', cursor: 'pointer' }}
@@ -1273,7 +1313,7 @@ export default function App() {
                       <div className="package-footer">
                         <div className="price-block">
                           <span className="price-label">Price per pilgrim</span>
-                          <span className="price-val">{pkg.price || 2400} SAR</span>
+                          <span className="price-val">{formatPrice(pkg.price || 2400)}</span>
                         </div>
                         <button 
                           className="book-btn"
@@ -1692,7 +1732,7 @@ export default function App() {
                                             <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-dark)' }}>{lf.carrier}</span>
                                             <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>{lf.flightNumber}</span>
                                           </div>
-                                          <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--secondary)' }}>{lf.price} SAR</span>
+                                          <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--secondary)' }}>{formatPrice(lf.price)}</span>
                                         </div>
 
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f9fbfb', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid #f0f4f3', boxSizing: 'border-box' }}>
@@ -1752,7 +1792,7 @@ export default function App() {
                                             <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-dark)' }}>{lf.carrier}</span>
                                             <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>{lf.flightNumber}</span>
                                           </div>
-                                          <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--secondary)' }}>{lf.price} SAR</span>
+                                          <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--secondary)' }}>{formatPrice(lf.price)}</span>
                                         </div>
 
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f9fbfb', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid #f0f4f3', boxSizing: 'border-box' }}>
@@ -1788,7 +1828,7 @@ export default function App() {
 
                             {selectedArrivalFlight && selectedDepartureFlight && (
                               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', padding: '1rem', backgroundColor: 'var(--primary-light)', borderRadius: '8px', border: '1px solid var(--gold-border)', color: 'var(--primary)', fontWeight: 700, fontSize: '0.85rem' }}>
-                                <CheckCircle className="h-5 w-5" /> Selected Onward: {selectedArrivalFlight.flightNumber} | Return: {selectedDepartureFlight.flightNumber} - {((selectedArrivalFlight.price + selectedDepartureFlight.price) * dates.travelers)} SAR total cost included.
+                                <CheckCircle className="h-5 w-5" /> Selected Onward: {selectedArrivalFlight.flightNumber} | Return: {selectedDepartureFlight.flightNumber} - {formatPrice((selectedArrivalFlight.price + selectedDepartureFlight.price) * dates.travelers)} total cost included.
                               </div>
                             )}
 
@@ -2018,8 +2058,8 @@ export default function App() {
                                     </div>
                                   </div>
                                   <div className="option-right">
-                                    <span className="option-price">{(h.pricePerNight || 350) * dates.makkahNights} SAR</span>
-                                    <span className="option-subtitle">{h.pricePerNight || 350} SAR/night</span>
+                                    <span className="option-price">{formatPrice((h.pricePerNight || 350) * dates.makkahNights)}</span>
+                                    <span className="option-subtitle">{formatPrice(h.pricePerNight || 350)} / night</span>
                                   </div>
                                 </div>
                               ))}
@@ -2072,8 +2112,8 @@ export default function App() {
                                       </div>
                                     </div>
                                     <div className="option-right">
-                                      <span className="option-price">{(h.pricePerNight || 300) * dates.madinahNights} SAR</span>
-                                      <span className="option-subtitle">{h.pricePerNight || 300} SAR/night</span>
+                                      <span className="option-price">{formatPrice((h.pricePerNight || 300) * dates.madinahNights)}</span>
+                                      <span className="option-subtitle">{formatPrice(h.pricePerNight || 300)} / night</span>
                                     </div>
                                   </div>
                                 ))}
@@ -2140,7 +2180,7 @@ export default function App() {
                                   </div>
                                 </div>
                                 <div className="option-right">
-                                  <span className="option-price">{r.price || 500} SAR</span>
+                                  <span className="option-price">{formatPrice(r.price || 500)}</span>
                                 </div>
                               </div>
                             ))}
@@ -2446,7 +2486,7 @@ export default function App() {
                               </>
                             ) : (
                               <>
-                                <CheckCircle className="h-4 w-4" /> Confirm Booking & Generate eVisa ({quotePrices.total} SAR)
+                                <CheckCircle className="h-4 w-4" /> Confirm Booking & Generate eVisa ({formatPrice(quotePrices.total)})
                               </>
                             )}
                           </button>
@@ -2556,13 +2596,13 @@ export default function App() {
                           {dates.makkahNights > 0 && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
                               <span style={{ color: 'var(--text-muted)' }}>Makkah Stay ({dates.makkahNights} nights)</span>
-                              <span>{makkahTotalCost} SAR</span>
+                              <span>{formatPrice(makkahTotalCost)}</span>
                             </div>
                           )}
                           {dates.madinahNights > 0 && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
                               <span style={{ color: 'var(--text-muted)' }}>Madinah Stay ({dates.madinahNights} nights)</span>
-                              <span>{madinahTotalCost} SAR</span>
+                              <span>{formatPrice(madinahTotalCost)}</span>
                             </div>
                           )}
 
@@ -2572,13 +2612,13 @@ export default function App() {
                               {onwardFlightTotalCost > 0 && (
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
                                   <span style={{ color: 'var(--text-muted)' }}>Onward Flight ({dates.travelers} pax)</span>
-                                  <span>{onwardFlightTotalCost} SAR</span>
+                                  <span>{formatPrice(onwardFlightTotalCost)}</span>
                                 </div>
                               )}
                               {returnFlightTotalCost > 0 && (
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
                                   <span style={{ color: 'var(--text-muted)' }}>Return Flight ({dates.travelers} pax)</span>
-                                  <span>{returnFlightTotalCost} SAR</span>
+                                  <span>{formatPrice(returnFlightTotalCost)}</span>
                                 </div>
                               )}
                             </>
@@ -2593,20 +2633,20 @@ export default function App() {
                           {/* Transport */}
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
                             <span style={{ color: 'var(--text-muted)' }}>Ground Shuttle Route</span>
-                            <span>{routePrice} SAR</span>
+                            <span>{formatPrice(routePrice)}</span>
                           </div>
 
                           {/* Visa */}
                           {dates.accommodationType !== 'iqama' && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
                               <span style={{ color: 'var(--text-muted)' }}>Visa Registration Fee ({dates.travelers} pax)</span>
-                              <span>{visaPriceTotal} SAR</span>
+                              <span>{formatPrice(visaPriceTotal)}</span>
                             </div>
                           )}
                           {dates.accommodationType === 'iqama' && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
                               <span style={{ color: 'var(--text-muted)' }}>Iqama Sponsor Visa</span>
-                              <span style={{ color: 'var(--secondary)', fontWeight: 700 }}>Waived (0 SAR)</span>
+                              <span style={{ color: 'var(--secondary)', fontWeight: 700 }}>Waived</span>
                             </div>
                           )}
                         </div>
@@ -2619,17 +2659,17 @@ export default function App() {
 
                       <div className="summary-total">
                         <span className="total-label">Subtotal</span>
-                        <span className="summary-value" style={{ fontWeight: 700 }}>{quotePrices.subtotal} SAR</span>
+                        <span className="summary-value" style={{ fontWeight: 700 }}>{formatPrice(quotePrices.subtotal)}</span>
                       </div>
 
                       <div className="summary-total" style={{ borderTop: 'none', paddingTop: 0 }}>
                         <span className="total-label" style={{ fontWeight: 500, fontSize: '0.8rem', color: 'var(--text-muted)' }}>VAT (15%)</span>
-                        <span className="summary-value" style={{ fontWeight: 600 }}>{quotePrices.vat} SAR</span>
+                        <span className="summary-value" style={{ fontWeight: 600 }}>{formatPrice(quotePrices.vat)}</span>
                       </div>
 
                       <div className="summary-total" style={{ borderTop: '1px solid var(--border-color)', marginTop: '0.5rem' }}>
                         <span className="total-label">Total Cost</span>
-                        <span className="total-value">{quotePrices.total} SAR</span>
+                        <span className="total-value">{formatPrice(quotePrices.total)}</span>
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.5rem', padding: '0.75rem', backgroundColor: 'var(--primary-light)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
