@@ -12,14 +12,14 @@ import {
   FileCheck, 
   Camera, 
   Lock,
-  ArrowRight,
   HeartHandshake,
   ArrowUp,
   ArrowDown,
   Plus,
   Trash2,
   UserCheck,
-  Info
+  Info,
+  Zap
 } from 'lucide-react';
 
 // ==========================================
@@ -435,6 +435,15 @@ export default function App() {
   // Step and checkout controllers
   const [step, setStep] = useState(1);
   const [selectedPackage, setSelectedPackage] = useState<any>(null);
+  const [isQuickEVisa, setIsQuickEVisa] = useState(false);
+
+  const resetToHome = () => {
+    setSelectedPackage(null);
+    setIsQuickEVisa(false);
+    setStep(1);
+    setBookingFinished(false);
+    setActiveTab('packages');
+  };
   
   // Auth & Simulators
   const [otpSent, setOtpSent] = useState(false);
@@ -443,6 +452,22 @@ export default function App() {
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [bookingFinished, setBookingFinished] = useState(false);
   const [bookingRef, setBookingRef] = useState('');
+
+  // Auto-sync flight return date with stay duration
+  useEffect(() => {
+    try {
+      const checkInDateObj = new Date(dates.checkIn);
+      if (!isNaN(checkInDateObj.getTime())) {
+        const totalNights = dates.makkahNights + dates.madinahNights;
+        const returnDateObj = new Date(checkInDateObj.getTime() + (totalNights || 7) * 86400000);
+        setFlightInfo(prev => ({
+          ...prev,
+          onwardDate: dates.checkIn,
+          returnDate: returnDateObj.toISOString().split('T')[0]
+        }));
+      }
+    } catch (e) {}
+  }, [dates.checkIn, dates.makkahNights, dates.madinahNights]);
   const [passportFile, setPassportFile] = useState<File | null>(null);
   const [liveArrivalFlights, setLiveArrivalFlights] = useState<any[]>([]);
   const [liveDepartureFlights, setLiveDepartureFlights] = useState<any[]>([]);
@@ -808,6 +833,14 @@ export default function App() {
     setMovements(newMovements);
   };
 
+  const isIqama = isQuickEVisa || dates.accommodationType === 'iqama';
+  const isIqamaValid = !isIqama || (
+    iqamaDetails.iqamaNumber.trim().length === 10 && 
+    iqamaDetails.iqamaSponserName.trim().length > 0 &&
+    iqamaDetails.sponserDob.trim().length > 0 &&
+    iqamaDetails.sponserMobileNumber.trim().length > 0
+  );
+
   const selectedMakkahHotelName = hotels.find(h => h.id === selectedMakkahHotelId)?.name || 'Pullman Zamzam Makkah (5★)';
   const selectedMadinahHotelName = hotels.find(h => h.id === selectedMadinahHotelId)?.name || 'Anwar Al Madinah Mövenpick (5★)';
   const selectedRouteName = routes.find(r => r.id === selectedRouteId)?.routeType || 'Jeddah → Makkah → Madinah';
@@ -817,7 +850,7 @@ export default function App() {
       {/* Header and Branding */}
       <header>
         <div className="nav-container">
-          <a href="#" className="logo-block">
+          <a href="#" className="logo-block" onClick={(e) => { e.preventDefault(); resetToHome(); }}>
             <div className="logo-icon">N</div>
             <div className="logo-text">
               <h1>NUSYNC DIRECT</h1>
@@ -825,9 +858,25 @@ export default function App() {
             </div>
           </a>
           <div className="nav-links">
-            <button className="nav-link" style={{ background: 'none', border: 'none' }} onClick={() => { setActiveTab('packages'); setStep(1); setBookingFinished(false); }}>Ready Packages</button>
-            <button className="nav-link" style={{ background: 'none', border: 'none' }} onClick={() => { setActiveTab('builder'); setStep(1); setBookingFinished(false); }}>Custom Builder</button>
-            <button className="nav-btn" onClick={() => { setActiveTab('builder'); setStep(1); setBookingFinished(false); }}>Get e-Visa</button>
+            <button 
+              className="nav-btn" 
+              style={{ backgroundColor: 'var(--secondary)', color: 'white', fontWeight: 700, borderRadius: '8px', border: 'none', padding: '0.6rem 1.2rem', cursor: 'pointer' }}
+              onClick={() => {
+                setIsQuickEVisa(true);
+                setDates(prev => ({
+                  ...prev,
+                  accommodationType: 'iqama',
+                  makkahNights: 0,
+                  madinahNights: 0
+                }));
+                setSelectedPackage(null);
+                setActiveTab('builder');
+                setStep(1);
+                setBookingFinished(false);
+              }}
+            >
+              Quick eVisa (24hr Umra visa)
+            </button>
           </div>
         </div>
       </header>
@@ -1007,83 +1056,86 @@ export default function App() {
             </p>
           </section>
 
-          {/* Floated Booking Conversion Widget */}
+          {/* Floated Booking Conversion Cards */}
           <main>
-            <div className="search-widget">
-              <h3 className="widget-title">Search & Verify Packages</h3>
+            <div className="cta-container" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', maxWidth: '1000px', margin: '-3rem auto 3rem auto', position: 'relative', zIndex: 10, padding: '0 1.5rem', boxSizing: 'border-box' }}>
               
-              <div className="search-grid">
-                <div className="search-field">
-                  <label>Arrival Check-in Date</label>
-                  <input 
-                    type="date" 
-                    className="search-input"
-                    value={dates.checkIn}
-                    onChange={(e) => setDates({ ...dates, checkIn: e.target.value })}
-                  />
+              {/* Card 1: Quick eVisa */}
+              <div className="cta-card" style={{ backgroundColor: 'var(--bg-white)', borderRadius: 'var(--border-radius)', padding: '2rem', border: '1px solid var(--gold-border)', boxShadow: 'var(--box-shadow)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', transition: 'var(--transition)' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                    <div style={{ backgroundColor: 'var(--secondary-light)', padding: '0.75rem', borderRadius: '12px', color: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Zap className="h-6 w-6" />
+                    </div>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Quick eVisa (24hr Umra visa)</h3>
+                  </div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', marginBottom: '1.5rem', margin: '0 0 1.5rem 0' }}>
+                    Apply for your official Umrah visa with 24-hour processing. This flow defaults accommodation booking to Iqama sponsor allotments, skips hotel bookings, and goes directly to checkout.
+                  </p>
                 </div>
-                
-                <div className="search-field">
-                  <label>Stay Duration (Nights)</label>
-                  <select 
-                    className="search-input"
-                    value={`${dates.makkahNights}-${dates.madinahNights}`}
-                    onChange={(e) => {
-                      const [mak, mad] = e.target.value.split('-').map(Number);
-                      setDates({ ...dates, makkahNights: mak, madinahNights: mad });
-                    }}
-                  >
-                    <option value="4-3">7 Days (4N Makkah, 3N Madinah)</option>
-                    <option value="6-4">10 Days (6N Makkah, 4N Madinah)</option>
-                    <option value="8-6">14 Days (8N Makkah, 6N Madinah)</option>
-                  </select>
-                </div>
-
-                <div className="search-field">
-                  <label>Total Pilgrims (Visa Count)</label>
-                  <select 
-                    className="search-input"
-                    value={dates.travelers}
-                    onChange={(e) => setDates({ ...dates, travelers: parseInt(e.target.value, 10) })}
-                  >
-                    <option value={1}>1 Pilgrim</option>
-                    <option value={2}>2 Pilgrims</option>
-                    <option value={3}>3 Pilgrims</option>
-                    <option value={4}>4 Pilgrims</option>
-                    <option value={5}>5 Pilgrims</option>
-                  </select>
-                </div>
-
                 <button 
-                  className="search-submit-btn"
+                  className="book-btn" 
+                  style={{ width: '100%', padding: '0.9rem', justifyContent: 'center', fontWeight: 700, cursor: 'pointer' }}
                   onClick={() => {
+                    setIsQuickEVisa(true);
+                    setDates(prev => ({
+                      ...prev,
+                      accommodationType: 'iqama',
+                      makkahNights: 0,
+                      madinahNights: 0
+                    }));
+                    setSelectedPackage(null);
                     setActiveTab('builder');
-                    setStep(1);
+                    setStep(1); // Goes to step 1 (sponsor details and check-in date)
+                    setBookingFinished(false);
                   }}
                 >
-                  Configure Custom <ArrowRight className="h-4 w-4" />
+                  Apply Quick eVisa <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
 
-              {/* Tabs Switcher inside widget */}
-              <div className="tabs-control">
+              {/* Card 2: Customised Umra Package */}
+              <div className="cta-card" style={{ backgroundColor: 'var(--bg-white)', borderRadius: 'var(--border-radius)', padding: '2rem', border: '1px solid var(--border-color)', boxShadow: 'var(--box-shadow)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', transition: 'var(--transition)' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                    <div style={{ backgroundColor: 'var(--primary-light)', padding: '0.75rem', borderRadius: '12px', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Sparkles className="h-6 w-6" />
+                    </div>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Customised Umra Package</h3>
+                  </div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', marginBottom: '1.5rem', margin: '0 0 1.5rem 0' }}>
+                    Plan and customize every aspect of your pilgrimage. Choose your accommodation type, lock premium hotel allotments in Makkah & Madinah, book ground transport, and select flights.
+                  </p>
+                </div>
                 <button 
-                  className={`tab-btn ${activeTab === 'packages' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('packages')}
+                  className="book-btn" 
+                  style={{ width: '100%', padding: '0.9rem', justifyContent: 'center', fontWeight: 700, backgroundColor: 'var(--primary)', cursor: 'pointer' }}
+                  onClick={() => {
+                    setIsQuickEVisa(false);
+                    setDates(prev => ({
+                      ...prev,
+                      accommodationType: 'hotel',
+                      makkahNights: 4,
+                      madinahNights: 3
+                    }));
+                    setSelectedPackage(null);
+                    setActiveTab('builder');
+                    setStep(1); // Starts at step 1
+                    setBookingFinished(false);
+                  }}
                 >
-                  <Compass className="h-4 w-4" /> Ready Packages (Land Only)
-                </button>
-                <button 
-                  className={`tab-btn ${activeTab === 'builder' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('builder')}
-                >
-                  <Sparkles className="h-4 w-4" /> Custom Builder
+                  Build Customised Package <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
+
             </div>
 
             {/* Readymade Packages Section */}
             {activeTab === 'packages' && (
+              <div style={{ maxWidth: '1000px', margin: '0 auto 4rem auto', padding: '0 1.5rem', boxSizing: 'border-box' }}>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-dark)', marginBottom: '1.5rem', borderBottom: '2px solid var(--border-color)', paddingBottom: '0.5rem', marginTop: '0' }}>
+                  Select from Premium Ready Packages
+                </h2>
               <div className="cards-grid">
                 {packages.map((pkg) => (
                   <div key={pkg.id} className="package-card animate-in fade-in duration-300">
@@ -1149,56 +1201,77 @@ export default function App() {
                   </div>
                 ))}
               </div>
-            )}
+            </div>
+          )}
 
             {/* Custom Builder Section */}
             {activeTab === 'builder' && (
               <div>
                 {/* Stepper Progress Bar */}
-                <div className="progress-stepper">
-                  <div className={`progress-step ${step === 1 ? 'active' : step > 1 ? 'completed' : ''}`}>
-                    <div className="progress-circle">1</div>
-                    <span>Accommodation Type</span>
+                {/* Stepper Progress Bar */}
+                {isQuickEVisa ? (
+                  <div className="progress-stepper">
+                    <div className={`progress-step ${step === 1 ? 'active' : step > 1 ? 'completed' : ''}`}>
+                      <div className="progress-circle">1</div>
+                      <span>Sponsor Details</span>
+                    </div>
+                    <div className="progress-divider" />
+                    <div className={`progress-step ${step === 2 ? 'active' : step > 2 ? 'completed' : ''}`}>
+                      <div className="progress-circle">2</div>
+                      <span>Flights</span>
+                    </div>
+                    <div className="progress-divider" />
+                    <div className={`progress-step ${step === 6 ? 'active' : step > 6 ? 'completed' : ''}`}>
+                      <div className="progress-circle">3</div>
+                      <span>Checkout</span>
+                    </div>
                   </div>
-                  <div className="progress-divider" />
-                  <div className={`progress-step ${step === 2 ? 'active' : step > 2 ? 'completed' : ''}`}>
-                    <div className="progress-circle">2</div>
-                    <span>Flights</span>
+                ) : (
+                  <div className="progress-stepper">
+                    <div className={`progress-step ${step === 1 ? 'active' : step > 1 ? 'completed' : ''}`}>
+                      <div className="progress-circle">1</div>
+                      <span>Accommodation Type</span>
+                    </div>
+                    <div className="progress-divider" />
+                    <div className={`progress-step ${step === 2 ? 'active' : step > 2 ? 'completed' : ''}`}>
+                      <div className="progress-circle">2</div>
+                      <span>Flights</span>
+                    </div>
+                    <div className="progress-divider" />
+                    <div className={`progress-step ${step === 3 ? 'active' : step > 3 ? 'completed' : ''}`}>
+                      <div className="progress-circle">3</div>
+                      <span>Stays</span>
+                    </div>
+                    <div className="progress-divider" />
+                    <div className={`progress-step ${step === 4 ? 'active' : step > 4 ? 'completed' : ''}`}>
+                      <div className="progress-circle">4</div>
+                      <span>Transports</span>
+                    </div>
+                    <div className="progress-divider" />
+                    <div className={`progress-step ${step === 5 ? 'active' : step > 5 ? 'completed' : ''}`}>
+                      <div className="progress-circle">5</div>
+                      <span>Itinerary</span>
+                    </div>
+                    <div className="progress-divider" />
+                    <div className={`progress-step ${step === 6 ? 'active' : step > 6 ? 'completed' : ''}`}>
+                      <div className="progress-circle">6</div>
+                      <span>Checkout</span>
+                    </div>
                   </div>
-                  <div className="progress-divider" />
-                  <div className={`progress-step ${step === 3 ? 'active' : step > 3 ? 'completed' : ''}`}>
-                    <div className="progress-circle">3</div>
-                    <span>Stays</span>
-                  </div>
-                  <div className="progress-divider" />
-                  <div className={`progress-step ${step === 4 ? 'active' : step > 4 ? 'completed' : ''}`}>
-                    <div className="progress-circle">4</div>
-                    <span>Transports</span>
-                  </div>
-                  <div className="progress-divider" />
-                  <div className={`progress-step ${step === 5 ? 'active' : step > 5 ? 'completed' : ''}`}>
-                    <div className="progress-circle">5</div>
-                    <span>Itinerary</span>
-                  </div>
-                  <div className="progress-divider" />
-                  <div className={`progress-step ${step === 6 ? 'active' : step > 6 ? 'completed' : ''}`}>
-                    <div className="progress-circle">6</div>
-                    <span>Checkout</span>
-                  </div>
-                </div>
+                )}
 
                 <div className="builder-layout">
                   <div className="builder-main">
                     <div className="stepper-header">
                       <h3 className="stepper-title">
-                        {step === 1 && "Select Accommodation Type"}
+                        {step === 1 && (isQuickEVisa ? "Provide Sponsor Details" : "Select Accommodation Type")}
                         {step === 2 && "Configure Flight Ticket Details"}
                         {step === 3 && "Configure Hotel Stay (Min 3 Days)"}
                         {step === 4 && "Configure Ground transfers"}
                         {step === 5 && "Customize Itinerary Movements"}
                         {step === 6 && "eVisa Registration & Checkout"}
                       </h3>
-                      <span className="step-indicator">Step {step} of 6</span>
+                      <span className="step-indicator">Step {isQuickEVisa ? (step === 1 ? 1 : step === 2 ? 2 : 3) : step} of {isQuickEVisa ? 3 : 6}</span>
                     </div>
 
                     {/* Step 1: Accommodation Type & Basic Info */}
@@ -1208,14 +1281,41 @@ export default function App() {
                         <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                           <div className="search-field">
                             <label>Accommodation Booking Type</label>
-                            <select 
-                              className="search-input"
-                              value={dates.accommodationType}
-                              onChange={(e) => setDates({ ...dates, accommodationType: e.target.value })}
-                            >
-                              <option value="hotel">Hotel Accommodation Only</option>
-                              <option value="iqama">Iqama Sponsor Allotments</option>
-                            </select>
+                            {isQuickEVisa ? (
+                              <input 
+                                type="text" 
+                                className="search-input" 
+                                value="Iqama Sponsor Allotments (Quick eVisa)" 
+                                disabled 
+                                style={{ backgroundColor: 'var(--bg-light)', color: 'var(--text-muted)' }} 
+                              />
+                            ) : (
+                              <select 
+                                className="search-input"
+                                value={dates.accommodationType}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val === 'iqama') {
+                                    setDates({
+                                      ...dates,
+                                      accommodationType: val,
+                                      makkahNights: 3,
+                                      madinahNights: 0
+                                    });
+                                  } else {
+                                    setDates({
+                                      ...dates,
+                                      accommodationType: val,
+                                      makkahNights: 4,
+                                      madinahNights: 3
+                                    });
+                                  }
+                                }}
+                              >
+                                <option value="hotel">Hotel Accommodation Only</option>
+                                <option value="iqama">Iqama Sponsor Allotments</option>
+                              </select>
+                            )}
                           </div>
                           
                           <div className="search-field">
@@ -1233,20 +1333,21 @@ export default function App() {
                         </div>
 
                         {/* Iqama Fields if active */}
-                        {dates.accommodationType === 'iqama' && (
+                        {isIqama && (
                           <div style={{ padding: '1.5rem', backgroundColor: 'var(--primary-light)', borderRadius: '12px', border: '1px solid var(--gold-border)', marginTop: '0.5rem' }}>
                             <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '1rem' }}>
                               <UserCheck className="h-4 w-4 text-primary" /> Sponsor Iqama Details
                             </h4>
                             <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
                               <div className="search-field">
-                                <label>Sponsor Iqama Number</label>
+                                <label>Sponsor Iqama Number (10 digits)</label>
                                 <input 
                                   type="text" 
                                   className="search-input" 
                                   placeholder="1000000000" 
+                                  maxLength={10}
                                   value={iqamaDetails.iqamaNumber}
-                                  onChange={(e) => setIqamaDetails({ ...iqamaDetails, iqamaNumber: e.target.value })}
+                                  onChange={(e) => setIqamaDetails({ ...iqamaDetails, iqamaNumber: e.target.value.replace(/\D/g, '') })}
                                 />
                               </div>
                               <div className="search-field">
@@ -1295,12 +1396,21 @@ export default function App() {
                           />
                         </div>
 
-                        <div className="step-nav" style={{ justifyContent: 'flex-end' }}>
+                        <div className="step-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            {isIqama && !isIqamaValid && (
+                              <span style={{ color: 'var(--error)', fontSize: '0.8rem', fontWeight: 700 }}>
+                                ⚠️ Please fill all required sponsor fields (Iqama must be 10 digits).
+                              </span>
+                            )}
+                          </div>
                           <button 
                             className="book-btn" 
+                            disabled={isIqama && !isIqamaValid}
                             onClick={() => {
                               const checkInDateObj = new Date(dates.checkIn);
-                              const returnDateObj = new Date(checkInDateObj.getTime() + (dates.makkahNights + dates.madinahNights) * 86400000);
+                              const totalNights = dates.makkahNights + dates.madinahNights;
+                              const returnDateObj = new Date(checkInDateObj.getTime() + (totalNights || 7) * 86400000);
                               setFlightInfo(prev => ({
                                 ...prev,
                                 onwardDate: dates.checkIn,
@@ -1713,9 +1823,15 @@ export default function App() {
                           <button 
                             className="book-btn" 
                             disabled={flightBookingMode === 'book' && (!selectedArrivalFlight || !selectedDepartureFlight)}
-                            onClick={() => setStep(3)}
+                            onClick={() => {
+                              if (isQuickEVisa) {
+                                setStep(6);
+                              } else {
+                                setStep(3);
+                              }
+                            }}
                           >
-                            Configure Stays <ChevronRight className="h-4 w-4" />
+                            {isQuickEVisa ? "eVisa & Checkout" : "Configure Stays"} <ChevronRight className="h-4 w-4" />
                           </button>
                         </div>
                       </div>
@@ -1836,7 +1952,14 @@ export default function App() {
                                         <div className="option-circle-inner" />
                                       </div>
                                       <div className="option-info">
-                                        <span className="option-name">{h.name}</span>
+                                        <span className="option-name">
+                                          {h.name}
+                                          {selectedPackage && selectedPackage.madinahHotelId === h.id && (
+                                            <span style={{ fontSize: '0.65rem', backgroundColor: 'var(--secondary)', color: 'white', padding: '0.15rem 0.4rem', borderRadius: '4px', marginLeft: '0.5rem', fontWeight: 700 }}>
+                                              Package Default
+                                            </span>
+                                          )}
+                                        </span>
                                         <span className="option-subtitle">Direct bed allotment lock</span>
                                       </div>
                                     </div>
@@ -2141,6 +2264,8 @@ export default function App() {
                               if (selectedPackage) {
                                 setActiveTab('packages');
                                 setSelectedPackage(null);
+                              } else if (isQuickEVisa) {
+                                setStep(2);
                               } else {
                                 setStep(5);
                               }
@@ -2196,20 +2321,28 @@ export default function App() {
                             </div>
                             <div className="summary-row">
                               <span className="summary-label">Makkah Nights</span>
-                              <span className="summary-value">{selectedPackage.makkahNights} Nights</span>
+                              <span className="summary-value">{dates.makkahNights} Nights</span>
                             </div>
                             <div className="summary-row">
                               <span className="summary-label">Madinah Nights</span>
-                              <span className="summary-value">{selectedPackage.madinahNights} Nights</span>
+                              <span className="summary-value">{dates.madinahNights} Nights</span>
                             </div>
                             <div className="summary-row">
                               <span className="summary-label">Makkah Hotel</span>
-                              <span className="summary-value">{selectedPackage.makkahHotel?.name || 'Swissôtel Makkah (5★)'}</span>
+                              <span className="summary-value">
+                                {selectedMakkahHotelName}
+                                {selectedMakkahHotelId !== selectedPackage.makkahHotelId && ' (Customized)'}
+                              </span>
                             </div>
-                            <div className="summary-row">
-                              <span className="summary-label">Madinah Hotel</span>
-                              <span className="summary-value">{selectedPackage.madinahHotel?.name || 'Anwar Al Madinah (5★)'}</span>
-                            </div>
+                            {dates.madinahNights > 0 && (
+                              <div className="summary-row">
+                                <span className="summary-label">Madinah Hotel</span>
+                                <span className="summary-value">
+                                  {selectedMadinahHotelName}
+                                  {selectedMadinahHotelId !== selectedPackage.madinahHotelId && ' (Customized)'}
+                                </span>
+                              </div>
+                            )}
                           </>
                         ) : (
                           <>
@@ -2359,8 +2492,8 @@ export default function App() {
           <div className="footer-column">
             <h4>Quick Links</h4>
             <ul className="footer-links">
-              <li><button style={{ background: 'none', border: 'none', color: '#a4beb4', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => { setActiveTab('packages'); setStep(1); setBookingFinished(false); }}>Ready Packages</button></li>
-              <li><button style={{ background: 'none', border: 'none', color: '#a4beb4', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => { setActiveTab('builder'); setStep(1); setBookingFinished(false); }}>Custom Builder</button></li>
+              <li><button style={{ background: 'none', border: 'none', color: '#a4beb4', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => resetToHome()}>Home Portal</button></li>
+              <li><button style={{ background: 'none', border: 'none', color: '#a4beb4', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => { setIsQuickEVisa(false); setActiveTab('builder'); setStep(1); setBookingFinished(false); }}>Customised Umra Package</button></li>
               <li><a href="#">Visa Regulations</a></li>
               <li><a href="#">Support Center</a></li>
             </ul>
