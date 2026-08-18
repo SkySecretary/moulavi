@@ -1461,15 +1461,17 @@ export default function App() {
                           
                           <div className="search-field">
                             <label>Pilgrims Count</label>
-                            <select 
+                            <input 
+                              type="number"
+                              min="1"
+                              max="100"
                               className="search-input"
                               value={dates.travelers}
-                              onChange={(e) => setDates({ ...dates, travelers: parseInt(e.target.value, 10) })}
-                            >
-                              {[1, 2, 3, 4, 5].map((n) => (
-                                <option key={n} value={n}>{n} Pilgrim{n > 1 ? 's' : ''}</option>
-                              ))}
-                            </select>
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10);
+                                setDates({ ...dates, travelers: isNaN(val) ? 1 : Math.max(1, val) });
+                              }}
+                            />
                           </div>
                         </div>
 
