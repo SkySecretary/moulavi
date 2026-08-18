@@ -887,7 +887,7 @@ export default function App() {
           <div className="builder-main" style={{ maxWidth: '850px', margin: '0 auto' }}>
             <div className="success-alert">
               <CheckCircle className="h-5 w-5" />
-              Moulavi B2C e-Visa Application & Allotment Lock Confirmed!
+              Moulavi B2C e-Visa Application & Reserved Room Confirmed!
             </div>
 
             <h2 className="hero-title" style={{ color: 'var(--primary)', fontSize: '2rem', textAlign: 'center', marginBottom: '0.5rem' }}>Pilgrim Manifest Voucher</h2>
@@ -1050,102 +1050,92 @@ export default function App() {
           {/* Saudi Twilight Hero Header Banner */}
           <section className="hero-section">
             <span className="hero-tag">Kingdom of Saudi Arabia</span>
-            <h2 className="hero-title">Direct e-Visa & Pilgrimage Booking Gateway</h2>
+            <h2 className="hero-title">Direct e-Visa & Pilgrimage Booking Portal</h2>
             <p className="hero-subtitle">
-              Verify hotel room allotments, select onward and return flight carriers, and issue direct electronic visas instantly.
+              Verify Reserved Room allotments, select onward and return flight carriers, and issue direct electronic visas instantly.
             </p>
+
+            {activeTab === 'packages' && (
+              <div className="unified-pathway-bar" style={{ textAlign: 'left' }}>
+                
+                {/* Left Column: Quick eVisa */}
+                <div className="pathway-column-left">
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                      <div style={{ backgroundColor: 'var(--secondary-light)', padding: '0.5rem', borderRadius: '8px', color: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Zap className="h-5 w-5" />
+                      </div>
+                      <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Quick eVisa (24hr Umra visa)</h3>
+                    </div>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
+                      Fast 24-hour visa processing. Skips hotel stay selection and goes straight to checkout.
+                    </p>
+                  </div>
+                  <button 
+                    className="book-btn" 
+                    style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', fontWeight: 700, cursor: 'pointer' }}
+                    onClick={() => {
+                      setIsQuickEVisa(true);
+                      setDates(prev => ({
+                        ...prev,
+                        accommodationType: 'iqama',
+                        makkahNights: 0,
+                        madinahNights: 0
+                      }));
+                      setSelectedPackage(null);
+                      setActiveTab('builder');
+                      setStep(1); // Goes to step 1 (sponsor details and check-in date)
+                      setBookingFinished(false);
+                    }}
+                  >
+                    Apply Quick eVisa <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Right Column: Customised Umra Package */}
+                <div className="pathway-column-right">
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                      <div style={{ backgroundColor: 'var(--primary-light)', padding: '0.5rem', borderRadius: '8px', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Sparkles className="h-5 w-5" />
+                      </div>
+                      <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Customised Umra Package</h3>
+                    </div>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
+                      Full builder. Customise flights, hotel stays, and ground transport step-by-step.
+                    </p>
+                  </div>
+                  <button 
+                    className="book-btn" 
+                    style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', fontWeight: 700, backgroundColor: 'var(--primary)', cursor: 'pointer' }}
+                    onClick={() => {
+                      setIsQuickEVisa(false);
+                      setDates(prev => ({
+                        ...prev,
+                        accommodationType: 'hotel',
+                        makkahNights: 4,
+                        madinahNights: 3
+                      }));
+                      setSelectedPackage(null);
+                      setActiveTab('builder');
+                      setStep(1); // Starts at step 1
+                      setBookingFinished(false);
+                    }}
+                  >
+                    Build Customised Package <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+
+              </div>
+            )}
           </section>
 
           {/* Main Landing Content */}
           <main>
             {activeTab === 'packages' && (
               <>
-                {/* Part 2: Booking Pathways Selection */}
-                <div style={{ maxWidth: '1000px', margin: '4rem auto 2rem auto', textAlign: 'center', padding: '0 1.5rem', boxSizing: 'border-box' }}>
-                  <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-dark)', marginBottom: '0.5rem', marginTop: 0 }}>
-                    Select Your Booking Pathway
-                  </h2>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', maxWidth: '600px', margin: '0 auto' }}>
-                    Choose between a rapid 24-hour eVisa clearance or create a fully customized pilgrimage package.
-                  </p>
-                </div>
-
-                <div className="full-width-pathway-strip">
-                  <div className="pathway-bar-inner">
-                    
-                    {/* Left Column: Quick eVisa */}
-                    <div className="pathway-column-left">
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                          <div style={{ backgroundColor: 'var(--secondary-light)', padding: '0.5rem', borderRadius: '8px', color: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Zap className="h-5 w-5" />
-                          </div>
-                          <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Quick eVisa (24hr Umra visa)</h3>
-                        </div>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
-                          Skip hotel bookings and customize ground transport. Defaults to Iqama sponsor allotments for instant 24-hour visa processing.
-                        </p>
-                      </div>
-                      <button 
-                        className="book-btn" 
-                        style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', fontWeight: 700, cursor: 'pointer' }}
-                        onClick={() => {
-                          setIsQuickEVisa(true);
-                          setDates(prev => ({
-                            ...prev,
-                            accommodationType: 'iqama',
-                            makkahNights: 0,
-                            madinahNights: 0
-                          }));
-                          setSelectedPackage(null);
-                          setActiveTab('builder');
-                          setStep(1); // Goes to step 1 (sponsor details and check-in date)
-                          setBookingFinished(false);
-                        }}
-                      >
-                        Apply Quick eVisa <ChevronRight className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                    {/* Right Column: Customised Umra Package */}
-                    <div className="pathway-column-right">
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                          <div style={{ backgroundColor: 'var(--primary-light)', padding: '0.5rem', borderRadius: '8px', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Sparkles className="h-5 w-5" />
-                          </div>
-                          <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Customised Umra Package</h3>
-                        </div>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
-                          Plan and customize every aspect of your pilgrimage. Choose accommodation types, lock premium hotel allotments, and schedule flights.
-                        </p>
-                      </div>
-                      <button 
-                        className="book-btn" 
-                        style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', fontWeight: 700, backgroundColor: 'var(--primary)', cursor: 'pointer' }}
-                        onClick={() => {
-                          setIsQuickEVisa(false);
-                          setDates(prev => ({
-                            ...prev,
-                            accommodationType: 'hotel',
-                            makkahNights: 4,
-                            madinahNights: 3
-                          }));
-                          setSelectedPackage(null);
-                          setActiveTab('builder');
-                          setStep(1); // Starts at step 1
-                          setBookingFinished(false);
-                        }}
-                      >
-                        Build Customised Package <ChevronRight className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                  </div>
-                </div>
-
-                {/* Part 3: Ready Packages Listing */}
-                <div style={{ maxWidth: '1000px', margin: '0 auto 4rem auto', padding: '0 1.5rem', boxSizing: 'border-box' }}>
+                {/* Part 2: Ready Packages Listing */}
+                <div style={{ maxWidth: '1000px', margin: '9.5rem auto 4rem auto', padding: '0 1.5rem', boxSizing: 'border-box' }}>
                   <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-dark)', marginBottom: '1.5rem', borderBottom: '2px solid var(--border-color)', paddingBottom: '0.5rem', marginTop: '0' }}>
                     Select from Premium Ready Packages
                   </h2>
@@ -1919,8 +1909,15 @@ export default function App() {
                                       <div className="option-circle-inner" />
                                     </div>
                                     <div className="option-info">
-                                      <span className="option-name">{h.name}</span>
-                                      <span className="option-subtitle">Direct bed allotment lock</span>
+                                      <span className="option-name">
+                                        {h.name}
+                                        {selectedPackage && selectedPackage.makkahHotelId === h.id && (
+                                          <span style={{ fontSize: '0.65rem', backgroundColor: 'var(--secondary)', color: 'white', padding: '0.15rem 0.4rem', borderRadius: '4px', marginLeft: '0.5rem', fontWeight: 700 }}>
+                                            Package Default
+                                          </span>
+                                        )}
+                                      </span>
+                                      <span className="option-subtitle">Reserved Room allotment</span>
                                     </div>
                                   </div>
                                   <div className="option-right">
@@ -1974,7 +1971,7 @@ export default function App() {
                                             </span>
                                           )}
                                         </span>
-                                        <span className="option-subtitle">Direct bed allotment lock</span>
+                                        <span className="option-subtitle">Reserved Room allotment</span>
                                       </div>
                                     </div>
                                     <div className="option-right">
