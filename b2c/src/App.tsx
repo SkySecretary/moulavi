@@ -1070,76 +1070,78 @@ export default function App() {
                   </p>
                 </div>
 
-                <div className="unified-pathway-bar">
-                  
-                  {/* Left Column: Quick eVisa */}
-                  <div className="pathway-column-left">
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                        <div style={{ backgroundColor: 'var(--secondary-light)', padding: '0.5rem', borderRadius: '8px', color: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <Zap className="h-5 w-5" />
+                <div className="full-width-pathway-strip">
+                  <div className="pathway-bar-inner">
+                    
+                    {/* Left Column: Quick eVisa */}
+                    <div className="pathway-column-left">
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                          <div style={{ backgroundColor: 'var(--secondary-light)', padding: '0.5rem', borderRadius: '8px', color: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Zap className="h-5 w-5" />
+                          </div>
+                          <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Quick eVisa (24hr Umra visa)</h3>
                         </div>
-                        <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Quick eVisa (24hr Umra visa)</h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
+                          Skip hotel bookings and customize ground transport. Defaults to Iqama sponsor allotments for instant 24-hour visa processing.
+                        </p>
                       </div>
-                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
-                        Skip hotel bookings and customize ground transport. Defaults to Iqama sponsor allotments for instant 24-hour visa processing.
-                      </p>
+                      <button 
+                        className="book-btn" 
+                        style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', fontWeight: 700, cursor: 'pointer' }}
+                        onClick={() => {
+                          setIsQuickEVisa(true);
+                          setDates(prev => ({
+                            ...prev,
+                            accommodationType: 'iqama',
+                            makkahNights: 0,
+                            madinahNights: 0
+                          }));
+                          setSelectedPackage(null);
+                          setActiveTab('builder');
+                          setStep(1); // Goes to step 1 (sponsor details and check-in date)
+                          setBookingFinished(false);
+                        }}
+                      >
+                        Apply Quick eVisa <ChevronRight className="h-4 w-4" />
+                      </button>
                     </div>
-                    <button 
-                      className="book-btn" 
-                      style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', fontWeight: 700, cursor: 'pointer' }}
-                      onClick={() => {
-                        setIsQuickEVisa(true);
-                        setDates(prev => ({
-                          ...prev,
-                          accommodationType: 'iqama',
-                          makkahNights: 0,
-                          madinahNights: 0
-                        }));
-                        setSelectedPackage(null);
-                        setActiveTab('builder');
-                        setStep(1); // Goes to step 1 (sponsor details and check-in date)
-                        setBookingFinished(false);
-                      }}
-                    >
-                      Apply Quick eVisa <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </div>
 
-                  {/* Right Column: Customised Umra Package */}
-                  <div className="pathway-column-right">
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                        <div style={{ backgroundColor: 'var(--primary-light)', padding: '0.5rem', borderRadius: '8px', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <Sparkles className="h-5 w-5" />
+                    {/* Right Column: Customised Umra Package */}
+                    <div className="pathway-column-right">
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                          <div style={{ backgroundColor: 'var(--primary-light)', padding: '0.5rem', borderRadius: '8px', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Sparkles className="h-5 w-5" />
+                          </div>
+                          <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Customised Umra Package</h3>
                         </div>
-                        <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Customised Umra Package</h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
+                          Plan and customize every aspect of your pilgrimage. Choose accommodation types, lock premium hotel allotments, and schedule flights.
+                        </p>
                       </div>
-                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
-                        Plan and customize every aspect of your pilgrimage. Choose accommodation types, lock premium hotel allotments, and schedule flights.
-                      </p>
+                      <button 
+                        className="book-btn" 
+                        style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', fontWeight: 700, backgroundColor: 'var(--primary)', cursor: 'pointer' }}
+                        onClick={() => {
+                          setIsQuickEVisa(false);
+                          setDates(prev => ({
+                            ...prev,
+                            accommodationType: 'hotel',
+                            makkahNights: 4,
+                            madinahNights: 3
+                          }));
+                          setSelectedPackage(null);
+                          setActiveTab('builder');
+                          setStep(1); // Starts at step 1
+                          setBookingFinished(false);
+                        }}
+                      >
+                        Build Customised Package <ChevronRight className="h-4 w-4" />
+                      </button>
                     </div>
-                    <button 
-                      className="book-btn" 
-                      style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', fontWeight: 700, backgroundColor: 'var(--primary)', cursor: 'pointer' }}
-                      onClick={() => {
-                        setIsQuickEVisa(false);
-                        setDates(prev => ({
-                          ...prev,
-                          accommodationType: 'hotel',
-                          makkahNights: 4,
-                          madinahNights: 3
-                        }));
-                        setSelectedPackage(null);
-                        setActiveTab('builder');
-                        setStep(1); // Starts at step 1
-                        setBookingFinished(false);
-                      }}
-                    >
-                      Build Customised Package <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </div>
 
+                  </div>
                 </div>
 
                 {/* Part 3: Ready Packages Listing */}

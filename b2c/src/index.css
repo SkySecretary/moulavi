@@ -1221,19 +1221,24 @@ footer {
   animation: spin 1s linear infinite;
 }
 
-/* Unified Pathway Bar Styles */
-.unified-pathway-bar {
-  background-color: var(--bg-white);
-  border: 1px solid var(--gold-border);
-  border-radius: var(--border-radius);
-  box-shadow: var(--box-shadow);
-  padding: 2rem;
-  max-width: 960px;
-  margin: 0 auto 4rem auto;
+/* Full Screen Pathway Bar Styles */
+.full-width-pathway-strip {
+  width: 100%;
+  background: linear-gradient(135deg, var(--primary-light) 0%, var(--secondary-light) 100%);
+  border-top: 1px solid var(--gold-border);
+  border-bottom: 1px solid var(--gold-border);
+  padding: 3.5rem 0;
+  margin: 4rem 0;
+  box-sizing: border-box;
+}
+
+.pathway-bar-inner {
+  max-width: 1000px;
+  margin: 0 auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  position: relative;
+  gap: 3.5rem;
+  padding: 0 1.5rem;
   box-sizing: border-box;
 }
 
@@ -1241,8 +1246,8 @@ footer {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding-right: 2rem;
-  border-right: 1px solid var(--border-color);
+  padding-right: 3.5rem;
+  border-right: 1px solid var(--gold-border);
 }
 
 .pathway-column-right {
@@ -1253,16 +1258,19 @@ footer {
 }
 
 @media (max-width: 768px) {
-  .unified-pathway-bar {
+  .full-width-pathway-strip {
+    padding: 2.5rem 0;
+    margin: 2rem 0;
+  }
+  .pathway-bar-inner {
     grid-template-columns: 1fr;
-    gap: 1.5rem;
-    padding: 1.5rem;
+    gap: 2.5rem;
   }
   .pathway-column-left {
     padding-right: 0;
     border-right: none;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--gold-border);
+    padding-bottom: 2.5rem;
   }
   .pathway-column-right {
     padding-left: 0;
