@@ -1070,24 +1070,24 @@ export default function App() {
                   </p>
                 </div>
 
-                <div className="cta-container" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', maxWidth: '1000px', margin: '0 auto 4rem auto', padding: '0 1.5rem', boxSizing: 'border-box' }}>
+                <div className="unified-pathway-bar">
                   
-                  {/* Card 1: Quick eVisa */}
-                  <div className="cta-card" style={{ backgroundColor: 'var(--bg-white)', borderRadius: 'var(--border-radius)', padding: '2rem', border: '1px solid var(--gold-border)', boxShadow: 'var(--box-shadow)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', transition: 'var(--transition)' }}>
+                  {/* Left Column: Quick eVisa */}
+                  <div className="pathway-column-left">
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                        <div style={{ backgroundColor: 'var(--secondary-light)', padding: '0.75rem', borderRadius: '12px', color: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <Zap className="h-6 w-6" />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                        <div style={{ backgroundColor: 'var(--secondary-light)', padding: '0.5rem', borderRadius: '8px', color: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Zap className="h-5 w-5" />
                         </div>
-                        <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Quick eVisa (24hr Umra visa)</h3>
+                        <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Quick eVisa (24hr Umra visa)</h3>
                       </div>
-                      <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', marginBottom: '1.5rem', margin: '0 0 1.5rem 0' }}>
-                        Apply for your official Umrah visa with 24-hour processing. This flow defaults accommodation booking to Iqama sponsor allotments, skips hotel bookings, and goes directly to checkout.
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
+                        Skip hotel bookings and customize ground transport. Defaults to Iqama sponsor allotments for instant 24-hour visa processing.
                       </p>
                     </div>
                     <button 
                       className="book-btn" 
-                      style={{ width: '100%', padding: '0.9rem', justifyContent: 'center', fontWeight: 700, cursor: 'pointer' }}
+                      style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', fontWeight: 700, cursor: 'pointer' }}
                       onClick={() => {
                         setIsQuickEVisa(true);
                         setDates(prev => ({
@@ -1106,22 +1106,22 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* Card 2: Customised Umra Package */}
-                  <div className="cta-card" style={{ backgroundColor: 'var(--bg-white)', borderRadius: 'var(--border-radius)', padding: '2rem', border: '1px solid var(--border-color)', boxShadow: 'var(--box-shadow)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', transition: 'var(--transition)' }}>
+                  {/* Right Column: Customised Umra Package */}
+                  <div className="pathway-column-right">
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                        <div style={{ backgroundColor: 'var(--primary-light)', padding: '0.75rem', borderRadius: '12px', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <Sparkles className="h-6 w-6" />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                        <div style={{ backgroundColor: 'var(--primary-light)', padding: '0.5rem', borderRadius: '8px', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Sparkles className="h-5 w-5" />
                         </div>
-                        <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Customised Umra Package</h3>
+                        <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Customised Umra Package</h3>
                       </div>
-                      <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', marginBottom: '1.5rem', margin: '0 0 1.5rem 0' }}>
-                        Plan and customize every aspect of your pilgrimage. Choose your accommodation type, lock premium hotel allotments in Makkah & Madinah, book ground transport, and select flights.
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
+                        Plan and customize every aspect of your pilgrimage. Choose accommodation types, lock premium hotel allotments, and schedule flights.
                       </p>
                     </div>
                     <button 
                       className="book-btn" 
-                      style={{ width: '100%', padding: '0.9rem', justifyContent: 'center', fontWeight: 700, backgroundColor: 'var(--primary)', cursor: 'pointer' }}
+                      style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', fontWeight: 700, backgroundColor: 'var(--primary)', cursor: 'pointer' }}
                       onClick={() => {
                         setIsQuickEVisa(false);
                         setDates(prev => ({

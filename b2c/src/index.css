@@ -162,14 +162,14 @@ main {
 .hero-section {
   position: relative;
   text-align: center;
-  padding: 7rem 2rem 11rem;
+  padding: 8rem 2rem 8rem;
   background-image: linear-gradient(to bottom, rgba(19, 92, 70, 0.9) 20%, rgba(19, 92, 70, 0.97) 100%), url('/hero-bg.jpg');
   background-size: cover;
   background-position: center;
   border-radius: 0 0 32px 32px;
   border-bottom: 4px solid var(--secondary);
   color: white;
-  margin-bottom: -7rem; /* Pull up next widget */
+  margin-bottom: 0;
   box-shadow: 0 20px 40px rgba(19, 92, 70, 0.15);
 }
 
@@ -1219,4 +1219,52 @@ footer {
 }
 .animate-spin {
   animation: spin 1s linear infinite;
+}
+
+/* Unified Pathway Bar Styles */
+.unified-pathway-bar {
+  background-color: var(--bg-white);
+  border: 1px solid var(--gold-border);
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  padding: 2rem;
+  max-width: 960px;
+  margin: 0 auto 4rem auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.pathway-column-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-right: 2rem;
+  border-right: 1px solid var(--border-color);
+}
+
+.pathway-column-right {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-left: 1rem;
+}
+
+@media (max-width: 768px) {
+  .unified-pathway-bar {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    padding: 1.5rem;
+  }
+  .pathway-column-left {
+    padding-right: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 1.5rem;
+  }
+  .pathway-column-right {
+    padding-left: 0;
+  }
 }
