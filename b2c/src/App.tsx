@@ -1419,7 +1419,7 @@ export default function App() {
                     {step === 1 && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                         
-                        <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                        <div className="search-grid grid-2-col" style={{ gap: '1.5rem' }}>
                           <div className="search-field">
                             <label>Accommodation Booking Type</label>
                             {isQuickEVisa ? (
@@ -1481,7 +1481,7 @@ export default function App() {
                             <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '1rem' }}>
                               <UserCheck className="h-4 w-4 text-primary" /> Sponsor Iqama Details
                             </h4>
-                            <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                            <div className="search-grid grid-2-col" style={{ gap: '1.25rem' }}>
                               <div className="search-field">
                                 <label>Sponsor Iqama Number (10 digits)</label>
                                 <input 
@@ -1573,7 +1573,7 @@ export default function App() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                         
                         {/* Selector for flight search mode vs own ticket */}
-                        <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                        <div className="search-grid grid-2-col" style={{ gap: '1.25rem' }}>
                           <div 
                             className={`option-item ${flightBookingMode === 'book' ? 'selected' : ''}`}
                             onClick={() => {
@@ -1603,12 +1603,12 @@ export default function App() {
                         {/* MODE A: LIVE FLIGHT SEARCH & BOOKING */}
                         {flightBookingMode === 'book' && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                            <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem', backgroundColor: 'var(--bg-light)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                            <div className="search-grid grid-2-col" style={{ gap: '1rem', backgroundColor: 'var(--bg-light)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                               
                               {/* Onward Flight Ports */}
                               <div style={{ gridColumn: 'span 2', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
                                 <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>Onward Flight Route (Home → KSA)</span>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <div className="grid-2-col" style={{ gap: '1rem' }}>
                                   <div className="search-field">
                                     <label>From Port</label>
                                     <SearchableSelect 
@@ -1635,7 +1635,7 @@ export default function App() {
                               {/* Return Flight Ports */}
                               <div style={{ gridColumn: 'span 2', paddingBottom: '0.5rem' }}>
                                 <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>Return Flight Route (KSA → Home)</span>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <div className="grid-2-col" style={{ gap: '1rem' }}>
                                   <div className="search-field">
                                     <label>From Port (Saudi Airport)</label>
                                     <SearchableSelect 
@@ -1660,7 +1660,7 @@ export default function App() {
                               </div>
 
                               {/* Date Selection */}
-                              <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                              <div className="grid-2-col" style={{ gridColumn: 'span 2', gap: '1rem' }}>
                                 <div className="search-field">
                                   <label>Onward Flight Date</label>
                                   <input 
@@ -1704,7 +1704,7 @@ export default function App() {
                             </div>
 
                             {/* Live Flight Selection Results */}
-                            <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                            <div className="search-grid grid-2-col" style={{ gap: '1.5rem' }}>
                               
                               {/* Onward Flight Block */}
                               <div>
@@ -1865,7 +1865,7 @@ export default function App() {
                                 {/* Arrival flights */}
                                 <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem' }}>
                                   <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>Onward Flight Details</h4>
-                                  <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                  <div className="search-grid grid-2-col" style={{ gap: '1rem' }}>
                                     <div className="search-field">
                                       <label>Carrier / Flight Number</label>
                                       <input 
@@ -1909,7 +1909,7 @@ export default function App() {
                                 {/* Departure flights */}
                                 <div>
                                   <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>Return Flight Details</h4>
-                                  <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                  <div className="search-grid grid-2-col" style={{ gap: '1rem' }}>
                                     <div className="search-field">
                                       <label>Carrier / Flight Number</label>
                                       <input 
@@ -1990,7 +1990,7 @@ export default function App() {
                           <span>* Direct e-Visas require a minimum hotel stay allotment of at least 3 days.</span>
                         </div>
 
-                        <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '0.5rem' }}>
+                        <div className="search-grid grid-2-col" style={{ gap: '1.5rem', marginTop: '0.5rem' }}>
                           <div className="search-field">
                             <label>Makkah Nights</label>
                             <input 
@@ -2148,7 +2148,7 @@ export default function App() {
                         {/* Vehicle Type Selection */}
                         <div>
                           <h4 className="summary-title" style={{ fontSize: '1rem', borderBottom: 'none', marginBottom: '0.75rem' }}>Select Vehicle Type</h4>
-                          <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                          <div className="search-grid grid-3-col" style={{ gap: '1rem' }}>
                             {['SUV', 'Sedan', 'VIP Coach'].map(vt => (
                               <div 
                                 key={vt} 
@@ -2324,7 +2324,7 @@ export default function App() {
                               <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 <UserCheck className="h-4 w-4" /> Passenger #{idx + 1} Passport Details
                               </h4>
-                              <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                              <div className="search-grid grid-3-col" style={{ gap: '1rem' }}>
                                 <div className="search-field">
                                   <label>Full Name (Matching Passport)</label>
                                   <input 
@@ -2389,7 +2389,7 @@ export default function App() {
                           <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-dark)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <Mail className="h-4 w-4 text-primary" /> Primary Booking Contact Information
                           </h4>
-                          <div className="search-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                          <div className="search-grid grid-2-col" style={{ gap: '1.5rem' }}>
                             <div className="search-field">
                               <label>Primary Mobile Number (WhatsApp Alerts)</label>
                               <input 

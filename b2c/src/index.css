@@ -1253,7 +1253,24 @@ footer {
   padding-left: 1rem;
 }
 
+/* Responsive Grid Utilities */
+.grid-2-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.grid-3-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1rem;
+}
+
 @media (max-width: 768px) {
+  .grid-2-col, .grid-3-col {
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem !important;
+  }
   .unified-pathway-bar {
     grid-template-columns: 1fr;
     gap: 2rem;
