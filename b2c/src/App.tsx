@@ -2508,85 +2508,123 @@ export default function App() {
                       </h4>
                       
                       <div className="summary-items">
-                        <div className="summary-row">
-                          <span className="summary-label">Accommodation Type</span>
-                          <span className="summary-value" style={{ textTransform: 'uppercase' }}>{dates.accommodationType}</span>
-                        </div>
-                        
-                        {selectedPackage ? (
+                        {isQuickEVisa ? (
                           <>
                             <div className="summary-row">
-                              <span className="summary-label">Selected Package</span>
-                              <span className="summary-value" style={{ color: 'var(--secondary)' }}>{selectedPackage.title}</span>
+                              <span className="summary-label">Booking Flow</span>
+                              <span className="summary-value" style={{ color: 'var(--secondary)', fontWeight: 800 }}>Quick e-Visa</span>
+                            </div>
+                            
+                            {/* Visa Cost Breakdown per passenger */}
+                            <div className="summary-row" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
+                              <span className="summary-label">e-Visa Registration</span>
+                              <span className="summary-value" style={{ fontWeight: 700 }}>{dates.travelers} Pilgrim{dates.travelers > 1 ? 's' : ''}</span>
                             </div>
                             <div className="summary-row">
-                              <span className="summary-label">Makkah Nights</span>
-                              <span className="summary-value">{dates.makkahNights} Nights</span>
+                              <span className="summary-label">Visa Fee per passenger</span>
+                              <span className="summary-value">{dates.accommodationType === 'iqama' ? 'Waived (0 SAR)' : formatPrice(450)}</span>
                             </div>
-                            <div className="summary-row">
-                              <span className="summary-label">Madinah Nights</span>
-                              <span className="summary-value">{dates.madinahNights} Nights</span>
-                            </div>
-                            <div className="summary-row">
-                              <span className="summary-label">Makkah Hotel</span>
-                              <span className="summary-value">
-                                {selectedMakkahHotelName}
-                                {selectedMakkahHotelId !== selectedPackage.makkahHotelId && ' (Customized)'}
-                              </span>
-                            </div>
-                            {dates.madinahNights > 0 && (
-                              <div className="summary-row">
-                                <span className="summary-label">Madinah Hotel</span>
-                                <span className="summary-value">
-                                  {selectedMadinahHotelName}
-                                  {selectedMadinahHotelId !== selectedPackage.madinahHotelId && ' (Customized)'}
-                                </span>
+
+                            {/* Flight Details (only if they choose to book with us or provided flight details) */}
+                            {((flightBookingMode === 'book') || (flightBookingMode === 'own' && !skipOwnFlightDetails)) && (
+                              <div className="summary-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.35rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
+                                <span className="summary-label">Flight Route & Schedule</span>
+                                <div className="summary-value" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingLeft: '0.5rem', borderLeft: '2px solid var(--secondary)', boxSizing: 'border-box' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.8rem' }}>
+                                    <span>Onward: <b>{flightBookingMode === 'own' ? flightInfo.onwardFlightNumber : (selectedArrivalFlight?.flightNumber || 'SV-300')}</b> ({getIataCode(flightInfo.onwardFromPortId)} → {getIataCode(flightInfo.onwardToPortId)})</span>
+                                    <span style={{ color: 'var(--text-muted)' }}>{flightInfo.onwardDate}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.8rem' }}>
+                                    <span>Return: <b>{flightBookingMode === 'own' ? flightInfo.returnFlightNumber : (selectedDepartureFlight?.flightNumber || 'SV-301')}</b> ({getIataCode(flightInfo.returnFromPortId)} → {getIataCode(flightInfo.returnToPortId)})</span>
+                                    <span style={{ color: 'var(--text-muted)' }}>{flightInfo.returnDate}</span>
+                                  </div>
+                                </div>
                               </div>
                             )}
                           </>
                         ) : (
                           <>
                             <div className="summary-row">
-                              <span className="summary-label">Makkah Nights</span>
-                              <span className="summary-value">{dates.makkahNights} Nights</span>
+                              <span className="summary-label">Accommodation Type</span>
+                              <span className="summary-value" style={{ textTransform: 'uppercase' }}>{dates.accommodationType}</span>
                             </div>
-                            <div className="summary-row">
-                              <span className="summary-label">Madinah Nights</span>
-                              <span className="summary-value">{dates.madinahNights} Nights</span>
-                            </div>
-                            <div className="summary-row">
-                              <span className="summary-label">Makkah Accommodation</span>
-                              <span className="summary-value">{selectedMakkahHotelName}</span>
-                            </div>
-                            {dates.madinahNights > 0 && (
-                              <div className="summary-row">
-                                <span className="summary-label">Madinah Accommodation</span>
-                                <span className="summary-value">{selectedMadinahHotelName}</span>
-                              </div>
-                            )}
-                            <div className="summary-row">
-                              <span className="summary-label">Transport Route</span>
-                              <span className="summary-value">{selectedRouteName} ({selectedVehicleType})</span>
-                            </div>
-                            <div className="summary-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.35rem' }}>
-                              <span className="summary-label">Flight Route & Schedule</span>
-                              <div className="summary-value" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingLeft: '0.5rem', borderLeft: '2px solid var(--secondary)', boxSizing: 'border-box' }}>
-                                {flightBookingMode === 'own' && skipOwnFlightDetails ? (
-                                  <span>Without Ticket (Own arrangements)</span>
-                                ) : (
-                                  <>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.8rem' }}>
-                                      <span>Onward: <b>{flightBookingMode === 'own' ? flightInfo.onwardFlightNumber : (selectedArrivalFlight?.flightNumber || 'SV-300')}</b> ({getIataCode(flightInfo.onwardFromPortId)} → {getIataCode(flightInfo.onwardToPortId)})</span>
-                                      <span style={{ color: 'var(--text-muted)' }}>{flightInfo.onwardDate} @ {flightBookingMode === 'own' ? flightInfo.onwardTime : (selectedArrivalFlight?.departureTime || '08:00')}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.8rem' }}>
-                                      <span>Return: <b>{flightBookingMode === 'own' ? flightInfo.returnFlightNumber : (selectedDepartureFlight?.flightNumber || 'SV-301')}</b> ({getIataCode(flightInfo.returnFromPortId)} → {getIataCode(flightInfo.returnToPortId)})</span>
-                                      <span style={{ color: 'var(--text-muted)' }}>{flightInfo.returnDate} @ {flightBookingMode === 'own' ? flightInfo.returnTime : (selectedDepartureFlight?.arrivalTime || '22:00')}</span>
-                                    </div>
-                                  </>
+                            
+                            {selectedPackage ? (
+                              <>
+                                <div className="summary-row">
+                                  <span className="summary-label">Selected Package</span>
+                                  <span className="summary-value" style={{ color: 'var(--secondary)' }}>{selectedPackage.title}</span>
+                                </div>
+                                <div className="summary-row">
+                                  <span className="summary-label">Makkah Nights</span>
+                                  <span className="summary-value">{dates.makkahNights} Nights</span>
+                                </div>
+                                <div className="summary-row">
+                                  <span className="summary-label">Madinah Nights</span>
+                                  <span className="summary-value">{dates.madinahNights} Nights</span>
+                                </div>
+                                <div className="summary-row">
+                                  <span className="summary-label">Makkah Hotel</span>
+                                  <span className="summary-value">
+                                    {selectedMakkahHotelName}
+                                    {selectedMakkahHotelId !== selectedPackage.makkahHotelId && ' (Customized)'}
+                                  </span>
+                                </div>
+                                {dates.madinahNights > 0 && (
+                                  <div className="summary-row">
+                                    <span className="summary-label">Madinah Hotel</span>
+                                    <span className="summary-value">
+                                      {selectedMadinahHotelName}
+                                      {selectedMadinahHotelId !== selectedPackage.madinahHotelId && ' (Customized)'}
+                                    </span>
+                                  </div>
                                 )}
-                              </div>
-                            </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="summary-row">
+                                  <span className="summary-label">Makkah Nights</span>
+                                  <span className="summary-value">{dates.makkahNights} Nights</span>
+                                </div>
+                                <div className="summary-row">
+                                  <span className="summary-label">Madinah Nights</span>
+                                  <span className="summary-value">{dates.madinahNights} Nights</span>
+                                </div>
+                                <div className="summary-row">
+                                  <span className="summary-label">Makkah Accommodation</span>
+                                  <span className="summary-value">{selectedMakkahHotelName}</span>
+                                </div>
+                                {dates.madinahNights > 0 && (
+                                  <div className="summary-row">
+                                    <span className="summary-label">Madinah Accommodation</span>
+                                    <span className="summary-value">{selectedMadinahHotelName}</span>
+                                  </div>
+                                )}
+                                <div className="summary-row">
+                                  <span className="summary-label">Transport Route</span>
+                                  <span className="summary-value">{selectedRouteName} ({selectedVehicleType})</span>
+                                </div>
+                                <div className="summary-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.35rem' }}>
+                                  <span className="summary-label">Flight Route & Schedule</span>
+                                  <div className="summary-value" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingLeft: '0.5rem', borderLeft: '2px solid var(--secondary)', boxSizing: 'border-box' }}>
+                                    {flightBookingMode === 'own' && skipOwnFlightDetails ? (
+                                      <span>Without Ticket (Own arrangements)</span>
+                                    ) : (
+                                      <>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.8rem' }}>
+                                          <span>Onward: <b>{flightBookingMode === 'own' ? flightInfo.onwardFlightNumber : (selectedArrivalFlight?.flightNumber || 'SV-300')}</b> ({getIataCode(flightInfo.onwardFromPortId)} → {getIataCode(flightInfo.onwardToPortId)})</span>
+                                          <span style={{ color: 'var(--text-muted)' }}>{flightInfo.onwardDate} @ {flightBookingMode === 'own' ? flightInfo.onwardTime : (selectedArrivalFlight?.departureTime || '08:00')}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.8rem' }}>
+                                          <span>Return: <b>{flightBookingMode === 'own' ? flightInfo.returnFlightNumber : (selectedDepartureFlight?.flightNumber || 'SV-301')}</b> ({getIataCode(flightInfo.returnFromPortId)} → {getIataCode(flightInfo.returnToPortId)})</span>
+                                          <span style={{ color: 'var(--text-muted)' }}>{flightInfo.returnDate} @ {flightBookingMode === 'own' ? flightInfo.returnTime : (selectedDepartureFlight?.arrivalTime || '22:00')}</span>
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </>
+                            )}
                           </>
                         )}
                         
@@ -2595,13 +2633,13 @@ export default function App() {
                           <span style={{ fontWeight: 800, color: 'var(--text-dark)', marginBottom: '0.5rem', display: 'block' }}>Cost Breakdown</span>
                           
                           {/* Stays */}
-                          {dates.makkahNights > 0 && (
+                          {!isQuickEVisa && dates.makkahNights > 0 && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
                               <span style={{ color: 'var(--text-muted)' }}>Makkah Stay ({dates.makkahNights} nights)</span>
                               <span>{formatPrice(makkahTotalCost)}</span>
                             </div>
                           )}
-                          {dates.madinahNights > 0 && (
+                          {!isQuickEVisa && dates.madinahNights > 0 && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
                               <span style={{ color: 'var(--text-muted)' }}>Madinah Stay ({dates.madinahNights} nights)</span>
                               <span>{formatPrice(madinahTotalCost)}</span>
@@ -2625,7 +2663,7 @@ export default function App() {
                               )}
                             </>
                           )}
-                          {flightBookingMode === 'own' && (
+                          {flightBookingMode === 'own' && !skipOwnFlightDetails && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
                               <span style={{ color: 'var(--text-muted)' }}>Self-booked Flights</span>
                               <span style={{ color: 'var(--secondary)', fontWeight: 700 }}>Excluded</span>
@@ -2633,10 +2671,12 @@ export default function App() {
                           )}
 
                           {/* Transport */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                            <span style={{ color: 'var(--text-muted)' }}>Ground Shuttle Route</span>
-                            <span>{formatPrice(routePrice)}</span>
-                          </div>
+                          {!isQuickEVisa && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>Ground Shuttle Route</span>
+                              <span>{formatPrice(routePrice)}</span>
+                            </div>
+                          )}
 
                           {/* Visa */}
                           {dates.accommodationType !== 'iqama' && (
