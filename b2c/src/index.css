@@ -1354,14 +1354,16 @@ footer {
   }
   .package-card {
     flex-direction: row !important;
-    height: 140px !important;
+    min-height: 165px !important;
+    height: auto !important;
     border-radius: 12px !important;
     border-bottom: none !important;
     border-left: 4px solid var(--primary) !important;
   }
   .package-image-placeholder {
-    width: 110px !important;
+    width: 125px !important;
     height: 100% !important;
+    min-height: 165px !important;
     flex-shrink: 0 !important;
     border-bottom: none !important;
     border-right: 1px solid var(--gold-border) !important;
@@ -1373,24 +1375,34 @@ footer {
     padding: 0.25rem 0.5rem !important;
   }
   .package-content {
-    padding: 0.75rem 1rem !important;
+    padding: 0.85rem 1rem !important;
     justify-content: space-between !important;
     flex-grow: 1 !important;
-    width: calc(100% - 110px) !important;
+    width: calc(100% - 125px) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.35rem !important;
   }
   .package-title {
     font-size: 0.95rem !important;
     line-height: 1.2 !important;
-    margin-bottom: 0.25rem !important;
+    margin-bottom: 0 !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
   }
   .package-description {
-    display: none !important; /* Hide description on mobile lists to prevent clutter */
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    font-size: 0.7rem !important;
+    line-height: 1.35 !important;
+    margin-bottom: 0 !important;
+    color: var(--text-muted) !important;
   }
   .package-meta {
-    font-size: 0.75rem !important;
+    font-size: 0.7rem !important;
     gap: 0.5rem !important;
     margin-bottom: 0 !important;
   }
@@ -1398,8 +1410,8 @@ footer {
     gap: 2px !important;
   }
   .package-meta span svg {
-    width: 12px !important;
-    height: 12px !important;
+    width: 11px !important;
+    height: 11px !important;
   }
   .package-footer {
     border-top: none !important;
@@ -1413,7 +1425,7 @@ footer {
     text-align: left !important;
   }
   .package-price-label {
-    font-size: 0.6rem !important;
+    font-size: 0.55rem !important;
   }
   .package-price {
     font-size: 1.1rem !important;
@@ -1458,11 +1470,66 @@ footer {
 
   /* Add padding-bottom to main components to avoid overlap with fixed bottom bar */
   .builder-main, .builder-sidebar, main {
-    padding-bottom: 80px !important;
+    padding-bottom: 85px !important;
+  }
+  
+  /* Optimize form width and reduce excessive margin/padding inside wizard main container */
+  .builder-main {
+    padding: 0.85rem !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03) !important;
+  }
+  .search-grid {
+    gap: 0.85rem !important;
   }
 
   /* Voucher grid fallback */
   .voucher-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Floating WhatsApp Button styles */
+.whatsapp-float {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background-color: #25D366;
+  color: white;
+  border-radius: 50px;
+  padding: 10px 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.85rem;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.whatsapp-float:hover {
+  background-color: #128C7E;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.whatsapp-icon {
+  width: 20px;
+  height: 20px;
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .whatsapp-float {
+    bottom: 90px; /* Elevated above step navigation bar on mobile viewport */
+    right: 16px;
+    padding: 12px;
+    border-radius: 50%;
+  }
+  .whatsapp-text {
+    display: none; /* Hide helper label text on mobile to avoid overcrowding */
   }
 }
