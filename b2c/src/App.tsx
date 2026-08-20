@@ -2790,7 +2790,8 @@ export default function App() {
           <div className="footer-column">
             <h4>Nusync Direct</h4>
             <p style={{ marginBottom: '1rem' }}>Moulavi Travels is a licensed and verified operator offering direct electronic visas and custom pilgrimage packages.</p>
-            <span className="footer-badge">KSA License #9823-U</span>
+            <span className="footer-badge" style={{ display: 'inline-block', marginBottom: '0.5rem' }}>KSA License #9823-U</span>
+            <p style={{ fontSize: '0.8rem', color: '#a4beb4' }}>HQ: King Abdulaziz Road, Makkah, Saudi Arabia</p>
           </div>
           <div className="footer-column">
             <h4>Quick Links</h4>
@@ -2802,20 +2803,14 @@ export default function App() {
             </ul>
           </div>
           <div className="footer-column">
-            <h4>Allotments</h4>
-            <ul className="footer-links">
-              <li><a href="#">Makkah Hotel BRNs</a></li>
-              <li><a href="#">Madinah Hotel BRNs</a></li>
-              <li><a href="#">Ground Shuttle Routes</a></li>
-              <li><a href="#">Carrier flight schedules</a></li>
-            </ul>
+            <h4>Mumbai Office</h4>
+            <p style={{ lineHeight: '1.4', fontSize: '0.8rem' }}>Crawford Market, Ashoka Shopping Centre, Lokmanya Tilak Rd, near G T Hospital, Dhobi Talao, Chhatrapati Shivaji Terminus Area, Fort, Mumbai, Maharashtra 400001, India</p>
+            <p style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>📞 +91 80027 70277</p>
           </div>
           <div className="footer-column">
-            <h4>Head Office</h4>
-            <p>Moulavi Travels KSA HQ</p>
-            <p>King Abdulaziz Road, Makkah</p>
-            <p style={{ marginTop: '0.5rem' }}>📞 +966 12 555 0199</p>
-            <p>✉️ support@umra.moulavi.in</p>
+            <h4>Kerala Office</h4>
+            <p style={{ lineHeight: '1.4', fontSize: '0.8rem' }}>FXXP+VR4, Railway Station Road, Thayalangadi, Kasaragod, Kerala 671121, India</p>
+            <p style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>📞 +91 4994 230 216</p>
           </div>
         </div>
         <div className="footer-bottom">
