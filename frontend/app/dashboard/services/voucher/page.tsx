@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,8 +58,9 @@ import autoTable from 'jspdf-autotable';
 import { toBlob } from 'html-to-image';
 import { useRef } from 'react';
 
-export default function VoucherServicePage() {
+function VoucherServiceContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const user = getUser();
   const clientDateStr = (() => {
     const d = new Date();
@@ -79,7 +80,7 @@ export default function VoucherServicePage() {
   // Data States
   const [vouchers, setVouchers] = useState<any[]>([]);
   const [loadingVouchers, setLoadingVouchers] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [pagination, setPagination] = useState({
@@ -741,7 +742,7 @@ export default function VoucherServicePage() {
                            vouchers.map(v => (
                             <TableRow key={v.id} className="hover:bg-gray-50/50 transition-colors border-gray-50">
                               <TableCell className="px-6 font-black text-primary text-sm">{v.voucherNumber}</TableCell>
-                              <TableCell className="text-xs font-bold text-secondary uppercase">{v.groupCode || '—'}</TableCell>
+                              <TableCell className="text-xs font-bold text-secondary uppercase max-w-[150px] break-all whitespace-normal">{v.groupCode || '—'}</TableCell>
                               <TableCell><div><p className="font-bold text-sm text-gray-900">{v.guestName}</p><p className="text-[10px] text-gray-400 font-medium">{v.guestMobile}</p></div></TableCell>
                               <TableCell><Badge variant="outline" className="font-black bg-blue-50/50 border-blue-100 text-blue-700">{v.paxCount} PAX</Badge></TableCell>
                               <TableCell className="text-[10px] font-bold text-gray-600 uppercase">{v.umrahCompany?.partyName || '—'}</TableCell>
@@ -1259,5 +1260,13 @@ export default function VoucherServicePage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function VoucherServicePage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-xs font-bold text-gray-500 uppercase tracking-widest">Protocol Syncing...</div>}>
+      <VoucherServiceContent />
+    </Suspense>
   );
 }
