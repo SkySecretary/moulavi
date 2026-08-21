@@ -106,7 +106,7 @@ $SSH_CMD -o ControlMaster=auto -o ControlPath=/tmp/ssh-%r@%h:%p $SERVER_USER@$SE
     pm2 start npm --name umrasystem-frontend --cwd $CURRENT_PATH/frontend -- start -- -p 3001
 
     # Cleanup
-    cd $REMOTE_ROOT/releases && ls -1t | tail -n +6 | xargs rm -rf 2>/dev/null || true
+    cd $REMOTE_ROOT/releases && ls -1t | tail -n +4 | xargs rm -rf 2>/dev/null || true
     
     echo "SUCCESS_MARKER"
 EOF

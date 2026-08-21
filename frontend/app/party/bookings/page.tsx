@@ -367,6 +367,7 @@ export default function PartyBookingsPage() {
                   <SelectItem value="all">All Visa Types</SelectItem>
                   <SelectItem value="individual_visa">Individual Visa</SelectItem>
                   <SelectItem value="group_visa">Group Visa</SelectItem>
+                  <SelectItem value="re_entry">Re-Entry</SelectItem>
                 </SelectContent>
               </Select>
 

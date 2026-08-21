@@ -734,5 +734,18 @@ export const validateStep6 = (
     }
   }
 
+  // 7) Re-entry booking specific validations
+  if (step1Data.visaType === 're_entry') {
+    if (!data.umrahVisaNumber || data.umrahVisaNumber.trim() === '') {
+      return 'Umrah Visa Number is required for Re-Entry bookings.';
+    }
+    if (!data.umrahVisaCopies || data.umrahVisaCopies.length === 0) {
+      return 'Umrah Visa copy is required for Re-Entry bookings.';
+    }
+    if (!data.nusukBookingCopies || data.nusukBookingCopies.length === 0) {
+      return 'Nusuk Booking copy is required for Re-Entry bookings.';
+    }
+  }
+
   return null; // All validations passed
 };

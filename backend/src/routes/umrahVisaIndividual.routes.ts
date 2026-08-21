@@ -235,7 +235,9 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
   { name: 'iqamaCopies', maxCount: 100 },
   { name: 'onwardTickets', maxCount: 100 },
   { name: 'returnTickets', maxCount: 100 },
-  { name: 'nationalAddresses', maxCount: 100 }
+  { name: 'nationalAddresses', maxCount: 100 },
+  { name: 'umrahVisaCopies', maxCount: 100 },
+  { name: 'nusukBookingCopies', maxCount: 100 }
 ]), async (req, res) => {
   try {
     const user = (req as any).user;
@@ -250,7 +252,9 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
       'iqamaCopies',
       'onwardTickets',
       'returnTickets',
-      'nationalAddresses'
+      'nationalAddresses',
+      'umrahVisaCopies',
+      'nusukBookingCopies'
     ];
     if (files) {
       const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -527,8 +531,9 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
           hasGroupNumber,
           passengerCount: step2Data.passengerCount || finalPassengerCount,
           umrahVisaProviderId: step1Data.umrahVisaProviderId || null,
-          status: initialStatus,
-          visaType: 'individual_visa',
+           status: initialStatus,
+          visaType: req.body.visaType || step1Data.visaType || 'individual_visa',
+          umrahVisaNumber: req.body.umrahVisaNumber || null,
           isOneWay: !!step2Data.isOneWay,
           isWithoutTicket: !!step2Data.isWithoutTicket,
           oneWayContactName: step2Data.isOneWay ? (step2Data.oneWayContactName || null) : null,
@@ -877,7 +882,9 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
         { field: 'iqamaCopies', type: 'iqama' },
         { field: 'onwardTickets', type: 'onward_ticket' },
         { field: 'returnTickets', type: 'return_ticket' },
-        { field: 'nationalAddresses', type: 'national_address' }
+        { field: 'nationalAddresses', type: 'national_address' },
+        { field: 'umrahVisaCopies', type: 'umrah_visa_copy' },
+        { field: 'nusukBookingCopies', type: 'nusuk_booking_copy' }
       ];
 
       for (const { field, type, linkToPassenger } of splitDocFields) {

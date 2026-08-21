@@ -13,6 +13,7 @@ export const UMRAH_VISA_STATUS_CONFIG: Record<UmrahVisaStatus, { label: string; 
 export const VISA_TYPE_CONFIG: Record<VisaType, { label: string; color: string }> = {
   individual_visa: { label: 'Individual Visa', color: 'bg-blue-50 text-blue-900 border border-blue-200' },
   group_visa: { label: 'Group Visa', color: 'bg-green-50 text-green-900 border border-green-200' },
+  re_entry: { label: 'Re-Entry', color: 'bg-amber-50 text-amber-900 border border-amber-200' },
 };
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';

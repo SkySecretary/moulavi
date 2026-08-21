@@ -1083,6 +1083,7 @@ router.get('/:bookingId', authenticate, async (req, res) => {
           },
         },
         sponsorIqamaDetails: true,
+        documents: true,
         transportBookings: {
           include: {
             transportMaster: {

@@ -132,6 +132,13 @@ export default function DashboardPage() {
               NEW GROUP
             </Button>
             <Button 
+              onClick={() => router.push('/dashboard/umrah-visa/create-re-entry')}
+              className="bg-primary hover:bg-primary/90 text-secondary font-black border-none shadow-xl hover:shadow-primary/20 transition-all h-12 px-6 rounded-xl"
+            >
+              <PlusCircle className="mr-2 h-5 w-5" />
+              NEW RE-ENTRY
+            </Button>
+            <Button 
               onClick={() => router.push('/dashboard/umrah-visa/add-to-existing-booking')}
               variant="outline"
               className="bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white backdrop-blur-md h-12 px-6 rounded-xl font-bold"

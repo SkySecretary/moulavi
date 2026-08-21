@@ -6,6 +6,7 @@ export interface Step1Data {
   groupName?: string;
   passengerCount?: number; // Required when bookingMode is 'group_number'
   umrahVisaProviderId?: string;
+  visaType?: 'individual_visa' | 'group_visa' | 're_entry';
 }
 
 export interface Step2Data {
@@ -21,6 +22,7 @@ export interface Step2Data {
   transportBookings?: TransportBooking[];
   hotelBookings?: HotelBooking[]; // For group bookings, hotels are in Step 2
   isOneWay?: boolean;
+  isWithoutTicket?: boolean;
   oneWayContactName?: string;
   oneWayWhatsapp?: string;
 }
@@ -111,6 +113,9 @@ export interface Step6Data {
   passportNumbers?: string[];
   onwardTicketConfirmed?: boolean;
   returnTicketConfirmed?: boolean;
+  umrahVisaNumber?: string;
+  umrahVisaCopies?: File[];
+  nusukBookingCopies?: File[];
 }
 
 export interface TransportBooking {

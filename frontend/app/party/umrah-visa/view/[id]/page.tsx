@@ -8,10 +8,10 @@ import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PartyLayout } from '@/components/layouts/PartyLayout';
-import { Calendar, Plane, Users, Building, MapPin, Mail, Clock, DollarSign, Route, Truck, Phone, MessageCircle, Loader2, Download, Hash } from 'lucide-react';
+import { Calendar, Plane, Users, Building, MapPin, Mail, Clock, DollarSign, Route, Truck, Phone, MessageCircle, Loader2, Download, Hash, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import api from '@/lib/api';
-import { formatTransportRoute } from '@/lib/utils';
+import { formatTransportRoute, getFileUrl } from '@/lib/utils';
 
 export default function ViewUmrahVisaBookingPage() {
   const router = useRouter();
@@ -907,6 +907,93 @@ export default function ViewUmrahVisaBookingPage() {
                               })}
                             </tbody>
                           </table>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Re-Entry Details */}
+              {booking.visaType === 're_entry' && (
+                <Card className="shadow-md hover:shadow-lg transition-shadow">
+                  <CardHeader className="bg-gradient-to-r from-primary/5 to-white border-b border-primary/10">
+                    <CardTitle className="text-xl flex items-center gap-2 text-primary">
+                      <FileText className="h-6 w-6" /> Re-Entry Details
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Umrah Visa Number</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-gray-900">{booking.umrahVisaNumber || 'N/A'}</p>
+                          {booking.umrahVisaNumber && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                navigator.clipboard.writeText(booking.umrahVisaNumber);
+                                toast.success('Visa Number copied!');
+                              }}
+                              className="h-6 px-2 text-[10px] uppercase font-bold"
+                            >
+                              Copy
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 md:col-span-2">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Uploaded Attachments</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {/* Umrah Visa Copy */}
+                          {(() => {
+                            const visaDoc = booking.documents?.find((d: any) => d.documentType === 'umrah_visa_copy' && !d.isDeleted);
+                            if (visaDoc) {
+                              return (
+                                <div className="p-3 border border-secondary/15 rounded-xl bg-gray-50 flex items-center justify-between">
+                                  <div className="min-w-0 flex-1 pr-2">
+                                    <p className="text-xs font-bold text-gray-700 truncate">{visaDoc.fileName}</p>
+                                    <p className="text-[10px] text-gray-500 font-semibold uppercase">Umrah Visa Copy</p>
+                                  </div>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => window.open(getFileUrl(visaDoc.filePath), '_blank')}
+                                    className="h-8 text-xs font-bold"
+                                  >
+                                    View
+                                  </Button>
+                                </div>
+                              );
+                            }
+                            return <p className="text-xs text-gray-500 italic">No Umrah Visa copy uploaded.</p>;
+                          })()}
+
+                          {/* Nusuk Booking Copy */}
+                          {(() => {
+                            const nusukDoc = booking.documents?.find((d: any) => d.documentType === 'nusuk_booking_copy' && !d.isDeleted);
+                            if (nusukDoc) {
+                              return (
+                                <div className="p-3 border border-secondary/15 rounded-xl bg-gray-50 flex items-center justify-between">
+                                  <div className="min-w-0 flex-1 pr-2">
+                                    <p className="text-xs font-bold text-gray-700 truncate">{nusukDoc.fileName}</p>
+                                    <p className="text-[10px] text-gray-500 font-semibold uppercase">Nusuk Booking Copy</p>
+                                  </div>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => window.open(getFileUrl(nusukDoc.filePath), '_blank')}
+                                    className="h-8 text-xs font-bold"
+                                  >
+                                    View
+                                  </Button>
+                                </div>
+                              );
+                            }
+                            return <p className="text-xs text-gray-500 italic">No Nusuk Booking copy uploaded.</p>;
+                          })()}
                         </div>
                       </div>
                     </div>

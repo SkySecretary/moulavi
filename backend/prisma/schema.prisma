@@ -122,6 +122,7 @@ model UmrahVisaBooking {
   isDuplicate               Boolean                    @default(false) @map("is_duplicate")
   bookingReference          String?                    @unique @map("booking_reference")
   brn                       String?                    @map("brn")
+  umrahVisaNumber           String?                    @map("umrah_visa_number")
   tripStatus                TripStatus                 @default(pending) @map("trip_status")
   transportCompanyId        String?                    @map("transport_company_id")
   statusHistory             BookingStatusHistory[]
@@ -829,6 +830,7 @@ enum UmrahVisaStatus {
 enum VisaType {
   individual_visa
   group_visa
+  re_entry
 }
 
 enum Gender {

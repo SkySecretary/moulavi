@@ -100,6 +100,7 @@ export default function Sidebar({ collapsed = false, onCollapsedChange }: Sideba
   const umrahVisaCreateItems = [
     { name: 'Create Individual Booking', icon: FileText, path: '/dashboard/umrah-visa/create-individual' },
     { name: 'Create Group Booking', icon: Users, path: '/dashboard/umrah-visa/create-group' },
+    { name: 'Create Re-Entry Booking', icon: FileText, path: '/dashboard/umrah-visa/create-re-entry' },
     { name: 'Add to Existing Booking', icon: Users, path: '/dashboard/umrah-visa/add-to-existing-booking' },
   ];
 

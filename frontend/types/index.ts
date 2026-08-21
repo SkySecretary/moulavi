@@ -173,7 +173,7 @@ export type UmrahVisaStatus =
   | 'cancelled';
 
 // Visa Type
-export type VisaType = 'individual_visa' | 'group_visa';
+export type VisaType = 'individual_visa' | 'group_visa' | 're_entry';
 export type TripStatus = 'pending' | 'hosting' | 'completed';
 
 export interface UmrahVisaDetails {
@@ -234,6 +234,7 @@ export interface UmrahVisaBooking {
   transportPrice?: number;
   accommodationType: AccommodationType;
   visaType?: VisaType;
+  umrahVisaNumber?: string;
   makkahCheckIn?: string;
   makkahCheckOut?: string;
   madinaCheckIn?: string;

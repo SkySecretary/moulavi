@@ -302,7 +302,9 @@ export const useUmrahBooking = () => {
           'iqamaCopies',
           'onwardTickets',
           'returnTickets',
-          'nationalAddresses'
+          'nationalAddresses',
+          'umrahVisaCopies',
+          'nusukBookingCopies'
         ];
         docFields.forEach(field => {
           const files = (bookingState.step6Data as any)?.[field];
@@ -321,6 +323,12 @@ export const useUmrahBooking = () => {
         // Add JSON data as string
         formData.append('partyId', partyId);
         formData.append('step1', JSON.stringify(bookingState.step1Data));
+        if (bookingState.step1Data.visaType) {
+          formData.append('visaType', bookingState.step1Data.visaType);
+        }
+        if (bookingState.step6Data?.umrahVisaNumber) {
+          formData.append('umrahVisaNumber', bookingState.step6Data.umrahVisaNumber);
+        }
         
         // Convert dates to ISO for backend
         const step2ISO = {

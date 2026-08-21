@@ -524,9 +524,18 @@ export default function TripInfoPage() {
       }
     }
 
+    let reEntryInfo = '';
+    if (booking.visaType === 're_entry') {
+      reEntryInfo = `🔑 *Umrah Visa Number:* ${booking.umrahVisaNumber || 'N/A'}\n\n`;
+    }
+
     let text = `📋 *Group Number:* ${booking.groupNumber || 'N/A'}\n`;
     text += `🏷️ *Group Name:* ${booking.groupName || 'N/A'}\n`;
     text += `👥 *Number of Pilgrims:* ${booking.passengerCount || 0}\n\n`;
+
+    if (reEntryInfo) {
+      text += reEntryInfo;
+    }
 
     if (iqamaInfo) {
       text += iqamaInfo;

@@ -256,6 +256,7 @@ export default function UmrahVisaPage() {
       all: bookings.length,
       individual_visa: bookings.filter(b => b.visaType === 'individual_visa').length,
       group_visa: bookings.filter(b => b.visaType === 'group_visa').length,
+      re_entry: bookings.filter(b => b.visaType === 're_entry').length,
     };
   };
 
@@ -356,6 +357,15 @@ export default function UmrahVisaPage() {
               >
                 <Users className="h-4 w-4" />
                 Group Booking
+              </Button>
+              <Button 
+                variant="secondary" 
+                size="sm"
+                onClick={() => router.push('/dashboard/umrah-visa/create-re-entry')}
+                className="flex items-center gap-2 font-bold"
+              >
+                <PlusCircle className="h-4 w-4" />
+                Re-Entry Booking
               </Button>
               <Button 
                 variant="secondary" 
@@ -484,6 +494,7 @@ export default function UmrahVisaPage() {
                       <SelectItem value="all">All Visa Types</SelectItem>
                       <SelectItem value="individual_visa">Individual Visa</SelectItem>
                       <SelectItem value="group_visa">Group Visa</SelectItem>
+                      <SelectItem value="re_entry">Re-Entry</SelectItem>
                     </SelectContent>
                   </Select>
                   <DatePicker

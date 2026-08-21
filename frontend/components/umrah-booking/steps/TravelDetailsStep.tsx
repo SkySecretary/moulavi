@@ -121,11 +121,17 @@ export const TravelDetailsStep: React.FC<TravelDetailsStepProps> = ({
           <div className="relative mt-1">
             <Input
               id="passengerCount"
-              type="number"
-              min="1"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               placeholder="0"
               value={data.passengerCount || ''}
-              onChange={(e) => onChange({ passengerCount: parseInt(e.target.value) || undefined })}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (/^\d*$/.test(val)) {
+                  onChange({ passengerCount: val ? parseInt(val) : undefined });
+                }
+              }}
               disabled={disabled}
               className="h-10 bg-white border-gray-100 rounded-lg font-bold text-primary focus:ring-secondary/20 text-base pl-10"
             />

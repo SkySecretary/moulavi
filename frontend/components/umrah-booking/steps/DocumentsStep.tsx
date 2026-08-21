@@ -356,6 +356,10 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
       requiredDocs = ['All required documents as per your booking type'];
     }
 
+    if (step1Data.visaType === 're_entry') {
+      requiredDocs.push('Umrah Visa copy', 'Nusuk Booking copy');
+    }
+
     return { baseWarning, requiredDocs };
   };
 
@@ -524,6 +528,53 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
             handleRemoveFileForField={handleRemoveFileForField}
             handlePassportNumberChange={handlePassportNumberChange}
           />
+
+          {/* Re-entry specific fields */}
+          {step1Data.visaType === 're_entry' && (
+            <div className="space-y-4">
+              <Card className="p-4 rounded-xl border border-secondary/10 bg-white shadow-sm space-y-2">
+                <Label className="text-xs font-bold text-primary uppercase tracking-wider">
+                  Umrah Visa Number <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  placeholder="Enter Umrah Visa Number"
+                  value={data.umrahVisaNumber || ''}
+                  onChange={(e) => onChange({ umrahVisaNumber: e.target.value })}
+                  disabled={disabled}
+                  required
+                  className="h-10 text-xs font-semibold"
+                />
+              </Card>
+
+              <SectionUploader 
+                field="umrahVisaCopies"
+                label="Umrah Visa Copies"
+                description={`Upload Umrah Visa copies. Exactly ${passengerCount} files are required.`}
+                required
+                files={getFieldFiles('umrahVisaCopies')}
+                disabled={disabled}
+                data={data}
+                onChange={onChange}
+                handleFilesSelectForField={handleFilesSelectForField}
+                handleRemoveFileForField={handleRemoveFileForField}
+                handlePassportNumberChange={handlePassportNumberChange}
+              />
+
+              <SectionUploader 
+                field="nusukBookingCopies"
+                label="Nusuk Booking Copies"
+                description={`Upload Nusuk Booking copies. Exactly ${passengerCount} files are required.`}
+                required
+                files={getFieldFiles('nusukBookingCopies')}
+                disabled={disabled}
+                data={data}
+                onChange={onChange}
+                handleFilesSelectForField={handleFilesSelectForField}
+                handleRemoveFileForField={handleRemoveFileForField}
+                handlePassportNumberChange={handlePassportNumberChange}
+              />
+            </div>
+          )}
 
         </div>
 

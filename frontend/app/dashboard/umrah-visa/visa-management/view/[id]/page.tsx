@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Plane, Users, Building, MapPin, Mail, CheckCircle, ArrowLeft, Clock, DollarSign, Route, Truck, ArrowRight, Download, Info } from 'lucide-react';
+import { Calendar, Plane, Users, Building, MapPin, Mail, CheckCircle, ArrowLeft, Clock, DollarSign, Route, Truck, ArrowRight, Download, Info, FileText } from 'lucide-react';
 import { ManageAlternateInfoDialog } from '@/components/umrah-booking/components/ManageAlternateInfoDialog';
 import { RecreateBookingDialog } from '@/components/umrah-booking/components/RecreateBookingDialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -298,6 +298,92 @@ export default function ViewUmrahVisaBookingPage() {
                 <div className="space-y-1 md:col-span-2">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">National Short Address</p>
                   <p className="text-sm font-medium text-gray-900">{iqama.sponserNationalShortAddress}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {booking.visaType === 're_entry' && !isAlt && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileText className="h-5 w-5 text-amber-600" /> Re-Entry Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Umrah Visa Number</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-gray-900">{booking.umrahVisaNumber || 'N/A'}</p>
+                    {booking.umrahVisaNumber && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          navigator.clipboard.writeText(booking.umrahVisaNumber);
+                          toast.success('Visa Number copied!');
+                        }}
+                        className="h-6 px-2 text-[10px] uppercase font-bold"
+                      >
+                        Copy
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Uploaded Attachments</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Umrah Visa Copy */}
+                    {(() => {
+                      const visaDoc = booking.documents?.find((d: any) => d.documentType === 'umrah_visa_copy' && !d.isDeleted);
+                      if (visaDoc) {
+                        return (
+                          <div className="p-3 border border-secondary/15 rounded-xl bg-gray-50 flex items-center justify-between">
+                            <div className="min-w-0 flex-1 pr-2">
+                              <p className="text-xs font-bold text-gray-700 truncate">{visaDoc.fileName}</p>
+                              <p className="text-[10px] text-gray-500 font-semibold uppercase">Umrah Visa Copy</p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(getFileUrl(visaDoc.filePath), '_blank')}
+                              className="h-8 text-xs font-bold"
+                            >
+                              View
+                            </Button>
+                          </div>
+                        );
+                      }
+                      return <p className="text-xs text-gray-500 italic">No Umrah Visa copy uploaded.</p>;
+                    })()}
+
+                    {/* Nusuk Booking Copy */}
+                    {(() => {
+                      const nusukDoc = booking.documents?.find((d: any) => d.documentType === 'nusuk_booking_copy' && !d.isDeleted);
+                      if (nusukDoc) {
+                        return (
+                          <div className="p-3 border border-secondary/15 rounded-xl bg-gray-50 flex items-center justify-between">
+                            <div className="min-w-0 flex-1 pr-2">
+                              <p className="text-xs font-bold text-gray-700 truncate">{nusukDoc.fileName}</p>
+                              <p className="text-[10px] text-gray-500 font-semibold uppercase">Nusuk Booking Copy</p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(getFileUrl(nusukDoc.filePath), '_blank')}
+                              className="h-8 text-xs font-bold"
+                            >
+                              View
+                            </Button>
+                          </div>
+                        );
+                      }
+                      return <p className="text-xs text-gray-500 italic">No Nusuk Booking copy uploaded.</p>;
+                    })()}
+                  </div>
                 </div>
               </div>
             </CardContent>

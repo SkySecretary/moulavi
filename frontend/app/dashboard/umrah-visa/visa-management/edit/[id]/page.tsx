@@ -443,6 +443,7 @@ export default function EditUmrahVisaBookingPage() {
               checkInDate: combineDateAndTime(h.checkInDate, '20:30'),
               checkOutDate: combineDateAndTime(h.checkOutDate, '20:30'),
               brn: h.brn,
+              cateringBrn: h.cateringBrn,
               additionalBrns: h.additionalBrns,
               bedsQuantity: h.bedsQuantity,
             };
@@ -784,9 +785,16 @@ export default function EditUmrahVisaBookingPage() {
                   <div className="space-y-1">
                     <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Passengers (Qty)</p>
                     <Input 
-                      type="number"
-                      value={passengerCount}
-                      onChange={(e) => setPassengerCount(parseInt(e.target.value) || 0)}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={passengerCount || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (/^\d*$/.test(val)) {
+                          setPassengerCount(val ? parseInt(val) : 0);
+                        }
+                      }}
                       className="font-bold"
                     />
                   </div>

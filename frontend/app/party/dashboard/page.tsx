@@ -375,6 +375,13 @@ export default function PartyDashboardPage() {
               New Group
             </Button>
             <Button 
+              onClick={() => router.push('/party/umrah-visa-re-entry')}
+              className="bg-primary hover:bg-primary/90 text-white border-none shadow-lg hover:shadow-xl transition-all font-bold"
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              New Re-Entry
+            </Button>
+            <Button 
               onClick={() => router.push('/party/add-to-existing-booking')}
               variant="outline"
               className="bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white backdrop-blur-sm font-bold"
