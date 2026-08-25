@@ -293,8 +293,10 @@ export interface UmrahVisaBooking {
     sponserNationalShortAddress?: string;
     makkahHotelName?: string;
     makkahBrn?: string;
+    makkahCateringBrn?: string;
     madinahHotelName?: string;
     madinahBrn?: string;
+    madinahCateringBrn?: string;
     confirmationImagePath?: string;
     confirmationUploadedAt?: string;
   }>;

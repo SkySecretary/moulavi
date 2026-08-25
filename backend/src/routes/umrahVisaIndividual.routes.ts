@@ -31,10 +31,18 @@ const step1Schema = z.object({
   groupNumber: z.string().optional(),
   groupName: z.string().optional(),
   umrahVisaProviderId: z.string().uuid().optional(),
+  visaType: z.string().optional(),
+  umrahVisaNumber: z.string().optional(),
 }).refine((data) => {
   if (data.bookingMode === 'group_number') {
-    if (!data.groupNumber || !data.groupName) {
-      return false;
+    if (data.visaType === 're_entry') {
+      if (!data.umrahVisaNumber || !data.groupName) {
+        return false;
+      }
+    } else {
+      if (!data.groupNumber || !data.groupName) {
+        return false;
+      }
     }
     if (!data.umrahVisaProviderId) {
       return false;
@@ -42,7 +50,7 @@ const step1Schema = z.object({
   }
   return true;
 }, {
-  message: "Group number, group name, and umrah visa provider are required when booking mode is 'group_number'",
+  message: "Required fields are missing when booking mode is 'group_number'",
   path: ["groupNumber"]
 });
 
@@ -533,7 +541,7 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
           umrahVisaProviderId: step1Data.umrahVisaProviderId || null,
            status: initialStatus,
           visaType: req.body.visaType || step1Data.visaType || 'individual_visa',
-          umrahVisaNumber: req.body.umrahVisaNumber || null,
+          umrahVisaNumber: req.body.umrahVisaNumber || step1Data.umrahVisaNumber || null,
           isOneWay: !!step2Data.isOneWay,
           isWithoutTicket: !!step2Data.isWithoutTicket,
           oneWayContactName: step2Data.isOneWay ? (step2Data.oneWayContactName || null) : null,

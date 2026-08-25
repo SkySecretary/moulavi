@@ -237,8 +237,14 @@ export const calculateHotelCoverage = (arrivalDate: string, departureDate: strin
 
 export const validateStep1 = (data: Step1Data): string | null => {
   if (data.bookingMode === 'group_number') {
-    if (!data.groupNumber?.trim()) {
-      return 'Group number is required for group booking mode';
+    if (data.visaType === 're_entry') {
+      if (!data.umrahVisaNumber?.trim()) {
+        return 'Visa number is required for re-entry booking';
+      }
+    } else {
+      if (!data.groupNumber?.trim()) {
+        return 'Group number is required for group booking mode';
+      }
     }
     if (!data.groupName?.trim()) {
       return 'Group name is required for group booking mode';
@@ -691,7 +697,7 @@ export const validateStep6 = (
   const isIndividualWithoutGroupNumber = !isGroupVisa && step1Data.bookingMode !== 'group_number';
 
   // 1) Passport copies
-  if (isIndividualWithoutGroupNumber) {
+  if (isIndividualWithoutGroupNumber && step1Data.visaType !== 're_entry') {
     if (!data.passportCopies || data.passportCopies.length !== passengerCount) {
       return `Exactly ${passengerCount} passport copy files are required (matching passenger count). Currently uploaded: ${data.passportCopies?.length || 0}`;
     }
@@ -736,7 +742,8 @@ export const validateStep6 = (
 
   // 7) Re-entry booking specific validations
   if (step1Data.visaType === 're_entry') {
-    if (!data.umrahVisaNumber || data.umrahVisaNumber.trim() === '') {
+    const visaNum = data.umrahVisaNumber || step1Data.umrahVisaNumber;
+    if (!visaNum || visaNum.trim() === '') {
       return 'Umrah Visa Number is required for Re-Entry bookings.';
     }
     if (!data.umrahVisaCopies || data.umrahVisaCopies.length === 0) {

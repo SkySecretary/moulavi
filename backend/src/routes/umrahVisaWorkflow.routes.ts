@@ -35,6 +35,10 @@ const getCategoryDir = (documentType: string): string => {
       return 'Return Tickets';
     case 'national_address':
       return 'National Address';
+    case 'umrah_visa_copy':
+      return 'Umrah Visa Copies';
+    case 'nusuk_booking_copy':
+      return 'Nusuk Booking Copies';
     default:
       return 'Other';
   }
@@ -2518,7 +2522,7 @@ router.patch('/:bookingId/trip-status', authenticate, async (req, res) => {
     let transitionReason = '';
 
     if (tripStatus === 'completed' && 
-        booking.visaType === 'individual_visa' && 
+        (booking.visaType === 'individual_visa' || booking.visaType === 're_entry') && 
         booking.accommodationType === 'hotel' && 
         (booking.status === 'group_assigned' || booking.status === 'documents_downloaded' || booking.status === 'pending')) {
       

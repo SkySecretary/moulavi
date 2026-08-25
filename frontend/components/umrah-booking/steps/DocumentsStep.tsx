@@ -397,8 +397,8 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
           
-          {/* Section 1: Passport copies (mandatory if no group number) */}
-          {!hasGroupNumber && (
+          {/* Section 1: Passport copies (mandatory if no group number, skipped for re-entry) */}
+          {!hasGroupNumber && step1Data.visaType !== 're_entry' && (
             <SectionUploader 
               field="passportCopies"
               label="Passport Copies"
@@ -538,7 +538,7 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
                 </Label>
                 <Input
                   placeholder="Enter Umrah Visa Number"
-                  value={data.umrahVisaNumber || ''}
+                  value={data.umrahVisaNumber || step1Data.umrahVisaNumber || ''}
                   onChange={(e) => onChange({ umrahVisaNumber: e.target.value })}
                   disabled={disabled}
                   required

@@ -7,6 +7,7 @@ export interface Step1Data {
   passengerCount?: number; // Required when bookingMode is 'group_number'
   umrahVisaProviderId?: string;
   visaType?: 'individual_visa' | 'group_visa' | 're_entry';
+  umrahVisaNumber?: string;
 }
 
 export interface Step2Data {

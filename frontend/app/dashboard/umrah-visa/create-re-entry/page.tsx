@@ -85,9 +85,9 @@ function CreateReEntryContent() {
     loadInitialData();
   }, [router, loadInitialData]);
 
-  // Set the visaType to 're_entry' when step 1 loads
+  // Set the visaType to 're_entry' and default bookingMode to 'group_number' when step 1 loads
   useEffect(() => {
-    updateStep1Data({ visaType: 're_entry' });
+    updateStep1Data({ visaType: 're_entry', bookingMode: 'group_number' });
   }, [updateStep1Data]);
 
   // Load party data when selectedPartyId changes (including from URL)

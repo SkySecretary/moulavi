@@ -529,7 +529,11 @@ export default function TripInfoPage() {
       reEntryInfo = `🔑 *Umrah Visa Number:* ${booking.umrahVisaNumber || 'N/A'}\n\n`;
     }
 
-    let text = `📋 *Group Number:* ${booking.groupNumber || 'N/A'}\n`;
+    let text = '';
+    if (booking.visaType === 're_entry') {
+      text += `✨ *UMRA RENTRY BOOKING*\n\n`;
+    }
+    text += `📋 *Group Number:* ${booking.groupNumber || 'N/A'}\n`;
     text += `🏷️ *Group Name:* ${booking.groupName || 'N/A'}\n`;
     text += `👥 *Number of Pilgrims:* ${booking.passengerCount || 0}\n\n`;
 

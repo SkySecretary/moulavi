@@ -365,8 +365,8 @@ export default function AssignGroupPage() {
                       filteredData.map((booking) => (
                         <TableRow key={booking.id}>
                           <TableCell>
-                            <Badge variant={booking.visaType === 'group_visa' ? 'default' : 'secondary'} className="text-xs">
-                              {booking.visaType === 'group_visa' ? 'Group Visa' : 'Individual Visa'}
+                            <Badge variant={booking.visaType === 'group_visa' ? 'default' : booking.visaType === 're_entry' ? 'outline' : 'secondary'} className="text-xs">
+                              {booking.visaType === 'group_visa' ? 'Group Visa' : booking.visaType === 're_entry' ? 'Re-Entry' : 'Individual Visa'}
                             </Badge>
                           </TableCell>
                           <TableCell>

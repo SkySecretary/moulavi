@@ -73,11 +73,15 @@ export const BookingModeStep: React.FC<BookingModeStepProps> = ({
                 <h3 className={cn(
                   "text-sm font-bold tracking-tight",
                   data.bookingMode === 'group_number' ? "text-white" : "text-primary"
-                )}>Group Number</h3>
+                )}>
+                  {data.visaType === 're_entry' ? 'Visa Number' : 'Group Number'}
+                </h3>
                 <p className={cn(
                   "text-[10px] font-medium opacity-60",
                   data.bookingMode === 'group_number' ? "text-secondary" : "text-muted-foreground"
-                )}>Masar Login</p>
+                )}>
+                  {data.visaType === 're_entry' ? 'Umrah Visa Info' : 'Masar Login'}
+                </p>
               </div>
             </div>
           </div>
@@ -117,13 +121,21 @@ export const BookingModeStep: React.FC<BookingModeStepProps> = ({
           <div className="mt-6 p-6 rounded-2xl bg-gray-50/50 border border-secondary/10 space-y-4 animate-in zoom-in-95 duration-500">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="groupNumber" className="text-[10px] font-bold text-primary/60 uppercase ml-1">Group Number *</Label>
+                <Label htmlFor="groupNumber" className="text-[10px] font-bold text-primary/60 uppercase ml-1">
+                  {data.visaType === 're_entry' ? 'Visa Number *' : 'Group Number *'}
+                </Label>
                 <div className="relative">
                   <Input
                     id="groupNumber"
-                    placeholder="Enter group number"
-                    value={data.groupNumber || ''}
-                    onChange={(e) => onChange({ groupNumber: e.target.value })}
+                    placeholder={data.visaType === 're_entry' ? 'Enter visa number' : 'Enter group number'}
+                    value={data.visaType === 're_entry' ? (data.umrahVisaNumber || '') : (data.groupNumber || '')}
+                    onChange={(e) => {
+                      if (data.visaType === 're_entry') {
+                        onChange({ umrahVisaNumber: e.target.value });
+                      } else {
+                        onChange({ groupNumber: e.target.value });
+                      }
+                    }}
                     disabled={disabled}
                     className="h-10 bg-white border-gray-100 rounded-lg font-bold text-primary focus:ring-secondary/20 pl-10 text-xs"
                   />

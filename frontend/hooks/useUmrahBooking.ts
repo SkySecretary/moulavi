@@ -326,8 +326,9 @@ export const useUmrahBooking = () => {
         if (bookingState.step1Data.visaType) {
           formData.append('visaType', bookingState.step1Data.visaType);
         }
-        if (bookingState.step6Data?.umrahVisaNumber) {
-          formData.append('umrahVisaNumber', bookingState.step6Data.umrahVisaNumber);
+        const visaNumber = bookingState.step6Data?.umrahVisaNumber || bookingState.step1Data?.umrahVisaNumber;
+        if (visaNumber) {
+          formData.append('umrahVisaNumber', visaNumber);
         }
         
         // Convert dates to ISO for backend
