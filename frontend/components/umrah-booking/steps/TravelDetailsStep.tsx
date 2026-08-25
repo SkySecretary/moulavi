@@ -30,6 +30,7 @@ interface TravelDetailsStepProps {
   onRemoveHotelBooking?: (index: number) => void;
   allowOneWayOption?: boolean;
   allowWithoutTicketOption?: boolean;
+  isReEntry?: boolean;
 }
 
 export const TravelDetailsStep: React.FC<TravelDetailsStepProps> = ({
@@ -48,6 +49,7 @@ export const TravelDetailsStep: React.FC<TravelDetailsStepProps> = ({
   onRemoveHotelBooking,
   allowOneWayOption = false,
   allowWithoutTicketOption = false,
+  isReEntry = false,
 }) => {
   const [durationDays, setDurationDays] = React.useState(0);
   const [durationError, setDurationError] = React.useState('');
@@ -112,33 +114,35 @@ export const TravelDetailsStep: React.FC<TravelDetailsStepProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Passenger Count - Compact */}
-      <div className="bg-primary/5 rounded-2xl p-4 border border-secondary/10 relative overflow-hidden group">
-        <div className="absolute top-0 right-0 p-4 opacity-[0.03] pointer-events-none group-hover:scale-110 transition-transform duration-700">
-          <Users className="h-16 w-16 text-primary" />
-        </div>
-        <div className="relative z-10 max-w-sm">
-          <Label htmlFor="passengerCount" className="text-[10px] font-bold text-primary/60 uppercase ml-1 tracking-widest">No. of Passengers (Pax) *</Label>
-          <div className="relative mt-1">
-            <Input
-              id="passengerCount"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              placeholder="0"
-              value={data.passengerCount || ''}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (/^\d*$/.test(val)) {
-                  onChange({ passengerCount: val ? parseInt(val) : undefined });
-                }
-              }}
-              disabled={disabled}
-              className="h-10 bg-white border-gray-100 rounded-lg font-bold text-primary focus:ring-secondary/20 text-base pl-10"
-            />
-            <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
+      {!isReEntry && (
+        <div className="bg-primary/5 rounded-2xl p-4 border border-secondary/10 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-[0.03] pointer-events-none group-hover:scale-110 transition-transform duration-700">
+            <Users className="h-16 w-16 text-primary" />
+          </div>
+          <div className="relative z-10 max-w-sm">
+            <Label htmlFor="passengerCount" className="text-[10px] font-bold text-primary/60 uppercase ml-1 tracking-widest">No. of Passengers (Pax) *</Label>
+            <div className="relative mt-1">
+              <Input
+                id="passengerCount"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                placeholder="0"
+                value={data.passengerCount || ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (/^\d*$/.test(val)) {
+                    onChange({ passengerCount: val ? parseInt(val) : undefined });
+                  }
+                }}
+                disabled={disabled}
+                className="h-10 bg-white border-gray-100 rounded-lg font-bold text-primary focus:ring-secondary/20 text-base pl-10"
+              />
+              <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Travel Details - Compact */}
       <div className="space-y-4">

@@ -112,6 +112,8 @@ export interface Step6Data {
   returnTickets?: File[];
   nationalAddresses?: File[];
   passportNumbers?: string[];
+  passengerNames?: string[];
+  visaNumbers?: string[];
   onwardTicketConfirmed?: boolean;
   returnTicketConfirmed?: boolean;
   umrahVisaNumber?: string;

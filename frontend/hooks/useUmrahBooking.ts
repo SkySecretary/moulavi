@@ -71,10 +71,18 @@ export const useUmrahBooking = () => {
   }, []);
 
   const updateStep1Data = useCallback((data: Partial<Step1Data>) => {
-    setBookingState(prev => ({
-      ...prev,
-      step1Data: { ...prev.step1Data, ...data }
-    }));
+    setBookingState(prev => {
+      const step1 = { ...prev.step1Data, ...data };
+      const step2 = { ...prev.step2Data };
+      if (step1.visaType === 're_entry' && data.passengerCount !== undefined) {
+        step2.passengerCount = data.passengerCount;
+      }
+      return {
+        ...prev,
+        step1Data: step1,
+        step2Data: step2
+      };
+    });
   }, []);
 
   const updateStep2Data = useCallback((data: Partial<Step2Data>) => {
@@ -315,9 +323,15 @@ export const useUmrahBooking = () => {
           }
         });
 
-        // Add passportNumbers metadata
+        // Add passportNumbers, passengerNames, and visaNumbers metadata
         if (bookingState.step6Data?.passportNumbers) {
           formData.append('passportNumbers', JSON.stringify(bookingState.step6Data.passportNumbers));
+        }
+        if (bookingState.step6Data?.passengerNames) {
+          formData.append('passengerNames', JSON.stringify(bookingState.step6Data.passengerNames));
+        }
+        if (bookingState.step6Data?.visaNumbers) {
+          formData.append('visaNumbers', JSON.stringify(bookingState.step6Data.visaNumbers));
         }
 
         // Add JSON data as string

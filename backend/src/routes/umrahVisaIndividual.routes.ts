@@ -278,9 +278,10 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
       }
     }
 
-    // Parse JSON strings from FormData (if FormData) or use req.body directly (if JSON)
-    let step1Data, step2Data, step3Data, step4Data, step5Data: { movements?: any[] } | undefined, partyId;
+    let step1Data: any, step2Data: any, step3Data: any, step4Data: any, step5Data: { movements?: any[] } | undefined, partyId: string | undefined;
     let passportNumbers: string[] = [];
+    let passengerNames: string[] = [];
+    let visaNumbers: string[] = [];
     
     if (req.body.step1) {
       // FormData mode - parse JSON strings
@@ -296,6 +297,20 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
           passportNumbers = JSON.parse(req.body.passportNumbers);
         } catch (e) {
           console.error('Error parsing passport numbers:', e);
+        }
+      }
+      if (req.body.passengerNames) {
+        try {
+          passengerNames = JSON.parse(req.body.passengerNames);
+        } catch (e) {
+          console.error('Error parsing passenger names:', e);
+        }
+      }
+      if (req.body.visaNumbers) {
+        try {
+          visaNumbers = JSON.parse(req.body.visaNumbers);
+        } catch (e) {
+          console.error('Error parsing visa numbers:', e);
         }
       }
       
@@ -421,10 +436,11 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
       });
     }
 
-    // Create passengers array from passengerCount (no individual names required, same as group booking)
+    // Create passengers array from passengerCount
     const finalPassengerCount = passengerCount;
+    const isReEntry = (req.body.visaType || step1Data.visaType) === 're_entry';
     const finalPassengers = Array(passengerCount).fill(null).map((_, index) => ({
-      fullName: step1Data.groupName || `Passenger ${index + 1}`, // Use group name if available, otherwise default
+      fullName: isReEntry && passengerNames[index] ? passengerNames[index] : (step1Data.groupName || `Passenger ${index + 1}`),
       isLeadPassenger: index === 0,
     }));
 
@@ -841,12 +857,14 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
       const passengers = await Promise.all(
         finalPassengers.map((passenger, index) => {
           const passportNo = passportNumbers[index] || null;
+          const visaNo = visaNumbers[index] || null;
           return tx.umrahPassenger.create({
             data: {
               bookingId: booking.id,
               fullName: passenger.fullName,
-              isLeadPassenger: hasGroupNumber ? (passenger.isLeadPassenger) : passenger.isLeadPassenger,
+              isLeadPassenger: index === 0,
               passportNumber: passportNo,
+              visaNumber: visaNo,
             },
           });
         })
@@ -891,8 +909,8 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
         { field: 'onwardTickets', type: 'onward_ticket' },
         { field: 'returnTickets', type: 'return_ticket' },
         { field: 'nationalAddresses', type: 'national_address' },
-        { field: 'umrahVisaCopies', type: 'umrah_visa_copy' },
-        { field: 'nusukBookingCopies', type: 'nusuk_booking_copy' }
+        { field: 'umrahVisaCopies', type: 'umrah_visa_copy', linkToPassenger: true },
+        { field: 'nusukBookingCopies', type: 'nusuk_booking_copy', linkToPassenger: true }
       ];
 
       for (const { field, type, linkToPassenger } of splitDocFields) {
@@ -903,13 +921,13 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
             let finalFilePath = isS3Configured() ? (f as any).location : f.path;
             let finalFileName = f.originalname;
 
-            // Append passport number to passport copies and passenger photos
-            if ((field === 'passportCopies' || field === 'passengerPhotos') && passengers[idx]) {
-              const passportNo = passportNumbers[idx] || '';
-              if (passportNo) {
+            // Append passport/visa number to passport copies, passenger photos, visa copies, and nusuk booking copies
+            if ((field === 'passportCopies' || field === 'passengerPhotos' || field === 'umrahVisaCopies' || field === 'nusukBookingCopies') && passengers[idx]) {
+              const prefix = field === 'umrahVisaCopies' ? (visaNumbers[idx] || '') : (passportNumbers[idx] || '');
+              if (prefix) {
                 const ext = path.extname(f.originalname);
                 const baseName = path.basename(f.originalname, ext);
-                const newFileName = `${passportNo}_${baseName}${ext}`;
+                const newFileName = `${prefix}_${baseName}${ext}`;
 
                 if (isS3Configured() && s3Client) {
                   // S3 key copy and rename

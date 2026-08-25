@@ -327,6 +327,34 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
     onChange({ passportNumbers: updatedNumbers });
   };
 
+  const handlePassengerNameChange = (index: number, val: string) => {
+    const currentNames = data.passengerNames || [];
+    const updatedNames = [...currentNames];
+    updatedNames[index] = val;
+    onChange({ passengerNames: updatedNames });
+  };
+
+  const handleVisaNumberChange = (index: number, val: string) => {
+    const currentVisas = data.visaNumbers || [];
+    const updatedVisas = [...currentVisas];
+    updatedVisas[index] = val;
+    onChange({ visaNumbers: updatedVisas });
+  };
+
+  const handlePassengerFileSelect = (field: 'umrahVisaCopies' | 'nusukBookingCopies', passengerIndex: number, uploadedFiles: FileList) => {
+    if (uploadedFiles.length === 0) return;
+    const file = uploadedFiles[0];
+    const currentFiles = [...(data[field] || [])];
+    currentFiles[passengerIndex] = file;
+    onChange({ [field]: currentFiles });
+  };
+
+  const handlePassengerFileRemove = (field: 'umrahVisaCopies' | 'nusukBookingCopies', passengerIndex: number) => {
+    const currentFiles = [...(data[field] || [])];
+    currentFiles[passengerIndex] = undefined as any;
+    onChange({ [field]: currentFiles });
+  };
+
   // Generate dynamic instructions based on conditions
   const getInstructions = () => {
     const baseWarning = "Ensure all required documents are attached. Individual files should not exceed 50MB. Bookings without proper documentation will be subject to cancellation.";
@@ -531,48 +559,165 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
 
           {/* Re-entry specific fields */}
           {step1Data.visaType === 're_entry' && (
-            <div className="space-y-4">
-              <Card className="p-4 rounded-xl border border-secondary/10 bg-white shadow-sm space-y-2">
-                <Label className="text-xs font-bold text-primary uppercase tracking-wider">
-                  Umrah Visa Number <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  placeholder="Enter Umrah Visa Number"
-                  value={data.umrahVisaNumber || step1Data.umrahVisaNumber || ''}
-                  onChange={(e) => onChange({ umrahVisaNumber: e.target.value })}
-                  disabled={disabled}
-                  required
-                  className="h-10 text-xs font-semibold"
-                />
-              </Card>
+            <div className="space-y-6">
+              {Array.from({ length: passengerCount }).map((_, idx) => {
+                const name = (data.passengerNames || [])[idx] || '';
+                const passport = (data.passportNumbers || [])[idx] || '';
+                const visa = (data.visaNumbers || [])[idx] || '';
+                const visaFile = (data.umrahVisaCopies || [])[idx];
+                const nusukFile = (data.nusukBookingCopies || [])[idx];
 
-              <SectionUploader 
-                field="umrahVisaCopies"
-                label="Umrah Visa Copies"
-                description={`Upload Umrah Visa copies. Exactly ${passengerCount} files are required.`}
-                required
-                files={getFieldFiles('umrahVisaCopies')}
-                disabled={disabled}
-                data={data}
-                onChange={onChange}
-                handleFilesSelectForField={handleFilesSelectForField}
-                handleRemoveFileForField={handleRemoveFileForField}
-                handlePassportNumberChange={handlePassportNumberChange}
-              />
+                return (
+                  <Card key={idx} className="p-6 rounded-2xl border border-secondary/10 bg-white shadow-sm space-y-4">
+                    <div className="flex items-center gap-2 border-b border-secondary/5 pb-2.5">
+                      <div className="h-6 w-6 rounded-full bg-primary/5 text-primary text-[10px] font-bold flex items-center justify-center">
+                        {idx + 1}
+                      </div>
+                      <h4 className="text-xs font-bold text-primary uppercase tracking-wider">
+                        Pilgrim {idx + 1} Information
+                      </h4>
+                    </div>
 
-              <SectionUploader 
-                field="nusukBookingCopies"
-                label="Nusuk Booking Copies"
-                description={`Upload Nusuk Booking copies. Exactly ${passengerCount} files are required.`}
-                required
-                files={getFieldFiles('nusukBookingCopies')}
-                disabled={disabled}
-                data={data}
-                onChange={onChange}
-                handleFilesSelectForField={handleFilesSelectForField}
-                handleRemoveFileForField={handleRemoveFileForField}
-                handlePassportNumberChange={handlePassportNumberChange}
-              />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Name */}
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`name-${idx}`} className="text-[10px] font-bold text-primary/60 uppercase ml-1">
+                          Full Name *
+                        </Label>
+                        <Input
+                          id={`name-${idx}`}
+                          placeholder="Enter pilgrim's full name"
+                          value={name}
+                          onChange={(e) => handlePassengerNameChange(idx, e.target.value)}
+                          disabled={disabled}
+                          required
+                          className="h-10 text-xs font-bold uppercase"
+                        />
+                      </div>
+
+                      {/* Passport */}
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`passport-${idx}`} className="text-[10px] font-bold text-primary/60 uppercase ml-1">
+                          Passport Number *
+                        </Label>
+                        <Input
+                          id={`passport-${idx}`}
+                          placeholder="Enter passport number"
+                          value={passport}
+                          onChange={(e) => handlePassportNumberChange(idx, e.target.value)}
+                          disabled={disabled}
+                          required
+                          className="h-10 text-xs font-bold uppercase"
+                        />
+                      </div>
+
+                      {/* Visa Number */}
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`visa-${idx}`} className="text-[10px] font-bold text-primary/60 uppercase ml-1">
+                          Visa Number *
+                        </Label>
+                        <Input
+                          id={`visa-${idx}`}
+                          placeholder="Enter visa number"
+                          value={visa}
+                          onChange={(e) => handleVisaNumberChange(idx, e.target.value)}
+                          disabled={disabled}
+                          required
+                          className="h-10 text-xs font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                      {/* Visa copy */}
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-primary/60 uppercase ml-1">
+                          Umrah Visa Copy *
+                        </Label>
+                        {visaFile ? (
+                          <div className="flex items-center justify-between p-2.5 rounded-xl border border-green-200 bg-green-50/50 text-xs font-semibold text-green-800">
+                            <span className="truncate max-w-[150px]">{visaFile.name}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => handlePassengerFileRemove('umrahVisaCopies', idx)}
+                              className="h-6 w-6 p-0 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full"
+                            >
+                              ✕
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <input
+                              type="file"
+                              accept="image/*,.pdf"
+                              id={`visa-file-${idx}`}
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files.length > 0) {
+                                  handlePassengerFileSelect('umrahVisaCopies', idx, e.target.files);
+                                }
+                              }}
+                              className="hidden"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => document.getElementById(`visa-file-${idx}`)?.click()}
+                              className="w-full h-10 rounded-xl border-dashed border-2 border-secondary/20 hover:border-primary/40 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-primary transition-all flex items-center justify-center gap-1.5"
+                            >
+                              <UploadCloud className="h-4 w-4" />
+                              Upload Visa Copy
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Nusuk Booking Copy */}
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-primary/60 uppercase ml-1">
+                          Nusuk Booking Copy *
+                        </Label>
+                        {nusukFile ? (
+                          <div className="flex items-center justify-between p-2.5 rounded-xl border border-green-200 bg-green-50/50 text-xs font-semibold text-green-800">
+                            <span className="truncate max-w-[150px]">{nusukFile.name}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => handlePassengerFileRemove('nusukBookingCopies', idx)}
+                              className="h-6 w-6 p-0 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full"
+                            >
+                              ✕
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <input
+                              type="file"
+                              accept="image/*,.pdf"
+                              id={`nusuk-file-${idx}`}
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files.length > 0) {
+                                  handlePassengerFileSelect('nusukBookingCopies', idx, e.target.files);
+                                }
+                              }}
+                              className="hidden"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => document.getElementById(`nusuk-file-${idx}`)?.click()}
+                              className="w-full h-10 rounded-xl border-dashed border-2 border-secondary/20 hover:border-primary/40 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-primary transition-all flex items-center justify-center gap-1.5"
+                            >
+                              <UploadCloud className="h-4 w-4" />
+                              Upload Nusuk Copy
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
           )}
 

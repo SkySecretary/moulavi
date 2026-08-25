@@ -742,15 +742,28 @@ export const validateStep6 = (
 
   // 7) Re-entry booking specific validations
   if (step1Data.visaType === 're_entry') {
-    const visaNum = data.umrahVisaNumber || step1Data.umrahVisaNumber;
-    if (!visaNum || visaNum.trim() === '') {
-      return 'Umrah Visa Number is required for Re-Entry bookings.';
-    }
-    if (!data.umrahVisaCopies || data.umrahVisaCopies.length === 0) {
-      return 'Umrah Visa copy is required for Re-Entry bookings.';
-    }
-    if (!data.nusukBookingCopies || data.nusukBookingCopies.length === 0) {
-      return 'Nusuk Booking copy is required for Re-Entry bookings.';
+    const passengerNames = data.passengerNames || [];
+    const passportNumbers = data.passportNumbers || [];
+    const visaNumbers = data.visaNumbers || [];
+    const umrahVisaCopies = data.umrahVisaCopies || [];
+    const nusukBookingCopies = data.nusukBookingCopies || [];
+
+    for (let i = 0; i < passengerCount; i++) {
+      if (!passengerNames[i] || passengerNames[i].trim() === '') {
+        return `Pilgrim ${i + 1} Name is required.`;
+      }
+      if (!passportNumbers[i] || passportNumbers[i].trim() === '') {
+        return `Pilgrim ${i + 1} Passport Number is required.`;
+      }
+      if (!visaNumbers[i] || visaNumbers[i].trim() === '') {
+        return `Pilgrim ${i + 1} Visa Number is required.`;
+      }
+      if (!umrahVisaCopies[i]) {
+        return `Umrah Visa Copy for Pilgrim ${i + 1} is required.`;
+      }
+      if (!nusukBookingCopies[i]) {
+        return `Nusuk Booking Copy for Pilgrim ${i + 1} is required.`;
+      }
     }
   }
 
