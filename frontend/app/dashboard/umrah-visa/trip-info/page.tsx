@@ -42,8 +42,19 @@ export default function TripInfoPage() {
   const user = getUser();
   const [bookingList, setBookingList] = useState<UmrahVisaBooking[]>([]);
   const [stats, setStats] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isTableLoading, setIsTableLoading] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Debounce search query to prevent constant re-renders and focus loss while typing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   const [arrivalDateFrom, setArrivalDateFrom] = useState('');
   const [arrivalDateTo, setArrivalDateTo] = useState('');
   const [departureDateFrom, setDepartureDateFrom] = useState('');
@@ -226,7 +237,7 @@ export default function TripInfoPage() {
     fetchBookings(pagination.page);
     fetchPendingLoad();
     fetchPendingCount();
-  }, [pagination.page, pagination.limit, searchQuery, arrivalDateFrom, arrivalDateTo, departureDateFrom, departureDateTo, activeTab, iqamaSubTab, hotelSubTab, pendingLoadBasis, ticketStatus, selectedVisaType]);
+  }, [pagination.page, pagination.limit, debouncedSearch, arrivalDateFrom, arrivalDateTo, departureDateFrom, departureDateTo, activeTab, iqamaSubTab, hotelSubTab, pendingLoadBasis, ticketStatus, selectedVisaType]);
 
   const fetchPendingLoad = async () => {
     try {
@@ -242,71 +253,72 @@ export default function TripInfoPage() {
   };
 
   const fetchBookings = async (page = 1) => {
-  try {
-    setIsLoading(true);
-    const tripStatus = activeTab === 'iqama' ? iqamaSubTab : hotelSubTab;
+    try {
+      setIsTableLoading(true);
+      const tripStatus = activeTab === 'iqama' ? iqamaSubTab : hotelSubTab;
 
-    const response = await umrahVisaAPI.getBookings({ 
-      limit: pagination.limit,
-      page: page,
-      search: searchQuery,
-      arrivalDateFrom: arrivalDateFrom,
-      arrivalDateTo: arrivalDateTo,
-      departureDateFrom: departureDateFrom,
-      departureDateTo: departureDateTo,
-      accommodationType: activeTab,
-      visaType: selectedVisaType !== 'all' ? selectedVisaType : undefined,
-      status: ['group_assigned', 'voucher', 'bill'],
-      tripStatus: tripStatus,
-      ticketStatus: ticketStatus !== 'all' ? ticketStatus : undefined
-    });
-    const data = response.data;
-
-    const bookingsData = data.bookings
-      .map((booking: any) => {
-        const iqama = booking.sponsorIqamaDetails?.[0];
-        return {
-          ...booking,
-          // Map hotel details from sponsorIqamaDetails for Iqama bookings
-          makkahHotelName: booking.accommodationType === 'iqama' && iqama?.makkahHotelName || null,
-          makkahBrn: booking.accommodationType === 'iqama' && iqama?.makkahBrn || null,
-          makkahCateringBrn: booking.accommodationType === 'iqama' && iqama?.makkahCateringBrn || null,
-          madinahHotelName: booking.accommodationType === 'iqama' && iqama?.madinahHotelName || null,
-          madinahBrn: booking.accommodationType === 'iqama' && iqama?.madinahBrn || null,
-          madinahCateringBrn: booking.accommodationType === 'iqama' && iqama?.madinahCateringBrn || null,
-        };
+      const response = await umrahVisaAPI.getBookings({ 
+        limit: pagination.limit,
+        page: page,
+        search: debouncedSearch,
+        arrivalDateFrom: arrivalDateFrom,
+        arrivalDateTo: arrivalDateTo,
+        departureDateFrom: departureDateFrom,
+        departureDateTo: departureDateTo,
+        accommodationType: activeTab,
+        visaType: selectedVisaType !== 'all' ? selectedVisaType : undefined,
+        status: ['group_assigned', 'voucher', 'bill'],
+        tripStatus: tripStatus,
+        ticketStatus: ticketStatus !== 'all' ? ticketStatus : undefined
       });
+      const data = response.data;
 
-    // Initialize editing state for Iqama bookings
-    const iqamaEditing: Record<string, any> = {};
-    bookingsData.forEach((booking: any) => {
-      if (booking.accommodationType === 'iqama') {
-        const iqama = booking.sponsorIqamaDetails?.[0];
-        iqamaEditing[booking.id] = {
-          makkahHotelName: iqama?.makkahHotelName || '',
-          makkahBrn: iqama?.makkahBrn || '',
-          makkahCateringBrn: iqama?.makkahCateringBrn || '',
-          madinahHotelName: iqama?.madinahHotelName || '',
-          madinahBrn: iqama?.madinahBrn || '',
-          madinahCateringBrn: iqama?.madinahCateringBrn || '',
-        };
-      }
-    });
-    setEditingIqama(iqamaEditing);
+      const bookingsData = data.bookings
+        .map((booking: any) => {
+          const iqama = booking.sponsorIqamaDetails?.[0];
+          return {
+            ...booking,
+            // Map hotel details from sponsorIqamaDetails for Iqama bookings
+            makkahHotelName: booking.accommodationType === 'iqama' && iqama?.makkahHotelName || null,
+            makkahBrn: booking.accommodationType === 'iqama' && iqama?.makkahBrn || null,
+            makkahCateringBrn: booking.accommodationType === 'iqama' && iqama?.makkahCateringBrn || null,
+            madinahHotelName: booking.accommodationType === 'iqama' && iqama?.madinahHotelName || null,
+            madinahBrn: booking.accommodationType === 'iqama' && iqama?.madinahBrn || null,
+            madinahCateringBrn: booking.accommodationType === 'iqama' && iqama?.madinahCateringBrn || null,
+          };
+        });
 
-    setBookingList(bookingsData);
-    setPagination(data.pagination);
-    setStats(data.stats);
-  } catch (error) {
-    console.error('Error fetching bookings:', error);
-    toast.error('Failed to load bookings');
-  } finally {
-    setIsLoading(false);
-  }
+      // Initialize editing state for Iqama bookings
+      const iqamaEditing: Record<string, any> = {};
+      bookingsData.forEach((booking: any) => {
+        if (booking.accommodationType === 'iqama') {
+          const iqama = booking.sponsorIqamaDetails?.[0];
+          iqamaEditing[booking.id] = {
+            makkahHotelName: iqama?.makkahHotelName || '',
+            makkahBrn: iqama?.makkahBrn || '',
+            makkahCateringBrn: iqama?.makkahCateringBrn || '',
+            madinahHotelName: iqama?.madinahHotelName || '',
+            madinahBrn: iqama?.madinahBrn || '',
+            madinahCateringBrn: iqama?.madinahCateringBrn || '',
+          };
+        }
+      });
+      setEditingIqama(iqamaEditing);
+
+      setBookingList(bookingsData);
+      setPagination(data.pagination);
+      setStats(data.stats);
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+      toast.error('Failed to load bookings');
+    } finally {
+      setIsTableLoading(false);
+      setIsInitialLoading(false);
+    }
   };
 
   const handleFilterChange = (key: string, value: string) => {
-    if (key === 'search') setSearchQuery(value);
+    if (key === 'search') setSearchInput(value);
     else if (key === 'dateFrom') setArrivalDateFrom(value);
     else if (key === 'dateTo') setArrivalDateTo(value);
     else if (key === 'depDateFrom') setDepartureDateFrom(value);
@@ -520,6 +532,7 @@ export default function TripInfoPage() {
         // Additional Iqama info for copy text
         iqamaInfo = `💳 *Iqama Number:* ${mainIqama.iqamaNumber || 'N/A'}\n`;
         iqamaInfo += `👤 *Iqama Holder:* ${mainIqama.iqamaSponserName || 'N/A'}\n`;
+        iqamaInfo += `🌐 *Nationality:* ${(mainIqama as any).sponserNationality || 'India'}\n`;
         iqamaInfo += `🎂 *DOB:* ${formatDateShort(mainIqama.sponserDob)}\n`;
         iqamaInfo += `📱 *Phone:* ${mainIqama.sponserMobileNumber || 'N/A'}\n`;
         iqamaInfo += `📍 *Address:* ${mainIqama.sponserNationalShortAddress || 'N/A'}\n\n`;
@@ -741,7 +754,7 @@ export default function TripInfoPage() {
     return null;
   }
 
-  if (isLoading) {
+  if (isInitialLoading) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-50/50 min-h-screen">
         <div className="text-center">
@@ -1014,8 +1027,14 @@ export default function TripInfoPage() {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                   <Input
                     placeholder="Search by party, group, iqama..."
-                    value={searchQuery}
-                    onChange={(e) => handleFilterChange('search', e.target.value)}
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        setDebouncedSearch(searchInput);
+                        setPagination(prev => ({ ...prev, page: 1 }));
+                      }
+                    }}
                     className="pl-10"
                   />
                 </div>
@@ -1076,7 +1095,15 @@ export default function TripInfoPage() {
               </div>
 
               {/* Table */}
-              <div className="rounded-md border overflow-x-auto">
+              <div className="relative rounded-md border overflow-x-auto min-h-[250px]">
+                {isTableLoading && (
+                  <div className="absolute inset-0 bg-white/50 backdrop-blur-[0.5px] z-20 flex items-center justify-center">
+                    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg shadow-sm border border-gray-200 text-xs font-bold text-primary">
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      <span>Loading...</span>
+                    </div>
+                  </div>
+                )}
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1102,7 +1129,7 @@ export default function TripInfoPage() {
                     {bookingList.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={10} className="text-center py-8 text-gray-500">
-                          {searchQuery 
+                          {debouncedSearch 
                             ? 'No trips found matching your search' 
                             : 'No trip information available'}
                         </TableCell>
@@ -1110,8 +1137,18 @@ export default function TripInfoPage() {
                     ) : (
                       bookingList.map((booking) => {
                         const iqamaDetails = booking.sponsorIqamaDetails?.find(id => !id.isAlternate);
+                        const isIqamaStay = booking.accommodationType === 'iqama';
+                        const sponserNat = (iqamaDetails as any)?.sponserNationality || 'India';
+                        const isNonIndiaIqama = isIqamaStay && Boolean(sponserNat) && !['india', 'indian', 'in'].includes(sponserNat.toLowerCase().trim());
+
                         return (
-                          <TableRow key={booking.id} className="group">
+                          <TableRow 
+                            key={booking.id} 
+                            className={cn(
+                              "group transition-colors",
+                              isNonIndiaIqama && "bg-red-50/85 hover:bg-red-100/90 border-l-4 border-l-red-500"
+                            )}
+                          >
                             {/* Visa Type */}
                             <TableCell>
                               <div className="flex flex-col gap-1">
@@ -1128,6 +1165,42 @@ export default function TripInfoPage() {
                                 >
                                   {booking.visaType === 're_entry' ? 'Re-Entry' : booking.visaType === 'group_visa' ? 'Group Visa' : 'Individual Visa'}
                                 </Badge>
+                                {booking.visaType === 're_entry' && (() => {
+                                  const visaNos: string[] = [];
+                                  if (booking.umrahVisaNumber) visaNos.push(booking.umrahVisaNumber);
+                                  if (booking.passengers && Array.isArray(booking.passengers)) {
+                                    booking.passengers.forEach((p: any) => {
+                                      if (p.visaNumber && !visaNos.includes(p.visaNumber)) {
+                                        visaNos.push(p.visaNumber);
+                                      }
+                                    });
+                                  }
+                                  if (visaNos.length > 0) {
+                                    return (
+                                      <div className="flex flex-col gap-0.5 mt-0.5">
+                                        {visaNos.map((v, i) => (
+                                          <span 
+                                            key={i} 
+                                            className="text-[10px] font-mono font-bold text-amber-950 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 inline-flex items-center gap-1 w-fit shadow-2xs"
+                                          >
+                                            <span>Visa: {v}</span>
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                copyToClipboard(v, 'Visa Number');
+                                              }}
+                                              className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-amber-800"
+                                              title="Copy visa number"
+                                            >
+                                              <Copy className="h-2.5 w-2.5 text-gray-500" />
+                                            </button>
+                                          </span>
+                                        ))}
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                })()}
                                 {booking.hasMultipleGroup && (
                                   <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-300 font-medium">
                                     Add to Existing
@@ -1368,57 +1441,44 @@ export default function TripInfoPage() {
                               <div className="space-y-1">
                                 {(() => {
                                   const mainTravel = booking.travelDetails?.find(t => !t.isAlternate);
-                                  if (activeTab === 'hotel') {
-                                    return (
-                                      <>
-                                        <div className="text-sm font-medium text-gray-900 flex items-center gap-1">
-                                          {mainTravel?.arrivalDateTime ? formatDateTime(mainTravel.arrivalDateTime) : 'N/A'}
-                                          {mainTravel?.arrivalDateTime && (
-                                            <button
-                                              onClick={() => {
-                                                const dateTime = mainTravel?.arrivalDateTime;
-                                                if (dateTime) {
-                                                  copyToClipboard(formatDateTime(dateTime), 'Arrival Date/Time');
-                                                }
-                                              }}
-                                              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
-                                              title="Copy arrival date/time"
-                                            >
-                                              <Copy className="h-3 w-3 text-gray-500" />
-                                            </button>
-                                          )}
-                                        </div>
-                                        <div className="text-xs text-gray-600 flex items-center gap-1">
-                                          Flight: {mainTravel?.arrivalFlightNumber || 'N/A'}
-                                          {mainTravel?.arrivalFlightNumber && (
-                                            <button
-                                              onClick={() => {
-                                                const flightNumber = mainTravel?.arrivalFlightNumber;
-                                                if (flightNumber) {
-                                                  copyToClipboard(flightNumber, 'Arrival Flight');
-                                                }
-                                              }}
-                                              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
-                                              title="Copy flight number"
-                                            >
-                                              <Copy className="h-3 w-3 text-gray-500" />
-                                            </button>
-                                          )}
-                                        </div>
-                                      </>
-                                    );
-                                  } else {
-                                    return (
-                                      <>
-                                        <div className="text-sm font-medium text-gray-900">
-                                          {mainTravel?.arrivalDateTime ? formatDate(mainTravel.arrivalDateTime) : 'N/A'}
-                                        </div>
-                                        <div className="text-xs text-gray-600">
-                                          {iqamaDetails?.sponserMobileNumber || 'N/A'}
-                                        </div>
-                                      </>
-                                    );
-                                  }
+                                  return (
+                                    <>
+                                      <div className="text-sm font-medium text-gray-900 flex items-center gap-1">
+                                        {mainTravel?.arrivalDateTime ? formatDateTime(mainTravel.arrivalDateTime) : 'N/A'}
+                                        {mainTravel?.arrivalDateTime && (
+                                          <button
+                                            onClick={() => {
+                                              const dateTime = mainTravel?.arrivalDateTime;
+                                              if (dateTime) {
+                                                copyToClipboard(formatDateTime(dateTime), 'Arrival Date/Time');
+                                              }
+                                            }}
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
+                                            title="Copy arrival date/time"
+                                          >
+                                            <Copy className="h-3 w-3 text-gray-500" />
+                                          </button>
+                                        )}
+                                      </div>
+                                      <div className="text-xs text-gray-600 flex items-center gap-1">
+                                        Flight: {mainTravel?.arrivalFlightNumber || 'N/A'}
+                                        {mainTravel?.arrivalFlightNumber && (
+                                          <button
+                                            onClick={() => {
+                                              const flightNumber = mainTravel?.arrivalFlightNumber;
+                                              if (flightNumber) {
+                                                copyToClipboard(flightNumber, 'Arrival Flight');
+                                              }
+                                            }}
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
+                                            title="Copy flight number"
+                                          >
+                                            <Copy className="h-3 w-3 text-gray-500" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </>
+                                  );
                                 })()}
                               </div>
                             </TableCell>
@@ -1428,57 +1488,44 @@ export default function TripInfoPage() {
                               <div className="space-y-1">
                                 {(() => {
                                   const mainTravel = booking.travelDetails?.find(t => !t.isAlternate);
-                                  if (activeTab === 'hotel') {
-                                    return (
-                                      <>
-                                        <div className="text-sm font-medium text-gray-900 flex items-center gap-1">
-                                          {mainTravel?.departureDateTime ? formatDateTime(mainTravel.departureDateTime) : 'N/A'}
-                                          {mainTravel?.departureDateTime && (
-                                            <button
-                                              onClick={() => {
-                                                const dateTime = mainTravel?.departureDateTime;
-                                                if (dateTime) {
-                                                  copyToClipboard(formatDateTime(dateTime), 'Departure Date/Time');
-                                                }
-                                              }}
-                                              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
-                                              title="Copy departure date/time"
-                                            >
-                                              <Copy className="h-3 w-3 text-gray-500" />
-                                            </button>
-                                          )}
-                                        </div>
-                                        <div className="text-xs text-gray-600 flex items-center gap-1">
-                                          Flight: {mainTravel?.departureFlightNumber || 'N/A'}
-                                          {mainTravel?.departureFlightNumber && (
-                                            <button
-                                              onClick={() => {
-                                                const flightNumber = mainTravel?.departureFlightNumber;
-                                                if (flightNumber) {
-                                                  copyToClipboard(flightNumber, 'Departure Flight');
-                                                }
-                                              }}
-                                              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
-                                              title="Copy flight number"
-                                            >
-                                              <Copy className="h-3 w-3 text-gray-500" />
-                                            </button>
-                                          )}
-                                        </div>
-                                      </>
-                                    );
-                                  } else {
-                                    return (
-                                      <>
-                                        <div className="text-sm font-medium text-gray-900">
-                                          {mainTravel?.departureDateTime ? formatDate(mainTravel.departureDateTime) : 'N/A'}
-                                        </div>
-                                        <div className="text-xs text-gray-600">
-                                          {iqamaDetails?.sponserMobileNumber || 'N/A'}
-                                        </div>
-                                      </>
-                                    );
-                                  }
+                                  return (
+                                    <>
+                                      <div className="text-sm font-medium text-gray-900 flex items-center gap-1">
+                                        {mainTravel?.departureDateTime ? formatDateTime(mainTravel.departureDateTime) : 'N/A'}
+                                        {mainTravel?.departureDateTime && (
+                                          <button
+                                            onClick={() => {
+                                              const dateTime = mainTravel?.departureDateTime;
+                                              if (dateTime) {
+                                                copyToClipboard(formatDateTime(dateTime), 'Departure Date/Time');
+                                              }
+                                            }}
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
+                                            title="Copy departure date/time"
+                                          >
+                                            <Copy className="h-3 w-3 text-gray-500" />
+                                          </button>
+                                        )}
+                                      </div>
+                                      <div className="text-xs text-gray-600 flex items-center gap-1">
+                                        Flight: {mainTravel?.departureFlightNumber || 'N/A'}
+                                        {mainTravel?.departureFlightNumber && (
+                                          <button
+                                            onClick={() => {
+                                              const flightNumber = mainTravel?.departureFlightNumber;
+                                              if (flightNumber) {
+                                                copyToClipboard(flightNumber, 'Departure Flight');
+                                              }
+                                            }}
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
+                                            title="Copy flight number"
+                                          >
+                                            <Copy className="h-3 w-3 text-gray-500" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </>
+                                  );
                                 })()}
                               </div>
                             </TableCell>
@@ -1496,7 +1543,13 @@ export default function TripInfoPage() {
                                       <span>Holder:</span> <span className="font-medium text-gray-700">{iqamaDetails?.iqamaSponserName || 'N/A'}</span>
                                     </div>
                                     <div className="flex justify-between">
+                                      <span>Nationality:</span> <span className={cn("font-medium", isNonIndiaIqama ? "text-red-700 font-bold" : "text-gray-700")}>{(iqamaDetails as any)?.sponserNationality || 'India'}</span>
+                                    </div>
+                                    <div className="flex justify-between">
                                       <span>DOB:</span> <span className="font-medium text-gray-700">{iqamaDetails?.sponserDob ? formatDate(iqamaDetails.sponserDob) : 'N/A'}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Mobile:</span> <span className="font-medium text-gray-700">{iqamaDetails?.sponserMobileNumber || 'N/A'}</span>
                                     </div>
                                     <div className="flex justify-between">
                                       <span>Address:</span> <span className="font-medium text-gray-700">{iqamaDetails?.sponserNationalShortAddress || 'N/A'}</span>

@@ -20,6 +20,7 @@ import { TimePicker } from '@/components/ui/time-picker';
 import { formatTransportRoute } from '@/lib/utils';
 import { formatFlightNumber, toDisplayDate, fromDisplayDate, isValidStrictDate, extractDateFromISO, extractTimeFromISO, combineDateAndTime } from '@/lib/umrah/validation';
 import { UMRAH_VISA_STATUS_CONFIG } from '@/lib/constants';
+import { NATIONALITY_OPTIONS } from '@/lib/umrahConstants';
 
 export default function EditUmrahVisaBookingPage() {
   const router = useRouter();
@@ -63,6 +64,7 @@ export default function EditUmrahVisaBookingPage() {
   const [hotelBookings, setHotelBookings] = useState<any[]>([]);
   const [iqamaName, setIqamaName] = useState('');
   const [iqamaNumber, setIqamaNumber] = useState('');
+  const [iqamaNationality, setIqamaNationality] = useState('India');
   const [iqamaDob, setIqamaDob] = useState('');
   const [iqamaMobile, setIqamaMobile] = useState('');
   const [iqamaNationalShortAddress, setIqamaNationalShortAddress] = useState('');
@@ -229,6 +231,7 @@ export default function EditUmrahVisaBookingPage() {
         if (mainIqama) {
           setIqamaNumber(mainIqama.iqamaNumber || '');
           setIqamaName(mainIqama.iqamaSponserName || '');
+          setIqamaNationality(mainIqama.sponserNationality || 'India');
           if (mainIqama.sponserDob) {
             setIqamaDob(toDisplayDate(extractDateFromISO(mainIqama.sponserDob)));
           }
@@ -480,6 +483,7 @@ export default function EditUmrahVisaBookingPage() {
           accommodationType: 'iqama',
           iqamaSponserName: iqamaName,
           iqamaNumber: iqamaNumber,
+          sponserNationality: iqamaNationality,
           sponserDob: fromDisplayDate(iqamaDob),
           sponserMobileNumber: iqamaMobile,
           sponserNationalShortAddress: iqamaNationalShortAddress,
@@ -1057,6 +1061,17 @@ export default function EditUmrahVisaBookingPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <div className="space-y-1"><label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Iqama Number</label><Input value={iqamaNumber} onChange={(e) => setIqamaNumber(e.target.value)} placeholder="Iqama Number" /></div>
                     <div className="space-y-1"><label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Holder Name</label><Input value={iqamaName} onChange={(e) => setIqamaName(e.target.value)} placeholder="Holder Name" /></div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Iqama Holder Nationality</label>
+                      <SearchableSelect
+                        options={NATIONALITY_OPTIONS}
+                        value={iqamaNationality || 'India'}
+                        onValueChange={setIqamaNationality}
+                        placeholder="Select Nationality"
+                        searchPlaceholder="Search country..."
+                        className="h-10 bg-white border-gray-200 rounded-md font-medium text-xs shadow-sm"
+                      />
+                    </div>
                     <div className="space-y-1"><label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Date of Birth</label><DatePicker value={iqamaDob} onChange={setIqamaDob} /></div>
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Mobile Number</label>

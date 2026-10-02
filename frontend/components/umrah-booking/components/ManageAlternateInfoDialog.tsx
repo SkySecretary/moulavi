@@ -174,6 +174,8 @@ export const ManageAlternateInfoDialog: React.FC<ManageAlternateInfoDialogProps>
             iqamaDob: altIqama.sponserDob ? toDisplayDate(extractDateFromISO(altIqama.sponserDob)) : '',
             iqamaMobile: altIqama.sponserMobileNumber || '',
             iqamaNationalShortAddress: altIqama.sponserNationalShortAddress || '',
+            sponserNationality: altIqama.sponserNationality || 'India',
+            iqamaNationality: altIqama.sponserNationality || 'India',
           };
         }
         return {};

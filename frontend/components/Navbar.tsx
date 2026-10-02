@@ -160,7 +160,7 @@ export default function Navbar() {
   const appItems = isAdminOrStaff ? [
     { name: 'Assign Group', path: '/dashboard/umrah-visa/assign-group', icon: Users },
     { name: 'Missing BRN', path: '/dashboard/umrah-visa/missing-brn', icon: AlertCircle },
-    { name: 'Missing Return Tickets', path: '/dashboard/umrah-visa/missing-return-ticket', icon: Plane },
+    { name: 'Missing Flight Transport', path: '/dashboard/umrah-visa/missing-return-ticket', icon: Plane },
     { name: 'Mismatched Travel', path: '/dashboard/umrah-visa/mismatched-travel', icon: AlertTriangle },
     { name: 'Consulate Review', path: '/dashboard/umrah-visa/consulate-review', icon: ShieldAlert },
     { name: 'Agent Compliance', path: '/dashboard/umrah-visa/agent-compliance', icon: Award },
@@ -169,7 +169,7 @@ export default function Navbar() {
     { name: 'Support Tickets', path: '/dashboard/support-tickets', icon: LifeBuoy },
   ] : [
     { name: 'Missing BRN', path: '/party/missing-brn', icon: AlertCircle },
-    { name: 'Missing Return Tickets', path: '/party/missing-return-ticket', icon: Plane },
+    { name: 'Missing Flight Transport', path: '/party/missing-return-ticket', icon: Plane },
     { name: 'Add to Existing', path: '/party/add-to-existing-booking', icon: PlusCircle },
     { name: 'My Profile', path: '/party/settings', icon: Settings },
     { name: 'Support Tickets', path: '/party/support-tickets', icon: LifeBuoy },

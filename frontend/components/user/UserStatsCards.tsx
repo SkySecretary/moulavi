@@ -14,14 +14,20 @@ interface User {
 }
 
 interface UserStatsCardsProps {
-  users: User[];
+  users?: User[];
+  stats?: {
+    total: number;
+    active: number;
+    admin: number;
+    inactive: number;
+  };
 }
 
-export default function UserStatsCards({ users }: UserStatsCardsProps) {
-  const totalUsers = users.length;
-  const activeUsers = users.filter(u => u.isActive).length;
-  const adminUsers = users.filter(u => u.role === 'admin').length;
-  const inactiveUsers = totalUsers - activeUsers;
+export default function UserStatsCards({ users = [], stats: externalStats }: UserStatsCardsProps) {
+  const totalUsers = externalStats !== undefined ? externalStats.total : users.length;
+  const activeUsers = externalStats !== undefined ? externalStats.active : users.filter(u => u.isActive).length;
+  const adminUsers = externalStats !== undefined ? externalStats.admin : users.filter(u => u.role === 'admin').length;
+  const inactiveUsers = externalStats !== undefined ? externalStats.inactive : (totalUsers - activeUsers);
 
   const stats = [
     {

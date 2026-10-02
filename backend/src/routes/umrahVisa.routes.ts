@@ -81,8 +81,26 @@ router.get('/bookings', authenticate, async (req, res) => {
       where.isPackageExpired = false;
     }
 
-    const { missingReturnTicket } = req.query;
-    if (missingReturnTicket === 'true') {
+    const { missingReturnTicket, missingFlightType } = req.query;
+    if (missingFlightType === 'return_only') {
+      where.isWithoutTicket = false;
+      where.isOneWay = true;
+    } else if (missingFlightType === 'both' || missingFlightType === 'without_ticket') {
+      where.isWithoutTicket = true;
+    } else if (missingFlightType === 'onward_only') {
+      where.isWithoutTicket = false;
+      where.travelDetails = {
+        some: {
+          isAlternate: false,
+          OR: [
+            { arrivalFlightNumber: 'NT-0000' },
+            { arrivalFlightNumber: 'OW-9999' },
+            { arrivalFlightNumber: '' }
+          ]
+        }
+      };
+    } else if (missingReturnTicket === 'true') {
+      where.isWithoutTicket = false;
       where.isOneWay = true;
     }
 
@@ -238,8 +256,11 @@ router.get('/bookings', authenticate, async (req, res) => {
     const ticketStatsWhere = { ...statsWhere };
     delete ticketStatsWhere.isWithoutTicket;
     delete ticketStatsWhere.isOneWay;
+    if (ticketStatsWhere.travelDetails && !req.query.arrivalDateFrom && !req.query.arrivalDateTo && !req.query.departureDateFrom && !req.query.departureDateTo) {
+      delete ticketStatsWhere.travelDetails;
+    }
 
-    const [withoutTicketCount, onwardTicketCount, fullTicketCount] = await Promise.all([
+    const [withoutTicketCount, onwardTicketCount, fullTicketCount, onwardMissingCount] = await Promise.all([
       prisma.umrahVisaBooking.count({
         where: { ...ticketStatsWhere, isWithoutTicket: true }
       }),
@@ -248,6 +269,22 @@ router.get('/bookings', authenticate, async (req, res) => {
       }),
       prisma.umrahVisaBooking.count({
         where: { ...ticketStatsWhere, isWithoutTicket: false, isOneWay: false }
+      }),
+      prisma.umrahVisaBooking.count({
+        where: {
+          ...ticketStatsWhere,
+          isWithoutTicket: false,
+          travelDetails: {
+            some: {
+              isAlternate: false,
+              OR: [
+                { arrivalFlightNumber: 'NT-0000' },
+                { arrivalFlightNumber: 'OW-9999' },
+                { arrivalFlightNumber: '' }
+              ]
+            }
+          }
+        }
       })
     ]);
 
@@ -256,7 +293,10 @@ router.get('/bookings', authenticate, async (req, res) => {
       totalPassengers: totalPassengers._sum.passengerCount || 0,
       withoutTicketCount,
       onwardTicketCount,
-      fullTicketCount
+      fullTicketCount,
+      missingReturnCount: onwardTicketCount,
+      missingOnwardCount: onwardMissingCount,
+      missingBothCount: withoutTicketCount,
     };
     
     ['pending', 'documents_downloaded', 'group_assigned', 'voucher', 'bill', 'booking_success', 'cancelled'].forEach((s, i) => {
@@ -857,8 +897,19 @@ router.post('/:bookingId/notify-missing-return-ticket', authenticate, authorize(
       : 'the scheduled date';
     const contact = booking.oneWayContactName ? `${booking.oneWayContactName} (${booking.oneWayWhatsapp || ''})` : '';
 
+    const { type = 'return' } = req.body || {};
     let notificationSent = false;
     let errors = [];
+
+    const ticketTypeTitle = type === 'onward' 
+      ? 'onward/arrival flight ticket details' 
+      : (type === 'both' ? 'flight tickets (both onward and return)' : 'return ticket details');
+
+    const ticketActionPrompt = type === 'onward'
+      ? 'Kindly update the onward flight ticket details (Arrival Date, Flight Number, and Airport) as soon as possible.'
+      : (type === 'both' 
+          ? 'Kindly update the flight and travel ticket details (Arrival & Departure dates, Flight Numbers, and Airports) as soon as possible.'
+          : 'Kindly update the return ticket details (Departure Date, Flight Number, and Airport) as soon as possible.');
 
     // 1. WhatsApp
     if (booking.party.contactNumber) {
@@ -867,9 +918,9 @@ router.post('/:bookingId/notify-missing-return-ticket', authenticate, authorize(
 
 Greetings from Moulavi Travel.
 
-Your booking reference/group ${bookingRef} has return ticket details missing. Please note that return ticket details are required to complete your booking.
+Your booking reference/group ${bookingRef} has ${ticketTypeTitle} missing. Please note that flight details are required to complete your booking.
 
-Kindly update the return ticket details (Departure Date, Flight Number, and Airport) as soon as possible.
+${ticketActionPrompt}
 
 Your prompt cooperation is highly appreciated.
 
@@ -2044,6 +2095,7 @@ router.patch('/:bookingId/alternate-info', authenticate, async (req, res) => {
             sponserDob: iqamaDetails.iqamaDob ? new Date(iqamaDetails.iqamaDob) : new Date(),
             sponserMobileNumber: iqamaDetails.iqamaMobile || '',
             sponserNationalShortAddress: iqamaDetails.iqamaNationalShortAddress || '',
+            sponserNationality: iqamaDetails.sponserNationality || iqamaDetails.iqamaNationality || 'India',
           },
           create: {
             bookingId,
@@ -2053,6 +2105,7 @@ router.patch('/:bookingId/alternate-info', authenticate, async (req, res) => {
             sponserDob: iqamaDetails.iqamaDob ? new Date(iqamaDetails.iqamaDob) : new Date(),
             sponserMobileNumber: iqamaDetails.iqamaMobile || '',
             sponserNationalShortAddress: iqamaDetails.iqamaNationalShortAddress || '',
+            sponserNationality: iqamaDetails.sponserNationality || iqamaDetails.iqamaNationality || 'India',
           },
         });
       }
@@ -2198,6 +2251,7 @@ router.post('/:bookingId/recreate', authenticate, authorize('admin', 'staff'), a
               sponserDob: iq.sponserDob,
               sponserMobileNumber: iq.sponserMobileNumber,
               sponserNationalShortAddress: iq.sponserNationalShortAddress,
+              sponserNationality: iq.sponserNationality,
               makkahHotelName: iq.makkahHotelName,
               makkahBrn: iq.makkahBrn,
               makkahCateringBrn: iq.makkahCateringBrn,

@@ -49,6 +49,8 @@ export const useUmrahBooking = () => {
   const [selectedParty, setSelectedParty] = useState<any | null>(null);
   const [globalAllowOneWayTicket, setGlobalAllowOneWayTicket] = useState<boolean>(false);
   const [globalAllowWithoutTicket, setGlobalAllowWithoutTicket] = useState<boolean>(false);
+  const [globalAllowReEntryOneWayTicket, setGlobalAllowReEntryOneWayTicket] = useState<boolean>(false);
+  const [globalAllowReEntryWithoutTicket, setGlobalAllowReEntryWithoutTicket] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchNusukSettings = async () => {
@@ -62,6 +64,8 @@ export const useUmrahBooking = () => {
           const data = await response.json();
           setGlobalAllowOneWayTicket(!!data.allowOneWayTicket);
           setGlobalAllowWithoutTicket(!!data.allowWithoutTicket);
+          setGlobalAllowReEntryOneWayTicket(!!data.allowReEntryOneWayTicket);
+          setGlobalAllowReEntryWithoutTicket(!!data.allowReEntryWithoutTicket);
         }
       } catch (error) {
         console.error('Error loading Nusuk settings:', error);
@@ -443,6 +447,8 @@ export const useUmrahBooking = () => {
     selectedParty,
     globalAllowOneWayTicket,
     globalAllowWithoutTicket,
+    globalAllowReEntryOneWayTicket,
+    globalAllowReEntryWithoutTicket,
   };
 };
 

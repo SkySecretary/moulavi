@@ -128,6 +128,12 @@ router.post(
       nusuk_external_agent_codes,
       allow_one_way_ticket = false,
       allow_without_ticket = false,
+      allow_reentry_one_way_ticket,
+      allow_re_entry_one_way_ticket,
+      allowReEntryOneWayTicket,
+      allow_reentry_without_ticket,
+      allow_re_entry_without_ticket,
+      allowReEntryWithoutTicket,
     } = req.body;
     
     // Validate customer_type is required if is_customer is true
@@ -208,6 +214,8 @@ router.post(
         nusukExternalAgentCodes: nusuk_external_agent_codes || null,
         allowOneWayTicket: Boolean(allow_one_way_ticket),
         allowWithoutTicket: Boolean(allow_without_ticket),
+        allowReEntryOneWayTicket: Boolean(allow_reentry_one_way_ticket ?? allow_re_entry_one_way_ticket ?? allowReEntryOneWayTicket ?? false),
+        allowReEntryWithoutTicket: Boolean(allow_reentry_without_ticket ?? allow_re_entry_without_ticket ?? allowReEntryWithoutTicket ?? false),
         supplierServiceTypes: supplier_service_types ? JSON.parse(JSON.stringify(supplier_service_types)) : null,
         customerType: customer_type || 'direct', // Default to 'direct' if not provided
         accountCurrencyId: account_currency_id,
@@ -501,6 +509,12 @@ router.put(
       nusuk_external_agent_codes,
       allow_one_way_ticket,
       allow_without_ticket,
+      allow_reentry_one_way_ticket,
+      allow_re_entry_one_way_ticket,
+      allowReEntryOneWayTicket,
+      allow_reentry_without_ticket,
+      allow_re_entry_without_ticket,
+      allowReEntryWithoutTicket,
     } = req.body;
     
     // Validate supplier service types if supplier is being set to true
@@ -656,6 +670,10 @@ router.put(
     if (marketing_notification !== undefined) updateData.marketingNotification = marketing_notification;
     if (allow_one_way_ticket !== undefined) updateData.allowOneWayTicket = Boolean(allow_one_way_ticket);
     if (allow_without_ticket !== undefined) updateData.allowWithoutTicket = Boolean(allow_without_ticket);
+    const resolvedReEntryOneWay = allow_reentry_one_way_ticket ?? allow_re_entry_one_way_ticket ?? allowReEntryOneWayTicket;
+    if (resolvedReEntryOneWay !== undefined) updateData.allowReEntryOneWayTicket = Boolean(resolvedReEntryOneWay);
+    const resolvedReEntryWithout = allow_reentry_without_ticket ?? allow_re_entry_without_ticket ?? allowReEntryWithoutTicket;
+    if (resolvedReEntryWithout !== undefined) updateData.allowReEntryWithoutTicket = Boolean(resolvedReEntryWithout);
     
     // Handle updates in a transaction to sync Party and associated User account email atomically
     const party = await prisma.$transaction(async (tx) => {

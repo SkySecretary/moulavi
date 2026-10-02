@@ -13,6 +13,8 @@ import { ValidationMessage } from '../shared';
 import { cn } from '@/lib/utils';
 import { toDisplayDate, fromDisplayDate } from '@/lib/umrah/validation';
 import { DatePicker } from '@/components/ui/date-picker';
+import { SearchableSelect } from '@/components/ui/searchable-select';
+import { NATIONALITY_OPTIONS } from '@/lib/umrahConstants';
 import {
   InputOTP,
   InputOTPGroup,
@@ -276,6 +278,24 @@ export const AccommodationStep: React.FC<AccommodationStepProps> = ({
                 onChange={(e) => onChange({ iqamaDetails: { ...data.iqamaDetails, iqamaName: e.target.value } })}
                 disabled={disabled}
                 className="h-10 bg-white border-gray-100 rounded-lg font-bold text-primary focus:ring-secondary/20 uppercase text-xs shadow-sm"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="iqamaNationality" className="text-[10px] font-bold text-primary/60 uppercase ml-1">Iqama Holder Nationality *</Label>
+              <SearchableSelect
+                options={NATIONALITY_OPTIONS}
+                value={data.iqamaDetails?.sponserNationality || data.iqamaDetails?.iqamaNationality || 'India'}
+                onValueChange={(val) => onChange({ 
+                  iqamaDetails: { 
+                    ...data.iqamaDetails, 
+                    sponserNationality: val, 
+                    iqamaNationality: val 
+                  } 
+                })}
+                placeholder="Select Nationality"
+                searchPlaceholder="Search country..."
+                className="h-10 bg-white border-gray-100 rounded-lg font-bold text-primary text-xs shadow-sm"
               />
             </div>
 

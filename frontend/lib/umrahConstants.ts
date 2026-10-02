@@ -161,3 +161,36 @@ export const BOOKING_STEPS = [
     fields: ['passengerCount', 'passengers', 'documents']
   }
 ];
+
+export const NATIONALITY_OPTIONS = [
+  { value: 'India', label: 'India' },
+  { value: 'Saudi Arabia', label: 'Saudi Arabia' },
+  { value: 'Pakistan', label: 'Pakistan' },
+  { value: 'Bangladesh', label: 'Bangladesh' },
+  { value: 'Egypt', label: 'Egypt' },
+  { value: 'Yemen', label: 'Yemen' },
+  { value: 'United Arab Emirates', label: 'United Arab Emirates' },
+  { value: 'Oman', label: 'Oman' },
+  { value: 'Kuwait', label: 'Kuwait' },
+  { value: 'Qatar', label: 'Qatar' },
+  { value: 'Bahrain', label: 'Bahrain' },
+  { value: 'Philippines', label: 'Philippines' },
+  { value: 'Indonesia', label: 'Indonesia' },
+  { value: 'Malaysia', label: 'Malaysia' },
+  { value: 'Sri Lanka', label: 'Sri Lanka' },
+  { value: 'Nepal', label: 'Nepal' },
+  { value: 'Sudan', label: 'Sudan' },
+  { value: 'Jordan', label: 'Jordan' },
+  { value: 'Syria', label: 'Syria' },
+  { value: 'Lebanon', label: 'Lebanon' },
+  { value: 'Morocco', label: 'Morocco' },
+  { value: 'Tunisia', label: 'Tunisia' },
+  { value: 'Algeria', label: 'Algeria' },
+  { value: 'Turkey', label: 'Turkey' },
+  { value: 'United Kingdom', label: 'United Kingdom' },
+  { value: 'United States', label: 'United States' },
+  { value: 'Canada', label: 'Canada' },
+  { value: 'Australia', label: 'Australia' },
+  { value: 'Other', label: 'Other' },
+];
+

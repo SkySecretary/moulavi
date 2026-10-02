@@ -286,6 +286,8 @@ export class NusukService {
     syncType?: string;
     allowOneWayTicket?: boolean;
     allowWithoutTicket?: boolean;
+    allowReEntryOneWayTicket?: boolean;
+    allowReEntryWithoutTicket?: boolean;
   }) {
     const existing = await prisma.nusukSetting.findFirst();
     if (existing) {
@@ -303,6 +305,8 @@ export class NusukService {
           syncType: data.syncType ?? existing.syncType,
           allowOneWayTicket: data.allowOneWayTicket ?? existing.allowOneWayTicket,
           allowWithoutTicket: data.allowWithoutTicket ?? existing.allowWithoutTicket,
+          allowReEntryOneWayTicket: data.allowReEntryOneWayTicket ?? existing.allowReEntryOneWayTicket,
+          allowReEntryWithoutTicket: data.allowReEntryWithoutTicket ?? existing.allowReEntryWithoutTicket,
           isValid: true // Reset valid status on update
         }
       });
@@ -320,6 +324,8 @@ export class NusukService {
           syncType: data.syncType ?? 'excel',
           allowOneWayTicket: data.allowOneWayTicket ?? false,
           allowWithoutTicket: data.allowWithoutTicket ?? false,
+          allowReEntryOneWayTicket: data.allowReEntryOneWayTicket ?? false,
+          allowReEntryWithoutTicket: data.allowReEntryWithoutTicket ?? false,
           isValid: true
         }
       });

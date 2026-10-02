@@ -685,6 +685,7 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
             sponserDob: step3Data.iqamaDetails.iqamaDob ? new Date(step3Data.iqamaDetails.iqamaDob) : new Date(),
             sponserMobileNumber: step3Data.iqamaDetails.iqamaMobile || '',
             sponserNationalShortAddress: step3Data.iqamaDetails.iqamaNationalShortAddress || '',
+            sponserNationality: step3Data.iqamaDetails.sponserNationality || step3Data.iqamaDetails.iqamaNationality || 'India',
           },
         });
       }
@@ -1216,6 +1217,7 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
       sponserDob, 
       sponserMobileNumber, 
       sponserNationalShortAddress,
+      sponserNationality,
       makkahHotelName,
       makkahBrn,
       makkahCateringBrn,
@@ -1268,6 +1270,7 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
           sponserDob: sponserDob ? new Date(sponserDob) : undefined,
           sponserMobileNumber: sponserMobileNumber ?? undefined,
           sponserNationalShortAddress: sponserNationalShortAddress ?? undefined,
+          sponserNationality: sponserNationality ?? undefined,
           makkahHotelName: makkahHotelName ?? undefined,
           makkahBrn: makkahBrn ?? undefined,
           makkahCateringBrn: makkahCateringBrn ?? undefined,
@@ -1283,6 +1286,7 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
           sponserDob: sponserDob ? new Date(sponserDob) : new Date(),
           sponserMobileNumber: sponserMobileNumber || '',
           sponserNationalShortAddress: sponserNationalShortAddress || '',
+          sponserNationality: sponserNationality || 'India',
           makkahHotelName: makkahHotelName || null,
           makkahBrn: makkahBrn || null,
           makkahCateringBrn: makkahCateringBrn || null,

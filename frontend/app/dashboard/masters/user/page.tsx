@@ -67,7 +67,8 @@ export default function UserMasterPage() {
     setPagination,
     createUser,
     updateUser,
-    deleteUser
+    deleteUser,
+    stats
   } = useUserMaster(filterRole);
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -232,7 +233,7 @@ export default function UserMasterPage() {
 
       <div className="p-4 lg:p-8 space-y-6">
         {/* Stats Cards */}
-        <UserStatsCards users={users} />
+        <UserStatsCards stats={stats} users={users} />
 
         {/* User Management */}
         <Card className="shadow-sm">

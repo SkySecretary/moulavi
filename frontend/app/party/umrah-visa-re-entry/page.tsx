@@ -48,6 +48,8 @@ export default function UmrahVisaReEntryPage() {
     selectedParty,
     globalAllowOneWayTicket,
     globalAllowWithoutTicket,
+    globalAllowReEntryOneWayTicket,
+    globalAllowReEntryWithoutTicket,
   } = useUmrahBooking();
 
   const [showOneWayDisclaimer, setShowOneWayDisclaimer] = useState(false);
@@ -211,8 +213,8 @@ export default function UmrahVisaReEntryPage() {
             onChange={updateStep2Data}
             airports={masterData.airports}
             disabled={isLoading}
-            allowOneWayOption={globalAllowOneWayTicket || selectedParty?.allowOneWayTicket}
-            allowWithoutTicketOption={globalAllowWithoutTicket || selectedParty?.allowWithoutTicket}
+            allowOneWayOption={globalAllowReEntryOneWayTicket || selectedParty?.allowReEntryOneWayTicket || false}
+            allowWithoutTicketOption={globalAllowReEntryWithoutTicket || selectedParty?.allowReEntryWithoutTicket || false}
           />
         );
 

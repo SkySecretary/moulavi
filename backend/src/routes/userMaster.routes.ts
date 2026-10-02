@@ -106,7 +106,7 @@ router.get(
       ];
     }
     
-    const [users, total] = await Promise.all([
+    const [users, total, activeUsersCount, adminUsersCount, inactiveUsersCount] = await Promise.all([
       prisma.user.findMany({
         where,
         skip,
@@ -122,7 +122,10 @@ router.get(
           updatedAt: true
         }
       }),
-      prisma.user.count({ where })
+      prisma.user.count({ where }),
+      prisma.user.count({ where: { ...where, isActive: true } }),
+      prisma.user.count({ where: { ...where, role: 'admin' } }),
+      prisma.user.count({ where: { ...where, isActive: false } }),
     ]);
     
     res.json({
@@ -133,6 +136,12 @@ router.get(
         total,
         totalPages: Math.ceil(total / limitNum),
       },
+      stats: {
+        total,
+        active: activeUsersCount,
+        admin: adminUsersCount,
+        inactive: inactiveUsersCount,
+      }
     });
   })
 );

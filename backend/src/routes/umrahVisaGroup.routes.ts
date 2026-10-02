@@ -1223,6 +1223,7 @@ router.post('/group/add-to-existing-booking', authenticate, uploadGroup.fields([
             sponserDob: iq.sponserDob,
             sponserMobileNumber: iq.sponserMobileNumber,
             sponserNationalShortAddress: iq.sponserNationalShortAddress,
+            sponserNationality: iq.sponserNationality,
             makkahHotelName: iq.makkahHotelName,
             makkahBrn: iq.makkahBrn,
             makkahCateringBrn: iq.makkahCateringBrn,

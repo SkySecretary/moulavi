@@ -428,7 +428,7 @@ export default function PartyDashboardPage() {
               </div>
               <div className="flex-1">
                 <h4 className="text-sm font-black text-amber-950 uppercase tracking-wide">
-                  ATTENTION: Missing Return Tickets Notice
+                  ATTENTION: Missing Flight Transport Notice
                 </h4>
                 <p className="text-xs text-amber-700 font-semibold mt-1.5 leading-relaxed">
                   You have <span className="font-extrabold text-amber-950">{missingReturnStatus.count} booking(s)</span> in the system with onward-only (one-way) flights. Please ensure that return tickets are collected and updated in the system as soon as possible.

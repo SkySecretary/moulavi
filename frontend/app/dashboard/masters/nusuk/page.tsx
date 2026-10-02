@@ -84,6 +84,8 @@ export default function NusukSettingsPage() {
     syncType: 'excel',
     allowOneWayTicket: false,
     allowWithoutTicket: false,
+    allowReEntryOneWayTicket: false,
+    allowReEntryWithoutTicket: false,
     isValid: true,
     lastSyncedAt: null as string | null,
   });
@@ -118,6 +120,8 @@ export default function NusukSettingsPage() {
             syncType: response.data.syncType || 'excel',
             allowOneWayTicket: response.data.allowOneWayTicket ?? false,
             allowWithoutTicket: response.data.allowWithoutTicket ?? false,
+            allowReEntryOneWayTicket: response.data.allowReEntryOneWayTicket ?? false,
+            allowReEntryWithoutTicket: response.data.allowReEntryWithoutTicket ?? false,
             isValid: response.data.isValid ?? true,
             lastSyncedAt: response.data.lastSyncedAt || null,
           });
@@ -159,6 +163,8 @@ export default function NusukSettingsPage() {
         syncType: settingsData.syncType,
         allowOneWayTicket: settingsData.allowOneWayTicket,
         allowWithoutTicket: settingsData.allowWithoutTicket,
+        allowReEntryOneWayTicket: settingsData.allowReEntryOneWayTicket,
+        allowReEntryWithoutTicket: settingsData.allowReEntryWithoutTicket,
       });
       setSettingsData(prev => ({ ...prev, isValid: true }));
       toast.success('Nusuk settings saved successfully');
@@ -491,10 +497,49 @@ export default function NusukSettingsPage() {
                         />
                         <div className="flex flex-col">
                           <Label htmlFor="allowOneWayTicket" className="text-xs font-bold text-slate-800 cursor-pointer select-none">
-                            Oneway/Onward Ticket Only
+                            Oneway/Onward Ticket Only (General Bookings)
                           </Label>
                           <span className="text-[10px] text-muted-foreground">
-                            When enabled, requires only the onward flight ticket instead of none at all.
+                            When enabled, requires only the onward flight ticket instead of none at all for general bookings.
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Re-Entry Specific Ticket Option */}
+                    <div className="flex items-center justify-between p-4 bg-amber-50/70 border border-amber-200/80 rounded-lg">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="allowReEntryWithoutTicket" className="text-sm font-semibold text-amber-950">
+                          Allow Re-Entry Bookings Without Ticket
+                        </Label>
+                        <p className="text-xs text-amber-800/80">
+                          Enable &quot;Without Ticket&quot; or &quot;Onward Only&quot; for Re-Entry visa bookings (disabled by default).
+                        </p>
+                      </div>
+                      <Switch
+                        id="allowReEntryWithoutTicket"
+                        checked={settingsData.allowReEntryWithoutTicket}
+                        onCheckedChange={(checked) => setSettingsData({ ...settingsData, allowReEntryWithoutTicket: checked })}
+                        disabled={saving || syncing}
+                      />
+                    </div>
+
+                    {settingsData.allowReEntryWithoutTicket && (
+                      <div className="flex items-center space-x-2 pl-4 py-2 border-l-2 border-amber-500 animate-in slide-in-from-top-2 duration-200">
+                        <input
+                          type="checkbox"
+                          id="allowReEntryOneWayTicket"
+                          checked={settingsData.allowReEntryOneWayTicket}
+                          onChange={(e) => setSettingsData({ ...settingsData, allowReEntryOneWayTicket: e.target.checked })}
+                          disabled={saving || syncing}
+                          className="rounded text-amber-600 focus:ring-amber-500 h-4 w-4 cursor-pointer"
+                        />
+                        <div className="flex flex-col">
+                          <Label htmlFor="allowReEntryOneWayTicket" className="text-xs font-bold text-amber-950 cursor-pointer select-none">
+                            Oneway/Onward Ticket Only (Re-Entry Bookings)
+                          </Label>
+                          <span className="text-[10px] text-amber-800/80">
+                            Requires onward flight details only for Re-Entry bookings.
                           </span>
                         </div>
                       </div>

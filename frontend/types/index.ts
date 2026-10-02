@@ -67,6 +67,10 @@ export interface Party {
   nusukActiveEntityId?: string;
   nusukActiveEntityTypeId?: string;
   nusukExternalAgentCodes?: string;
+  allowOneWayTicket?: boolean;
+  allowWithoutTicket?: boolean;
+  allowReEntryOneWayTicket?: boolean;
+  allowReEntryWithoutTicket?: boolean;
   userId?: string;
   createdBy: string;
   createdAt: string;
@@ -123,6 +127,10 @@ export interface CreatePartyRequest {
   nusuk_active_entity_id?: string;
   nusuk_active_entity_type_id?: string;
   nusuk_external_agent_codes?: string;
+  allow_one_way_ticket?: boolean;
+  allow_without_ticket?: boolean;
+  allow_re_entry_one_way_ticket?: boolean;
+  allow_re_entry_without_ticket?: boolean;
 }
 
 export interface PartyContact {

@@ -47,7 +47,7 @@ router.post(
       });
     }
 
-    const { token, activeEntityId, activeEntityTypeId, entityId, selectedUmrahCompanyIds, checkByPassport, externalAgentCodes, syncSchedule, syncType, allowOneWayTicket, allowWithoutTicket } = req.body;
+    const { token, activeEntityId, activeEntityTypeId, entityId, selectedUmrahCompanyIds, checkByPassport, externalAgentCodes, syncSchedule, syncType, allowOneWayTicket, allowWithoutTicket, allowReEntryOneWayTicket, allowReEntryWithoutTicket } = req.body;
     
     let cleanedToken = String(token || '').trim();
     if (cleanedToken.toUpperCase().startsWith('BEARER ')) {
@@ -66,6 +66,8 @@ router.post(
       syncType,
       allowOneWayTicket: allowOneWayTicket !== undefined ? Boolean(allowOneWayTicket) : undefined,
       allowWithoutTicket: allowWithoutTicket !== undefined ? Boolean(allowWithoutTicket) : undefined,
+      allowReEntryOneWayTicket: allowReEntryOneWayTicket !== undefined ? Boolean(allowReEntryOneWayTicket) : undefined,
+      allowReEntryWithoutTicket: allowReEntryWithoutTicket !== undefined ? Boolean(allowReEntryWithoutTicket) : undefined,
     });
     
     res.json({

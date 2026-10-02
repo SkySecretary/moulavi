@@ -55,7 +55,9 @@ export default function CreatePartyDialog({
     nusuk_active_entity_type_id: '',
     nusuk_external_agent_codes: '',
     allow_one_way_ticket: false,
-    allow_without_ticket: false
+    allow_without_ticket: false,
+    allow_re_entry_one_way_ticket: false,
+    allow_re_entry_without_ticket: false
   });
   const [documentFiles, setDocumentFiles] = useState<{
     gst_certificate?: File;
@@ -103,7 +105,9 @@ export default function CreatePartyDialog({
           nusuk_active_entity_type_id: (editingParty as any).nusukActiveEntityTypeId || '',
           nusuk_external_agent_codes: (editingParty as any).nusukExternalAgentCodes || '',
           allow_one_way_ticket: (editingParty as any).allowOneWayTicket ?? false,
-          allow_without_ticket: (editingParty as any).allowWithoutTicket ?? false
+          allow_without_ticket: (editingParty as any).allowWithoutTicket ?? false,
+          allow_re_entry_one_way_ticket: (editingParty as any).allowReEntryOneWayTicket ?? false,
+          allow_re_entry_without_ticket: (editingParty as any).allowReEntryWithoutTicket ?? false
         });
       } else {
         setFormData({
@@ -133,7 +137,9 @@ export default function CreatePartyDialog({
           nusuk_active_entity_type_id: '',
           nusuk_external_agent_codes: '',
           allow_one_way_ticket: false,
-          allow_without_ticket: false
+          allow_without_ticket: false,
+          allow_re_entry_one_way_ticket: false,
+          allow_re_entry_without_ticket: false
         });
       }
       setDocumentFiles({});
@@ -896,10 +902,55 @@ export default function CreatePartyDialog({
                     htmlFor="allow_one_way_ticket" 
                     className="cursor-pointer font-bold text-slate-800 select-none text-xs"
                   >
-                    Oneway/Onward Ticket Only
+                    Oneway/Onward Ticket Only (General Bookings)
                   </Label>
                   <span className="text-[10px] text-muted-foreground">
                     When enabled, requires only the onward flight ticket instead of none at all.
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center space-x-2 mt-3 pt-2 border-t border-slate-100">
+              <input
+                type="checkbox"
+                id="allow_re_entry_without_ticket"
+                checked={formData.allow_re_entry_without_ticket}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  handleInputChange('allow_re_entry_without_ticket', checked);
+                  if (!checked) {
+                    handleInputChange('allow_re_entry_one_way_ticket', false);
+                  }
+                }}
+                className="rounded text-purple-600 focus:ring-purple-500 h-4 w-4 cursor-pointer"
+              />
+              <Label 
+                htmlFor="allow_re_entry_without_ticket" 
+                className="cursor-pointer font-bold text-slate-800 select-none text-sm"
+              >
+                Allow Re-Entry Bookings Without Ticket
+              </Label>
+            </div>
+
+            {formData.allow_re_entry_without_ticket && (
+              <div className="flex items-center space-x-2 pl-4 py-2 border-l-2 border-purple-500 mt-2 animate-in slide-in-from-top-2 duration-200">
+                <input
+                  type="checkbox"
+                  id="allow_re_entry_one_way_ticket"
+                  checked={formData.allow_re_entry_one_way_ticket}
+                  onChange={(e) => handleInputChange('allow_re_entry_one_way_ticket', e.target.checked)}
+                  className="rounded text-purple-600 focus:ring-purple-500 h-4 w-4 cursor-pointer"
+                />
+                <div className="flex flex-col">
+                  <Label 
+                    htmlFor="allow_re_entry_one_way_ticket" 
+                    className="cursor-pointer font-bold text-slate-800 select-none text-xs"
+                  >
+                    Oneway/Onward Ticket Only (Re-Entry Bookings)
+                  </Label>
+                  <span className="text-[10px] text-muted-foreground">
+                    When enabled for Re-Entry, allows single-leg onward travel instead of full round trip.
                   </span>
                 </div>
               </div>

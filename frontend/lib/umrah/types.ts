@@ -158,6 +158,8 @@ export interface IqamaDetails {
   iqamaDob?: string;
   iqamaMobile?: string;
   iqamaNationalShortAddress?: string;
+  iqamaNationality?: string;
+  sponserNationality?: string;
 }
 
 export interface Passenger {

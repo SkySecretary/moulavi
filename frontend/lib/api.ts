@@ -262,8 +262,11 @@ export const umrahVisaAPI = {
   notifyMissingBrn: (bookingId: string) =>
     api.post(`/umrah-visa/${bookingId}/notify-missing-brn`),
 
-  notifyMissingReturnTicket: (bookingId: string) =>
-    api.post(`/umrah-visa/${bookingId}/notify-missing-return-ticket`),
+  notifyMissingReturnTicket: (bookingId: string, type: 'return' | 'onward' | 'both' = 'return') =>
+    api.post(`/umrah-visa/${bookingId}/notify-missing-return-ticket`, { type }),
+
+  notifyMissingFlight: (bookingId: string, type: 'return' | 'onward' | 'both' = 'return') =>
+    api.post(`/umrah-visa/${bookingId}/notify-missing-return-ticket`, { type }),
 
   getDailyOverview: (params: any) =>
     api.get('/umrah-visa/operational/daily-bookings', { params }),
@@ -521,6 +524,8 @@ export const nusukAPI = {
     syncType?: string;
     allowOneWayTicket?: boolean;
     allowWithoutTicket?: boolean;
+    allowReEntryOneWayTicket?: boolean;
+    allowReEntryWithoutTicket?: boolean;
   }) => api.post('/nusuk/settings', data),
   triggerSync: (partyId?: string) => api.post('/nusuk/sync', { partyId }),
   getMismatches: (params?: { 

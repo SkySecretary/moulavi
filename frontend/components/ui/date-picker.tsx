@@ -29,7 +29,7 @@ export function DatePicker({ value, onChange, disabled, className, placeholder =
   };
 
   return (
-    <div className={cn("relative w-full", className)}>
+    <div className={cn("relative inline-flex items-center", className)}>
       <Input
         type="date"
         value={internalValue}
@@ -37,11 +37,12 @@ export function DatePicker({ value, onChange, disabled, className, placeholder =
         disabled={disabled}
         placeholder={placeholder}
         className={cn(
-          "h-10 pr-10 font-medium text-sm bg-white border-gray-200 hover:border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all",
+          "w-full h-full text-xs font-medium bg-white border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all pl-2.5 pr-7",
+          "[&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer",
           !internalValue && "text-muted-foreground"
         )}
       />
-      <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+      <Calendar className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
     </div>
   )
 }

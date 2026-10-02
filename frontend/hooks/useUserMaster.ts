@@ -34,6 +34,13 @@ export function useUserMaster(role: string = 'all') {
     totalPages: 0,
   });
 
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    admin: 0,
+    inactive: 0,
+  });
+
   const loadUsers = async () => {
     try {
       setLoading(true);
@@ -51,6 +58,19 @@ export function useUserMaster(role: string = 'all') {
         total: response.data.users?.length || 0,
         totalPages: 1
       });
+      if (response.data.stats) {
+        setStats(response.data.stats);
+      } else {
+        const total = response.data.pagination?.total || response.data.users?.length || 0;
+        const active = (response.data.users || []).filter((u: any) => u.isActive).length;
+        const admin = (response.data.users || []).filter((u: any) => u.role === 'admin').length;
+        setStats({
+          total,
+          active,
+          admin,
+          inactive: total - active
+        });
+      }
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || 'Failed to load users';
       setError(errorMessage);
@@ -118,6 +138,7 @@ export function useUserMaster(role: string = 'all') {
     createUser,
     updateUser,
     deleteUser,
+    stats,
     loadUsers
   };
 }
