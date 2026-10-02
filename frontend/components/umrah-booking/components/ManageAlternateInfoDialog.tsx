@@ -361,6 +361,7 @@ export const ManageAlternateInfoDialog: React.FC<ManageAlternateInfoDialogProps>
                   departureDate={travelData.departureDate}
                   getHotelsForLocation={getHotelsForLocation}
                   onLoadHotels={async () => {}}
+                  refreshHotels={loadMasterData}
                   passengerCount={booking?.passengerCount}
                 />
               </div>

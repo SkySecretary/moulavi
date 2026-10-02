@@ -1087,6 +1087,7 @@ export default function EditUmrahVisaBookingPage() {
                       hideInventory={booking?.visaType === 'group_visa'}
                       arrivalDate={arrivalDate}
                       departureDate={departureDate}
+                      onHotelsRefresh={loadMasterData}
                     />
                   </div>
                 )}

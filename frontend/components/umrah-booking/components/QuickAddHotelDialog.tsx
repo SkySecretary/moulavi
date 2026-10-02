@@ -18,7 +18,7 @@ import { toast } from 'sonner';
 interface QuickAddHotelDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (hotelId: string) => void;
+  onSuccess: (hotelId: string, hotelData?: any) => void;
   initialCityId?: string;
 }
 
@@ -46,6 +46,14 @@ export const QuickAddHotelDialog: React.FC<QuickAddHotelDialogProps> = ({
       if (initialCityId) {
         setFormData(prev => ({ ...prev, cityId: initialCityId }));
       }
+    } else {
+      setFormData({
+        name: '',
+        code: '',
+        countryId: '',
+        cityId: '',
+        cityName: '',
+      });
     }
   }, [isOpen, initialCityId]);
 
@@ -57,7 +65,7 @@ export const QuickAddHotelDialog: React.FC<QuickAddHotelDialogProps> = ({
       
       // Auto-select Saudi Arabia if available
       const saudi = countryList.find((c: any) => 
-        c.countryName.toLowerCase().includes('saudi') || 
+        c.countryName?.toLowerCase().includes('saudi') || 
         c.countryCode === 'SA'
       );
       if (saudi && !formData.countryId) {
@@ -117,7 +125,9 @@ export const QuickAddHotelDialog: React.FC<QuickAddHotelDialogProps> = ({
       });
 
       toast.success('Hotel added successfully');
-      onSuccess(res.data.locationMaster.id);
+      const createdHotel = res.data?.locationMaster || res.data?.data?.locationMaster || res.data;
+      const hotelId = createdHotel?.id || res.data?.locationMaster?.id;
+      onSuccess(hotelId, createdHotel);
       onClose();
     } catch (err: any) {
       console.error(err);

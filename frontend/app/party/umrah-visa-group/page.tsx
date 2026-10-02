@@ -62,6 +62,7 @@ export default function GroupUmrahVisaPage() {
     loadInitialData,
     loadHotels,
     getHotelsForLocation,
+    refreshHotels,
   } = useMasterData();
 
   const steps = [
@@ -206,6 +207,7 @@ export default function GroupUmrahVisaPage() {
             onRemoveHotelBooking={removeHotelBooking}
             allowOneWayOption={globalAllowOneWayTicket || selectedParty?.allowOneWayTicket}
             allowWithoutTicketOption={globalAllowWithoutTicket || selectedParty?.allowWithoutTicket}
+            refreshHotels={refreshHotels}
           />
         );
 

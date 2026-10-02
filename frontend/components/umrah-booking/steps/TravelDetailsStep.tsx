@@ -31,6 +31,7 @@ interface TravelDetailsStepProps {
   allowOneWayOption?: boolean;
   allowWithoutTicketOption?: boolean;
   isReEntry?: boolean;
+  refreshHotels?: () => void | Promise<void>;
 }
 
 export const TravelDetailsStep: React.FC<TravelDetailsStepProps> = ({
@@ -50,6 +51,7 @@ export const TravelDetailsStep: React.FC<TravelDetailsStepProps> = ({
   allowOneWayOption = false,
   allowWithoutTicketOption = false,
   isReEntry = false,
+  refreshHotels,
 }) => {
   const [durationDays, setDurationDays] = React.useState(0);
   const [durationError, setDurationError] = React.useState('');
@@ -230,6 +232,7 @@ export const TravelDetailsStep: React.FC<TravelDetailsStepProps> = ({
                   arrivalDate={arrivalDate || data.arrivalDate}
                   departureDate={departureDate || data.departureDate}
                   hideInventory={isGroupBooking}
+                  onHotelsRefresh={refreshHotels}
                 />
               </div>
             )}

@@ -394,6 +394,23 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
   const [durationInputs, setDurationInputs] = useState<{ [key: number]: string }>({});
   // Search state for hotels
   const [hotelSearch, setHotelSearch] = useState<{ [key: number]: string }>({});
+  // Local hotels cache for dynamically added hotels to ensure instant selection
+  const [localHotels, setLocalHotels] = useState<Hotel[]>([]);
+
+  const getEffectiveHotelsForLocation = useCallback((cityId?: string) => {
+    const list = cityId ? (getHotelsForLocation(cityId) || []) : [];
+    const extra = localHotels.filter(h => h.cityId === cityId || (h.city && typeof h.city === 'object' && (h.city as any).id === cityId));
+    const seen = new Set(list.map(h => h.id));
+    const result = [...list];
+    for (const h of extra) {
+      if (!seen.has(h.id)) {
+        seen.add(h.id);
+        result.push(h);
+      }
+    }
+    return result;
+  }, [getHotelsForLocation, localHotels]);
+
   // Quick add dialog state
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [activeBookingIndex, setActiveBookingIndex] = useState<number | null>(null);
@@ -468,14 +485,42 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
     );
   }
 
-  const handleQuickAddSuccess = async (newHotelId: string) => {
+  const handleQuickAddSuccess = async (newHotelId: string, createdHotel?: any) => {
     if (activeBookingIndex !== null) {
-      if (onHotelsRefresh) await onHotelsRefresh();
-      
+      if (createdHotel) {
+        const hotelObj: Hotel = {
+          id: createdHotel.id || newHotelId,
+          name: createdHotel.name,
+          hotelName: createdHotel.name,
+          code: createdHotel.code,
+          cityId: createdHotel.cityId,
+          city: createdHotel.cityMaster || (createdHotel.city ? { id: createdHotel.cityId, name: createdHotel.city } : undefined),
+        };
+        setLocalHotels(prev => [...prev.filter(h => h.id !== (createdHotel.id || newHotelId)), hotelObj]);
+
+        // If the current row does not have cityId set, set it
+        const currentRow = hotelBookings[activeBookingIndex];
+        if ((!currentRow.cityId && !(currentRow as any).locationId) && createdHotel.cityId) {
+          onUpdateBooking(activeBookingIndex, 'cityId', createdHotel.cityId);
+          if ((currentRow as any).locationId !== undefined) {
+            onUpdateBooking(activeBookingIndex, 'locationId' as any, createdHotel.cityId);
+          }
+        }
+      }
+
       // Clear the search for this index so the newly added hotel is not filtered out
       setHotelSearch(prev => ({ ...prev, [activeBookingIndex]: '' }));
       
+      // Update hotelId immediately
       onUpdateBooking(activeBookingIndex, 'hotelId', newHotelId);
+
+      if (onHotelsRefresh) {
+        try {
+          await onHotelsRefresh();
+        } catch (err) {
+          console.error('Error refreshing hotels:', err);
+        }
+      }
     }
   };
 
@@ -525,11 +570,22 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
         </thead>
         <tbody>
           {hotelBookings.map((booking, index) => {
-            const hotelsForLocation = getHotelsForLocation(booking.cityId || (booking as any).locationId);
-            const filteredHotels = hotelsForLocation.filter(h => 
+            const currentCityId = booking.cityId || (booking as any).locationId;
+            const hotelsForLocation = getEffectiveHotelsForLocation(currentCityId);
+            let filteredHotels = hotelsForLocation.filter(h => 
               !hotelSearch[index] || 
               (h.name || h.hotelName || '').toLowerCase().includes(hotelSearch[index].toLowerCase())
             );
+
+            // Ensure selected hotel is present so Radix Select displays its value
+            if (booking.hotelId && !filteredHotels.some(h => h.id === booking.hotelId)) {
+              const selectedHotel = hotelsForLocation.find(h => h.id === booking.hotelId) || 
+                                    localHotels.find(h => h.id === booking.hotelId) ||
+                                    hotels.find(h => h.id === booking.hotelId);
+              if (selectedHotel) {
+                filteredHotels = [selectedHotel, ...filteredHotels];
+              }
+            }
 
             return (
               <tr key={index} className="hover:bg-gray-50">
@@ -823,7 +879,7 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                       <Select value={booking.hotelId || undefined} onValueChange={(val) => onUpdateBooking(index, 'hotelId', val)} disabled={!booking.cityId}>
                          <SelectTrigger className="flex-1"><SelectValue placeholder="Hotel" /></SelectTrigger>
                          <SelectContent>
-                            {getHotelsForLocation(booking.cityId).map(h => <SelectItem key={h.id} value={h.id}>{h.name || h.hotelName}</SelectItem>)}
+                            {getEffectiveHotelsForLocation(booking.cityId).map(h => <SelectItem key={h.id} value={h.id}>{h.name || h.hotelName}</SelectItem>)}
                          </SelectContent>
                       </Select>
                       <Button size="icon" variant="outline" onClick={() => { setActiveBookingIndex(index); setQuickAddOpen(true); }} disabled={!booking.cityId}>

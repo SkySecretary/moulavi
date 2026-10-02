@@ -596,18 +596,13 @@ export const useMasterData = () => {
   const loadAllLocationMasters = useCallback(async () => {
     try {
       // Load all LocationMaster entries (all types: AIRPORT, DESTINATION, ZIYARAT, HOTEL, OTHERS)
-      const response = await fetch(`${API_URL}/location-masters/active`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-        },
-      });
-      const data = await response.json();
-      
-      const locationMasters = data.locationMasters || [];
+      const response = await locationMasterAPI.getActive();
+      const locationMasters = response.data?.locationMasters || response.data || [];
       setMasterData(prev => ({ ...prev, locationMasters }));
+      return locationMasters;
     } catch (error) {
       console.error('Error loading location masters:', error);
-      setMasterData(prev => ({ ...prev, locationMasters: [] }));
+      return [];
     }
   }, []);
 
