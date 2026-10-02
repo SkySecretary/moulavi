@@ -593,7 +593,7 @@ export default function SystemHealthPage() {
                     <div className="space-y-2">
                       {data.travel.invalidHotelStaysList.map((h: any, idx: number) => (
                         <div key={idx} className="p-2 bg-red-50 border border-red-200 rounded text-xs text-red-900">
-                          Invalid Hotel Stay: <b>{h.bookingReference}</b> (CheckIn: {h.checkIn?.split('T')[0]} >= CheckOut: {h.checkOut?.split('T')[0]})
+                          Invalid Hotel Stay: <b>{h.bookingReference}</b> (CheckIn: {h.checkIn?.split('T')[0]} &gt;= CheckOut: {h.checkOut?.split('T')[0]})
                         </div>
                       ))}
                     </div>

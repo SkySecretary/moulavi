@@ -966,8 +966,8 @@ router.get('/:bookingId/voucher-data', authenticate, async (req, res) => {
       bookingId: booking.id,
       bookingReference: booking.bookingReference || '',
       reservationDate: booking.createdAt,
-      guestName: booking.party.partyName,
-      guestMobile: booking.party.contactNumber || booking.party.whatsappNumber || '',
+      guestName: booking.guestName || booking.party.partyName,
+      guestMobile: booking.guestMobile || booking.party.contactNumber || booking.party.whatsappNumber || '',
       groupCode: groupCode,
       groupName: booking.groupName || '',
       paxCount: paxCount,
@@ -1266,8 +1266,8 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
         const voucherDataToCreate: any = {
           voucherNumber, // Voucher number is used as reservation number
           reservationDate: new Date(voucherData.reservationDate || booking!.createdAt),
-          guestName: voucherData.guestName || (booking && booking.party ? booking.party.partyName : ''),
-          guestMobile: voucherData.guestMobile || '',
+          guestName: voucherData.guestName || (booking ? (booking.guestName || (booking.party ? booking.party.partyName : '')) : ''),
+          guestMobile: voucherData.guestMobile || (booking ? (booking.guestMobile || (booking.party ? ((booking.party as any).contactNumber || (booking.party as any).whatsappNumber || (booking.party as any).phoneNumber || '') : '')) : ''),
           groupCode,
           groupName: groupName || null,
           umrahVisaProviderId: booking!.umrahVisaProviderId || null,

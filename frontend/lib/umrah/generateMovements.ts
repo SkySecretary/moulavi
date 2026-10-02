@@ -14,7 +14,64 @@ interface GenerateMovementsParams {
   departureDate: string;
   departureTime: string;
   locationMasters: any[]; // LocationMaster array
-  findZiyarathByCity: (cityName: string) => any | null; // Function to find ziyarath location
+  findZiyarathByCity?: (cityName: string) => any | null; // Optional function to find ziyarath location
+}
+
+/**
+ * Normalize city names across different naming conventions (e.g., Makkah/Mecca, Madinah/Medina)
+ */
+export function normalizeCityName(cityName: string | null | undefined): string {
+  if (!cityName) return '';
+  const c = cityName.toLowerCase().trim();
+  if (c.includes('makkah') || c.includes('mecca') || c.includes('makka')) return 'makkah';
+  if (c.includes('madin') || c.includes('medin') || c.includes('madeen') || c.includes('madina')) return 'madinah';
+  if (c.includes('jeddah') || c.includes('jed')) return 'jeddah';
+  if (c.includes('taif') || c.includes('tayif')) return 'taif';
+  if (c.includes('yanbu')) return 'yanbu';
+  if (c.includes('riyadh')) return 'riyadh';
+  return c;
+}
+
+/**
+ * Find ziyarath LocationMaster robustly by city name or location master data
+ */
+export function findZiyarathLocation(cityName: string, locationMasters: any[] = []): any | null {
+  const normTarget = normalizeCityName(cityName);
+  if (normTarget !== 'makkah' && normTarget !== 'madinah') return null;
+
+  // 1. First priority: active location with locationType === 'ZIYARAT' and matching city
+  const ziyaratTypeMatch = locationMasters.find((lm: any) => 
+    lm.isActive !== false &&
+    lm.locationType === 'ZIYARAT' &&
+    normalizeCityName(lm.city || lm.cityMaster?.name) === normTarget
+  );
+  if (ziyaratTypeMatch) return ziyaratTypeMatch;
+
+  // 2. Second priority: location name contains 'ziyar' and matching city
+  const ziyaratNameMatch = locationMasters.find((lm: any) =>
+    lm.isActive !== false &&
+    (lm.name || '').toLowerCase().includes('ziyar') &&
+    normalizeCityName(lm.city || lm.cityMaster?.name) === normTarget
+  );
+  if (ziyaratNameMatch) return ziyaratNameMatch;
+
+  // 3. Third priority: match by code
+  const codePrefix = normTarget === 'makkah' ? 'MAK' : 'MAD';
+  const codeMatch = locationMasters.find((lm: any) =>
+    lm.isActive !== false &&
+    (lm.code || '').toUpperCase().startsWith(codePrefix) &&
+    (lm.name || '').toLowerCase().includes('ziyar')
+  );
+  if (codeMatch) return codeMatch;
+
+  // 4. Fourth priority: any location master for this city with ZIYARAT type
+  const fallbackZiyarat = locationMasters.find((lm: any) =>
+    lm.locationType === 'ZIYARAT' &&
+    normalizeCityName(lm.city || lm.cityMaster?.name) === normTarget
+  );
+  if (fallbackZiyarat) return fallbackZiyarat;
+
+  return null;
 }
 
 /**
@@ -108,11 +165,11 @@ function calculateLastMovementTime(
     return { date: departureDate, time: departureTime || '20:30' };
   }
 
-  const cityLower = hotelCityName.toLowerCase().trim();
-  const airportLower = airportName.toLowerCase().trim();
-  const airportCityLower = airportCity?.toLowerCase().trim() || '';
+  const cityNorm = normalizeCityName(hotelCityName);
+  const airportLower = (airportName || '').toLowerCase().trim();
+  const airportCityLower = (airportCity || '').toLowerCase().trim();
   
-  // Check if airport is Jeddah or Madinah (check both name and city)
+  // Check if airport is Jeddah or Madinah
   const isJeddahAirport = airportLower.includes('jeddah') || airportCityLower.includes('jeddah');
   const isMadinahAirport = airportLower.includes('madinah') || airportLower.includes('madina') || airportLower.includes('medina') ||
                           airportCityLower.includes('madinah') || airportCityLower.includes('madina') || airportCityLower.includes('medina');
@@ -120,19 +177,19 @@ function calculateLastMovementTime(
   let hoursPrior = 0;
   
   // From Madinah hotel to Jeddah airport: 12 hours prior
-  if (cityLower === 'madinah' && isJeddahAirport) {
+  if (cityNorm === 'madinah' && isJeddahAirport) {
     hoursPrior = 12;
   }
   // From Madinah hotel to Madinah airport: 5 hours prior
-  else if (cityLower === 'madinah' && isMadinahAirport) {
+  else if (cityNorm === 'madinah' && isMadinahAirport) {
     hoursPrior = 5;
   }
   // From Makkah hotel to Jeddah airport: 8 hours prior
-  else if (cityLower === 'makkah' && isJeddahAirport) {
+  else if (cityNorm === 'makkah' && isJeddahAirport) {
     hoursPrior = 8;
   }
   // From Makkah hotel to Madinah airport: 12 hours prior
-  else if (cityLower === 'makkah' && isMadinahAirport) {
+  else if (cityNorm === 'makkah' && isMadinahAirport) {
     hoursPrior = 12;
   }
   
@@ -186,20 +243,18 @@ export function generateMovementsFromHotels({
   for (let i = 0; i < hotelBookings.length; i++) {
     const currentHotel = hotelBookings[i];
     const cityName = getCityName(currentHotel.hotelId, locationMasters);
-    
-    // Check if this hotel is in Makkah or Madinah (has ziyarath)
-    const normalizedCity = cityName?.toLowerCase().trim();
+    const normalizedCity = normalizeCityName(cityName);
     const hasZiyarath = normalizedCity === 'makkah' || normalizedCity === 'madinah';
     
     // Only add ziyarath if we haven't added one for this city yet
-    if (hasZiyarath && !ziyarathCitiesAdded.has(normalizedCity!)) {
-      const ziyarathLocation = findZiyarathByCity(cityName!);
+    if (hasZiyarath && !ziyarathCitiesAdded.has(normalizedCity)) {
+      const ziyarathLocation = (findZiyarathByCity ? findZiyarathByCity(cityName || '') : null) || 
+                               findZiyarathLocation(cityName || '', locationMasters);
       if (ziyarathLocation) {
         const ziyarathDate = calculateZiyarathDate(currentHotel.checkInDate);
         const ziyarathTime = normalizedCity === 'makkah' ? '08:00' : '14:00';
 
         // Hotel → Ziyarath (one-way only, no return trip)
-        // Use the first hotel in this city for the ziyarath
         movements.push({
           id: `ziyarath-${normalizedCity}`,
           type: 'ziyarath',
@@ -209,27 +264,34 @@ export function generateMovementsFromHotels({
           time: ziyarathTime,
         });
         
-        // Mark this city as having ziyarath added
-        ziyarathCitiesAdded.add(normalizedCity!);
+        ziyarathCitiesAdded.add(normalizedCity);
       }
     }
 
     // Move to next hotel (from current hotel, not from ziyarath)
     if (i < hotelBookings.length - 1) {
       const nextHotel = hotelBookings[i + 1];
+      const nextCityName = getCityName(nextHotel.hotelId, locationMasters);
+      const nextNormCity = normalizeCityName(nextCityName);
+
+      // Default timing: Makkah to Madinah trips MUST strictly start at or after 2 PM (14:00)
+      let moveTime = '20:30';
+      if (normalizedCity === 'makkah' && nextNormCity === 'madinah') {
+        moveTime = '14:00';
+      }
+
       movements.push({
         id: `movement-${i + 2}`,
         type: 'transport',
-        fromLocationId: currentHotel.hotelId, // From current hotel, not from ziyarath
+        fromLocationId: currentHotel.hotelId,
         toLocationId: nextHotel.hotelId,
         date: nextHotel.checkInDate,
-        time: '20:30', // Default time
+        time: moveTime,
       });
     }
   }
 
   // 4. Last Hotel → Departure Airport
-  // Calculate default timing based on city and airport combination
   const lastHotel = hotelBookings[hotelBookings.length - 1];
   if (lastHotel && departureAirportId) {
     const hotelCityName = getCityName(lastHotel.hotelId, locationMasters);
@@ -276,7 +338,7 @@ export function getSelectedRoutes(
   const selectedRouteIds = new Set<string>();
   
   // Extract route IDs from selected transports
-  const data = transportData as any; // Type assertion for flexibility
+  const data = transportData as any;
   if (data.selectedTransports && data.selectedTransports.length > 0) {
     data.selectedTransports.forEach((transport: any) => {
       if (transport.routeId) {
@@ -315,13 +377,12 @@ export function generateMovementsFromRoutes({
     return movements;
   }
   
-  // Check if fulltrip is selected (for ziyarath generation)
+  // Check if fulltrip or tripandtour is selected (for ziyarath and inter-city generation)
   const hasFullTrip = selectedRoutes.some(route => route.routeType === 'fulltrip');
-  
-  // Track which route types are selected
+  const hasTripAndTour = selectedRoutes.some(route => route.routeType === 'tripandtour');
   const hasAirportToCity = selectedRoutes.some(route => route.routeType === 'airporttocity');
   const hasCityToAirport = selectedRoutes.some(route => route.routeType === 'citytoairport');
-  const hasTripAndTour = selectedRoutes.some(route => route.routeType === 'tripandtour');
+  const hasCityToCity = selectedRoutes.some(route => route.routeType === 'citytocity');
   
   // 1. Airport → First Hotel (for airporttocity, fulltrip, or tripandtour)
   if (hasAirportToCity || hasFullTrip || hasTripAndTour) {
@@ -338,8 +399,8 @@ export function generateMovementsFromRoutes({
     }
   }
   
-  // 2. Inter-hotel movements (for fulltrip or tripandtour)
-  if (hasFullTrip || hasTripAndTour) {
+  // 2. Inter-hotel movements (for fulltrip, tripandtour, or citytocity)
+  if (hasFullTrip || hasTripAndTour || hasCityToCity) {
     for (let i = 0; i < hotelBookings.length - 1; i++) {
       const currentHotel = hotelBookings[i];
       const nextHotel = hotelBookings[i + 1];
@@ -348,12 +409,13 @@ export function generateMovementsFromRoutes({
       let moveDate = new Date(isoMoveDate);
       let time = '20:30';
 
-      const currentCity = getCityName(currentHotel.hotelId, locationMasters)?.toLowerCase().trim();
-      const nextCity = getCityName(nextHotel.hotelId, locationMasters)?.toLowerCase().trim();
+      const currentCity = getCityName(currentHotel.hotelId, locationMasters);
+      const nextCity = getCityName(nextHotel.hotelId, locationMasters);
+      const normCurrent = normalizeCityName(currentCity);
+      const normNext = normalizeCityName(nextCity);
       
-      // Makkah to Madina rule: must be after 14:00
-      if ((currentCity === 'makkah' || currentCity === 'mecca') && 
-          (nextCity === 'madinah' || nextCity === 'madina' || nextCity === 'medina')) {
+      // Makkah to Madinah rule: must strictly start at or after 14:00 (2:00 PM)
+      if (normCurrent === 'makkah' && normNext === 'madinah') {
         time = '14:00';
       }
 
@@ -375,19 +437,19 @@ export function generateMovementsFromRoutes({
     }
   }
   
-  // 3. Ziyarath movements (only for fulltrip)
-  if (hasFullTrip) {
+  // 3. Ziyarath movements (for fulltrip or tripandtour)
+  if (hasFullTrip || hasTripAndTour) {
     const ziyarathCitiesAdded = new Set<string>();
     
     for (let i = 0; i < hotelBookings.length; i++) {
       const currentHotel = hotelBookings[i];
       const cityName = getCityName(currentHotel.hotelId, locationMasters);
-      
-      const normalizedCity = cityName?.toLowerCase().trim();
+      const normalizedCity = normalizeCityName(cityName);
       const hasZiyarath = normalizedCity === 'makkah' || normalizedCity === 'madinah';
       
-      if (hasZiyarath && !ziyarathCitiesAdded.has(normalizedCity!)) {
-        const ziyarathLocation = findZiyarathByCity(cityName!);
+      if (hasZiyarath && !ziyarathCitiesAdded.has(normalizedCity)) {
+        const ziyarathLocation = (findZiyarathByCity ? findZiyarathByCity(cityName || '') : null) ||
+                                 findZiyarathLocation(cityName || '', locationMasters);
         if (ziyarathLocation) {
           const ziyarathDate = calculateZiyarathDate(currentHotel.checkInDate);
           const ziyarathTime = normalizedCity === 'makkah' ? '08:00' : '14:00';
@@ -401,7 +463,7 @@ export function generateMovementsFromRoutes({
             time: ziyarathTime,
           });
           
-          ziyarathCitiesAdded.add(normalizedCity!);
+          ziyarathCitiesAdded.add(normalizedCity);
         }
       }
     }
@@ -444,4 +506,3 @@ export function generateMovementsFromRoutes({
     return dateA.getTime() - dateB.getTime();
   });
 }
-

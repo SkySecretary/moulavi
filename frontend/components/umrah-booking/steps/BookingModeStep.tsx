@@ -8,7 +8,7 @@ import { Step1Data } from '@/lib/umrah/types';
 import { partyAPI } from '@/lib/api';
 import { Party } from '@/types';
 import { cn } from '@/lib/utils';
-import { ShieldCheck, PlaneTakeoff, Building2, KeyRound, Users } from 'lucide-react';
+import { ShieldCheck, PlaneTakeoff, Building2, KeyRound, Users, User, Phone } from 'lucide-react';
 
 interface BookingModeStepProps {
   data: Step1Data;
@@ -28,35 +28,72 @@ export const BookingModeStep: React.FC<BookingModeStepProps> = ({
           <div className="absolute top-0 right-0 p-4 opacity-[0.03] pointer-events-none group-hover:scale-110 transition-transform duration-700">
             <Users className="h-24 w-24 text-primary" />
           </div>
-          <div className="relative z-10 max-w-sm space-y-3">
-            <Label htmlFor="passengerCount" className="text-xs font-bold text-primary uppercase tracking-wider ml-1">
-              Number of Passengers (Pax) *
-            </Label>
-            <div className="relative">
-              <Input
-                id="passengerCount"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                placeholder="Enter number of passengers"
-                value={data.passengerCount || ''}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (/^\d*$/.test(val)) {
-                    onChange({ 
-                      passengerCount: val ? parseInt(val) : undefined,
-                      bookingMode: 'travel_details'
-                    });
-                  }
-                }}
-                disabled={disabled}
-                className="h-12 bg-white border-gray-100 rounded-lg font-bold text-primary focus:ring-secondary/20 text-base pl-12 shadow-sm"
-              />
-              <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary" />
+          <div className="relative z-10 max-w-lg space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="passengerCount" className="text-xs font-bold text-primary uppercase tracking-wider ml-1">
+                Number of Passengers (Pax) *
+              </Label>
+              <div className="relative">
+                <Input
+                  id="passengerCount"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="Enter number of passengers"
+                  value={data.passengerCount || ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (/^\d*$/.test(val)) {
+                      onChange({ 
+                        passengerCount: val ? parseInt(val) : undefined,
+                        bookingMode: 'travel_details'
+                      });
+                    }
+                  }}
+                  disabled={disabled}
+                  className="h-12 bg-white border-gray-100 rounded-lg font-bold text-primary focus:ring-secondary/20 text-base pl-12 shadow-sm"
+                />
+                <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary" />
+              </div>
             </div>
-            <p className="text-[10px] text-muted-foreground ml-1">
-              Enter the total count of travelers in this booking.
-            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-secondary/10">
+              <div className="space-y-1">
+                <Label htmlFor="guestName" className="text-[10px] font-bold text-primary/70 uppercase tracking-wider ml-1">
+                  Guest Name (Optional)
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="guestName"
+                    type="text"
+                    placeholder="Defaults to agency name"
+                    value={data.guestName || ''}
+                    onChange={(e) => onChange({ guestName: e.target.value })}
+                    disabled={disabled}
+                    className="h-10 bg-white border-gray-100 rounded-lg font-medium text-primary text-xs pl-9 shadow-sm"
+                  />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="guestMobile" className="text-[10px] font-bold text-primary/70 uppercase tracking-wider ml-1">
+                  Guest Number (Optional)
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="guestMobile"
+                    type="text"
+                    placeholder="Defaults to agency phone"
+                    value={data.guestMobile || ''}
+                    onChange={(e) => onChange({ guestMobile: e.target.value })}
+                    disabled={disabled}
+                    className="h-10 bg-white border-gray-100 rounded-lg font-medium text-primary text-xs pl-9 shadow-sm"
+                  />
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -231,6 +268,54 @@ export const BookingModeStep: React.FC<BookingModeStepProps> = ({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+        )}
+
+        {data.bookingMode && (
+          <div className="p-5 rounded-2xl bg-white border border-gray-100 shadow-sm space-y-3 animate-in fade-in duration-300">
+            <div>
+              <h4 className="text-xs font-bold text-primary flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5 text-secondary" />
+                Guest Details <span className="text-[10px] font-normal text-muted-foreground">(Optional - defaults to agency if left blank)</span>
+              </h4>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="guestName" className="text-[10px] font-bold text-primary/70 uppercase tracking-wider ml-1">
+                  Guest Name
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="guestName"
+                    type="text"
+                    placeholder="Defaults to agency name"
+                    value={data.guestName || ''}
+                    onChange={(e) => onChange({ guestName: e.target.value })}
+                    disabled={disabled}
+                    className="h-10 bg-white border-gray-100 rounded-lg font-medium text-primary text-xs pl-9 shadow-sm"
+                  />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="guestMobile" className="text-[10px] font-bold text-primary/70 uppercase tracking-wider ml-1">
+                  Guest Number / Phone
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="guestMobile"
+                    type="text"
+                    placeholder="Defaults to agency phone"
+                    value={data.guestMobile || ''}
+                    onChange={(e) => onChange({ guestMobile: e.target.value })}
+                    disabled={disabled}
+                    className="h-10 bg-white border-gray-100 rounded-lg font-medium text-primary text-xs pl-9 shadow-sm"
+                  />
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                </div>
+              </div>
             </div>
           </div>
         )}

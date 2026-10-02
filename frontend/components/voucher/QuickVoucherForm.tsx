@@ -12,7 +12,7 @@ import { MovementsTable } from '@/components/umrah-booking/components/MovementsT
 import { TravelDetailsForm } from '@/components/umrah-booking/components/TravelDetailsForm';
 import { HotelBookingTable } from '@/components/umrah-booking/components/HotelBookingTable';
 import { Step2Data, HotelBooking } from '@/lib/umrah/types';
-import { generateMovementsFromRoutes } from '@/lib/umrah/generateMovements';
+import { generateMovementsFromRoutes, findZiyarathLocation, normalizeCityName } from '@/lib/umrah/generateMovements';
 import {
   Table,
   TableBody,
@@ -46,6 +46,7 @@ interface HotelSchedule {
   checkOut: string;
   days: number;
   brn?: string;
+  cateringBrn?: string;
 }
 
 interface MovementDetail {
@@ -233,10 +234,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
     if (selectedRoutes.length === 0) return;
 
     const findZiyarathByCity = (cityName: string) => {
-      const normalizedCity = cityName.toLowerCase().trim();
-      return ziyaraths.find((z: any) => 
-        (z.city || '').toLowerCase().trim() === normalizedCity
-      );
+      return findZiyarathLocation(cityName, locations);
     };
 
     const hotelBookings = formData.hotelSchedules.map(h => ({
@@ -282,7 +280,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
           toLocation: toLoc?.name || '',
           paxCount: m.paxCount || formData.paxCount,
           price: m.price || 0,
-          vehicleType: m.vehicleType || '',
+          vehicleType: (m as any).vehicleType || '',
         };
       });
 
@@ -423,16 +421,13 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
   };
 
   const findZiyarathByCity = (cityName: string) => {
-    const normalizedCity = cityName.toLowerCase().trim();
-    return ziyaraths.find((z: any) => 
-      (z.city || '').toLowerCase().trim() === normalizedCity
-    );
+    return findZiyarathLocation(cityName, locations);
   };
 
   // Helper: Check if a city is Makkah or Madinah
   const isZiyarathCity = (cityName: string): boolean => {
-    const normalized = cityName.toLowerCase().trim();
-    return normalized === 'makkah' || normalized === 'madinah' || normalized === 'madina';
+    const normalized = normalizeCityName(cityName);
+    return normalized === 'makkah' || normalized === 'madinah';
   };
 
   // Helper: Find city center location for a city
@@ -677,11 +672,18 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
               ? calculateZiyarathDate(currentHotel.checkIn)
               : currentHotel.checkOut || arrivalDate;
             
+            const normFrom = normalizeCityName(currentHotel.cityName);
+            const normTo = normalizeCityName(nextHotel.cityName);
+            let nextHotelTime = '20:30';
+            if (normFrom === 'makkah' && normTo === 'madinah') {
+              nextHotelTime = '14:00';
+            }
+
             movements.push({
               sr: movementIndex + 1,
               route: '',
               date: movementDate,
-              time: '20:30',
+              time: nextHotelTime,
               fromCityId: currentHotel.cityId,
               from: currentHotel.cityName,
               fromLocationId: '',
@@ -1243,8 +1245,8 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
       hotelId,
       checkInDate: hs.checkIn,
       checkOutDate: hs.checkOut,
-      brn: hs.brn ? hs.brn.split(',').map(s => s.trim()).filter(Boolean) : [],
-      cateringBrn: hs.cateringBrn ? hs.cateringBrn.split(',').map(s => s.trim()).filter(Boolean) : [],
+      brn: hs.brn ? hs.brn.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
+      cateringBrn: hs.cateringBrn ? hs.cateringBrn.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
     };
   });
 

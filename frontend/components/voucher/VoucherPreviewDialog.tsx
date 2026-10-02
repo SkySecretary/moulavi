@@ -278,6 +278,7 @@ export function VoucherPreviewDialog({
     guestName: '',
     guestMobile: '',
     groupCode: '',
+    groupName: '',
     paxCount: 0,
     vehicleType: '',
     bookingReference: '',

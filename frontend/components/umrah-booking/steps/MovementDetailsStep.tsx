@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Table2, AlertCircle } from 'lucide-react';
 import { MovementsTable } from '../components/MovementsTable';
-import { generateMovementsFromRoutes, getSelectedRoutes } from '@/lib/umrah/generateMovements';
+import { generateMovementsFromRoutes, getSelectedRoutes, findZiyarathLocation } from '@/lib/umrah/generateMovements';
 import { JourneyFlowSummary } from '../components/JourneyFlowSummary';
 import { transportRouteMasterAPI } from '@/lib/api';
 import { TransportRouteMaster } from '@/types';
@@ -113,12 +113,7 @@ export const MovementDetailsStep: React.FC<MovementDetailsStepProps> = ({
 
   // Helper: Find ziyarath LocationMaster by city name
   const findZiyarathByCity = React.useCallback((cityName: string): any => {
-    const normalizedCity = cityName.toLowerCase().trim();
-    return locationMasters.find(
-      (lm: any) =>
-        lm.locationType === 'ZIYARAT' &&
-        (lm.city || '').toLowerCase() === normalizedCity
-    );
+    return findZiyarathLocation(cityName, locationMasters);
   }, [locationMasters]);
 
   // Load available routes

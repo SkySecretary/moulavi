@@ -637,14 +637,14 @@ function generateVoucherHTML(data: VoucherPdfData & { isBookingVoucher?: boolean
                 <div class="info-icon" style="color: #666;">${icons.user}</div>
                 <div class="info-text">
                     <span class="info-label">GUEST NAME</span>
-                    <span class="info-val">${data.guestName || 'N/A'}</span>
+                    <span class="info-val">${data.guestName || (data.agentParty ? data.agentParty.partyName : 'N/A')}</span>
                 </div>
             </div>
             <div class="info-item">
                 <div class="info-icon">${icons.phone}</div>
                 <div class="info-text">
                     <span class="info-label">GUEST PHONE</span>
-                    <span class="info-val">${data.guestMobile || 'N/A'}</span>
+                    <span class="info-val">${data.guestMobile || (data.agentParty ? ((data.agentParty as any).phoneNumber || (data.agentParty as any).contactNumber || (data.agentParty as any).whatsappNumber || (data.agentParty as any).contactPersonMobile || 'N/A') : 'N/A')}</span>
                 </div>
             </div>
             <div class="info-item">

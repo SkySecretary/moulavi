@@ -8,6 +8,8 @@ export interface Step1Data {
   umrahVisaProviderId?: string;
   visaType?: 'individual_visa' | 'group_visa' | 're_entry';
   umrahVisaNumber?: string;
+  guestName?: string;
+  guestMobile?: string;
 }
 
 export interface Step2Data {

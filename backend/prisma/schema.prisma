@@ -98,6 +98,8 @@ model UmrahVisaBooking {
   submittedAt               DateTime                   @default(now()) @map("submitted_at")
   groupNumber               String?                    @map("group_number")
   groupName                 String?                    @map("group_name")
+  guestName                 String?                    @map("guest_name")
+  guestMobile               String?                    @map("guest_mobile")
   passengerCount            Int                        @map("passenger_count")
   umrahVisaProviderId       String?                    @map("umrah_visa_provider_id")
   status                    UmrahVisaStatus            @default(pending)

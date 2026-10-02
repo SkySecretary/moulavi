@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Step1Data } from '@/lib/umrah/types';
 import { partyAPI } from '@/lib/api';
 import { Party } from '@/types';
+import { User, Phone } from 'lucide-react';
 
 interface GroupDetailsStepProps {
   data: Step1Data;
@@ -67,7 +68,7 @@ export const GroupDetailsStep: React.FC<GroupDetailsStepProps> = ({
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 md:col-span-2">
             <Label htmlFor="umrahVisaProviderId">Umrah Visa Providing Company *</Label>
             <Select
               value={data.umrahVisaProviderId || ''}
@@ -85,6 +86,51 @@ export const GroupDetailsStep: React.FC<GroupDetailsStepProps> = ({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* Guest Details Section (Optional) */}
+      <div className="p-4 rounded-xl bg-gray-50/70 border border-gray-200/80 space-y-3">
+        <div>
+          <h4 className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+            <User className="h-3.5 w-3.5 text-primary" />
+            Guest Details <span className="text-[10px] font-normal text-muted-foreground">(Optional - defaults to agency if left blank)</span>
+          </h4>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="groupGuestName" className="text-xs font-medium text-gray-700">
+              Guest Name
+            </Label>
+            <div className="relative">
+              <Input
+                id="groupGuestName"
+                placeholder="Defaults to agency name"
+                value={data.guestName || ''}
+                onChange={(e) => onChange({ guestName: e.target.value })}
+                disabled={disabled}
+                className="pl-9 text-xs"
+              />
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="groupGuestMobile" className="text-xs font-medium text-gray-700">
+              Guest Number / Phone
+            </Label>
+            <div className="relative">
+              <Input
+                id="groupGuestMobile"
+                placeholder="Defaults to agency phone"
+                value={data.guestMobile || ''}
+                onChange={(e) => onChange({ guestMobile: e.target.value })}
+                disabled={disabled}
+                className="pl-9 text-xs"
+              />
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            </div>
           </div>
         </div>
       </div>

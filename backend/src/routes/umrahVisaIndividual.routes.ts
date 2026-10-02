@@ -552,6 +552,8 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
           submittedAt: new Date(),
           groupNumber: step1Data.groupNumber,
           groupName: step1Data.groupName,
+          guestName: step1Data.guestName || req.body.guestName || null,
+          guestMobile: step1Data.guestMobile || req.body.guestMobile || null,
           hasGroupNumber,
           passengerCount: step2Data.passengerCount || finalPassengerCount,
           umrahVisaProviderId: step1Data.umrahVisaProviderId || null,
