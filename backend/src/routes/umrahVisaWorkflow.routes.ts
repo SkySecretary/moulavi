@@ -2420,7 +2420,7 @@ router.delete('/movement-details/:id', authenticate, async (req, res) => {
 router.patch('/booking/:id/group-number', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
-    const { groupNumber, groupName, brn, umrahVisaProviderId, transportCompanyId, passengerCount, partyId } = req.body;
+    const { groupNumber, groupName, brn, umrahVisaProviderId, transportCompanyId, passengerCount, partyId, requestNumber } = req.body;
     const user = (req as any).user;
 
     const isAdminOrStaff = user.role === 'admin' || user.role === 'staff';
@@ -2433,6 +2433,10 @@ router.patch('/booking/:id/group-number', authenticate, async (req, res) => {
       transportCompanyId: transportCompanyId || undefined,
       lastUpdatedBy: user.id,
     };
+
+    if (requestNumber !== undefined) {
+      updateData.requestNumber = requestNumber ? String(requestNumber).trim() : null;
+    }
 
     if (passengerCount !== undefined) {
       updateData.passengerCount = Number(passengerCount);
@@ -2675,10 +2679,44 @@ router.patch('/:bookingId/trip-status', authenticate, async (req, res) => {
       }
     }
 
-    res.json({ success: true, booking: updatedBooking });
+    res.json({
+      success: true,
+      booking: updatedBooking,
+      message: `Trip status updated to ${tripStatus}`
+    });
   } catch (error) {
     console.error('Error updating trip status:', error);
     res.status(500).json({ error: 'Failed to update trip status' });
+  }
+});
+
+// PATCH /api/umrah-visa/:bookingId/request-number - Update request number
+router.patch('/:bookingId/request-number', authenticate, async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { requestNumber } = req.body;
+    const user = (req as any).user;
+
+    const booking = await prisma.umrahVisaBooking.findUnique({
+      where: { id: bookingId }
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const updatedBooking = await prisma.umrahVisaBooking.update({
+      where: { id: bookingId },
+      data: {
+        requestNumber: requestNumber !== undefined ? (requestNumber ? String(requestNumber).trim() : null) : undefined,
+        lastUpdatedBy: user?.id || booking.lastUpdatedBy,
+      }
+    });
+
+    res.json({ success: true, booking: updatedBooking });
+  } catch (error) {
+    console.error('Error updating request number:', error);
+    res.status(500).json({ error: 'Failed to update request number' });
   }
 });
 

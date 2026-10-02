@@ -245,6 +245,7 @@ export interface UmrahVisaBooking {
   accommodationType: AccommodationType;
   visaType?: VisaType;
   umrahVisaNumber?: string;
+  requestNumber?: string;
   makkahCheckIn?: string;
   makkahCheckOut?: string;
   madinaCheckIn?: string;

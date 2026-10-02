@@ -205,8 +205,8 @@ export const umrahVisaAPI = {
   updateBookingStatus: (id: string, status: string, notes?: string) =>
     api.patch(`/umrah-visa/booking/${id}/status`, { status, notes }),
   
-  updateGroupNumber: (id: string, groupNumber: string, groupName: string, brn?: string, umrahVisaProviderId?: string, transportCompanyId?: string, passengerCount?: number, partyId?: string) =>
-    api.patch(`/umrah-visa/booking/${id}/group-number`, { groupNumber, groupName, brn, umrahVisaProviderId, transportCompanyId, passengerCount, partyId }),
+  updateGroupNumber: (id: string, groupNumber: string, groupName: string, brn?: string, umrahVisaProviderId?: string, transportCompanyId?: string, passengerCount?: number, partyId?: string, requestNumber?: string) =>
+    api.patch(`/umrah-visa/booking/${id}/group-number`, { groupNumber, groupName, brn, umrahVisaProviderId, transportCompanyId, passengerCount, partyId, requestNumber }),
   
   deleteBooking: (id: string) => api.delete(`/umrah-visa/booking/${id}`),
   restoreBooking: (id: string) => api.patch(`/umrah-visa/booking/${id}/restore`),
@@ -280,6 +280,8 @@ export const umrahVisaAPI = {
   updateTravelDetails: (id: string, data: any) => api.patch(`/umrah-visa/${id}/travel-details`, data),
 
   updateTripStatus: (id: string, tripStatus: string) => api.patch(`/umrah-visa/${id}/trip-status`, { tripStatus }),
+
+  updateRequestNumber: (id: string, requestNumber: string) => api.patch(`/umrah-visa/${id}/request-number`, { requestNumber }),
 
   updateAccommodation: (id: string, data: any) => api.patch(`/umrah-visa/${id}/accommodation`, data),
 

@@ -24,7 +24,12 @@ import {
   Download,
   Loader2,
   Check,
-  Database
+  Database,
+  Edit,
+  Pencil,
+  FileText,
+  Save,
+  Plus
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
@@ -33,6 +38,7 @@ import { UmrahVisaBooking, UmrahVisaStatus } from '@/types';
 import { umrahVisaAPI, uploadAPI, cityMasterAPI, locationMasterAPI } from '@/lib/api';
 import { UMRAH_VISA_STATUS_CONFIG } from '@/lib/constants';
 import { DatePicker } from '@/components/ui/date-picker';
+import { Label } from '@/components/ui/label';
 import { fromDisplayDate } from '@/lib/umrah/validation';
 import { PickBrnInventoryDialog } from '@/components/umrah-booking/components/HotelBookingTable';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -46,6 +52,11 @@ export default function TripInfoPage() {
   const [isTableLoading, setIsTableLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Request Number state for Re-Entry bookings
+  const [editingRequestNumberBooking, setEditingRequestNumberBooking] = useState<{ id: string; current: string; bookingRef: string } | null>(null);
+  const [requestNumberInput, setRequestNumberInput] = useState('');
+  const [savingRequestNumber, setSavingRequestNumber] = useState(false);
 
   // Debounce search query to prevent constant re-renders and focus loss while typing
   useEffect(() => {
@@ -506,6 +517,21 @@ export default function TripInfoPage() {
     }
   };
 
+  const handleSaveRequestNumber = async () => {
+    if (!editingRequestNumberBooking) return;
+    try {
+      setSavingRequestNumber(true);
+      await umrahVisaAPI.updateRequestNumber(editingRequestNumberBooking.id, requestNumberInput);
+      toast.success('Request Number updated successfully');
+      setBookingList(prev => prev.map(b => b.id === editingRequestNumberBooking.id ? { ...b, requestNumber: requestNumberInput.trim() || undefined } : b));
+      setEditingRequestNumberBooking(null);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to update request number');
+    } finally {
+      setSavingRequestNumber(false);
+    }
+  };
+
   const handleCopyAll = async (booking: UmrahVisaBooking) => {
     const mainTravel = booking.travelDetails?.find(t => !t.isAlternate);
     let iqamaInfo = '';
@@ -546,7 +572,11 @@ export default function TripInfoPage() {
         .filter((v: any) => v)
         .join(', ');
       const visaToPrint = booking.umrahVisaNumber || passengerVisaNumbers || 'N/A';
-      reEntryInfo = `🔑 *Umrah Visa Number:* ${visaToPrint}\n\n`;
+      reEntryInfo = `🔑 *Umrah Visa Number:* ${visaToPrint}\n`;
+      if (booking.requestNumber) {
+        reEntryInfo += `📝 *Request Number:* ${booking.requestNumber}\n`;
+      }
+      reEntryInfo += `\n`;
     }
 
     let text = '';
@@ -686,6 +716,16 @@ export default function TripInfoPage() {
             <Download className="h-3 w-3" />
           )}
           PDF
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => router.push(`/dashboard/umrah-visa/visa-management/edit/${booking.id}`)}
+          className="flex items-center gap-1 border-blue-200 text-blue-700 hover:bg-blue-50"
+          title="Edit Booking"
+        >
+          <Edit className="h-3 w-3" />
+          Edit
         </Button>
         
         {isIqama ? (
@@ -1165,42 +1205,90 @@ export default function TripInfoPage() {
                                 >
                                   {booking.visaType === 're_entry' ? 'Re-Entry' : booking.visaType === 'group_visa' ? 'Group Visa' : 'Individual Visa'}
                                 </Badge>
-                                {booking.visaType === 're_entry' && (() => {
-                                  const visaNos: string[] = [];
-                                  if (booking.umrahVisaNumber) visaNos.push(booking.umrahVisaNumber);
-                                  if (booking.passengers && Array.isArray(booking.passengers)) {
-                                    booking.passengers.forEach((p: any) => {
-                                      if (p.visaNumber && !visaNos.includes(p.visaNumber)) {
-                                        visaNos.push(p.visaNumber);
+                                {booking.visaType === 're_entry' && (
+                                  <div className="flex flex-col gap-1 mt-0.5">
+                                    {/* Pilgrim Visa Numbers */}
+                                    {(() => {
+                                      const visaNos: string[] = [];
+                                      if (booking.umrahVisaNumber) visaNos.push(booking.umrahVisaNumber);
+                                      if (booking.passengers && Array.isArray(booking.passengers)) {
+                                        booking.passengers.forEach((p: any) => {
+                                          if (p.visaNumber && !visaNos.includes(p.visaNumber)) {
+                                            visaNos.push(p.visaNumber);
+                                          }
+                                        });
                                       }
-                                    });
-                                  }
-                                  if (visaNos.length > 0) {
-                                    return (
-                                      <div className="flex flex-col gap-0.5 mt-0.5">
-                                        {visaNos.map((v, i) => (
-                                          <span 
-                                            key={i} 
-                                            className="text-[10px] font-mono font-bold text-amber-950 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 inline-flex items-center gap-1 w-fit shadow-2xs"
+                                      if (visaNos.length > 0) {
+                                        return (
+                                          <div className="flex flex-col gap-0.5">
+                                            {visaNos.map((v, i) => (
+                                              <span 
+                                                key={i} 
+                                                className="text-[10px] font-mono font-bold text-amber-950 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 inline-flex items-center gap-1 w-fit shadow-2xs"
+                                              >
+                                                <span>Visa: {v}</span>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    copyToClipboard(v, 'Visa Number');
+                                                  }}
+                                                  className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-amber-800"
+                                                  title="Copy visa number"
+                                                >
+                                                  <Copy className="h-2.5 w-2.5 text-gray-500" />
+                                                </button>
+                                              </span>
+                                            ))}
+                                          </div>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
+
+                                    {/* Request Number for Re-Entry */}
+                                    <div className="flex items-center gap-1">
+                                      {booking.requestNumber ? (
+                                        <span className="text-[10px] font-mono font-bold text-blue-950 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 inline-flex items-center gap-1 w-fit shadow-2xs">
+                                          <span>Req: {booking.requestNumber}</span>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              copyToClipboard(booking.requestNumber!, 'Request Number');
+                                            }}
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-blue-800"
+                                            title="Copy request number"
                                           >
-                                            <span>Visa: {v}</span>
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                copyToClipboard(v, 'Visa Number');
-                                              }}
-                                              className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-amber-800"
-                                              title="Copy visa number"
-                                            >
-                                              <Copy className="h-2.5 w-2.5 text-gray-500" />
-                                            </button>
-                                          </span>
-                                        ))}
-                                      </div>
-                                    );
-                                  }
-                                  return null;
-                                })()}
+                                            <Copy className="h-2.5 w-2.5 text-gray-500" />
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setEditingRequestNumberBooking({ id: booking.id, current: booking.requestNumber || '', bookingRef: booking.bookingReference || '' });
+                                              setRequestNumberInput(booking.requestNumber || '');
+                                            }}
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-blue-800 ml-0.5"
+                                            title="Edit request number"
+                                          >
+                                            <Pencil className="h-2.5 w-2.5 text-blue-600" />
+                                          </button>
+                                        </span>
+                                      ) : (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingRequestNumberBooking({ id: booking.id, current: '', bookingRef: booking.bookingReference || '' });
+                                            setRequestNumberInput('');
+                                          }}
+                                          className="text-[10px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50/80 hover:bg-blue-100 px-1.5 py-0.5 rounded border border-blue-200 border-dashed inline-flex items-center gap-1 transition-colors w-fit shadow-2xs"
+                                          title="Add Request Number"
+                                        >
+                                          <Plus className="h-2.5 w-2.5" />
+                                          <span>Add Req #</span>
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                                 {booking.hasMultipleGroup && (
                                   <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-300 font-medium">
                                     Add to Existing
@@ -2308,6 +2396,66 @@ export default function TripInfoPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Request Number Edit Dialog */}
+      <Dialog 
+        open={!!editingRequestNumberBooking} 
+        onOpenChange={(open) => {
+          if (!open) setEditingRequestNumberBooking(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-primary flex items-center gap-2">
+              <FileText className="h-5 w-5 text-blue-600" />
+              Update Request Number
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-500">
+              Enter the official Request Number for Re-Entry Booking{' '}
+              <span className="font-mono font-bold text-gray-800">
+                {editingRequestNumberBooking?.bookingRef}
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-3 space-y-2">
+            <Label htmlFor="reqNumInput" className="text-xs font-semibold text-gray-700">Request Number</Label>
+            <Input
+              id="reqNumInput"
+              value={requestNumberInput}
+              onChange={(e) => setRequestNumberInput(e.target.value)}
+              placeholder="e.g. REQ-987654321"
+              className="font-mono font-bold text-sm"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSaveRequestNumber();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setEditingRequestNumberBooking(null)}
+              disabled={savingRequestNumber}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleSaveRequestNumber}
+              disabled={savingRequestNumber}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
+            >
+              {savingRequestNumber ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+              Save Request #
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </div>
     </div>
   );

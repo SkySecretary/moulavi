@@ -43,6 +43,7 @@ export default function EditUmrahVisaBookingPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [passengerCount, setPassengerCount] = useState(0);
   const [bookingStatus, setBookingStatus] = useState('');
+  const [requestNumber, setRequestNumber] = useState('');
   const [isOneWay, setIsOneWay] = useState(false);
   const [oneWayContactName, setOneWayContactName] = useState('');
   const [oneWayWhatsapp, setOneWayWhatsapp] = useState('');
@@ -181,6 +182,7 @@ export default function EditUmrahVisaBookingPage() {
       setSelectedCustomerId(b.partyId || '');
       setPassengerCount(b.passengerCount || 0);
       setBookingStatus(b.status || '');
+      setRequestNumber(b.requestNumber || '');
       setIsOneWay(b.isOneWay || false);
       setOneWayContactName(b.oneWayContactName || '');
       setOneWayWhatsapp(b.oneWayWhatsapp || '');
@@ -399,7 +401,7 @@ export default function EditUmrahVisaBookingPage() {
         await umrahVisaAPI.updateBookingStatus(bookingId, bookingStatus, 'Status updated via manual edit');
       }
 
-      await umrahVisaAPI.updateGroupNumber(bookingId, groupNumber, groupName, brn, umrahVisaProviderId, transportCompanyId, passengerCount, selectedCustomerId);
+      await umrahVisaAPI.updateGroupNumber(bookingId, groupNumber, groupName, brn, umrahVisaProviderId, transportCompanyId, passengerCount, selectedCustomerId, requestNumber);
 
       await umrahVisaAPI.updateTravelDetails(bookingId, {
         arrivalDateTime: combineDateAndTime(arrivalDate, arrivalTime),
@@ -607,12 +609,19 @@ export default function EditUmrahVisaBookingPage() {
 
   const addHotelBooking = () => {
     const lastBooking = hotelBookings[hotelBookings.length - 1];
+    const defaultLocation = mappedLocationsForTable[0]?.id || '';
+    const hotelsForLoc = getHotelsForLocation(defaultLocation);
     setHotelBookings(prev => [...prev, {
       id: `new-${Date.now()}`,
-      locationId: lastBooking?.locationId || locations.filter((l: any) => l.locationType === 'OTHERS')[0]?.id || '',
-      hotelId: lastBooking?.hotelId || hotels[0]?.id || '',
-      checkInDate: lastBooking?.checkOutDate || arrivalDate || new Date().toISOString().split('T')[0],
-      checkOutDate: departureDate || new Date().toISOString().split('T')[0],
+      locationId: lastBooking?.locationId || defaultLocation,
+      cityId: lastBooking?.cityId || lastBooking?.locationId || defaultLocation,
+      hotelId: lastBooking?.hotelId || hotelsForLoc[0]?.id || mappedHotelsForTable[0]?.id || '',
+      checkInDate: lastBooking?.checkOutDate || arrivalDate || '',
+      checkOutDate: departureDate || '',
+      brn: [],
+      cateringBrn: [],
+      additionalBrns: [],
+      bedsQuantity: null,
     }]);
   };
 
@@ -754,6 +763,15 @@ export default function EditUmrahVisaBookingPage() {
                       onChange={(e) => setBrn(e.target.value)} 
                       placeholder="BRN"
                       className="font-bold"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Request Number</p>
+                    <Input 
+                      value={requestNumber} 
+                      onChange={(e) => setRequestNumber(e.target.value)} 
+                      placeholder="Request Number"
+                      className="font-bold font-mono"
                     />
                   </div>
                   <div className="space-y-1">
@@ -1041,6 +1059,18 @@ export default function EditUmrahVisaBookingPage() {
                 </div>
                 {accommodationType === 'hotel' && (
                   <div className="mt-4 space-y-4">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                      <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Hotel Bookings</h4>
+                      <Button 
+                        type="button" 
+                        onClick={addHotelBooking}
+                        disabled={saving}
+                        className="h-8 px-3 rounded-lg bg-indigo-600 text-white font-bold uppercase shadow-sm hover:bg-indigo-700 transition-all text-xs"
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-1" />
+                        Add Hotel
+                      </Button>
+                    </div>
                     <HotelBookingTable
                       hotelBookings={hotelBookings}
                       locations={mappedLocationsForTable}
@@ -1053,7 +1083,10 @@ export default function EditUmrahVisaBookingPage() {
                       }}
                       onAddBooking={addHotelBooking}
                       disabled={saving}
+                      showAddButton={true}
                       hideInventory={booking?.visaType === 'group_visa'}
+                      arrivalDate={arrivalDate}
+                      departureDate={departureDate}
                     />
                   </div>
                 )}

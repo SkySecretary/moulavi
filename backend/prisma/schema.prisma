@@ -131,6 +131,7 @@ model UmrahVisaBooking {
   bookingReference          String?                    @unique @map("booking_reference")
   brn                       String?                    @map("brn")
   umrahVisaNumber           String?                    @map("umrah_visa_number")
+  requestNumber             String?                    @map("request_number")
   appendedBookings          Json?                      @map("appended_bookings")
   appendedToBookingId       String?                    @map("appended_to_booking_id")
   appendedToVoucherNumber   String?                    @map("appended_to_voucher_number")
