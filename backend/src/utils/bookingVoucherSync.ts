@@ -269,6 +269,22 @@ export async function syncVoucherToBooking(tx: any, voucherId: string) {
         where: { id: { in: idsToDelete } },
       });
     }
+    // 4. Sync companies from Voucher to Booking if booking is missing them
+    if (voucher.transportCompanyId || voucher.umrahCompanyId || voucher.umrahVisaProviderId) {
+      const bookingUpdates: any = {};
+      if (voucher.transportCompanyId) {
+        bookingUpdates.transportCompanyId = voucher.transportCompanyId;
+      }
+      if (voucher.umrahCompanyId || voucher.umrahVisaProviderId) {
+        bookingUpdates.umrahVisaProviderId = voucher.umrahCompanyId || voucher.umrahVisaProviderId;
+      }
+      if (Object.keys(bookingUpdates).length > 0) {
+        await db.umrahVisaBooking.update({
+          where: { id: bookingId },
+          data: bookingUpdates,
+        });
+      }
+    }
   }
 }
 
@@ -460,6 +476,11 @@ export async function syncBookingToVoucher(tx: any, bookingId: string) {
     }
   }
 
+  // Preserve existing transportCompanyId and umrahCompanyId from voucher if booking is missing them
+  const newUmrahProviderId = booking.umrahVisaProviderId || voucher.umrahVisaProviderId || voucher.umrahCompanyId || null;
+  const newUmrahCompanyId = booking.umrahVisaProviderId || voucher.umrahCompanyId || voucher.umrahVisaProviderId || null;
+  const newTransportCompanyId = booking.transportCompanyId || voucher.transportCompanyId || null;
+
   // Update main voucher attributes
   await db.voucher.update({
     where: { id: voucher.id },
@@ -467,9 +488,9 @@ export async function syncBookingToVoucher(tx: any, bookingId: string) {
       paxCount: totalPax,
       groupCode,
       groupName,
-      umrahVisaProviderId: booking.umrahVisaProviderId || null,
-      umrahCompanyId: booking.umrahVisaProviderId || null,
-      transportCompanyId: booking.transportCompanyId || null,
+      umrahVisaProviderId: newUmrahProviderId,
+      umrahCompanyId: newUmrahCompanyId,
+      transportCompanyId: newTransportCompanyId,
       version: voucher.version + 1,
     },
   });

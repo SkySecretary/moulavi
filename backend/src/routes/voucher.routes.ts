@@ -28,7 +28,7 @@ router.get(
   authenticate,
   authorize('admin', 'staff', 'party'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { page = '1', limit = '10', search = '', dateFrom, dateTo } = req.query;
+    const { page = '1', limit = '10', search = '', voucherNumber = '', dateFrom, dateTo } = req.query;
     const user = req.user!;
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
@@ -41,16 +41,23 @@ router.get(
       where.partyId = user.partyId;
     }
 
-    if (search) {
+    if (voucherNumber && (voucherNumber as string).trim()) {
+      where.voucherNumber = { contains: (voucherNumber as string).trim() };
+    }
+
+    if (search && (search as string).trim()) {
+      const searchStr = (search as string).trim();
       where.OR = [
-        { voucherNumber: { contains: search as string } },
-        { guestName: { contains: search as string } },
-        { guestMobile: { contains: search as string } },
-        { groupCode: { contains: search as string } },
-        { bookingReference: { contains: search as string } },
-        { umrahCompany: { partyName: { contains: search as string } } },
-        { transportCompany: { partyName: { contains: search as string } } },
-        { party: { partyName: { contains: search as string } } },
+        { voucherNumber: { contains: searchStr } },
+        { guestName: { contains: searchStr } },
+        { guestMobile: { contains: searchStr } },
+        { groupCode: { contains: searchStr } },
+        { bookingReference: { contains: searchStr } },
+        { umrahCompany: { partyName: { contains: searchStr } } },
+        { transportCompany: { partyName: { contains: searchStr } } },
+        { party: { partyName: { contains: searchStr } } },
+        { booking: { umrahVisaProvider: { partyName: { contains: searchStr } } } },
+        { booking: { transportCompany: { partyName: { contains: searchStr } } } },
       ];
     }
 
@@ -76,13 +83,26 @@ router.get(
             },
           },
           umrahCompany: {
-            select: { partyName: true, address: true, contactNumber: true, whatsappNumber: true, email: true }
+            select: { id: true, partyName: true, address: true, contactNumber: true, whatsappNumber: true, email: true, logoPath: true, partyCode: true }
           },
           party: {
-            select: { partyName: true }
+            select: { id: true, partyName: true, partyCode: true, whatsappNumber: true, contactNumber: true }
           },
           transportCompany: {
-            select: { partyName: true }
+            select: { id: true, partyName: true, partyCode: true }
+          },
+          booking: {
+            select: {
+              id: true,
+              umrahVisaProviderId: true,
+              transportCompanyId: true,
+              umrahVisaProvider: {
+                select: { id: true, partyName: true, address: true, contactNumber: true, whatsappNumber: true, email: true, logoPath: true, partyCode: true }
+              },
+              transportCompany: {
+                select: { id: true, partyName: true, partyCode: true }
+              }
+            }
           },
           movements: {
             orderBy: {
@@ -104,8 +124,18 @@ router.get(
       prisma.voucher.count({ where }),
     ]);
 
+    const formattedVouchers = vouchers.map((v) => {
+      const umrahCompany = v.umrahCompany || v.booking?.umrahVisaProvider || null;
+      const transportCompany = v.transportCompany || v.booking?.transportCompany || null;
+      return {
+        ...v,
+        umrahCompany,
+        transportCompany,
+      };
+    });
+
     res.json({
-      vouchers,
+      vouchers: formattedVouchers,
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -224,6 +254,14 @@ router.get(
             include: {
               umrahCompany: true,
               transportCompany: true,
+              party: true,
+              booking: {
+                include: {
+                  umrahVisaProvider: true,
+                  transportCompany: true,
+                  party: true,
+                }
+              }
             }
           } 
         },
@@ -250,6 +288,8 @@ router.get(
     const movements = movementsData.map((movement) => {
       const voucherMovements = movementsByVoucher.get(movement.voucherId) || [];
       const movementIndex = voucherMovements.findIndex((m) => m.id === movement.id);
+      const umrahCompanyName = movement.voucher.umrahCompany?.partyName || movement.voucher.booking?.umrahVisaProvider?.partyName || '—';
+      const transportCompanyName = movement.voucher.transportCompany?.partyName || movement.voucher.booking?.transportCompany?.partyName || '—';
 
       return {
         voucherId: movement.voucherId,
@@ -264,8 +304,8 @@ router.get(
         mobile: movement.voucher.guestMobile || '',
         pax: movement.voucher.paxCount,
         qty: movement.voucher.paxCount,
-        umrahCompany: movement.voucher.umrahCompany?.partyName || '—',
-        transportCompany: movement.voucher.transportCompany?.partyName || '—',
+        umrahCompany: umrahCompanyName,
+        transportCompany: transportCompanyName,
         from: movement.from || '',
         fromLocation: movement.fromLocation || '',
         fromLocationId: movement.fromLocationId || null,
@@ -342,6 +382,14 @@ router.get(
             include: {
               umrahCompany: true,
               transportCompany: true,
+              party: true,
+              booking: {
+                include: {
+                  umrahVisaProvider: true,
+                  transportCompany: true,
+                  party: true,
+                }
+              }
             }
           } 
         },
@@ -368,6 +416,8 @@ router.get(
     const movements = movementsData.map((movement) => {
       const voucherMovements = movementsByVoucher.get(movement.voucherId) || [];
       const movementIndex = voucherMovements.findIndex((m) => m.id === movement.id);
+      const umrahCompanyName = movement.voucher.umrahCompany?.partyName || movement.voucher.booking?.umrahVisaProvider?.partyName || '—';
+      const transportCompanyName = movement.voucher.transportCompany?.partyName || movement.voucher.booking?.transportCompany?.partyName || '—';
 
       return {
         voucherId: movement.voucherId,
@@ -382,8 +432,8 @@ router.get(
         mobile: movement.voucher.guestMobile || '',
         pax: movement.voucher.paxCount,
         qty: movement.voucher.paxCount,
-        umrahCompany: movement.voucher.umrahCompany?.partyName || '—',
-        transportCompany: movement.voucher.transportCompany?.partyName || '—',
+        umrahCompany: umrahCompanyName,
+        transportCompany: transportCompanyName,
         from: movement.from || '',
         fromLocation: movement.fromLocation || '',
         fromLocationId: movement.fromLocationId || null,
@@ -460,6 +510,14 @@ router.get(
             include: {
               umrahCompany: true,
               transportCompany: true,
+              party: true,
+              booking: {
+                include: {
+                  umrahVisaProvider: true,
+                  transportCompany: true,
+                  party: true,
+                }
+              }
             }
           } 
         },
@@ -486,6 +544,8 @@ router.get(
     const movements = movementsData.map((movement) => {
       const voucherMovements = movementsByVoucher.get(movement.voucherId) || [];
       const movementIndex = voucherMovements.findIndex((m) => m.id === movement.id);
+      const umrahCompanyName = movement.voucher.umrahCompany?.partyName || movement.voucher.booking?.umrahVisaProvider?.partyName || '—';
+      const transportCompanyName = movement.voucher.transportCompany?.partyName || movement.voucher.booking?.transportCompany?.partyName || '—';
 
       return {
         voucherId: movement.voucherId,
@@ -500,8 +560,8 @@ router.get(
         mobile: movement.voucher.guestMobile || '',
         pax: movement.voucher.paxCount,
         qty: movement.voucher.paxCount,
-        umrahCompany: movement.voucher.umrahCompany?.partyName || '—',
-        transportCompany: movement.voucher.transportCompany?.partyName || '—',
+        umrahCompany: umrahCompanyName,
+        transportCompany: transportCompanyName,
         from: movement.from || '',
         fromLocation: movement.fromLocation || '',
         fromLocationId: movement.fromLocationId || null,
@@ -582,6 +642,14 @@ router.get(
             include: {
               umrahCompany: true,
               transportCompany: true,
+              party: true,
+              booking: {
+                include: {
+                  umrahVisaProvider: true,
+                  transportCompany: true,
+                  party: true,
+                }
+              }
             }
           } 
         },
@@ -608,6 +676,8 @@ router.get(
     const movements = movementsData.map((movement) => {
       const voucherMovements = movementsByVoucher.get(movement.voucherId) || [];
       const movementIndex = voucherMovements.findIndex((m) => m.id === movement.id);
+      const umrahCompanyName = movement.voucher.umrahCompany?.partyName || movement.voucher.booking?.umrahVisaProvider?.partyName || '—';
+      const transportCompanyName = movement.voucher.transportCompany?.partyName || movement.voucher.booking?.transportCompany?.partyName || '—';
 
       return {
         voucherId: movement.voucherId,
@@ -622,8 +692,8 @@ router.get(
         mobile: movement.voucher.guestMobile || '',
         pax: movement.voucher.paxCount,
         qty: movement.voucher.paxCount,
-        umrahCompany: movement.voucher.umrahCompany?.partyName || '—',
-        transportCompany: movement.voucher.transportCompany?.partyName || '—',
+        umrahCompany: umrahCompanyName,
+        transportCompany: transportCompanyName,
         from: movement.from || '',
         fromLocation: movement.fromLocation || '',
         fromLocationId: movement.fromLocationId || null,
@@ -999,13 +1069,26 @@ router.get(
           },
         },
         umrahCompany: {
-          select: { id: true, partyName: true, address: true, contactNumber: true, whatsappNumber: true, email: true, logoPath: true }
+          select: { id: true, partyName: true, address: true, contactNumber: true, whatsappNumber: true, email: true, logoPath: true, partyCode: true }
         },
         party: {
-          select: { id: true, partyName: true }
+          select: { id: true, partyName: true, partyCode: true, whatsappNumber: true, contactNumber: true }
         },
         transportCompany: {
-          select: { id: true, partyName: true }
+          select: { id: true, partyName: true, partyCode: true }
+        },
+        booking: {
+          select: {
+            id: true,
+            umrahVisaProviderId: true,
+            transportCompanyId: true,
+            umrahVisaProvider: {
+              select: { id: true, partyName: true, address: true, contactNumber: true, whatsappNumber: true, email: true, logoPath: true, partyCode: true }
+            },
+            transportCompany: {
+              select: { id: true, partyName: true, partyCode: true }
+            }
+          }
         },
         movements: {
           orderBy: {
@@ -1034,9 +1117,14 @@ router.get(
       return res.status(403).json({ error: 'Access denied' });
     }
 
+    const umrahCompany = voucher.umrahCompany || voucher.booking?.umrahVisaProvider || null;
+    const transportCompany = voucher.transportCompany || voucher.booking?.transportCompany || null;
+
     // Transform normalized data to match frontend expectations (for backward compatibility)
     const voucherResponse = {
       ...voucher,
+      umrahCompany,
+      transportCompany,
       bookingReference: voucher.bookingReference || '',
       movementDetails: voucher.movements.map((m) => ({
         sr: m.sr,
@@ -1729,6 +1817,13 @@ router.post(
         party: true,
         umrahCompany: true,
         transportCompany: true,
+        booking: {
+          include: {
+            party: true,
+            umrahVisaProvider: true,
+            transportCompany: true,
+          }
+        }
       }
     });
 
@@ -1736,20 +1831,24 @@ router.post(
       return res.status(404).json({ error: 'Voucher not found' });
     }
 
-    if (!voucher.party?.partyCode) {
+    const party = voucher.party || voucher.booking?.party;
+    const transportCompany = voucher.transportCompany || voucher.booking?.transportCompany;
+    const umrahCompany = voucher.umrahCompany || voucher.booking?.umrahVisaProvider;
+
+    if (!party?.partyCode) {
       return res.status(400).json({ error: 'Customer / Agency does not have a Party Code configured in Settings.' });
     }
-    const partyID = Number(voucher.party.partyCode);
+    const partyID = Number(party.partyCode);
     if (isNaN(partyID) || partyID <= 0) {
-      return res.status(400).json({ error: `Customer / Agency Party Code "${voucher.party.partyCode}" must be a numeric 3-digit ID.` });
+      return res.status(400).json({ error: `Customer / Agency Party Code "${party.partyCode}" must be a numeric 3-digit ID.` });
     }
 
-    if (!voucher.transportCompany?.partyCode) {
+    if (!transportCompany?.partyCode) {
       return res.status(400).json({ error: 'Transport Company does not have a Party Code configured in Settings.' });
     }
-    const umrahCompanyID = Number(voucher.transportCompany.partyCode);
+    const umrahCompanyID = Number(transportCompany.partyCode);
     if (isNaN(umrahCompanyID) || umrahCompanyID <= 0) {
-      return res.status(400).json({ error: `Transport Company Party Code "${voucher.transportCompany.partyCode}" must be a numeric 3-digit ID.` });
+      return res.status(400).json({ error: `Transport Company Party Code "${transportCompany.partyCode}" must be a numeric 3-digit ID.` });
     }
 
     // Map external API fields as requested
@@ -1787,9 +1886,21 @@ router.post(
 
       console.log(`[DEBUG] External API response:`, response.data);
       if (response.data && response.data.status === 'success') {
+        const updateData: any = { invoiceGenerated: true };
+        if (transportCompany?.id && !voucher.transportCompanyId) {
+          updateData.transportCompanyId = transportCompany.id;
+        }
+        if (umrahCompany?.id && !voucher.umrahCompanyId) {
+          updateData.umrahCompanyId = umrahCompany.id;
+          updateData.umrahVisaProviderId = umrahCompany.id;
+        }
+        if (party?.id && !voucher.partyId) {
+          updateData.partyId = party.id;
+        }
+
         await prisma.voucher.update({
           where: { id },
-          data: { invoiceGenerated: true }
+          data: updateData,
         });
         res.json({ message: 'Invoice uploaded successfully to external API', externalResponse: response.data });
       } else {

@@ -170,6 +170,13 @@ function generateVoucherHTML(data: VoucherPdfData & { isBookingVoucher?: boolean
   )).join(', ');
   const displayVehicleType = uniqueVehicles || data.vehicleType || 'N/A';
 
+  // Format comma-separated group codes to wrap across new lines
+  const rawGroupCode = (data.groupCode || 'N/A').trim();
+  const groupCodeList = rawGroupCode.split(',').map((s: string) => s.trim()).filter(Boolean);
+  const formattedGroupCodeHtml = groupCodeList.length > 1
+    ? groupCodeList.join(',<br/>')
+    : rawGroupCode;
+
   // Professional SVG Icons (PDF compatible)
   const icons = {
     bus: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="12" rx="2"/><path d="M6 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"/><path d="M4 19v2"/><path d="M20 19v2"/><circle cx="7" cy="15" r="1"/><circle cx="17" cy="15" r="1"/></svg>`,
@@ -333,7 +340,8 @@ function generateVoucherHTML(data: VoucherPdfData & { isBookingVoucher?: boolean
         .info-row {
             display: flex;
             justify-content: space-between;
-            padding: 15px 20px;
+            align-items: flex-start;
+            padding: 12px 15px;
         }
 
         .info-row:first-child {
@@ -342,8 +350,8 @@ function generateVoucherHTML(data: VoucherPdfData & { isBookingVoucher?: boolean
 
         .info-item {
             display: flex;
-            align-items: center;
-            gap: 15px;
+            align-items: flex-start;
+            gap: 12px;
             flex: 1;
         }
 
@@ -352,12 +360,15 @@ function generateVoucherHTML(data: VoucherPdfData & { isBookingVoucher?: boolean
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 30px;
+            width: 26px;
+            margin-top: 2px;
         }
 
         .info-text {
             display: flex;
             flex-direction: column;
+            overflow-wrap: break-word;
+            word-break: break-word;
         }
 
         .info-label {
@@ -372,6 +383,14 @@ function generateVoucherHTML(data: VoucherPdfData & { isBookingVoucher?: boolean
             font-size: 13px;
             font-weight: 700;
             text-transform: uppercase;
+            line-height: 1.35;
+        }
+
+        .info-val.group-code-val {
+            font-size: 10.5px;
+            line-height: 1.35;
+            white-space: pre-wrap;
+            word-break: break-word;
         }
 
         /* --- Flight & Accom --- */
@@ -632,7 +651,7 @@ function generateVoucherHTML(data: VoucherPdfData & { isBookingVoucher?: boolean
                 <div class="info-icon">${icons.tags}</div>
                 <div class="info-text">
                     <span class="info-label">GROUP CODE</span>
-                    <span class="info-val">${data.groupCode || 'N/A'}</span>
+                    <span class="info-val group-code-val">${formattedGroupCodeHtml}</span>
                 </div>
             </div>
             <div class="info-item" style="flex: 0.5;">

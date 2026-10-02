@@ -83,6 +83,7 @@ function VoucherServiceContent() {
   const [vouchers, setVouchers] = useState<any[]>([]);
   const [loadingVouchers, setLoadingVouchers] = useState(true);
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
+  const [voucherNumberSearch, setVoucherNumberSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [pagination, setPagination] = useState({
@@ -243,6 +244,7 @@ function VoucherServiceContent() {
         page: pagination.page,
         limit: pagination.limit,
         search: searchTerm,
+        voucherNumber: voucherNumberSearch,
         dateFrom,
         dateTo,
       });
@@ -364,7 +366,7 @@ function VoucherServiceContent() {
       else loadSpecificDateMovements();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeMainTab, activeVoucherSubTab, activeMovementSubTab, searchTerm, dateFrom, dateTo, pagination.page, pagination.limit, movementPagination.page, movementPagination.limit, movementSearch, selectedFrom, selectedTo, selectedMovementDate]);
+  }, [activeMainTab, activeVoucherSubTab, activeMovementSubTab, searchTerm, voucherNumberSearch, dateFrom, dateTo, pagination.page, pagination.limit, movementPagination.page, movementPagination.limit, movementSearch, selectedFrom, selectedTo, selectedMovementDate]);
 
   const loadStats = async () => {
     try {
@@ -735,11 +737,37 @@ function VoucherServiceContent() {
                   )}
                 </TabsList>
                 {activeVoucherSubTab === 'all' && (
-                  <div className="flex items-center gap-2">
-                    <div className="relative w-full sm:w-80">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Dedicated Voucher Number Code Search */}
+                    <div className="relative w-full sm:w-44">
+                      <Ticket className="absolute left-3 top-1/2 transform -translate-y-1/2 text-primary h-4 w-4" />
+                      <Input
+                        placeholder="Voucher #..."
+                        value={voucherNumberSearch}
+                        onChange={(e) => {
+                          setVoucherNumberSearch(e.target.value);
+                          setPagination(prev => ({ ...prev, page: 1 }));
+                        }}
+                        className="pl-9 pr-8 h-9 rounded-lg font-bold border-primary/30 focus-visible:ring-primary text-primary"
+                      />
+                      {voucherNumberSearch && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setVoucherNumberSearch('');
+                            setPagination(prev => ({ ...prev, page: 1 }));
+                          }}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    {/* General Search */}
+                    <div className="relative w-full sm:w-72">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                       <Input
-                        placeholder="Search voucher #, name, group, party..."
+                        placeholder="Search guest, group, party..."
                         value={searchTerm}
                         onChange={(e) => {
                           setSearchTerm(e.target.value);
@@ -771,7 +799,8 @@ function VoucherServiceContent() {
                       <div>
                         <CardTitle className="text-base font-bold text-primary uppercase tracking-tight">System Vouchers</CardTitle>
                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                          {searchTerm ? `Filtered by search: "${searchTerm}"` : 'Listing all registered transport vouchers'}
+                          {voucherNumberSearch ? `Voucher Code: "${voucherNumberSearch}" • ` : ''}
+                          {searchTerm ? `Filtered by search: "${searchTerm}"` : (!voucherNumberSearch ? 'Listing all registered transport vouchers' : '')}
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-3">
@@ -783,12 +812,13 @@ function VoucherServiceContent() {
                           <Label className="text-xs font-bold text-gray-500 whitespace-nowrap">To:</Label>
                           <DatePicker value={dateTo} onChange={(val) => { setDateTo(fromDisplayDate(val)); setPagination(prev => ({ ...prev, page: 1 })); }} className="h-8" />
                         </div>
-                        {(searchTerm || dateFrom || dateTo) && (
+                        {(searchTerm || voucherNumberSearch || dateFrom || dateTo) && (
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => {
                               setSearchTerm('');
+                              setVoucherNumberSearch('');
                               setDateFrom('');
                               setDateTo('');
                               setPagination(prev => ({ ...prev, page: 1 }));

@@ -172,15 +172,28 @@ export function generateVoucherPDF(data: VoucherPdfData): void {
   doc.text(`✉ ${email}`, pageWidth / 2 + 25, yPos);
   
   // ========== RESERVATION DETAILS SECTION ==========
-  yPos = 65;
+  const startCardY = 65;
+  yPos = startCardY;
   
+  const rawGroupCode = (data.groupCode || 'N/A').trim();
+  const groupCodesList = rawGroupCode.split(',').map((s: string) => s.trim()).filter(Boolean);
+  const formattedGroupText = groupCodesList.length > 1 ? groupCodesList.join(',\n') : rawGroupCode;
+
+  const rightColX = margin + 138;
+  const maxColWidth = pageWidth - margin - rightColX - 4;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  const splitGroupCode = doc.splitTextToSize(formattedGroupText, maxColWidth);
+  const extraLines = Math.max(0, splitGroupCode.length - 1);
+  const dynamicCardHeight = 52 + Math.min(extraLines * 3.5, 35);
+
   // Modern Card Design with shadow
-  const cardHeight = 52;
-  drawCard(margin, yPos, pageWidth - 2 * margin, cardHeight, 6);
+  drawCard(margin, yPos, pageWidth - 2 * margin, dynamicCardHeight, 6);
   
   // Accent bar on left (modern gradient effect)
   doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
-  doc.roundedRect(margin, yPos, 5, cardHeight, 0, 0, 'F');
+  doc.roundedRect(margin, yPos, 5, dynamicCardHeight, 0, 0, 'F');
 
   // Card title with icon
   yPos += 10;
@@ -201,7 +214,6 @@ export function generateVoucherPDF(data: VoucherPdfData): void {
   
   const leftColX = margin + 12;
   const middleColX = margin + 75;
-  const rightColX = margin + 138;
   const lineHeight = 7.5;
 
   // Left Column
@@ -257,11 +269,11 @@ export function generateVoucherPDF(data: VoucherPdfData): void {
   doc.setTextColor(textSecondary[0], textSecondary[1], textSecondary[2]);
   doc.text('GROUP CODE', rightColX, yPos + lineHeight * 4);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
+  doc.setFontSize(7.5);
   doc.setTextColor(textPrimary[0], textPrimary[1], textPrimary[2]);
-  doc.text(data.groupCode || 'N/A', rightColX, yPos + lineHeight * 5);
+  doc.text(splitGroupCode, rightColX, yPos + lineHeight * 4 + 3.8);
 
-  yPos = 125;
+  yPos = startCardY + dynamicCardHeight + 8;
 
   // ========== HOTEL SCHEDULES TABLE ==========
   if (data.hotelSchedules && data.hotelSchedules.length > 0) {
