@@ -32,6 +32,7 @@ import { cn, formatCurrency } from '@/lib/utils';
 import { formatFlightNumber, toDisplayDate, fromDisplayDate } from '@/lib/umrah/validation';
 import { DatePicker } from '@/components/ui/date-picker';
 import { TimePicker } from '@/components/ui/time-picker';
+import { Skeleton } from '@/components/ui/skeleton';
 import { getUser, hasRole } from '@/lib/auth';
 
 interface VoucherPreviewDialogProps {
