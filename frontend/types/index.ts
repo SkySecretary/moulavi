@@ -358,6 +358,15 @@ export interface UmrahVisaBooking {
     passengerCount?: number;
     documentId?: string | null;
   }>;
+  appendedBookings?: Array<{
+    bookingId?: string;
+    bookingReference?: string;
+    groupNumber?: string;
+    groupName?: string;
+    passengerCount?: number;
+  }>;
+  appendedToBookingId?: string | null;
+  appendedToVoucherNumber?: string | null;
   // Computed fields added during mapping in some views
   makkahHotelName?: string;
   makkahBrn?: string;

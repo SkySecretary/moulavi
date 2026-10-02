@@ -1145,6 +1145,33 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
+    // Handle appended bookings for multi-booking voucher merging
+    const appendedBookingIds: string[] = Array.isArray(voucherData.appendedBookingIds)
+      ? voucherData.appendedBookingIds.filter((id: string) => id && id !== bookingId)
+      : [];
+
+    let appendedBookings: any[] = [];
+    if (appendedBookingIds.length > 0) {
+      appendedBookings = await prisma.umrahVisaBooking.findMany({
+        where: { id: { in: appendedBookingIds } },
+        select: {
+          id: true,
+          bookingReference: true,
+          groupNumber: true,
+          groupName: true,
+          passengerCount: true,
+        },
+      });
+    }
+
+    const appendedBookingsJson = appendedBookings.map((b) => ({
+      bookingId: b.id,
+      bookingReference: b.bookingReference,
+      groupNumber: b.groupNumber,
+      groupName: b.groupName,
+      passengerCount: b.passengerCount,
+    }));
+
     // Handle multiple groups - combine group numbers as comma-separated string
     let groupCode = voucherData.groupCode || booking!.groupNumber || '';
     let groupName = voucherData.groupName || booking!.groupName || '';
@@ -1221,6 +1248,7 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
           vehicleType: voucherData.vehicleType || existingVoucher.vehicleType || null,
           bookingId: booking!.id,
           bookingReference: booking!.bookingReference || null,
+          appendedBookings: appendedBookingsJson.length > 0 ? appendedBookingsJson : (existingVoucher.appendedBookings || null),
           // Increment version to track updates
           version: existingVoucher.version + 1,
         };
@@ -1251,6 +1279,7 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
           vehicleType: voucherData.vehicleType || null,
           bookingId: booking!.id,
           bookingReference: booking!.bookingReference || null,
+          appendedBookings: appendedBookingsJson.length > 0 ? appendedBookingsJson : null,
         };
         
         voucherRecord = await tx.voucher.create({
@@ -1357,8 +1386,32 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
         data: {
           voucherGeneratedAt: new Date(),
           voucherGeneratedBy: user.id,
+          appendedBookings: appendedBookingsJson.length > 0 ? appendedBookingsJson : undefined,
         },
       });
+
+      // Update secondary bookings to status 'bill', record appendedToBookingId and appendedToVoucherNumber
+      if (appendedBookings.length > 0) {
+        for (const secBooking of appendedBookings) {
+          await tx.umrahVisaBooking.update({
+            where: { id: secBooking.id },
+            data: {
+              appendedToBookingId: bookingId,
+              appendedToVoucherNumber: voucherNumber,
+              voucherGeneratedAt: new Date(),
+              voucherGeneratedBy: user.id,
+              lastUpdatedBy: user.id,
+            },
+          });
+          await syncBookingStatusInTx(
+            secBooking.id,
+            'bill',
+            user.id,
+            `Merged into Voucher #${voucherNumber} (Primary Booking: ${fullBooking.bookingReference || bookingId})`,
+            tx
+          );
+        }
+      }
 
       // Sync status using helper (updates booking status + history)
       await syncBookingStatusInTx(bookingId, 'bill', user.id, existingVoucher ? 'Voucher updated with additional groups' : 'Voucher generated', tx);

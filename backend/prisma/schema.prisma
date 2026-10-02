@@ -127,6 +127,9 @@ model UmrahVisaBooking {
   bookingReference          String?                    @unique @map("booking_reference")
   brn                       String?                    @map("brn")
   umrahVisaNumber           String?                    @map("umrah_visa_number")
+  appendedBookings          Json?                      @map("appended_bookings")
+  appendedToBookingId       String?                    @map("appended_to_booking_id")
+  appendedToVoucherNumber   String?                    @map("appended_to_voucher_number")
   tripStatus                TripStatus                 @default(pending) @map("trip_status")
   transportCompanyId        String?                    @map("transport_company_id")
   statusHistory             BookingStatusHistory[]
@@ -615,6 +618,7 @@ model Voucher {
   vehicleType         String?           @map("vehicle_type")
   bookingId           String?           @map("booking_id")
   bookingReference    String?           @map("booking_reference")
+  appendedBookings    Json?             @map("appended_bookings")
   invoiceGenerated    Boolean           @default(false) @map("invoice_generated")
   flights             VoucherFlight[]
   hotels              VoucherHotel[]

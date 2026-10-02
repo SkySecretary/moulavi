@@ -439,13 +439,34 @@ export async function syncBookingToVoucher(tx: any, bookingId: string) {
     }
   }
 
+  // Calculate total pax and combined group codes if appendedBookings exists
+  let totalPax = booking.passengerCount;
+  let groupCode = booking.groupNumber || null;
+  let groupName = booking.groupName || null;
+
+  if (booking.appendedBookings && Array.isArray(booking.appendedBookings)) {
+    const appended = booking.appendedBookings as any[];
+    const extraPax = appended.reduce((acc, b) => acc + (b.passengerCount || 0), 0);
+    totalPax += extraPax;
+
+    const extraGroups = appended.map(b => b.groupNumber).filter(Boolean);
+    if (extraGroups.length > 0) {
+      groupCode = [booking.groupNumber, ...extraGroups].filter(Boolean).join(', ');
+    }
+
+    const extraNames = appended.map(b => b.groupName).filter(Boolean);
+    if (extraNames.length > 0) {
+      groupName = [booking.groupName, ...extraNames].filter(Boolean).join(', ');
+    }
+  }
+
   // Update main voucher attributes
   await db.voucher.update({
     where: { id: voucher.id },
     data: {
-      paxCount: booking.passengerCount,
-      groupCode: booking.groupNumber || null,
-      groupName: booking.groupName || null,
+      paxCount: totalPax,
+      groupCode,
+      groupName,
       umrahVisaProviderId: booking.umrahVisaProviderId || null,
       umrahCompanyId: booking.umrahVisaProviderId || null,
       transportCompanyId: booking.transportCompanyId || null,

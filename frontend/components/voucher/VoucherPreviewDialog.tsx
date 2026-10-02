@@ -27,8 +27,7 @@ import { umrahVisaAPI, transportMasterAPI, transportRouteMasterAPI, cityMasterAP
 import api from '@/lib/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Skeleton } from '@/components/ui/skeleton';
-import { RouteType } from '@/types';
+import { RouteType, UmrahVisaBooking } from '@/types';
 import { cn, formatCurrency } from '@/lib/utils';
 import { formatFlightNumber, toDisplayDate, fromDisplayDate } from '@/lib/umrah/validation';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -38,7 +37,8 @@ import { getUser, hasRole } from '@/lib/auth';
 interface VoucherPreviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  bookingId: string;
+  bookingId?: string;
+  selectedBookings?: UmrahVisaBooking[];
   onSuccess: () => void;
 }
 
@@ -202,13 +202,35 @@ function HotelSearchSelect({
 export function VoucherPreviewDialog({
   open,
   onOpenChange,
-  bookingId,
+  bookingId: propBookingId,
+  selectedBookings = [],
   onSuccess,
 }: VoucherPreviewDialogProps) {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const user = getUser();
   const isAdminOrStaff = hasRole(['admin', 'staff']);
+
+  // Effective list of selected bookings
+  const effectiveBookings = selectedBookings.length > 0
+    ? selectedBookings
+    : (propBookingId ? [{ id: propBookingId } as UmrahVisaBooking] : []);
+
+  const [primaryBookingId, setPrimaryBookingId] = useState<string>(() => {
+    return propBookingId || selectedBookings[0]?.id || '';
+  });
+
+  useEffect(() => {
+    if (open) {
+      if (selectedBookings.length > 0) {
+        if (!selectedBookings.some(b => b.id === primaryBookingId)) {
+          setPrimaryBookingId(selectedBookings[0]?.id || '');
+        }
+      } else if (propBookingId) {
+        setPrimaryBookingId(propBookingId);
+      }
+    }
+  }, [open, propBookingId, selectedBookings]);
   
   // Drag and drop states/functions
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -289,15 +311,15 @@ export function VoucherPreviewDialog({
   const loadedBookingIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Load data when dialog opens (only once per bookingId, prevent concurrent loads)
-    if (open && bookingId && loadedBookingIdRef.current !== bookingId && !isLoadingRef.current) {
+    // Load data when dialog opens (only once per primaryBookingId, prevent concurrent loads)
+    if (open && primaryBookingId && loadedBookingIdRef.current !== primaryBookingId && !isLoadingRef.current) {
       isLoadingRef.current = true;
-      loadedBookingIdRef.current = bookingId;
+      loadedBookingIdRef.current = primaryBookingId;
       
       const loadData = async () => {
         try {
           await loadMasterData();
-          await loadVoucherData();
+          await loadVoucherData(primaryBookingId);
         } catch (error) {
           // Reset on error so it can retry
           loadedBookingIdRef.current = null;
@@ -313,7 +335,13 @@ export function VoucherPreviewDialog({
       loadedBookingIdRef.current = null;
       isLoadingRef.current = false;
     }
-  }, [open, bookingId]);
+  }, [open, primaryBookingId]);
+
+  const handlePrimaryBookingChange = (newPrimaryId: string) => {
+    setPrimaryBookingId(newPrimaryId);
+    loadedBookingIdRef.current = newPrimaryId;
+    loadVoucherData(newPrimaryId);
+  };
 
   const loadMasterData = async () => {
     // Skip if already loaded
@@ -369,12 +397,13 @@ export function VoucherPreviewDialog({
     }
   };
 
-  const loadVoucherData = async () => {
-    if (loading) return;
+  const loadVoucherData = async (targetBookingId?: string) => {
+    const currentTargetId = targetBookingId || primaryBookingId;
+    if (!currentTargetId) return;
     
     try {
       setLoading(true);
-      const response = await umrahVisaAPI.getVoucherData(bookingId);
+      const response = await umrahVisaAPI.getVoucherData(currentTargetId);
       const data = response.data;
       
       setBookingParty(data.party || null);
@@ -382,33 +411,57 @@ export function VoucherPreviewDialog({
       // Get current cities state (use functional update to ensure we have latest)
       const currentCities = cities.length > 0 ? cities : (await cityMasterAPI.getActive()).data?.cityMasters || (await cityMasterAPI.getActive()).data || [];
       
+      // Compute merged fields if multi-booking is active
+      const otherBookings = effectiveBookings.filter(b => b.id !== currentTargetId);
+      
+      let finalGroupCode = data.groupCode || '';
+      let finalGroupName = data.groupName || '';
+      let finalPaxCount = data.paxCount || 0;
+
+      if (otherBookings.length > 0) {
+        // Collect all group codes
+        const allGroupCodes = [
+          finalGroupCode,
+          ...otherBookings.map(b => b.groupNumber)
+        ].filter((c): c is string => !!c && c.trim().length > 0);
+        finalGroupCode = Array.from(new Set(allGroupCodes)).join(', ');
+
+        // Collect all group names
+        const allGroupNames = [
+          finalGroupName,
+          ...otherBookings.map(b => b.groupName)
+        ].filter((n): n is string => !!n && n.trim().length > 0);
+        finalGroupName = Array.from(new Set(allGroupNames)).join(', ');
+
+        // Total pax count sum
+        const otherPax = otherBookings.reduce((acc, b) => acc + (b.passengerCount || 0), 0);
+        finalPaxCount = (data.paxCount || 0) + otherPax;
+      }
+
       setVoucherData({
         reservationDate: data.reservationDate ? toDisplayDate(data.reservationDate) : '',
         guestName: data.guestName || '',
         guestMobile: data.guestMobile || '',
-        groupCode: data.groupCode || '',
-        paxCount: data.paxCount || 0,
+        groupCode: finalGroupCode,
+        groupName: finalGroupName,
+        paxCount: finalPaxCount,
         bookingReference: data.bookingReference || '',
         umrahVisaProvider: data.umrahVisaProvider || null,
         hotelSchedules: (data.hotelSchedules || []).map((hs: any) => {
-          // Get city name from cities array if cityId is present
           const cityObj = currentCities.find((c: any) => c.id === hs.cityId);
           const cityName = cityObj?.name || hs.city || hs.location || '';
           
           return {
-          ...hs,
-            cityId: hs.cityId || '', // Use ID directly from backend
-            city: cityName, // Use city name from cities array or fallback to backend value
-            hotelId: hs.hotelId || '', // Use ID directly from backend
-          checkIn: hs.checkIn ? toDisplayDate(hs.checkIn) : '',
-          checkOut: hs.checkOut ? toDisplayDate(hs.checkOut) : '',
+            ...hs,
+            cityId: hs.cityId || '',
+            city: cityName,
+            hotelId: hs.hotelId || '',
+            checkIn: hs.checkIn ? toDisplayDate(hs.checkIn) : '',
+            checkOut: hs.checkOut ? toDisplayDate(hs.checkOut) : '',
           };
         }),
         movementDetails: (data.movementDetails || []).map((m: any, idx: number) => {
-          // Handle date format - backend sends DD-MM-YYYY, convert to DD/MM/YY for state
           const dateValue = m.date ? toDisplayDate(m.date) : '';
-
-          // Get city names from cities array if cityIds are present
           const fromCityObj = currentCities.find((c: any) => c.id === m.fromCityId);
           const fromCityName = fromCityObj?.name || m.from || '';
           const toCityObj = currentCities.find((c: any) => c.id === m.toCityId);
@@ -419,20 +472,19 @@ export function VoucherPreviewDialog({
             sr: idx + 1,
             date: dateValue,
             time: m.time ? (typeof m.time === 'string' && m.time.includes('T') ? m.time.split('T')[1].slice(0, 5) : m.time.slice(0, 5)) : '',
-            // Use IDs directly from backend
             fromCityId: m.fromCityId || '',
             fromLocationId: m.fromLocationId || '',
             toCityId: m.toCityId || '',
             toLocationId: m.toLocationId || '',
-            // Ensure from/to and fromLocation/toLocation are properly set
-            from: fromCityName, // Use city name from cities array or fallback to backend value
+            from: fromCityName,
             fromLocation: m.fromLocation || '',
-            to: toCityName, // Use city name from cities array or fallback to backend value
+            to: toCityName,
             toLocation: m.toLocation || '',
             driverDetails1: m.driverDetails1 || '',
             driverDetails2: m.driverDetails2 || '',
             vehicleNumber: m.vehicleNumber || '',
             vehicleType: m.vehicleType || data.vehicleType || '',
+            paxCount: finalPaxCount,
             viaBdr: !!m.viaBdr || !!m.viabadrOverride,
           };
         }),
@@ -706,6 +758,12 @@ export function VoucherPreviewDialog({
     setVoucherData({ ...voucherData, movementDetails: updated });
   };
 
+  const totalVehicleCapacity = (voucherData.transportOptions || []).reduce(
+    (sum, opt) => sum + ((opt.vehicleType?.paxCount || 0) * (opt.quantity || 0)),
+    0
+  );
+  const isCapacityShort = voucherData.paxCount > 0 && totalVehicleCapacity < voucherData.paxCount;
+
   const handleSubmit = async () => {
     if (!selectedTransportCompanyId) {
       toast.error('Please select a Transport Company');
@@ -717,13 +775,23 @@ export function VoucherPreviewDialog({
       return;
     }
 
+    if (isCapacityShort) {
+      toast.error(`Total vehicle capacity (${totalVehicleCapacity} PAX) is less than required passenger count (${voucherData.paxCount} PAX). Please increase vehicle quantities.`);
+      return;
+    }
+
     try {
       setSubmitting(true);
       
+      const otherSelectedBookingIds = effectiveBookings
+        .filter(b => b.id !== primaryBookingId)
+        .map(b => b.id);
+
       // Format data for submission
       // Note: reservationNumber and route numbers are NOT sent - they will be generated by backend
       const submissionData = {
         ...voucherData,
+        appendedBookingIds: otherSelectedBookingIds,
         reservationDate: fromDisplayDate(voucherData.reservationDate),
         transportCompanyId: selectedTransportCompanyId || undefined,
         vehicleType: voucherData.vehicleType || undefined,
@@ -753,8 +821,7 @@ export function VoucherPreviewDialog({
         })),
       };
 
-
-      const response = await umrahVisaAPI.generateVoucher(bookingId, submissionData);
+      const response = await umrahVisaAPI.generateVoucher(primaryBookingId, submissionData);
       const generatedVoucher = response.data?.data?.voucher || response.data?.voucher || response.data;
       
       if (!generatedVoucher) {
@@ -840,6 +907,67 @@ export function VoucherPreviewDialog({
 
         <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
           <div className="space-y-6 pb-4">
+            {/* Multi-Booking Merged Banner */}
+            {effectiveBookings.length > 1 && (
+              <div className="p-4 border-2 border-purple-200 bg-purple-50/80 rounded-xl space-y-3 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 bg-purple-700 text-white rounded text-xs font-bold uppercase tracking-wider">
+                      Merged Mode
+                    </span>
+                    <h3 className="font-bold text-purple-950 text-base">
+                      {effectiveBookings.length} Bookings Merged ({voucherData.paxCount} Total Pax)
+                    </h3>
+                  </div>
+                  <div className="text-xs text-purple-700 font-medium">
+                    Group codes and pax counts are combined for this voucher without modifying individual booking pax records.
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-purple-900">Primary Booking (Host for Voucher)</Label>
+                    <Select
+                      value={primaryBookingId}
+                      onValueChange={handlePrimaryBookingChange}
+                      disabled={!isAdminOrStaff}
+                    >
+                      <SelectTrigger className="bg-white border-purple-300 font-bold text-xs h-9">
+                        <SelectValue placeholder="Select primary booking" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {effectiveBookings.map((b) => (
+                          <SelectItem key={b.id} value={b.id} className="text-xs">
+                            <span className="font-bold text-purple-950">{b.bookingReference || 'No Ref'}</span>
+                            {b.groupNumber ? ` (${b.groupNumber})` : ''} - {b.passengerCount} Pax ({b.party?.partyName || 'N/A'})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-purple-900">Appended Secondary Bookings</Label>
+                    <div className="flex flex-wrap gap-1.5 p-1.5 bg-white/90 rounded-md border border-purple-200 min-h-[36px] items-center">
+                      {effectiveBookings.filter(b => b.id !== primaryBookingId).length === 0 ? (
+                        <span className="text-xs text-gray-400 italic">No secondary bookings</span>
+                      ) : (
+                        effectiveBookings.filter(b => b.id !== primaryBookingId).map((b) => (
+                          <span key={b.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-100 text-purple-800 text-xs font-semibold">
+                            <span>{b.bookingReference || 'No Ref'}</span>
+                            <span className="text-purple-400">•</span>
+                            <span>{b.groupNumber || 'No Group'}</span>
+                            <span className="text-purple-400">•</span>
+                            <span className="font-bold">{b.passengerCount} Pax</span>
+                          </span>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Reservation Summary */}
             <div className="space-y-4 p-4 border rounded-lg bg-white">
               <h3 className="font-semibold text-lg">Reservation Summary</h3>
@@ -1494,18 +1622,42 @@ export function VoucherPreviewDialog({
             <div className="space-y-4 p-4 border rounded-lg bg-white">
               <h3 className="font-semibold text-lg">Transport Options</h3>
               
-              {/* Route Summary */}
+              {/* Route & Vehicle Capacity Summary */}
               {selectedRouteId && (
-                <div className="flex items-center space-x-3 pb-4 border-b border-gray-200">
-                  <MapPin className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {formatRouteDisplay(availableRoutes.find(r => r.id === selectedRouteId) || {})}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {voucherData.paxCount || 0} Passengers
-                    </p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 border rounded-lg gap-2">
+                  <div className="flex items-center space-x-2">
+                    <MapPin className="h-4 w-4 text-primary" />
+                    <div>
+                      <p className="text-xs font-bold text-gray-900">
+                        {formatRouteDisplay(availableRoutes.find(r => r.id === selectedRouteId) || {})}
+                      </p>
+                    </div>
                   </div>
+                  <div className="flex items-center gap-3 text-xs">
+                    <div className="flex items-center gap-1 font-semibold text-gray-700">
+                      <Users className="h-3.5 w-3.5 text-blue-600" />
+                      <span>Total Pax: <strong className="text-blue-700">{voucherData.paxCount}</strong></span>
+                    </div>
+                    <span className="text-gray-300">|</span>
+                    <div className="flex items-center gap-1 font-semibold text-gray-700">
+                      <Truck className="h-3.5 w-3.5 text-emerald-600" />
+                      <span>Capacity: <strong className={isCapacityShort ? "text-red-600" : "text-emerald-700"}>{totalVehicleCapacity}</strong></span>
+                    </div>
+                    {isCapacityShort && (
+                      <span className="px-2 py-0.5 rounded bg-red-100 text-red-700 font-bold text-[11px]">
+                        Shortage: {voucherData.paxCount - totalVehicleCapacity} Pax
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {isCapacityShort && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-xs flex items-center gap-2">
+                  <span className="text-base">⚠️</span>
+                  <span>
+                    <strong>Vehicle Capacity Warning:</strong> Total selected vehicle capacity ({totalVehicleCapacity} PAX) is less than required passenger count ({voucherData.paxCount} PAX). Please increase vehicle quantities or select larger vehicles.
+                  </span>
                 </div>
               )}
 
