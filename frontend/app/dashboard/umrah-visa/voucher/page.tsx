@@ -104,7 +104,14 @@ export default function VoucherPage() {
       toast.error('Booking ID not found');
       return;
     }
-    setSelectedBookings([booking]);
+    // If multiple bookings were selected via checkboxes, make the clicked booking the primary (index 0)
+    // and keep the other selected bookings in the merged set
+    if (selectedBookings.length > 0) {
+      const otherSelected = selectedBookings.filter(b => b.id !== booking.id);
+      setSelectedBookings([booking, ...otherSelected]);
+    } else {
+      setSelectedBookings([booking]);
+    }
     setShowGenerateDialog(true);
   };
 

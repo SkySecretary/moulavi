@@ -222,13 +222,8 @@ export function VoucherPreviewDialog({
 
   useEffect(() => {
     if (open) {
-      if (selectedBookings.length > 0) {
-        if (!selectedBookings.some(b => b.id === primaryBookingId)) {
-          setPrimaryBookingId(selectedBookings[0]?.id || '');
-        }
-      } else if (propBookingId) {
-        setPrimaryBookingId(propBookingId);
-      }
+      const initialPrimary = propBookingId || selectedBookings[0]?.id || '';
+      setPrimaryBookingId(initialPrimary);
     }
   }, [open, propBookingId, selectedBookings]);
   
