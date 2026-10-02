@@ -44,6 +44,7 @@ export default function VoucherPage() {
   });
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [selectedBookings, setSelectedBookings] = useState<UmrahVisaBooking[]>([]);
+  const [dialogBookings, setDialogBookings] = useState<UmrahVisaBooking[]>([]);
 
   const fetchBookings = async (page = 1) => {
     try {
@@ -105,12 +106,13 @@ export default function VoucherPage() {
       return;
     }
     // If multiple bookings were selected via checkboxes, make the clicked booking the primary (index 0)
-    // and keep the other selected bookings in the merged set
-    if (selectedBookings.length > 0) {
+    // and keep the other selected bookings in the merged set.
+    // Otherwise, generate voucher solely for this individual booking without modifying checkbox selections.
+    if (selectedBookings.length > 1) {
       const otherSelected = selectedBookings.filter(b => b.id !== booking.id);
-      setSelectedBookings([booking, ...otherSelected]);
+      setDialogBookings([booking, ...otherSelected]);
     } else {
-      setSelectedBookings([booking]);
+      setDialogBookings([booking]);
     }
     setShowGenerateDialog(true);
   };
@@ -135,6 +137,8 @@ export default function VoucherPage() {
 
   const handleVoucherSuccess = () => {
     setSelectedBookings([]);
+    setDialogBookings([]);
+    setShowGenerateDialog(false);
     fetchBookings(pagination.page);
   };
 
@@ -154,7 +158,10 @@ export default function VoucherPage() {
           <div className="flex items-center gap-2">
             {selectedBookings.length > 1 && (
               <Button 
-                onClick={() => setShowGenerateDialog(true)}
+                onClick={() => {
+                  setDialogBookings(selectedBookings);
+                  setShowGenerateDialog(true);
+                }}
                 className="bg-purple-700 hover:bg-purple-800 text-white font-bold flex items-center gap-2 shadow-sm"
               >
                 <CheckSquare className="h-4 w-4" />
@@ -390,7 +397,10 @@ export default function VoucherPage() {
             </Button>
             <Button
               size="sm"
-              onClick={() => setShowGenerateDialog(true)}
+              onClick={() => {
+                setDialogBookings(selectedBookings);
+                setShowGenerateDialog(true);
+              }}
               className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs h-8 px-4 shadow-md flex items-center gap-1.5"
             >
               <Ticket className="h-3.5 w-3.5" />
@@ -406,10 +416,10 @@ export default function VoucherPage() {
           onOpenChange={(open) => {
             setShowGenerateDialog(open);
             if (!open) {
-              // keep selection until user closes or succeeds
+              setDialogBookings([]);
             }
           }}
-          selectedBookings={selectedBookings}
+          selectedBookings={dialogBookings}
           onSuccess={handleVoucherSuccess}
         />
       )}
