@@ -1517,3 +1517,140 @@ export const sendDailyMissingReturnTicketsEmails = async (): Promise<void> => {
     console.error('[EMAIL] Error in sendDailyMissingReturnTicketsEmails:', error);
   }
 };
+
+// Support Ticket Created Email (To Creator and Admin)
+export const sendSupportTicketCreatedEmail = async (ticket: any): Promise<void> => {
+  const adminMailOptions: nodemailer.SendMailOptions = {
+    from: EMAIL_CONFIG.from,
+    to: EMAIL_CONFIG.adminEmail,
+    subject: `[New Ticket] ${ticket.ticketId}: ${ticket.subject}`,
+    html: `
+      <h2>New Support Ticket Created</h2>
+      <p><strong>Ticket ID:</strong> ${ticket.ticketId}</p>
+      <p><strong>Subject:</strong> ${ticket.subject}</p>
+      <p><strong>Category:</strong> ${ticket.category}</p>
+      <p><strong>Priority:</strong> ${ticket.priority}</p>
+      <p><strong>Created By:</strong> ${ticket.contactName} (${ticket.contactEmail})</p>
+      <hr/>
+      <p><strong>Description:</strong></p>
+      <p>${ticket.description.replace(/\n/g, '<br/>')}</p>
+      <hr/>
+      <p><a href="${EMAIL_CONFIG.frontendUrl}/dashboard/support-tickets/${ticket.id}">View Ticket in Admin Dashboard</a></p>
+    `
+  };
+
+  const clientMailOptions: nodemailer.SendMailOptions = {
+    from: EMAIL_CONFIG.from,
+    to: ticket.contactEmail,
+    subject: `Support Ticket Received - ${ticket.ticketId}: ${ticket.subject}`,
+    html: `
+      <p>Dear ${ticket.contactName},</p>
+      <p>Thank you for reaching out to Moulavi Travels Support. We have received your support ticket and our team is reviewing it.</p>
+      <p><strong>Ticket ID:</strong> ${ticket.ticketId}</p>
+      <p><strong>Subject:</strong> ${ticket.subject}</p>
+      <p><strong>Priority:</strong> ${ticket.priority}</p>
+      <p><strong>Status:</strong> ${ticket.status}</p>
+      <hr/>
+      <p><strong>Your Message:</strong></p>
+      <p>${ticket.description.replace(/\n/g, '<br/>')}</p>
+      <hr/>
+      <p>You can check updates or add replies by visiting your dashboard.</p>
+      <p>Best regards,<br/>Moulavi Travels Support Team</p>
+    `
+  };
+
+  try {
+    await sendEmail(adminMailOptions);
+  } catch (error: any) {
+    console.error('[EMAIL] ❌ sendSupportTicketCreatedEmail admin notification failed:', error?.message);
+  }
+
+  try {
+    await sendEmail(clientMailOptions);
+  } catch (error: any) {
+    console.error('[EMAIL] ❌ sendSupportTicketCreatedEmail client confirmation failed:', error?.message);
+  }
+};
+
+// Support Ticket Status/Priority Updated Email
+export const sendSupportTicketUpdatedEmail = async (ticket: any): Promise<void> => {
+  const mailOptions: nodemailer.SendMailOptions = {
+    from: EMAIL_CONFIG.from,
+    to: ticket.contactEmail,
+    subject: `Update on Support Ticket - ${ticket.ticketId}: ${ticket.subject}`,
+    html: `
+      <p>Dear ${ticket.contactName},</p>
+      <p>Your support ticket has been updated.</p>
+      <p><strong>Ticket ID:</strong> ${ticket.ticketId}</p>
+      <p><strong>Subject:</strong> ${ticket.subject}</p>
+      <p><strong>Current Status:</strong> <span style="font-weight:bold;color:#065f46">${ticket.status.toUpperCase()}</span></p>
+      <p><strong>Priority:</strong> ${ticket.priority}</p>
+      <hr/>
+      <p>Please check your portal for details or replies.</p>
+      <p>Best regards,<br/>Moulavi Travels Support Team</p>
+    `
+  };
+
+  try {
+    await sendEmail(mailOptions);
+  } catch (error: any) {
+    console.error('[EMAIL] ❌ sendSupportTicketUpdatedEmail failed:', error?.message);
+  }
+};
+
+// Support Ticket Comment Added Email
+export const sendSupportTicketCommentAddedEmail = async (ticket: any, comment: any, isFromAdmin: boolean): Promise<void> => {
+  if (isFromAdmin) {
+    // Notify customer
+    const mailOptions: nodemailer.SendMailOptions = {
+      from: EMAIL_CONFIG.from,
+      to: ticket.contactEmail,
+      subject: `Reply to Support Ticket - ${ticket.ticketId}: ${ticket.subject}`,
+      html: `
+        <p>Dear ${ticket.contactName},</p>
+        <p>A support representative has replied to your ticket.</p>
+        <p><strong>Ticket ID:</strong> ${ticket.ticketId}</p>
+        <p><strong>Subject:</strong> ${ticket.subject}</p>
+        <hr/>
+        <p><strong>Reply from ${comment.senderName}:</strong></p>
+        <div style="background-color:#f8fafc; border-left:4px solid #10b981; padding:15px; margin:10px 0;">
+          ${comment.comment.replace(/\n/g, '<br/>')}
+        </div>
+        <hr/>
+        <p>Please log in to your dashboard to reply.</p>
+        <p>Best regards,<br/>Moulavi Travels Support Team</p>
+      `
+    };
+    try {
+      await sendEmail(mailOptions);
+    } catch (error: any) {
+      console.error('[EMAIL] ❌ sendSupportTicketCommentAddedEmail failed to notify client:', error?.message);
+    }
+  } else {
+    // Notify admin
+    const mailOptions: nodemailer.SendMailOptions = {
+      from: EMAIL_CONFIG.from,
+      to: EMAIL_CONFIG.adminEmail,
+      subject: `[New Reply] ${ticket.ticketId}: ${ticket.subject}`,
+      html: `
+        <h2>New Reply on Support Ticket</h2>
+        <p><strong>Ticket ID:</strong> ${ticket.ticketId}</p>
+        <p><strong>Subject:</strong> ${ticket.subject}</p>
+        <p><strong>Replied By:</strong> ${comment.senderName} (${ticket.contactEmail})</p>
+        <hr/>
+        <p><strong>Message:</strong></p>
+        <div style="background-color:#f8fafc; border-left:4px solid #d4a843; padding:15px; margin:10px 0;">
+          ${comment.comment.replace(/\n/g, '<br/>')}
+        </div>
+        <hr/>
+        <p><a href="${EMAIL_CONFIG.frontendUrl}/dashboard/support-tickets/${ticket.id}">View Ticket in Admin Dashboard</a></p>
+      `
+    };
+    try {
+      await sendEmail(mailOptions);
+    } catch (error: any) {
+      console.error('[EMAIL] ❌ sendSupportTicketCommentAddedEmail failed to notify admin:', error?.message);
+    }
+  }
+};
+

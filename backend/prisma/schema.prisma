@@ -26,6 +26,8 @@ model User {
   bookingsDocumentsDownloaded UmrahVisaBooking[]     @relation("BookingDocumentsDownloadedBy")
   vouchersGenerated           Voucher[]              @relation("VoucherGeneratedBy")
   brnUpdates                  BrnUpdateHistory[]
+  supportTickets              SupportTicket[]
+  supportComments             SupportTicketComment[]
 
   @@index([email])
   @@index([role])
@@ -79,6 +81,7 @@ model Party {
   partyVouchers            Voucher[]          @relation("VoucherParty")
   complianceMetrics        SubAgentMetric?
   complianceAuditLogs      ComplianceAuditLog[]
+  supportTickets           SupportTicket[]
 
   @@index([email])
   @@index([partyName])
@@ -120,6 +123,7 @@ model UmrahVisaBooking {
   hasMultipleGroup          Boolean                    @default(false) @map("has_multiple_group")
   multipleGroupDetails      Json?                      @map("multiple_group_details")
   isDuplicate               Boolean                    @default(false) @map("is_duplicate")
+  isPackageExpired          Boolean                    @default(false) @map("is_package_expired")
   bookingReference          String?                    @unique @map("booking_reference")
   brn                       String?                    @map("brn")
   umrahVisaNumber           String?                    @map("umrah_visa_number")
@@ -154,6 +158,7 @@ model UmrahVisaBooking {
   @@index([visaType])
   @@index([hasTransportation])
   @@index([submittedAt])
+  @@index([isPackageExpired])
   @@map("umrah_visa_bookings")
 }
 
@@ -1063,6 +1068,51 @@ model B2CConfig {
 
   @@map("b2c_configs")
 }
+
+model SupportTicket {
+  id             String                 @id @default(uuid())
+  ticketId       String                 @unique @map("ticket_id")
+  subject        String
+  description    String
+  status         String                 @default("open") // open, in_progress, resolved, closed
+  priority       String                 @default("medium") // low, medium, high, urgent
+  category       String                 @default("general") // general, billing, booking, technical
+  contactName    String                 @map("contact_name")
+  contactEmail   String                 @map("contact_email")
+  contactPhone   String?                @map("contact_phone")
+  userId         String?                @map("user_id")
+  partyId        String?                @map("party_id")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @default(now()) @updatedAt @map("updated_at")
+  
+  user           User?                  @relation(fields: [userId], references: [id])
+  party          Party?                 @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  comments       SupportTicketComment[]
+  
+  @@index([status])
+  @@index([priority])
+  @@index([ticketId])
+  @@index([userId])
+  @@index([partyId])
+  @@map("support_tickets")
+}
+
+model SupportTicketComment {
+  id        String        @id @default(uuid())
+  ticketId  String        @map("ticket_id")
+  userId    String?       @map("user_id")
+  senderName String       @map("sender_name")
+  comment   String
+  createdAt DateTime      @default(now()) @map("created_at")
+  
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user      User?         @relation(fields: [userId], references: [id])
+  
+  @@index([ticketId])
+  @@index([userId])
+  @@map("support_ticket_comments")
+}
+
 
 
 

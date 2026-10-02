@@ -104,6 +104,23 @@ Please log in to your Absher account and approve the pending request at your ear
 🤲 Thank you for your prompt cooperation.
     `.trim();
   },
+
+  packageExpired: (hostName: string, hostIqamaNo: string, pilgrimDetails: string) => `
+🏢 NUSUK - OFFICIAL SYSTEM UPDATE 🏢
+
+Dear ${hostName},
+(Host Iqama No.: ${hostIqamaNo})
+
+Our records indicate that your hosted pilgrim's Umrah visa program duration has expired. An immediate system update is required through your Absher account to maintain compliance.
+
+👤 Pilgrim Details:
+${pilgrimDetails}
+
+⚠️ IMPORTANT NOTICE:
+Please confirm the return date to synchronize the system. Failure to proceed (or replying NO) may result in restrictions or delays for your future Umrah visa issuances.
+
+➡️ To authorize this update, please reply to this message with: YES
+  `.trim(),
 } as const;
 
 // Utility function to format phone number
@@ -406,6 +423,23 @@ export const sendIqamaConfirmationWhatsApp = async (
     await sendWhatsAppMessage(phoneNumber, message, 'iqama_confirmation');
   } catch (error: any) {
     console.error('[WHATSAPP] sendIqamaConfirmationWhatsApp failed:', error?.message);
+    throw error;
+  }
+};
+
+// Send package expired WhatsApp message
+export const sendPackageExpiredWhatsApp = async (
+  phoneNumber: string,
+  hostName: string,
+  hostIqamaNo: string,
+  pilgrimDetails: string
+): Promise<void> => {
+  const message = WHATSAPP_TEMPLATES.packageExpired(hostName, hostIqamaNo, pilgrimDetails);
+
+  try {
+    await sendWhatsAppMessage(phoneNumber, message, 'package_expired');
+  } catch (error: any) {
+    console.error('[WHATSAPP] sendPackageExpiredWhatsApp failed:', error?.message);
     throw error;
   }
 };

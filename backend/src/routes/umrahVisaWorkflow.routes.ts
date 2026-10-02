@@ -1186,33 +1186,25 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
         }
     }
 
-    // Check if voucher already exists for this booking (when hasMultipleGroup is true)
-    // Find existing voucher by matching guestName, umrahVisaProviderId, and voucherGeneratedAt
-    let existingVoucher = null;
-    if (fullBooking.hasMultipleGroup && fullBooking.voucherGeneratedAt) {
-      const guestName = voucherData.guestName || booking!.party?.partyName || '';
-      existingVoucher = await prisma.voucher.findFirst({
-        where: {
-          guestName: guestName,
-          umrahVisaProviderId: booking!.umrahVisaProviderId || null,
-          generatedAt: {
-            gte: new Date(fullBooking.voucherGeneratedAt.getTime() - 60000), // Within 1 minute
-            lte: new Date(fullBooking.voucherGeneratedAt.getTime() + 60000),
-          },
-        },
-        orderBy: {
-          generatedAt: 'desc',
-        },
-      });
-    }
+    // Check if voucher already exists for this booking or groupCode
+    let existingVoucher = await prisma.voucher.findFirst({
+      where: {
+        OR: [
+          { bookingId: booking.id },
+          ...(groupCode ? [{ groupCode: groupCode }] : []),
+        ],
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
 
-    // Generate voucher number only if creating new voucher
-    const voucherNumber = existingVoucher 
-      ? existingVoucher.voucherNumber 
-      : await generateVoucherNumber();
-
-    // Create or update voucher (standalone, no booking connection)
+    // Create or update voucher
     const voucher = await prisma.$transaction(async (tx) => {
+      const voucherNumber = existingVoucher 
+        ? existingVoucher.voucherNumber 
+        : await generateVoucherNumber(tx);
+
       let voucherRecord;
       if (existingVoucher) {
         // Update existing voucher with new group data
@@ -1272,7 +1264,7 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
         ? voucherData.movementDetails.length 
         : 0;
       const routeNumbers = movementCount > 0 
-        ? await generateRouteNumbersForVoucher(movementCount)
+        ? await generateRouteNumbersForVoucher(movementCount, tx)
         : [];
 
       // Create VoucherMovement records
@@ -2523,56 +2515,66 @@ router.patch('/:bookingId/trip-status', authenticate, async (req, res) => {
 
     if (tripStatus === 'completed' && 
         (booking.visaType === 'individual_visa' || booking.visaType === 're_entry') && 
-        booking.accommodationType === 'hotel' && 
+        (booking.accommodationType === 'hotel' || booking.accommodationType === 'iqama') && 
         (booking.status === 'group_assigned' || booking.status === 'documents_downloaded' || booking.status === 'pending')) {
       
-      let isJeddahMadinah = false;
-      
-      // Check travel details airports
-      if (booking.travelDetails) {
-        for (const t of booking.travelDetails) {
-          const arrCode = t.arrivalAirport?.code?.toLowerCase() || '';
-          const depCode = t.departureAirport?.code?.toLowerCase() || '';
-          const arrName = t.arrivalAirport?.name?.toLowerCase() || '';
-          const depName = t.departureAirport?.name?.toLowerCase() || '';
-          const arrCity = t.arrivalAirport?.city?.toLowerCase() || '';
-          const depCity = t.departureAirport?.city?.toLowerCase() || '';
-          
-          if (arrCode.includes('jed') || arrCode.includes('med') ||
-              depCode.includes('jed') || depCode.includes('med') ||
-              arrName.includes('jeddah') || arrName.includes('madina') || arrName.includes('madinah') ||
-              depName.includes('jeddah') || depName.includes('madina') || depName.includes('madinah') ||
-              arrCity.includes('jeddah') || arrCity.includes('madina') || arrCity.includes('madinah') ||
-              depCity.includes('jeddah') || depCity.includes('madina') || depCity.includes('madinah')) {
-            isJeddahMadinah = true;
-            break;
-          }
+      if (booking.accommodationType === 'iqama') {
+        if (booking.hasTransportation) {
+          targetBookingStatus = 'voucher';
+          transitionReason = 'Trip completed (individual iqama booking with transportation, transitioned to voucher pending)';
+        } else {
+          targetBookingStatus = 'bill';
+          transitionReason = 'Trip completed (individual iqama booking without transportation, transitioned to bill ready)';
         }
-      }
-
-      // Check movement details locations/cities
-      if (!isJeddahMadinah && booking.movementDetails) {
-        for (const m of booking.movementDetails) {
-          const fromCityName = m.fromCity?.name?.toLowerCase() || '';
-          const toCityName = m.toCity?.name?.toLowerCase() || '';
-          const fromLocName = m.fromLocation?.name?.toLowerCase() || '';
-          const toLocName = m.toLocation?.name?.toLowerCase() || '';
-          if (fromCityName.includes('jeddah') || fromCityName.includes('madina') || fromCityName.includes('madinah') ||
-              toCityName.includes('jeddah') || toCityName.includes('madina') || toCityName.includes('madinah') ||
-              fromLocName.includes('jeddah') || fromLocName.includes('madina') || fromLocName.includes('madinah') ||
-              toLocName.includes('jeddah') || toLocName.includes('madina') || toLocName.includes('madinah')) {
-            isJeddahMadinah = true;
-            break;
-          }
-        }
-      }
-
-      if (isJeddahMadinah) {
-        targetBookingStatus = 'voucher';
-        transitionReason = 'Trip completed (individual hotel booking involving Jeddah/Madina, transitioned to voucher pending)';
       } else {
-        targetBookingStatus = 'bill';
-        transitionReason = 'Trip completed (individual hotel booking, transitioned to bill ready)';
+        let isJeddahMadinah = false;
+        
+        // Check travel details airports
+        if (booking.travelDetails) {
+          for (const t of booking.travelDetails) {
+            const arrCode = t.arrivalAirport?.code?.toLowerCase() || '';
+            const depCode = t.departureAirport?.code?.toLowerCase() || '';
+            const arrName = t.arrivalAirport?.name?.toLowerCase() || '';
+            const depName = t.departureAirport?.name?.toLowerCase() || '';
+            const arrCity = t.arrivalAirport?.city?.toLowerCase() || '';
+            const depCity = t.departureAirport?.city?.toLowerCase() || '';
+            
+            if (arrCode.includes('jed') || arrCode.includes('med') ||
+                depCode.includes('jed') || depCode.includes('med') ||
+                arrName.includes('jeddah') || arrName.includes('madina') || arrName.includes('madinah') ||
+                depName.includes('jeddah') || depName.includes('madina') || depName.includes('madinah') ||
+                arrCity.includes('jeddah') || arrCity.includes('madina') || arrCity.includes('madinah') ||
+                depCity.includes('jeddah') || depCity.includes('madina') || depCity.includes('madinah')) {
+              isJeddahMadinah = true;
+              break;
+            }
+          }
+        }
+
+        // Check movement details locations/cities
+        if (!isJeddahMadinah && booking.movementDetails) {
+          for (const m of booking.movementDetails) {
+            const fromCityName = m.fromCity?.name?.toLowerCase() || '';
+            const toCityName = m.toCity?.name?.toLowerCase() || '';
+            const fromLocName = m.fromLocation?.name?.toLowerCase() || '';
+            const toLocName = m.toLocation?.name?.toLowerCase() || '';
+            if (fromCityName.includes('jeddah') || fromCityName.includes('madina') || fromCityName.includes('madinah') ||
+                toCityName.includes('jeddah') || toCityName.includes('madina') || toCityName.includes('madinah') ||
+                fromLocName.includes('jeddah') || fromLocName.includes('madina') || fromLocName.includes('madinah') ||
+                toLocName.includes('jeddah') || toLocName.includes('madina') || toLocName.includes('madinah')) {
+              isJeddahMadinah = true;
+              break;
+            }
+          }
+        }
+
+        if (isJeddahMadinah) {
+          targetBookingStatus = 'voucher';
+          transitionReason = 'Trip completed (individual hotel booking involving Jeddah/Madina, transitioned to voucher pending)';
+        } else {
+          targetBookingStatus = 'bill';
+          transitionReason = 'Trip completed (individual hotel booking, transitioned to bill ready)';
+        }
       }
     }
 

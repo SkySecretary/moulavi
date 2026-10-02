@@ -40,23 +40,52 @@ if [ $? -ne 0 ]; then
 fi
 
 
-# Step 1: Prep and Sync in one SSH ControlMaster context if possible, or just be very efficient.
-# We will create the release directory first.
-echo "📂 Creating release directory tree..."
-$SSH_CMD $SERVER_USER@$SERVER_IP "mkdir -p $RELEASE_PATH/backend/dist $RELEASE_PATH/backend/prisma $RELEASE_PATH/frontend/.next $RELEASE_PATH/b2c/dist"
+# Step 1: Package everything locally
+echo "📦 Packaging built release into release.tgz..."
+tar -czf release.tgz \
+  --exclude="backend/node_modules" \
+  --exclude="backend/dev.db*" \
+  --exclude="backend/prisma/dev.db*" \
+  --exclude="backend/prisma/*.db*" \
+  --exclude="backend/backups" \
+  --exclude="backend/uploads" \
+  --exclude="backend/.env*" \
+  --exclude="frontend/node_modules" \
+  --exclude="frontend/.env*" \
+  --exclude="frontend/.next/cache" \
+  --exclude="b2c/node_modules" \
+  backend frontend b2c
 
-# Step 2: Upload everything
-echo "📤 Uploading backend, frontend, and B2C..."
-rsync -avz -e "$SSH_CMD" --exclude "node_modules" --exclude "dist" --exclude "dev.db" --exclude "uploads" --exclude ".env" backend/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/backend/
-rsync -avz -e "$SSH_CMD" backend/dist/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/backend/dist/
-rsync -avz -e "$SSH_CMD" --exclude "node_modules" --exclude ".next" --exclude ".env*" frontend/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/frontend/
-rsync -avz -e "$SSH_CMD" --exclude "cache" frontend/.next/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/frontend/.next/
-rsync -avz -e "$SSH_CMD" --exclude "node_modules" --exclude "dist" b2c/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/b2c/
-rsync -avz -e "$SSH_CMD" b2c/dist/ $SERVER_USER@$SERVER_IP:$RELEASE_PATH/b2c/dist/
+# Step 2: Create remote release folder and upload release.tgz
+echo "📂 Creating remote release directory..."
+$SSH_CMD $SERVER_USER@$SERVER_IP "mkdir -p $RELEASE_PATH"
+
+echo "📤 Uploading package..."
+rsync -avz -e "$SSH_CMD" release.tgz $SERVER_USER@$SERVER_IP:$RELEASE_PATH/release.tgz
+
+# Clean up local package
+rm release.tgz
 
 # Step 3: Finalize and Restart in one final SSH session
 echo "⚙️  Finalizing and Restarting..."
 $SSH_CMD -o ControlMaster=auto -o ControlPath=/tmp/ssh-%r@%h:%p $SERVER_USER@$SERVER_IP << EOF
+    # Safe SQLite WAL flush on active current release before anything else
+    if [ -d "$CURRENT_PATH/backend" ]; then
+        echo "💾 Flushing active SQLite WAL checkpoint..."
+        node -e "
+            const { PrismaClient } = require('$CURRENT_PATH/backend/node_modules/@prisma/client');
+            const p = new PrismaClient({ datasourceUrl: 'file:$SHARED_PATH/dev.db' });
+            p.\\\$queryRawUnsafe('PRAGMA wal_checkpoint(TRUNCATE);').then(() => p.\\\$disconnect()).catch(() => {});
+        " 2>/dev/null || true
+    fi
+
+    # Extract the package on server
+    echo "📦 Extracting package on server..."
+    cd $RELEASE_PATH
+    tar -xzf release.tgz
+    rm release.tgz
+    rm -f $RELEASE_PATH/backend/prisma/dev.db*
+
     # Shared Data Initialization
     mkdir -p $SHARED_PATH
     [ ! -f "$SHARED_PATH/dev.db" ] && [ -f "$REMOTE_ROOT/backend/prisma/dev.db" ] && cp "$REMOTE_ROOT/backend/prisma/dev.db" "$SHARED_PATH/dev.db"
@@ -84,6 +113,7 @@ $SSH_CMD -o ControlMaster=auto -o ControlPath=/tmp/ssh-%r@%h:%p $SERVER_USER@$SE
     # Backend Setup
     cd $RELEASE_PATH/backend
     PUPPETEER_SKIP_DOWNLOAD=true npm install --production --silent
+    npx puppeteer browsers install chrome || true
     if [ -f "./node_modules/.bin/prisma" ]; then
         ./node_modules/.bin/prisma generate
         ./node_modules/.bin/prisma db push --accept-data-loss

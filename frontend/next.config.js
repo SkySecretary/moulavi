@@ -22,6 +22,22 @@ const nextConfig = {
         destination: '/landing/index.html',
       },
       {
+        source: '/re-entry-visa',
+        destination: '/landing/re-entry-visa.html',
+      },
+      {
+        source: '/reentry',
+        destination: '/landing/re-entry-visa.html',
+      },
+      {
+        source: '/umrah-re-entry',
+        destination: '/landing/re-entry-visa.html',
+      },
+      {
+        source: '/umrah-re-entry-visa',
+        destination: '/landing/re-entry-visa.html',
+      },
+      {
         source: '/api/:path*',
         destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'}/:path*`,
       },

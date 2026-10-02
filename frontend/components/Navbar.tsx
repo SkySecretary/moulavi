@@ -28,7 +28,9 @@ import {
   Loader2,
   Edit2,
   Building,
-  ArrowUpRight
+  ArrowUpRight,
+  LifeBuoy,
+  Activity
 } from 'lucide-react';
 import NextLink from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -164,11 +166,13 @@ export default function Navbar() {
     { name: 'Agent Compliance', path: '/dashboard/umrah-visa/agent-compliance', icon: Award },
     { name: 'Vouchers (Umrah)', path: '/dashboard/umrah-visa/voucher', icon: Award },
     { name: 'Invoices', path: '/dashboard/umrah-visa/invoice', icon: FileText },
+    { name: 'Support Tickets', path: '/dashboard/support-tickets', icon: LifeBuoy },
   ] : [
     { name: 'Missing BRN', path: '/party/missing-brn', icon: AlertCircle },
     { name: 'Missing Return Tickets', path: '/party/missing-return-ticket', icon: Plane },
     { name: 'Add to Existing', path: '/party/add-to-existing-booking', icon: PlusCircle },
     { name: 'My Profile', path: '/party/settings', icon: Settings },
+    { name: 'Support Tickets', path: '/party/support-tickets', icon: LifeBuoy },
   ];
 
   const isActive = (path: string) => pathname === path || (path !== '/dashboard' && path !== '/party/dashboard' && pathname.startsWith(path));
@@ -288,6 +292,19 @@ export default function Navbar() {
             )}
 
             <NotificationDropdown />
+
+            {user?.role === 'admin' && (
+              <button
+                onClick={() => router.push('/dashboard/system-health')}
+                className={cn(
+                  "p-2 rounded-full transition-colors",
+                  pathname === '/dashboard/system-health' ? "bg-primary/10 text-primary" : "text-gray-500 hover:bg-gray-100"
+                )}
+                title="System Health & Diagnostics (Admin Only)"
+              >
+                <Activity className="h-5 w-5" />
+              </button>
+            )}
 
             <button
               onClick={() => router.push(isAdminOrStaff ? '/dashboard/settings' : '/party/settings')}

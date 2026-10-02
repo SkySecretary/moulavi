@@ -48,6 +48,9 @@ router.get(
         { guestMobile: { contains: search as string } },
         { groupCode: { contains: search as string } },
         { bookingReference: { contains: search as string } },
+        { umrahCompany: { partyName: { contains: search as string } } },
+        { transportCompany: { partyName: { contains: search as string } } },
+        { party: { partyName: { contains: search as string } } },
       ];
     }
 
@@ -219,7 +222,8 @@ router.get(
         include: { 
           voucher: {
             include: {
-              umrahCompany: true
+              umrahCompany: true,
+              transportCompany: true,
             }
           } 
         },
@@ -261,6 +265,7 @@ router.get(
         pax: movement.voucher.paxCount,
         qty: movement.voucher.paxCount,
         umrahCompany: movement.voucher.umrahCompany?.partyName || '—',
+        transportCompany: movement.voucher.transportCompany?.partyName || '—',
         from: movement.from || '',
         fromLocation: movement.fromLocation || '',
         fromLocationId: movement.fromLocationId || null,
@@ -335,7 +340,8 @@ router.get(
         include: { 
           voucher: {
             include: {
-              umrahCompany: true
+              umrahCompany: true,
+              transportCompany: true,
             }
           } 
         },
@@ -377,6 +383,7 @@ router.get(
         pax: movement.voucher.paxCount,
         qty: movement.voucher.paxCount,
         umrahCompany: movement.voucher.umrahCompany?.partyName || '—',
+        transportCompany: movement.voucher.transportCompany?.partyName || '—',
         from: movement.from || '',
         fromLocation: movement.fromLocation || '',
         fromLocationId: movement.fromLocationId || null,
@@ -451,7 +458,8 @@ router.get(
         include: { 
           voucher: {
             include: {
-              umrahCompany: true
+              umrahCompany: true,
+              transportCompany: true,
             }
           } 
         },
@@ -493,6 +501,7 @@ router.get(
         pax: movement.voucher.paxCount,
         qty: movement.voucher.paxCount,
         umrahCompany: movement.voucher.umrahCompany?.partyName || '—',
+        transportCompany: movement.voucher.transportCompany?.partyName || '—',
         from: movement.from || '',
         fromLocation: movement.fromLocation || '',
         fromLocationId: movement.fromLocationId || null,
@@ -571,7 +580,8 @@ router.get(
         include: { 
           voucher: {
             include: {
-              umrahCompany: true
+              umrahCompany: true,
+              transportCompany: true,
             }
           } 
         },
@@ -613,6 +623,7 @@ router.get(
         pax: movement.voucher.paxCount,
         qty: movement.voucher.paxCount,
         umrahCompany: movement.voucher.umrahCompany?.partyName || '—',
+        transportCompany: movement.voucher.transportCompany?.partyName || '—',
         from: movement.from || '',
         fromLocation: movement.fromLocation || '',
         fromLocationId: movement.fromLocationId || null,
@@ -1101,15 +1112,43 @@ router.post(
       return res.status(400).json({ error: 'Transport Company is required' });
     }
 
-    const voucherNumber = await generateVoucherNumber(); // Voucher number is used as reservation number
+    const cleanedGroupCode = typeof groupCode === 'string' ? groupCode.trim() : '';
 
-    // Generate route numbers dynamically from the last route number in database
-    const movementCount = movementDetails && Array.isArray(movementDetails) ? movementDetails.length : 0;
-    const routeNumbers = movementCount > 0 
-      ? await generateRouteNumbersForVoucher(movementCount)
-      : [];
+    if (cleanedGroupCode) {
+      // Validate that no voucher already exists with this group code
+      const existingVoucherWithGroup = await prisma.voucher.findFirst({
+        where: { groupCode: cleanedGroupCode },
+        select: { id: true, voucherNumber: true, bookingReference: true },
+      });
+
+      if (existingVoucherWithGroup) {
+        return res.status(400).json({
+          error: `A voucher with Group Code "${cleanedGroupCode}" already exists (Voucher #${existingVoucherWithGroup.voucherNumber}${existingVoucherWithGroup.bookingReference ? ` for booking ${existingVoucherWithGroup.bookingReference}` : ''}). Duplicate vouchers on the same group code are not allowed.`,
+        });
+      }
+    }
+
+    // Auto-link to booking if a booking exists with this group code
+    let matchingBooking: any = null;
+    if (cleanedGroupCode) {
+      matchingBooking = await prisma.umrahVisaBooking.findFirst({
+        where: {
+          groupNumber: cleanedGroupCode,
+          isDeleted: false,
+        },
+        select: { id: true, bookingReference: true, partyId: true, umrahVisaProviderId: true },
+      });
+    }
 
     const voucher = await prisma.$transaction(async (tx) => {
+      const voucherNumber = await generateVoucherNumber(tx); // Voucher number is used as reservation number
+
+      // Generate route numbers dynamically from the last route number in database
+      const movementCount = movementDetails && Array.isArray(movementDetails) ? movementDetails.length : 0;
+      const routeNumbers = movementCount > 0 
+        ? await generateRouteNumbersForVoucher(movementCount, tx)
+        : [];
+
       // Create voucher
       const newVoucher = await tx.voucher.create({
         data: {
@@ -1117,12 +1156,14 @@ router.post(
           reservationDate: reservationDate ? new Date(reservationDate) : new Date(),
           guestName,
           guestMobile: guestMobile || null,
-          groupCode: groupCode || null,
+          groupCode: cleanedGroupCode || null,
           paxCount,
-          partyId: partyId || null,
-          umrahCompanyId: umrahCompanyId || null,
+          partyId: partyId || matchingBooking?.partyId || null,
+          umrahCompanyId: umrahCompanyId || matchingBooking?.umrahVisaProviderId || null,
           transportCompanyId: transportCompanyId || null,
           generatedBy: user.id,
+          bookingId: matchingBooking?.id || null,
+          bookingReference: matchingBooking?.bookingReference || null,
         },
       });
 
@@ -1258,6 +1299,22 @@ router.put(
 
     if (!voucher) {
       return res.status(404).json({ error: 'Voucher not found' });
+    }
+
+    const cleanedGroupCode = typeof groupCode === 'string' ? groupCode.trim() : (groupCode || '');
+    if (cleanedGroupCode) {
+      const duplicate = await prisma.voucher.findFirst({
+        where: {
+          groupCode: cleanedGroupCode,
+          id: { not: id },
+        },
+        select: { id: true, voucherNumber: true, bookingReference: true },
+      });
+      if (duplicate) {
+        return res.status(400).json({
+          error: `Group Code "${cleanedGroupCode}" is already assigned to Voucher #${duplicate.voucherNumber}${duplicate.bookingReference ? ` (Booking: ${duplicate.bookingReference})` : ''}. Duplicate group codes are not allowed.`,
+        });
+      }
     }
 
     const updatedVoucher = await prisma.$transaction(async (tx) => {

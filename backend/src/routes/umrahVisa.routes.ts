@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { authenticate, authorize } from '../middleware/auth';
 import { prisma, findCityByName } from './umrahVisa/shared';
 import { parseSafeDate } from '../utils/dateParser';
+import { sendPackageExpiredWhatsApp } from '../services/whatsappService';
 
 const router = Router();
 
@@ -26,7 +27,8 @@ router.get('/bookings', authenticate, async (req, res) => {
       sortBy = 'createdAt',
       sortOrder = 'desc',
       archived,
-      ticketStatus
+      ticketStatus,
+      isPackageExpired
     } = req.query;
     const pageNum = parseInt(page as string) || 1;
     const limitNum = parseInt(limit as string) || 10;
@@ -72,6 +74,12 @@ router.get('/bookings', authenticate, async (req, res) => {
     if (bookingMode) where.bookingMode = bookingMode;
     if (accommodationType) where.accommodationType = accommodationType;
     if (visaType) where.visaType = visaType;
+
+    if (isPackageExpired === 'true') {
+      where.isPackageExpired = true;
+    } else if (isPackageExpired === 'false') {
+      where.isPackageExpired = false;
+    }
 
     const { missingReturnTicket } = req.query;
     if (missingReturnTicket === 'true') {
@@ -277,6 +285,160 @@ router.get('/bookings', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Error fetching bookings:', error);
     res.status(500).json({ error: 'Failed to fetch bookings' });
+  }
+});
+
+// POST /api/umrah-visa/bookings/bulk-expire - Bulk mark bookings as package expired and send WhatsApp alerts
+router.post('/bookings/bulk-expire', authenticate, authorize('admin', 'staff'), async (req, res) => {
+  try {
+    const { bookingIds } = req.body;
+    if (!Array.isArray(bookingIds) || bookingIds.length === 0) {
+      return res.status(400).json({ error: 'bookingIds must be a non-empty array' });
+    }
+
+    // 1. Fetch bookings with sponsor details, travel details, passengers, and client/agency party
+    const bookings = await prisma.umrahVisaBooking.findMany({
+      where: {
+        id: { in: bookingIds },
+        isDeleted: false
+      },
+      include: {
+        party: true,
+        sponsorIqamaDetails: {
+          where: { isAlternate: false }
+        },
+        travelDetails: {
+          where: { isAlternate: false }
+        },
+        passengers: {
+          where: { isDeleted: false }
+        }
+      }
+    });
+
+    if (bookings.length === 0) {
+      return res.status(404).json({ error: 'No bookings found with the provided IDs' });
+    }
+
+    // 2. Update all matched bookings to isPackageExpired: true
+    await prisma.umrahVisaBooking.updateMany({
+      where: {
+        id: { in: bookings.map(b => b.id) }
+      },
+      data: {
+        isPackageExpired: true
+      }
+    });
+
+    const results: any[] = [];
+    let whatsappSentCount = 0;
+    let whatsappFailedCount = 0;
+
+    // Helper to format date
+    const formatTemplateDate = (date: Date | string): string => {
+      const months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return 'N/A';
+      const day = d.getDate();
+      const month = months[d.getMonth()];
+      const year = d.getFullYear();
+      return `${day} ${month} ${year}`;
+    };
+
+    // 3. Loop over bookings to construct messages and send them
+    for (const booking of bookings) {
+      const mainSponsor = booking.sponsorIqamaDetails.find((s: any) => !s.isAlternate);
+      
+      if (!mainSponsor || !mainSponsor.sponserMobileNumber) {
+        results.push({
+          bookingId: booking.id,
+          bookingReference: booking.bookingReference,
+          success: true,
+          whatsappStatus: 'skipped',
+          whatsappReason: 'No sponsor mobile number found'
+        });
+        continue;
+      }
+
+      const departureDateTime = booking.travelDetails.find((t: any) => !t.isAlternate)?.departureDateTime;
+
+      const pilgrimDetails = booking.passengers
+        .map((p: any) => {
+          const returnDate = p.exitDate || departureDateTime;
+          const formattedReturnDate = returnDate ? formatTemplateDate(returnDate) : 'N/A';
+          return `• Name: ${p.fullName}\n• Passport No: ${p.passportNumber || 'N/A'}\n• Return Date: ${formattedReturnDate}`;
+        })
+        .join('\n\n');
+
+      let sponsorSent = false;
+      let sponsorError = null;
+      try {
+        await sendPackageExpiredWhatsApp(
+          mainSponsor.sponserMobileNumber,
+          mainSponsor.iqamaSponserName,
+          mainSponsor.iqamaNumber,
+          pilgrimDetails
+        );
+        sponsorSent = true;
+        whatsappSentCount++;
+      } catch (waErr: any) {
+        console.error(`Failed to send WhatsApp to sponsor for booking ${booking.id}:`, waErr);
+        sponsorError = waErr.message || 'Unknown WhatsApp API error';
+        whatsappFailedCount++;
+      }
+
+      let partySent = false;
+      let partyError = null;
+      const partyWhatsapp = booking.party?.whatsappNumber;
+      if (partyWhatsapp) {
+        try {
+          await sendPackageExpiredWhatsApp(
+            partyWhatsapp,
+            mainSponsor.iqamaSponserName,
+            mainSponsor.iqamaNumber,
+            pilgrimDetails
+          );
+          partySent = true;
+          whatsappSentCount++;
+        } catch (waErr: any) {
+          console.error(`Failed to send WhatsApp to party/agency for booking ${booking.id}:`, waErr);
+          partyError = waErr.message || 'Unknown WhatsApp API error';
+          whatsappFailedCount++;
+        }
+      }
+
+      results.push({
+        bookingId: booking.id,
+        bookingReference: booking.bookingReference,
+        success: true, // Still marked as expired in DB
+        whatsappStatus: (sponsorSent || partySent) ? 'sent' : 'failed',
+        sponsorStatus: sponsorSent ? 'sent' : (sponsorError ? 'failed' : 'skipped'),
+        sponsorError,
+        recipient: mainSponsor.sponserMobileNumber,
+        partyStatus: partyWhatsapp ? (partySent ? 'sent' : 'failed') : 'skipped',
+        partyError,
+        partyRecipient: partyWhatsapp || null
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: `Successfully marked ${bookings.length} booking(s) as package expired.`,
+      summary: {
+        totalSelected: bookingIds.length,
+        totalUpdated: bookings.length,
+        whatsappSent: whatsappSentCount,
+        whatsappFailed: whatsappFailedCount
+      },
+      details: results
+    });
+
+  } catch (error: any) {
+    console.error('Error in bulk package expiry:', error);
+    return res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
 

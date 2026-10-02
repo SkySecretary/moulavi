@@ -55,6 +55,12 @@ export default function UmrahVisaPage() {
   const [filterMissingReturn, setFilterMissingReturn] = useState(false);
   const [missingReturnCount, setMissingReturnCount] = useState(0);
   const [ticketStatus, setTicketStatus] = useState<string>('all');
+  
+  // Package Expired & Bulk selection states
+  const [selectedBookingIds, setSelectedBookingIds] = useState<string[]>([]);
+  const [isExpiring, setIsExpiring] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [packageExpiredFilter, setPackageExpiredFilter] = useState<string>('all');
 
   useEffect(() => {
     if (queryPartyId) {
@@ -111,7 +117,7 @@ export default function UmrahVisaPage() {
   useEffect(() => {
     fetchBookings(pagination.page);
     fetchMissingReturnCount();
-  }, [pagination.page, pagination.limit, searchQuery, selectedStatus, selectedVisaType, arrivalDateFrom, arrivalDateTo, viewArchived, selectedPartyId, filterMissingReturn, ticketStatus]);
+  }, [pagination.page, pagination.limit, searchQuery, selectedStatus, selectedVisaType, arrivalDateFrom, arrivalDateTo, viewArchived, selectedPartyId, filterMissingReturn, ticketStatus, packageExpiredFilter]);
 
   const fetchMissingReturnCount = async () => {
     try {
@@ -152,8 +158,15 @@ export default function UmrahVisaPage() {
       if (selectedPartyId && selectedPartyId !== 'all') {
         params.partyId = selectedPartyId;
       }
+
+      if (packageExpiredFilter === 'expired') {
+        params.isPackageExpired = 'true';
+      } else if (packageExpiredFilter === 'not_expired') {
+        params.isPackageExpired = 'false';
+      }
       
       const response = await umrahVisaAPI.getBookings(params);
+      setSelectedBookingIds([]); // Clear selection on load
       const flattenedBookings = (response.data.bookings || []).map((b: any) => {
         const mainTravel = b.travelDetails?.find((t: any) => !t.isAlternate);
         if (mainTravel) {
@@ -290,6 +303,142 @@ export default function UmrahVisaPage() {
     }
   };
 
+  const handleBulkMarkExpired = async () => {
+    if (selectedBookingIds.length === 0) return;
+    
+    if (!confirm(`Are you sure you want to mark ${selectedBookingIds.length} package(s) as expired and send Absher update WhatsApp alerts to the Iqama sponsors?`)) {
+      return;
+    }
+
+    try {
+      setIsExpiring(true);
+      const response = await umrahVisaAPI.bulkMarkPackageExpired(selectedBookingIds);
+      if (response.data?.success) {
+        toast.success(response.data.message || 'Successfully marked packages as expired and sent alerts');
+        setSelectedBookingIds([]);
+        fetchBookings(pagination.page);
+      }
+    } catch (error: any) {
+      console.error('Error marking packages expired:', error);
+      toast.error(error.response?.data?.error || error.message || 'Failed to mark packages expired');
+    } finally {
+      setIsExpiring(false);
+    }
+  };
+
+  const handleExportExpiredExcel = async () => {
+    try {
+      setIsExporting(true);
+      toast.info('Generating expired bookings export...');
+
+      // Fetch all expired bookings matching active filters (up to 5000)
+      const params: any = {
+        page: '1',
+        limit: '5000',
+        isPackageExpired: 'true',
+        search: searchQuery || undefined,
+        status: selectedStatus === 'all' ? undefined : selectedStatus,
+        visaType: selectedVisaType === 'all' ? undefined : selectedVisaType,
+        arrivalDateFrom: arrivalDateFrom || undefined,
+        arrivalDateTo: arrivalDateTo || undefined,
+        archived: viewArchived ? 'true' : 'false',
+        ticketStatus: ticketStatus !== 'all' ? ticketStatus : undefined
+      };
+
+      if (selectedPartyId && selectedPartyId !== 'all') {
+        params.partyId = selectedPartyId;
+      }
+
+      const response = await umrahVisaAPI.getBookings(params);
+      const expiredBookings = response.data.bookings || [];
+
+      if (expiredBookings.length === 0) {
+        toast.warning('No expired bookings found to export.');
+        return;
+      }
+
+      // Format CSV headers
+      const headers = [
+        'Group No',
+        'Agency Name',
+        'Expired Date',
+        'Iqama Holder Name',
+        'DOB',
+        'Phone',
+        'Passenger Passport Numbers',
+        'Passenger Names'
+      ];
+
+      // Format date helper
+      const formatDate = (dateStr?: string) => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return '';
+        return d.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
+      };
+
+      // Helper to escape CSV values
+      const escapeCSV = (val: any) => {
+        if (val === null || val === undefined) return '';
+        let str = String(val);
+        str = str.replace(/"/g, '""');
+        if (str.includes(',') || str.includes('\n') || str.includes('"')) {
+          return `"${str}"`;
+        }
+        return str;
+      };
+
+      // Build rows
+      const rows = expiredBookings.map((b: any) => {
+        const mainSponsor = b.sponsorIqamaDetails?.find((s: any) => !s.isAlternate) || {};
+        const mainTravel = b.travelDetails?.find((t: any) => !t.isAlternate) || {};
+        
+        // Expired date is departure date
+        const expiredDate = formatDate(mainTravel.departureDateTime);
+        const dob = formatDate(mainSponsor.sponserDob);
+
+        // Passengers data
+        const passengers = b.passengers || [];
+        const passportNumbers = passengers.map((p: any) => p.passportNumber).filter(Boolean).join(', ');
+        const passengerNames = passengers.map((p: any) => p.fullName).filter(Boolean).join(', ');
+
+        return [
+          escapeCSV(b.groupNumber || 'N/A'),
+          escapeCSV(b.party?.partyName || 'N/A'),
+          escapeCSV(expiredDate || 'N/A'),
+          escapeCSV(mainSponsor.iqamaSponserName || 'N/A'),
+          escapeCSV(dob || 'N/A'),
+          escapeCSV(mainSponsor.sponserMobileNumber || 'N/A'),
+          escapeCSV(passportNumbers || 'N/A'),
+          escapeCSV(passengerNames || 'N/A')
+        ];
+      });
+
+      // Assemble CSV content with UTF-8 BOM prefix
+      const csvContent = [
+        headers.join(','),
+        ...rows.map((row: string[]) => row.join(','))
+      ].join('\n');
+
+      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Expired_Bookings_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success('Expired bookings exported successfully!');
+    } catch (error: any) {
+      console.error('Failed to export expired bookings:', error);
+      toast.error('Failed to export expired bookings: ' + (error.message || 'Unknown error'));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleToggleArchived = (archived: boolean) => {
     setViewArchived(archived);
     setPagination(prev => ({ ...prev, page: 1 }));
@@ -396,6 +545,36 @@ export default function UmrahVisaPage() {
                 )}
               </Button>
               <div className="w-px h-6 bg-gray-200 mx-1 hidden sm:block" />
+              {selectedBookingIds.length > 0 && (
+                <Button 
+                  onClick={handleBulkMarkExpired} 
+                  disabled={isExpiring}
+                  className="flex items-center gap-2 font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-sm border border-amber-700"
+                  size="sm"
+                >
+                  {isExpiring ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ShieldAlert className="h-4 w-4" />
+                  )}
+                  <span>Mark Expired ({selectedBookingIds.length})</span>
+                </Button>
+              )}
+              {packageExpiredFilter === 'expired' && (
+                <Button 
+                  onClick={handleExportExpiredExcel}
+                  disabled={isExporting}
+                  className="flex items-center gap-2 font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm border border-emerald-700"
+                  size="sm"
+                >
+                  {isExporting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  <span>Export Excel</span>
+                </Button>
+              )}
               <Button onClick={() => fetchBookings()} variant="outline" size="sm" className="flex items-center gap-2 font-bold">
                 <RefreshCw className="h-4 w-4" />
                 <span className="hidden sm:inline">Refresh</span>
@@ -463,8 +642,8 @@ export default function UmrahVisaPage() {
                   </button>
                 </div>
                  {/* Search Bar and Filters */}
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mt-4">
-                  <div className="relative md:col-span-1">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mt-4">
+                  <div className="relative col-span-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                     <Input
                       placeholder="Search bookings..."
@@ -518,6 +697,16 @@ export default function UmrahVisaPage() {
                       <SelectItem value="without_ticket">Without Ticket</SelectItem>
                     </SelectContent>
                   </Select>
+                  <Select value={packageExpiredFilter} onValueChange={(val) => { setPackageExpiredFilter(val); setPagination(prev => ({ ...prev, page: 1 })); }}>
+                    <SelectTrigger className="w-full bg-white">
+                      <SelectValue placeholder="Package Expiry" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Packages</SelectItem>
+                      <SelectItem value="expired">Package Expired</SelectItem>
+                      <SelectItem value="not_expired">Active Package</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Booking Count */}
@@ -563,31 +752,59 @@ export default function UmrahVisaPage() {
                 {/* Table */}
                 <div className="rounded-md border overflow-x-auto">
                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[120px]">Visa Type</TableHead>
-                        <TableHead className="w-[120px]">Reference</TableHead>
-                        <TableHead className="w-[220px]">Party Details</TableHead>
-                        <TableHead className="w-[150px]">Umra Company</TableHead>
-                        <TableHead className="w-[150px]">Group Details</TableHead>
-                        <TableHead className="w-[120px]">Passengers</TableHead>
-                        <TableHead className="w-[150px]">Travel Dates</TableHead>
-                        <TableHead className="w-[150px]">Status</TableHead>
-                        <TableHead className="w-[220px]">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
+                     <TableHeader>
+                       <TableRow>
+                         <TableHead className="w-[50px] text-center">
+                           <input
+                             type="checkbox"
+                             checked={bookings.length > 0 && selectedBookingIds.length === bookings.length}
+                             onChange={(e) => {
+                               if (e.target.checked) {
+                                 setSelectedBookingIds(bookings.map(b => b.id));
+                               } else {
+                                 setSelectedBookingIds([]);
+                               }
+                             }}
+                             className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                           />
+                         </TableHead>
+                         <TableHead className="w-[120px]">Visa Type</TableHead>
+                         <TableHead className="w-[120px]">Reference</TableHead>
+                         <TableHead className="w-[220px]">Party Details</TableHead>
+                         <TableHead className="w-[150px]">Umra Company</TableHead>
+                         <TableHead className="w-[150px]">Group Details</TableHead>
+                         <TableHead className="w-[120px]">Passengers</TableHead>
+                         <TableHead className="w-[150px]">Travel Dates</TableHead>
+                         <TableHead className="w-[150px]">Status</TableHead>
+                         <TableHead className="w-[220px]">Actions</TableHead>
+                       </TableRow>
+                     </TableHeader>
                     <TableBody>
                       {isLoading ? (
                         <TableRow>
-                          <TableCell colSpan={9} className="text-center py-8">Loading...</TableCell>
+                          <TableCell colSpan={10} className="text-center py-8">Loading...</TableCell>
                         </TableRow>
                       ) : bookings.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={9} className="text-center py-8 text-gray-500">No bookings found</TableCell>
+                          <TableCell colSpan={10} className="text-center py-8 text-gray-500">No bookings found</TableCell>
                         </TableRow>
                       ) : (
                         bookings.map((booking) => (
                           <TableRow key={booking.id}>
+                             <TableCell className="text-center">
+                               <input
+                                 type="checkbox"
+                                 checked={selectedBookingIds.includes(booking.id)}
+                                 onChange={(e) => {
+                                   if (e.target.checked) {
+                                     setSelectedBookingIds(prev => [...prev, booking.id]);
+                                   } else {
+                                     setSelectedBookingIds(prev => prev.filter(id => id !== booking.id));
+                                   }
+                                 }}
+                                 className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                               />
+                             </TableCell>
                              <TableCell>
                                <div className="flex flex-col gap-1 items-start">
                                  <Badge className={`${VISA_TYPE_CONFIG[booking.visaType as keyof typeof VISA_TYPE_CONFIG]?.color || 'bg-gray-100'} text-xs`}>
@@ -657,9 +874,16 @@ export default function UmrahVisaPage() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Badge className={`${UMRAH_VISA_STATUS_CONFIG[booking.status as keyof typeof UMRAH_VISA_STATUS_CONFIG]?.color || 'bg-gray-100'} text-xs`}>
-                                {UMRAH_VISA_STATUS_CONFIG[booking.status as keyof typeof UMRAH_VISA_STATUS_CONFIG]?.label || booking.status}
-                              </Badge>
+                              <div className="flex flex-col gap-1 items-start">
+                                <Badge className={`${UMRAH_VISA_STATUS_CONFIG[booking.status as keyof typeof UMRAH_VISA_STATUS_CONFIG]?.color || 'bg-gray-100'} text-xs`}>
+                                  {UMRAH_VISA_STATUS_CONFIG[booking.status as keyof typeof UMRAH_VISA_STATUS_CONFIG]?.label || booking.status}
+                                </Badge>
+                                {booking.isPackageExpired && (
+                                  <Badge className="bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-black uppercase tracking-wider">
+                                    Expired
+                                  </Badge>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">

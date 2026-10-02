@@ -444,7 +444,7 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
           )}
 
           {/* Section 2: Passenger photo (mandatory if no group number) */}
-          {!hasGroupNumber && (
+          {!hasGroupNumber && step1Data.visaType !== 're_entry' && (
             <SectionUploader 
               field="passengerPhotos"
               label="Passenger Photos"
@@ -462,21 +462,23 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
           )}
 
           {/* Section 3: Pan card copies (optional) */}
-          <SectionUploader 
-            field="panCardCopies"
-            label="PAN Card Copies"
-            description="PAN card copy of passengers. (Optional)"
-            files={getFieldFiles('panCardCopies')}
-            disabled={disabled}
-            data={data}
-            onChange={onChange}
-            handleFilesSelectForField={handleFilesSelectForField}
-            handleRemoveFileForField={handleRemoveFileForField}
-            handlePassportNumberChange={handlePassportNumberChange}
-          />
+          {step1Data.visaType !== 're_entry' && (
+            <SectionUploader 
+              field="panCardCopies"
+              label="PAN Card Copies"
+              description="PAN card copy of passengers. (Optional)"
+              files={getFieldFiles('panCardCopies')}
+              disabled={disabled}
+              data={data}
+              onChange={onChange}
+              handleFilesSelectForField={handleFilesSelectForField}
+              handleRemoveFileForField={handleRemoveFileForField}
+              handlePassportNumberChange={handlePassportNumberChange}
+            />
+          )}
 
           {/* Section 4: Iqama copies (mandatory for individual iqama bookings) */}
-          {accommodationType === 'iqama' && (
+          {accommodationType === 'iqama' && step1Data.visaType !== 're_entry' && (
             <SectionUploader 
               field="iqamaCopies"
               label="Iqama Copies"
@@ -492,13 +494,13 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
             />
           )}
 
-          {/* Section 5: Onward Flight Ticket (mandatory) */}
+          {/* Section 5: Onward Flight Ticket (mandatory, optional for re_entry) */}
           {!step2Data?.isWithoutTicket && (
             <SectionUploader 
               field="onwardTickets"
               label="Onward Flight Tickets"
-              description="Onward flight reservation or ticket copies. (Required)"
-              required
+              description={`Onward flight reservation or ticket copies. ${step1Data.visaType === 're_entry' ? '(Optional)' : '(Required)'}`}
+              required={step1Data.visaType !== 're_entry'}
               showTicketConfirmation
               files={getFieldFiles('onwardTickets')}
               disabled={disabled}
@@ -529,8 +531,8 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
               <SectionUploader 
                 field="returnTickets"
                 label="Return Flight Tickets"
-                description="Return flight reservation or ticket copies. (Required)"
-                required
+                description={`Return flight reservation or ticket copies. ${step1Data.visaType === 're_entry' ? '(Optional)' : '(Required)'}`}
+                required={step1Data.visaType !== 're_entry'}
                 showTicketConfirmation
                 files={getFieldFiles('returnTickets')}
                 disabled={disabled}
@@ -544,18 +546,20 @@ export const DocumentsStep: React.FC<DocumentsStepProps> = ({
           )}
 
           {/* Section 7: National Address (optional) */}
-          <SectionUploader 
-            field="nationalAddresses"
-            label="National Address Copy"
-            description="National Address verification document or short address copy. (Optional)"
-            files={getFieldFiles('nationalAddresses')}
-            disabled={disabled}
-            data={data}
-            onChange={onChange}
-            handleFilesSelectForField={handleFilesSelectForField}
-            handleRemoveFileForField={handleRemoveFileForField}
-            handlePassportNumberChange={handlePassportNumberChange}
-          />
+          {step1Data.visaType !== 're_entry' && (
+            <SectionUploader 
+              field="nationalAddresses"
+              label="National Address Copy"
+              description="National Address verification document or short address copy. (Optional)"
+              files={getFieldFiles('nationalAddresses')}
+              disabled={disabled}
+              data={data}
+              onChange={onChange}
+              handleFilesSelectForField={handleFilesSelectForField}
+              handleRemoveFileForField={handleRemoveFileForField}
+              handlePassportNumberChange={handlePassportNumberChange}
+            />
+          )}
 
           {/* Re-entry specific fields */}
           {step1Data.visaType === 're_entry' && (

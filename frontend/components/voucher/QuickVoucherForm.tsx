@@ -1349,7 +1349,7 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
                     className="h-11"
                   />
                 </div>
-                <div className="space-y-1 lg:col-span-2">
+                <div className="space-y-1">
                   <Label className="text-[11px] font-bold text-muted-foreground ml-0.5 uppercase tracking-wider">Guest Name</Label>
                   <Input 
                     placeholder="Enter Guest Name" 
@@ -1364,6 +1364,15 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
                     placeholder="Mobile Number" 
                     value={formData.guestMobile} 
                     onChange={(e) => setFormData({...formData, guestMobile: e.target.value})}
+                    className="h-11 rounded-md border-gray-200 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-bold text-muted-foreground ml-0.5 uppercase tracking-wider">Group Code</Label>
+                  <Input 
+                    placeholder="Optional Group Code" 
+                    value={formData.groupCode} 
+                    onChange={(e) => setFormData({...formData, groupCode: e.target.value})}
                     className="h-11 rounded-md border-gray-200 text-sm"
                   />
                 </div>

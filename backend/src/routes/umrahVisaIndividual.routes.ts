@@ -527,10 +527,10 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
     // Determine initial status
     let initialStatus: 'pending' | 'group_assigned';
     const hasGroupNumber = !!(step1Data.groupNumber && step1Data.groupName);
-    if (!hasGroupNumber) {
+    if (!hasGroupNumber && !isReEntry) {
       initialStatus = 'pending';
     } else {
-      // If hasGroupNumber is true, always set to group_assigned (regardless of accommodation type)
+      // If hasGroupNumber or isReEntry is true, always set to group_assigned (regardless of accommodation type)
       initialStatus = 'group_assigned';
     }
 
@@ -557,7 +557,7 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
           umrahVisaProviderId: step1Data.umrahVisaProviderId || null,
            status: initialStatus,
           visaType: req.body.visaType || step1Data.visaType || 'individual_visa',
-          umrahVisaNumber: req.body.umrahVisaNumber || step1Data.umrahVisaNumber || null,
+          umrahVisaNumber: req.body.umrahVisaNumber || step1Data.umrahVisaNumber || (isReEntry && visaNumbers && visaNumbers[0]) || null,
           isOneWay: !!step2Data.isOneWay,
           isWithoutTicket: !!step2Data.isWithoutTicket,
           oneWayContactName: step2Data.isOneWay ? (step2Data.oneWayContactName || null) : null,

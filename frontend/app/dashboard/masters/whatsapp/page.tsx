@@ -44,6 +44,7 @@ interface WhatsappChannel {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  mappings?: UseCaseMapping[];
 }
 
 interface UseCaseMapping {
@@ -93,6 +94,7 @@ export default function WhatsappMastersPage() {
     { key: 'movement_update', name: 'General Transport & Movement Updates', desc: 'Sent when travel dates or general route updates are configured.' },
     { key: 'driver_update', name: 'Driver Details Assignment', desc: 'Sent to B2B agencies with specific driver name, phone number, reporting time, and vehicle numbers.' },
     { key: 'iqama_confirmation', name: 'Absher / Iqama Approvals', desc: 'Sent to sponsors to approve visa requests in Absher.' },
+    { key: 'package_expired', name: 'Package Expired Alert', desc: "Sent to Iqama hosts when a pilgrim's package/visa duration has expired." },
     { key: 'custom', name: 'Custom Alerts & Manual Logs', desc: 'Sent when manually triggering test or custom messages.' },
   ];
 

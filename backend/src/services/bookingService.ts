@@ -1,12 +1,11 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../config/database';
 
 /**
  * Generate next unique booking reference number
  * Format: "UB-10001", "UB-10002", etc.
  */
-export async function generateBookingReference(): Promise<string> {
+export async function generateBookingReference(tx?: any): Promise<string> {
+  const db = tx || prisma;
   try {
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
@@ -16,7 +15,7 @@ export async function generateBookingReference(): Promise<string> {
     const prefix = `UB-${dateStr}-`;
 
     // Find the latest booking reference for today
-    const lastBooking = await prisma.umrahVisaBooking.findFirst({
+    const lastBooking = await db.umrahVisaBooking.findFirst({
       where: {
         bookingReference: { startsWith: prefix },
         isDuplicate: false

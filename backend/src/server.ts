@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { authenticate, authorize } from './middleware/auth';
 import { prisma } from './lib/prisma';
 import authRoutes from './routes/auth.routes';
 import partyRoutes from './routes/party.routes';
@@ -36,13 +37,20 @@ import nusukRoutes from './routes/nusuk.routes';
 import hotelInventoryRoutes from './routes/hotelInventory.routes';
 import whatsappChannelRoutes from './routes/whatsappChannel.routes';
 import b2cRoutes from './routes/b2c.routes';
+import supportTicketRoutes from './routes/supportTicket.routes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
+// Trust reverse proxy (Nginx/Apache) for accurate IP resolution
+app.set('trust proxy', 1);
+app.disable('x-powered-by');
+
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 // CORS configuration
 app.use(
@@ -66,18 +74,8 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Debug endpoint for email and WhatsApp configuration (admin only in production)
-app.get('/api/debug/services-config', (req, res) => {
-  const isDevelopment = process.env.NODE_ENV === 'development';
-  const authHeader = req.headers.authorization;
-  
-  // In production, require basic auth or skip if not needed
-  // For now, allow in development, restrict in production
-  if (!isDevelopment) {
-    // You can add authentication here if needed
-    // For security, consider removing this endpoint in production or adding proper auth
-  }
-
+// Debug endpoint for email and WhatsApp configuration (strictly admin only)
+app.get('/api/debug/services-config', authenticate, authorize('admin'), (req, res) => {
   const config = {
     environment: process.env.NODE_ENV || 'development',
     timestamp: new Date().toISOString(),
@@ -134,6 +132,7 @@ app.use('/api/nusuk', nusukRoutes);
 app.use('/api/hotel-inventories', hotelInventoryRoutes);
 app.use('/api/whatsapp-channels', whatsappChannelRoutes);
 app.use('/api/b2c', b2cRoutes);
+app.use('/api/support-tickets', supportTicketRoutes);
 
 // Error handlers
 app.use(notFoundHandler);

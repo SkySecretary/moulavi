@@ -76,6 +76,8 @@ function VoucherServiceContent() {
   const [activeVoucherSubTab, setActiveVoucherSubTab] = useState<'all' | 'quick'>('all');
   const [activeMovementSubTab, setActiveMovementSubTab] = useState<'today' | 'tomorrow' | 'after-tomorrow' | 'specific-date'>('today');
   const [selectedRouteFilter, setSelectedRouteFilter] = useState<string | null>(null);
+  const [selectedUmrahCompanyFilter, setSelectedUmrahCompanyFilter] = useState<string | null>(null);
+  const [selectedTransportCompanyFilter, setSelectedTransportCompanyFilter] = useState<string | null>(null);
   
   // Data States
   const [vouchers, setVouchers] = useState<any[]>([]);
@@ -97,7 +99,7 @@ function VoucherServiceContent() {
   const [loadingMovements, setLoadingMovements] = useState(false);
   const [movementPagination, setMovementPagination] = useState({
     page: 1,
-    limit: 20,
+    limit: 50,
     total: 0,
     totalPages: 0,
   });
@@ -216,6 +218,24 @@ function VoucherServiceContent() {
     return Object.entries(routeCounts).sort((a, b) => b[1] - a[1]);
   };
 
+  const getUmrahCompanyTotals = () => {
+    const counts: { [key: string]: number } = {};
+    currentMovements.forEach((m: any) => {
+      const company = m.umrahCompany && m.umrahCompany !== '—' ? m.umrahCompany : 'Unassigned';
+      counts[company] = (counts[company] || 0) + 1;
+    });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  };
+
+  const getTransportCompanyTotals = () => {
+    const counts: { [key: string]: number } = {};
+    currentMovements.forEach((m: any) => {
+      const company = m.transportCompany && m.transportCompany !== '—' ? m.transportCompany : 'Unassigned';
+      counts[company] = (counts[company] || 0) + 1;
+    });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  };
+
   const loadVouchers = async () => {
     try {
       setLoadingVouchers(true);
@@ -313,7 +333,14 @@ function VoucherServiceContent() {
       setLoadingMovements(true);
       const from = selectedFrom && selectedFrom !== 'all' ? selectedFrom : undefined;
       const to = selectedTo && selectedTo !== 'all' ? selectedTo : undefined;
-      const response = await voucherAPI.getMovementsByDate(selectedMovementDate, from, to);
+      const response = await voucherAPI.getMovementsByDate(
+        selectedMovementDate,
+        from,
+        to,
+        movementPagination.page,
+        movementPagination.limit,
+        movementSearch
+      );
       setSpecificDateMovements(response.data.movements);
       setMovementPagination(response.data.pagination);
       
@@ -473,6 +500,8 @@ function VoucherServiceContent() {
     if (selectedFrom) filters.push(`From: ${selectedFrom}`);
     if (selectedTo) filters.push(`To: ${selectedTo}`);
     if (selectedRouteFilter) filters.push(`Route: ${selectedRouteFilter}`);
+    if (selectedUmrahCompanyFilter) filters.push(`Umrah Co: ${selectedUmrahCompanyFilter}`);
+    if (selectedTransportCompanyFilter) filters.push(`Transport Co: ${selectedTransportCompanyFilter}`);
     
     const subtitle = filters.join(' | ');
 
@@ -482,13 +511,14 @@ function VoucherServiceContent() {
     doc.setTextColor(100);
     doc.text(subtitle, 40, 60);
 
-    const tableData = currentRouteFilteredMovements.map((m) => {
+    const tableData = currentFilteredMovements.map((m) => {
       const mid = m.movementId || `${m.voucherId}-${m.movementIndex}`;
       const edited = editingMovements.get(mid) || m;
       
       return [
         m.voucherNumber,
-        m.umrahCompany,
+        m.umrahCompany || '—',
+        m.transportCompany || '—',
         `${m.qty || m.pax} PAX`,
         `${new Date(m.date).toLocaleDateString('en-GB', { timeZone: 'UTC', day: '2-digit', month: 'short' })}\n${m.time}`,
         `${m.guestName}\n${m.mobile}`,
@@ -499,7 +529,7 @@ function VoucherServiceContent() {
 
     autoTable(doc, {
       startY: 80,
-      head: [['Voucher', 'Umrah Co.', 'Qty', 'Timeline', 'Guest Details', 'Location Matrix', 'Driver & Vehicle']],
+      head: [['Voucher', 'Umrah Co.', 'Transport Co.', 'Qty', 'Timeline', 'Guest Details', 'Location Matrix', 'Driver & Vehicle']],
       body: tableData,
       theme: 'grid',
       styles: {
@@ -625,14 +655,23 @@ function VoucherServiceContent() {
                           activeMovementSubTab === 'tomorrow' ? tomorrowMovements : 
                           activeMovementSubTab === 'after-tomorrow' ? afterTomorrowMovements :
                           specificDateMovements;
-  const currentRouteFilteredMovements = selectedRouteFilter
-    ? currentMovements.filter((m: any) => {
-        const fromCity = formatRouteCity(m.from);
-        const toCity = formatRouteCity(m.to);
-        const routeKey = `${fromCity} → ${toCity}`;
-        return routeKey === selectedRouteFilter;
-      })
-    : currentMovements;
+  const currentFilteredMovements = currentMovements.filter((m: any) => {
+    if (selectedRouteFilter) {
+      const fromCity = formatRouteCity(m.from);
+      const toCity = formatRouteCity(m.to);
+      const routeKey = `${fromCity} → ${toCity}`;
+      if (routeKey !== selectedRouteFilter) return false;
+    }
+    if (selectedUmrahCompanyFilter) {
+      const company = m.umrahCompany && m.umrahCompany !== '—' ? m.umrahCompany : 'Unassigned';
+      if (company !== selectedUmrahCompanyFilter) return false;
+    }
+    if (selectedTransportCompanyFilter) {
+      const company = m.transportCompany && m.transportCompany !== '—' ? m.transportCompany : 'Unassigned';
+      if (company !== selectedTransportCompanyFilter) return false;
+    }
+    return true;
+  });
   const currentMoveStats = activeMovementSubTab === 'today' ? todayStats : 
                            activeMovementSubTab === 'tomorrow' ? tomorrowStats : 
                            activeMovementSubTab === 'after-tomorrow' ? afterTomorrowStats :
@@ -688,35 +727,77 @@ function VoucherServiceContent() {
 
           <TabsContent value="vouchers" className="animate-in fade-in-50 duration-300">
             <Tabs value={activeVoucherSubTab} onValueChange={(v: any) => setActiveVoucherSubTab(v)} className="space-y-4">
-              <div className="flex items-center gap-4 bg-white p-2 rounded-xl border shadow-sm w-fit">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-2 rounded-xl border shadow-sm">
                 <TabsList className="bg-gray-100 border p-1 h-9 rounded-lg">
                   <TabsTrigger value="all" className="data-[state=active]:bg-white data-[state=active]:text-primary text-xs font-bold px-6 h-7 rounded-md transition-all">All Records</TabsTrigger>
                   {hasRole(['admin', 'staff']) && (
                     <TabsTrigger value="quick" className="data-[state=active]:bg-white data-[state=active]:text-primary text-xs font-bold px-6 h-7 rounded-md transition-all">Quick Create</TabsTrigger>
                   )}
                 </TabsList>
+                {activeVoucherSubTab === 'all' && (
+                  <div className="flex items-center gap-2">
+                    <div className="relative w-full sm:w-80">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Input
+                        placeholder="Search voucher #, name, group, party..."
+                        value={searchTerm}
+                        onChange={(e) => {
+                          setSearchTerm(e.target.value);
+                          setPagination(prev => ({ ...prev, page: 1 }));
+                        }}
+                        className="pl-9 pr-8 h-9 rounded-lg"
+                      />
+                      {searchTerm && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchTerm('');
+                            setPagination(prev => ({ ...prev, page: 1 }));
+                          }}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <TabsContent value="all" className="animate-in slide-in-from-bottom-2 duration-300">
                 <Card className="rounded-2xl border-0 shadow-sm overflow-hidden bg-white">
-                  <CardHeader className="pb-3 border-b">
-                    <div className="flex flex-col space-y-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <CardTitle className="text-lg font-bold text-primary">System Vouchers</CardTitle>
-                        <div className="relative w-full sm:w-96">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                          <Input placeholder="Search name, voucher # or group..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-9 rounded-lg" />
-                        </div>
+                  <CardHeader className="pb-3 border-b bg-gray-50/30">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <CardTitle className="text-base font-bold text-primary uppercase tracking-tight">System Vouchers</CardTitle>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                          {searchTerm ? `Filtered by search: "${searchTerm}"` : 'Listing all registered transport vouchers'}
+                        </p>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="flex flex-wrap items-center gap-3">
                         <div className="flex items-center gap-2">
-                          <Label className="text-xs whitespace-nowrap">From:</Label>
-                          <DatePicker value={dateFrom} onChange={(val) => setDateFrom(fromDisplayDate(val))} className="h-8" />
+                          <Label className="text-xs font-bold text-gray-500 whitespace-nowrap">From:</Label>
+                          <DatePicker value={dateFrom} onChange={(val) => { setDateFrom(fromDisplayDate(val)); setPagination(prev => ({ ...prev, page: 1 })); }} className="h-8" />
                         </div>
                         <div className="flex items-center gap-2">
-                          <Label className="text-xs whitespace-nowrap">To:</Label>
-                          <DatePicker value={dateTo} onChange={(val) => setDateTo(fromDisplayDate(val))} className="h-8" />
+                          <Label className="text-xs font-bold text-gray-500 whitespace-nowrap">To:</Label>
+                          <DatePicker value={dateTo} onChange={(val) => { setDateTo(fromDisplayDate(val)); setPagination(prev => ({ ...prev, page: 1 })); }} className="h-8" />
                         </div>
+                        {(searchTerm || dateFrom || dateTo) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSearchTerm('');
+                              setDateFrom('');
+                              setDateTo('');
+                              setPagination(prev => ({ ...prev, page: 1 }));
+                            }}
+                            className="h-8 text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                          >
+                            Reset Filters
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardHeader>
@@ -852,7 +933,7 @@ function VoucherServiceContent() {
                   {movementSearch && `Search: ${movementSearch} | `} {selectedFrom && `From: ${selectedFrom} | `} {selectedTo && `To: ${selectedTo}`}
                 </p>
               </div>
-              <Tabs value={activeMovementSubTab} onValueChange={(v: any) => { setActiveMovementSubTab(v); setSelectedRouteFilter(null); }} className="space-y-4">
+              <Tabs value={activeMovementSubTab} onValueChange={(v: any) => { setActiveMovementSubTab(v); setSelectedRouteFilter(null); setSelectedUmrahCompanyFilter(null); setSelectedTransportCompanyFilter(null); }} className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-2 rounded-xl border shadow-sm no-capture">
                   <TabsList className="bg-gray-100 border p-1 h-9 rounded-lg">
                     <TabsTrigger value="today" className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-8 h-7 rounded-md transition-all">Today</TabsTrigger>
@@ -923,38 +1004,130 @@ function VoucherServiceContent() {
                     </div>
                   </CardHeader>
                   
-                  {/* Route-wise Totals Bar */}
+                  {/* Totals & Quick Filters Bar */}
                   {currentMovements.length > 0 && (
-                    <div className="px-6 py-3 bg-slate-50/50 border-b border-gray-100 flex flex-wrap items-center gap-3">
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-1">Route Totals:</span>
-                      {getRouteWiseTotals().map(([route, count]) => {
-                        const isSelected = selectedRouteFilter === route;
-                        return (
-                          <button 
-                            key={route}
-                            onClick={() => setSelectedRouteFilter(isSelected ? null : route)}
-                            className={`flex items-center gap-2 border rounded-full px-3 py-1 shadow-sm transition-all hover:scale-105 active:scale-95 ${
-                              isSelected 
-                                ? 'bg-secondary text-white border-secondary font-bold' 
-                                : 'bg-white text-slate-700 border-gray-200/80 hover:bg-slate-50'
-                            }`}
+                    <div className="p-4 bg-slate-50/50 border-b border-gray-100 space-y-2.5 no-capture">
+                      {/* Route Totals */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest min-w-[130px] flex-shrink-0">Route Totals:</span>
+                        <div className="flex flex-wrap items-center gap-1.5 flex-1">
+                          {getRouteWiseTotals().map(([route, count]) => {
+                            const isSelected = selectedRouteFilter === route;
+                            return (
+                              <button 
+                                key={route}
+                                onClick={() => setSelectedRouteFilter(isSelected ? null : route)}
+                                className={`flex items-center gap-1.5 border rounded-full px-2.5 py-0.5 shadow-sm transition-all hover:scale-105 active:scale-95 ${
+                                  isSelected 
+                                    ? 'bg-secondary text-white border-secondary font-bold' 
+                                    : 'bg-white text-slate-700 border-gray-200/80 hover:bg-slate-50'
+                                }`}
+                              >
+                                <span className="text-[10px] font-bold">{route}</span>
+                                <span className={`h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-black leading-none ${
+                                  isSelected ? 'bg-white text-secondary' : 'bg-secondary text-white'
+                                }`}>
+                                  {count}
+                                </span>
+                              </button>
+                            );
+                          })}
+                          {selectedRouteFilter && (
+                            <button
+                              onClick={() => setSelectedRouteFilter(null)}
+                              className="text-[9px] font-black uppercase text-rose-600 hover:text-rose-700 hover:underline transition-colors px-1.5"
+                            >
+                              Clear Route
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Umrah Company Totals */}
+                      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest min-w-[130px] flex-shrink-0">Umrah Co. Totals:</span>
+                        <div className="flex flex-wrap items-center gap-1.5 flex-1">
+                          {getUmrahCompanyTotals().map(([company, count]) => {
+                            const isSelected = selectedUmrahCompanyFilter === company;
+                            return (
+                              <button 
+                                key={company}
+                                onClick={() => setSelectedUmrahCompanyFilter(isSelected ? null : company)}
+                                className={`flex items-center gap-1.5 border rounded-full px-2.5 py-0.5 shadow-sm transition-all hover:scale-105 active:scale-95 ${
+                                  isSelected 
+                                    ? 'bg-primary text-white border-primary font-bold' 
+                                    : 'bg-white text-slate-700 border-gray-200/80 hover:bg-slate-50'
+                                }`}
+                              >
+                                <span className="text-[10px] font-bold uppercase">{company}</span>
+                                <span className={`h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-black leading-none ${
+                                  isSelected ? 'bg-white text-primary' : 'bg-primary text-white'
+                                }`}>
+                                  {count}
+                                </span>
+                              </button>
+                            );
+                          })}
+                          {selectedUmrahCompanyFilter && (
+                            <button
+                              onClick={() => setSelectedUmrahCompanyFilter(null)}
+                              className="text-[9px] font-black uppercase text-rose-600 hover:text-rose-700 hover:underline transition-colors px-1.5"
+                            >
+                              Clear Umrah Co.
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Transport Company Totals */}
+                      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest min-w-[130px] flex-shrink-0">Transport Co. Totals:</span>
+                        <div className="flex flex-wrap items-center gap-1.5 flex-1">
+                          {getTransportCompanyTotals().map(([company, count]) => {
+                            const isSelected = selectedTransportCompanyFilter === company;
+                            return (
+                              <button 
+                                key={company}
+                                onClick={() => setSelectedTransportCompanyFilter(isSelected ? null : company)}
+                                className={`flex items-center gap-1.5 border rounded-full px-2.5 py-0.5 shadow-sm transition-all hover:scale-105 active:scale-95 ${
+                                  isSelected 
+                                    ? 'bg-emerald-600 text-white border-emerald-600 font-bold' 
+                                    : 'bg-white text-slate-700 border-gray-200/80 hover:bg-slate-50'
+                                }`}
+                              >
+                                <span className="text-[10px] font-bold uppercase">{company}</span>
+                                <span className={`h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-black leading-none ${
+                                  isSelected ? 'bg-white text-emerald-600' : 'bg-emerald-600 text-white'
+                                }`}>
+                                  {count}
+                                </span>
+                              </button>
+                            );
+                          })}
+                          {selectedTransportCompanyFilter && (
+                            <button
+                              onClick={() => setSelectedTransportCompanyFilter(null)}
+                              className="text-[9px] font-black uppercase text-rose-600 hover:text-rose-700 hover:underline transition-colors px-1.5"
+                            >
+                              Clear Transport Co.
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {(selectedRouteFilter || selectedUmrahCompanyFilter || selectedTransportCompanyFilter) && (
+                        <div className="pt-1 flex justify-end">
+                          <button
+                            onClick={() => {
+                              setSelectedRouteFilter(null);
+                              setSelectedUmrahCompanyFilter(null);
+                              setSelectedTransportCompanyFilter(null);
+                            }}
+                            className="text-[9px] font-black uppercase text-rose-600 hover:text-rose-700 hover:underline"
                           >
-                            <span className="text-[10px] font-bold">{route}</span>
-                            <span className={`h-5 min-w-[20px] px-1 rounded-full flex items-center justify-center text-[9px] font-black leading-none ${
-                              isSelected ? 'bg-white text-secondary' : 'bg-secondary text-white'
-                            }`}>
-                              {count}
-                            </span>
+                            Reset All Active Movement Filters
                           </button>
-                        );
-                      })}
-                      {selectedRouteFilter && (
-                        <button
-                          onClick={() => setSelectedRouteFilter(null)}
-                          className="text-[9px] font-black uppercase text-rose-600 hover:text-rose-700 hover:underline transition-colors ml-auto px-2 py-1"
-                        >
-                          Clear Route Filter
-                        </button>
+                        </div>
                       )}
                     </div>
                   )}
@@ -965,19 +1138,20 @@ function VoucherServiceContent() {
                       <TableRow className="border-b border-gray-100 hover:bg-transparent uppercase">
                         <TableHead className="px-6 text-[10px] font-black text-gray-400 tracking-widest">Voucher</TableHead>
                         <TableHead className="text-[10px] font-black text-gray-400 tracking-widest">Umrah Co.</TableHead>
+                        <TableHead className="text-[10px] font-black text-gray-400 tracking-widest">Transport Co.</TableHead>
                         <TableHead className="text-[10px] font-black text-gray-400 tracking-widest text-center">Qty</TableHead>
                         <TableHead className="text-[10px] font-black text-gray-400 tracking-widest">Timeline</TableHead>
                         <TableHead className="text-[10px] font-black text-gray-400 tracking-widest">Guest Protocol</TableHead>
                         <TableHead className="text-[10px] font-black text-gray-400 tracking-widest">Location Matrix</TableHead>
                         <TableHead className="px-6 text-[10px] font-black text-gray-400 tracking-widest w-[300px]">Driver & Vehicle Information</TableHead>
                         <TableHead className="px-6 text-right w-10 no-capture"></TableHead>
-                        </TableRow>
+                      </TableRow>
 
                     </TableHeader>
                     <TableBody>
-                      {loadingMovements ? [...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={8} className="px-6"><Skeleton className="h-10 w-full" /></TableCell></TableRow>) : 
-                       currentRouteFilteredMovements.length === 0 ? <TableRow><TableCell colSpan={8} className="text-center py-16 text-gray-400 font-medium tracking-tight">No travel movements matching your filters</TableCell></TableRow> :
-                       currentRouteFilteredMovements.map(m => {
+                      {loadingMovements ? [...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={9} className="px-6"><Skeleton className="h-10 w-full" /></TableCell></TableRow>) : 
+                       currentFilteredMovements.length === 0 ? <TableRow><TableCell colSpan={9} className="text-center py-16 text-gray-400 font-medium tracking-tight">No travel movements matching your filters</TableCell></TableRow> :
+                       currentFilteredMovements.map(m => {
                         const mid = m.movementId || `${m.voucherId}-${m.movementIndex}`;
                         const edited = editingMovements.get(mid) || m;
                         return (
@@ -987,7 +1161,8 @@ function VoucherServiceContent() {
                                 {m.voucherNumber}
                               </span>
                             </TableCell>
-                            <TableCell className="text-[10px] font-bold text-gray-600 uppercase max-w-[120px] truncate">{m.umrahCompany}</TableCell>
+                            <TableCell className="text-[10px] font-bold text-gray-600 uppercase max-w-[120px] truncate">{m.umrahCompany || '—'}</TableCell>
+                            <TableCell className="text-[10px] font-bold text-gray-600 uppercase max-w-[120px] truncate">{m.transportCompany || '—'}</TableCell>
                             <TableCell className="text-center"><Badge variant="outline" className="font-black bg-blue-50 text-blue-700 border-blue-100">{m.qty || m.pax} PAX</Badge></TableCell>
                             <TableCell>
                               <div className="flex flex-col">

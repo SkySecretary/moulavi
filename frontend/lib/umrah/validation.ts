@@ -704,7 +704,7 @@ export const validateStep6 = (
   }
 
   // 2) Passenger photo
-  if (isIndividualWithoutGroupNumber) {
+  if (isIndividualWithoutGroupNumber && step1Data.visaType !== 're_entry') {
     if (!data.passengerPhotos || data.passengerPhotos.length !== passengerCount) {
       return `Exactly ${passengerCount} passenger photos are required (matching passenger count). Currently uploaded: ${data.passengerPhotos?.length || 0}`;
     }
@@ -714,14 +714,14 @@ export const validateStep6 = (
   }
 
   // 4) Iqama copies (mandatory for individual iqama type accommodation booking)
-  if (!isGroupVisa && step3Data.accommodationType === 'iqama') {
+  if (!isGroupVisa && step3Data.accommodationType === 'iqama' && step1Data.visaType !== 're_entry') {
     if (!data.iqamaCopies || data.iqamaCopies.length === 0) {
       return 'Iqama copy is required for Iqama accommodation type.';
     }
   }
 
-  // 5) onward ticket (mandatory)
-  if (!isGroupVisa && !isWithoutTicket) {
+  // 5) onward ticket (mandatory, optional for re_entry)
+  if (!isGroupVisa && !isWithoutTicket && step1Data.visaType !== 're_entry') {
     if (!data.onwardTickets || data.onwardTickets.length === 0) {
       return 'Onward ticket copy is required.';
     }
@@ -730,8 +730,8 @@ export const validateStep6 = (
     }
   }
 
-  // 6) return ticket (mandatory)
-  if (!isGroupVisa && !isWithoutTicket && !isOneWay) {
+  // 6) return ticket (mandatory, optional for re_entry)
+  if (!isGroupVisa && !isWithoutTicket && !isOneWay && step1Data.visaType !== 're_entry') {
     if (!data.returnTickets || data.returnTickets.length === 0) {
       return 'Return ticket copy is required.';
     }

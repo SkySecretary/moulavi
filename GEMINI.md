@@ -22,10 +22,23 @@ This document serves as the foundational reference for the NuSync project. It ca
 3.  **Tafweej (Daily Overview):** Comprehensive operational view with PDF Print support for daily scheduling.
 4.  **Settings:** Gear icon in Navbar leads to centralized management of all master data (Users, Cities, Countries, Transport Routes, etc.).
 
-### Database & Backup
+### Database, Backup & Diagnostics
 - **Database:** SQLite managed via Prisma (`backend/prisma/dev.db`).
-- **Auto-Backup:** A scheduled task runs every 12 hours (via `backend/src/server.ts`) backing up the database to `backend/backups/`. It keeps the last 10 backups.
+- **Auto-Backup:** A scheduled task runs every 2 hours (via `backend/src/server.ts`) backing up the database to `backend/backups/`. It keeps the last 10 backups.
 - **Manual Backup:** Can be triggered via `node backend/scripts/backup-db.js`.
+- **System Troubleshooting & Diagnostics Tool:** Run comprehensive audits on database integrity, duplicate group codes, voucher sequence gaps, pending bottlenecks, or deep inspect any voucher/booking:
+  ```bash
+  # Run full system diagnostic audit
+  node backend/scripts/troubleshoot.js
+
+  # Deep inspect any Voucher #, Group Code, Booking Reference, or Agency
+  node backend/scripts/troubleshoot.js --search <keyword>
+
+  # View recent vouchers / pending bookings / DB health
+  node backend/scripts/troubleshoot.js --recent 20
+  node backend/scripts/troubleshoot.js --pending
+  node backend/scripts/troubleshoot.js --db-check
+  ```
 
 ### Alternate Booking Information (Mandate)
 The system supports "Alternate Info" for all bookings. This allows users to store placeholder/dummy details (flights, hotels, transport) separately from the confirmed main information.

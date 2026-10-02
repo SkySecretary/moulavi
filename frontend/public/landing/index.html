@@ -120,6 +120,26 @@
   /* Select arrow */
   select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; -webkit-appearance: none; }
 
+  /* WhatsApp CTA button */
+  .whatsapp-btn {
+    background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+    transition: all 0.2s ease;
+  }
+  .whatsapp-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(37, 211, 102, 0.4);
+  }
+
+  .doc-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+  }
+  .doc-card:hover {
+    transform: translateY(-4px);
+    border-color: #10b981;
+    box-shadow: 0 16px 32px -8px rgba(4, 120, 87, 0.15);
+  }
+
   /* Decorative separator */
   .sep-geo {
     height: 2px;
@@ -130,8 +150,23 @@
 </head>
 <body class="bg-white text-slate-800 antialiased">
 
+<!-- ─── TOP ANNOUNCEMENT BAR ───────────────────────────────────────────── -->
+<div class="bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-950 text-emerald-200 text-xs py-2 px-4 border-b border-emerald-800/80 sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+    <div class="flex items-center gap-2">
+      <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-gold-400 text-emerald-950 uppercase tracking-widest animate-pulse">NEW RULE</span>
+      <span class="font-medium text-white">🕋 UMRAH RE-ENTRY VISA SERVICE: Already issued visa via another company? We can assist!</span>
+    </div>
+    <div class="flex items-center gap-4 text-xs">
+      <a href="/re-entry-visa" class="flex items-center gap-1.5 text-gold-300 hover:text-white font-bold transition-colors underline">
+        View Re-Entry Procedure & Apply →
+      </a>
+    </div>
+  </div>
+</div>
+
 <!-- ─── NAVIGATION ─────────────────────────────────────────────────────── -->
-<nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 py-4 px-6 lg:px-12">
+<nav id="navbar" class="sticky top-[33px] left-0 right-0 z-40 transition-all duration-300 py-4 px-6 lg:px-12 bg-emerald-950/90 backdrop-blur-md">
   <div class="max-w-7xl mx-auto flex items-center justify-between">
     <div class="flex items-center gap-3">
       <div class="w-9 h-9 rounded-lg bg-emerald-600 flex items-center justify-center shadow-lg">
@@ -150,6 +185,10 @@
       </div>
     </div>
     <div class="hidden md:flex items-center gap-8">
+      <a href="/re-entry-visa" class="text-sm text-gold-300 hover:text-white transition-colors font-body font-semibold flex items-center gap-1.5 bg-emerald-900/60 px-3 py-1 rounded-lg border border-gold-400/30">
+        <span>🕋 Re-Entry Visa</span>
+        <span class="text-[9px] bg-gold-400 text-emerald-950 font-bold px-1.5 py-0.2 rounded uppercase">New</span>
+      </a>
       <a href="#how-it-works" class="text-sm text-emerald-200 hover:text-white transition-colors font-body">How It Works</a>
       <a href="#features" class="text-sm text-emerald-200 hover:text-white transition-colors font-body">Features</a>
       <a href="/login" class="text-sm text-emerald-200 hover:text-white transition-colors font-body font-semibold">Agent Login</a>
@@ -163,6 +202,7 @@
   </div>
   <!-- Mobile menu -->
   <div id="mobile-menu" class="flex-col md:hidden mt-4 px-2 pb-4 gap-3">
+    <a href="/re-entry-visa" class="block text-sm text-gold-300 font-semibold hover:text-white py-2 border-b border-emerald-900">🕋 Umrah Re-Entry Visa Service (New)</a>
     <a href="#how-it-works" class="block text-sm text-emerald-200 hover:text-white py-2 border-b border-emerald-900">How It Works</a>
     <a href="#features" class="block text-sm text-emerald-200 hover:text-white py-2 border-b border-emerald-900">Features</a>
     <a href="/login" class="block text-sm text-emerald-200 hover:text-white py-2 border-b border-emerald-900 font-semibold">Agent Login</a>
@@ -293,6 +333,153 @@
 
 <div class="sep-geo mx-auto max-w-4xl"></div>
 
+<!-- ─── UMRAH RE-ENTRY VISA SERVICE (HOMEPAGE HIGHLIGHT) ───────────────── -->
+<section id="re-entry" class="geo-bg py-20 px-6 lg:px-12 relative overflow-hidden text-white border-t border-b border-emerald-900">
+  <!-- Soft Glow -->
+  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-emerald-600/20 blur-[130px] rounded-full pointer-events-none"></div>
+
+  <div class="max-w-6xl mx-auto relative z-10">
+
+    <!-- Top Badge -->
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center gap-2.5 bg-emerald-900/90 border border-gold-400/50 rounded-full px-5 py-2 shadow-xl">
+        <span class="w-2.5 h-2.5 rounded-full bg-gold-400 badge-pulse"></span>
+        <span class="font-mono-custom text-xs sm:text-sm font-bold text-gold-300 tracking-wider uppercase">🕋 UMRAH RE-ENTRY VISA SERVICE</span>
+      </div>
+    </div>
+
+    <!-- Main Headline & Subheading -->
+    <div class="text-center max-w-3xl mx-auto mb-14">
+      <h2 class="font-display font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-4 leading-tight">
+        Already issued your Umrah visa through another company?
+      </h2>
+      <p class="font-display text-2xl sm:text-3xl text-gold-300 font-semibold mb-6">
+        No problem! We can assist you with your Re-Entry Visa.
+      </p>
+      <p class="text-emerald-200/90 text-sm sm:text-base leading-relaxed">
+        NuSync by <strong class="text-white">Moulavi Travels</strong> provides full gateway support for B2B travel agents. If your pilgrims hold visas from another issuer and need a re-entry visa, our system ensures smooth processing and Nusuk alignment.
+      </p>
+    </div>
+
+    <!-- 4-Point Procedure Cards Grid -->
+    <div class="mb-12">
+      <div class="text-center mb-8">
+        <span class="font-mono-custom text-xs font-semibold text-emerald-400 uppercase tracking-widest">📋 PROCEDURE / REQUIRED DOCUMENTS</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+
+        <!-- Step 1 -->
+        <div class="bg-emerald-950/80 border border-emerald-700/50 rounded-2xl p-6 relative flex flex-col justify-between hover:border-gold-400/60 transition-all">
+          <div>
+            <div class="w-12 h-12 rounded-xl bg-gold-400/20 text-gold-300 border border-gold-400/30 flex items-center justify-center font-mono-custom font-bold text-lg mb-4">
+              1️⃣
+            </div>
+            <h3 class="font-display font-bold text-lg text-white mb-2">Nusuk Booking</h3>
+            <p class="text-emerald-200/80 text-xs sm:text-sm leading-relaxed">
+              Book your Umrah slot through the <strong>Nusuk App</strong> according to your travel date.
+            </p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-emerald-800 text-[11px] text-gold-400 font-mono-custom font-medium">
+            ✓ App Slot Confirmation
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="bg-emerald-950/80 border border-emerald-700/50 rounded-2xl p-6 relative flex flex-col justify-between hover:border-gold-400/60 transition-all">
+          <div>
+            <div class="w-12 h-12 rounded-xl bg-gold-400/20 text-gold-300 border border-gold-400/30 flex items-center justify-center font-mono-custom font-bold text-lg mb-4">
+              2️⃣
+            </div>
+            <h3 class="font-display font-bold text-lg text-white mb-2">Travel Details ✈️</h3>
+            <p class="text-emerald-200/80 text-xs sm:text-sm leading-relaxed">
+              Provide your confirmed <strong>up & down</strong> flight travel details and airport arrival schedule.
+            </p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-emerald-800 text-[11px] text-gold-400 font-mono-custom font-medium">
+            ✓ Flight Schedules
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="bg-emerald-950/80 border border-emerald-700/50 rounded-2xl p-6 relative flex flex-col justify-between hover:border-gold-400/60 transition-all">
+          <div>
+            <div class="w-12 h-12 rounded-xl bg-gold-400/20 text-gold-300 border border-gold-400/30 flex items-center justify-center font-mono-custom font-bold text-lg mb-4">
+              3️⃣
+            </div>
+            <h3 class="font-display font-bold text-lg text-white mb-2">Visa Copy 📄</h3>
+            <p class="text-emerald-200/80 text-xs sm:text-sm leading-relaxed">
+              Send a copy of your <strong>existing Umrah visa</strong> issued by the previous company.
+            </p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-emerald-800 text-[11px] text-gold-400 font-mono-custom font-medium">
+            ✓ Existing Visa Copy
+          </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="bg-emerald-950/80 border border-emerald-700/50 rounded-2xl p-6 relative flex flex-col justify-between hover:border-gold-400/60 transition-all">
+          <div>
+            <div class="w-12 h-12 rounded-xl bg-gold-400/20 text-gold-300 border border-gold-400/30 flex items-center justify-center font-mono-custom font-bold text-lg mb-4">
+              4️⃣
+            </div>
+            <h3 class="font-display font-bold text-lg text-white mb-2">BRNS / Hotel Booking 🏨</h3>
+            <p class="text-emerald-200/80 text-xs sm:text-sm leading-relaxed">
+              Provide valid <strong>BRNS</strong> covering the complete stay period across Makkah and Madinah.
+            </p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-emerald-800 text-[11px] text-gold-400 font-mono-custom font-medium">
+            ✓ Complete Stay Coverage
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Confirmation Banner & CTAs -->
+    <div class="bg-gradient-to-r from-emerald-900 to-emerald-950 border border-gold-400/40 rounded-2xl p-6 sm:p-8 shadow-2xl flex flex-col lg:flex-row items-center justify-between gap-6 mb-8">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-emerald-500 text-emerald-950 flex items-center justify-center text-2xl font-bold flex-shrink-0">
+          ✅
+        </div>
+        <div>
+          <h4 class="font-display font-bold text-xl text-white mb-1">
+            Once all required details are received, we proceed immediately!
+          </h4>
+          <p class="text-xs sm:text-sm text-emerald-300">
+            Log in to the Agent Portal to create your re-entry file or forward this service to your agent network on WhatsApp.
+          </p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+        <a href="/login" class="cta-shimmer font-bold text-sm px-6 py-3 rounded-xl text-center shadow-lg w-full sm:w-auto flex items-center justify-center gap-2">
+          <span>Agent Login</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
+        </a>
+        <a href="/re-entry-visa" class="border border-gold-400 text-gold-300 hover:bg-gold-400/10 font-bold text-sm px-5 py-3 rounded-xl text-center transition-colors w-full sm:w-auto">
+          Dedicated Page & Checklist →
+        </a>
+      </div>
+    </div>
+
+    <!-- WhatsApp Share & Direct Chat Actions -->
+    <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+      <button onclick="shareOnWhatsApp()" class="whatsapp-btn text-white font-bold text-sm px-6 py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2.5 w-full sm:w-auto">
+        <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/></svg>
+        <span>Share Alert on WhatsApp</span>
+      </button>
+
+      <a href="https://wa.me/919004481414?text=Hello%20Moulavi%20Travels%2C%20I%20need%20assistance%20with%20Umrah%20Re-Entry%20Visa%20Service" target="_blank" class="bg-emerald-900/80 hover:bg-emerald-800 text-emerald-200 border border-emerald-700/60 font-semibold text-sm px-6 py-3.5 rounded-xl shadow transition-colors flex items-center justify-center gap-2 w-full sm:w-auto">
+        <span>Chat Desk (+91 90044 81414)</span>
+      </a>
+    </div>
+
+  </div>
+</section>
+
+<div class="sep-geo mx-auto max-w-4xl"></div>
+
 <!-- ─── HOW IT WORKS ───────────────────────────────────────────────────── -->
 <section id="how-it-works" class="py-24 px-6 lg:px-12 bg-white">
   <div class="max-w-6xl mx-auto">
@@ -402,6 +589,22 @@
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+      <!-- Feature 0: Umrah Re-Entry Visa Service (Featured Card) -->
+      <a href="/re-entry-visa" class="feature-card block bg-gradient-to-br from-emerald-950 to-emerald-900 border-2 border-gold-400/60 rounded-2xl p-7 shadow-xl group hover:border-gold-400 transition-all">
+        <div class="flex items-center justify-between mb-4">
+          <div class="w-12 h-12 rounded-xl bg-gold-400/20 border border-gold-400/40 flex items-center justify-center text-2xl">
+            🕋
+          </div>
+          <span class="font-mono-custom text-[10px] font-bold bg-gold-400 text-emerald-950 px-2.5 py-1 rounded-full uppercase tracking-wider">NEW SERVICE</span>
+        </div>
+        <h3 class="font-display font-bold text-xl text-gold-300 mb-2 group-hover:text-white transition-colors">Umrah Re-Entry Visa Assistance</h3>
+        <p class="text-emerald-200/90 text-sm leading-relaxed mb-4">Already issued Umrah visa through another company? We assist B2B agents with fast re-entry processing, Nusuk slot alignment, and BRN syncing.</p>
+        <div class="flex items-center justify-between pt-2 border-t border-emerald-800">
+          <span class="font-mono-custom text-xs text-gold-400 font-semibold">View 4-Step Procedure →</span>
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        </div>
+      </a>
 
       <!-- Feature 1: Validation -->
       <div class="feature-card bg-white rounded-2xl p-7">
@@ -1112,6 +1315,14 @@
       btnSpinner.classList.add('hidden');
       btnText.textContent = 'Complete Agency Registration';
     });
+  }
+
+  // WhatsApp Share Function
+  const shareMessageText = `🕋 *UMRAH RE-ENTRY VISA SERVICE*\n\nAlready issued your Umrah visa through another company?\nNo problem! We can assist you with your Re-Entry Visa.\n\n📋 *PROCEDURE / REQUIRED DOCUMENTS*\n\n1️⃣ *Nusuk Booking*\nBook your Umrah slot through the Nusuk App according to your travel date.\n\n2️⃣ *Travel Details* ✈️\nProvide your up & down travel details.\n\n3️⃣ *Visa Copy* 📄\nSend a copy of your existing Umrah visa.\n\n4️⃣ *BRNS / Hotel Booking* 🏨\nProvide BRNS covering the complete stay period.\n\n✅ *Once all required details are received, we can proceed with the re-entry visa assistance.*\n\n🔗 *Register / Login & Initiate Booking:* https://umra.moulavi.in/re-entry-visa\n\n_Powered by NuSync - Moulavi Travels (WhatsApp: +91 90044 81414)_`;
+
+  function shareOnWhatsApp() {
+    const encoded = encodeURIComponent(shareMessageText);
+    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
   }
 
   // Intersection observer for scroll animations

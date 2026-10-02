@@ -10,6 +10,8 @@ const DOC_TYPE_ORDER: { [key: string]: number } = {
   iqama: 1,
   onward_ticket: 2,
   return_ticket: 3,
+  umrah_visa_copy: 4,
+  nusuk_booking_copy: 5,
 };
 
 /**
@@ -104,11 +106,16 @@ export async function appendBookingAttachments(
       return basePdfBuffer;
     }
 
-    // Check criteria: visaType must be individual_visa and accommodationType must be iqama
+    // Check criteria: visaType must be individual_visa or re_entry
     if (
-      booking.visaType !== 'individual_visa' ||
-      booking.accommodationType !== 'iqama'
+      booking.visaType !== 'individual_visa' &&
+      booking.visaType !== 're_entry'
     ) {
+      return basePdfBuffer;
+    }
+
+    // For individual visa, we require iqama accommodation type.
+    if (booking.visaType === 'individual_visa' && booking.accommodationType !== 'iqama') {
       return basePdfBuffer;
     }
 
@@ -116,7 +123,7 @@ export async function appendBookingAttachments(
     const documents = await prisma.document.findMany({
       where: {
         bookingId,
-        documentType: { in: ['iqama', 'onward_ticket', 'return_ticket'] },
+        documentType: { in: ['iqama', 'onward_ticket', 'return_ticket', 'umrah_visa_copy', 'nusuk_booking_copy'] },
         isDeleted: false,
       },
     });

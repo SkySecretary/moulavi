@@ -194,6 +194,8 @@ export const umrahVisaAPI = {
   createBooking: (data: any) => api.post('/umrah-visa/booking', data),
   
   getBookings: (params?: any) => api.get('/umrah-visa/bookings', { params }),
+
+  bulkMarkPackageExpired: (bookingIds: string[]) => api.post('/umrah-visa/bookings/bulk-expire', { bookingIds }),
   
   getPartyBookings: (params?: any) => api.get('/umrah-visa/bookings', { params }),
   
@@ -480,10 +482,13 @@ export const voucherAPI = {
     if (clientDate) params.clientDate = clientDate;
     return api.get('/vouchers/movements/after-tomorrow', { params });
   },
-  getMovementsByDate: (date: string, from?: string, to?: string) => {
+  getMovementsByDate: (date: string, from?: string, to?: string, page?: number, limit?: number, search?: string) => {
     const params: any = { date };
     if (from) params.from = from;
     if (to) params.to = to;
+    if (page) params.page = page;
+    if (limit) params.limit = limit;
+    if (search) params.search = search;
     return api.get('/vouchers/movements/by-date', { params });
   },
   getMovementFilterOptions: () => api.get('/vouchers/movements/filter-options'),
@@ -565,6 +570,37 @@ export const whatsappChannelAPI = {
   testConfig: (data: { baseUrl: string; apiKey: string; apiSecret: string; channelId: string; to: string; message: string }) =>
     api.post('/whatsapp-channels/test-config', data),
 };
+
+// Support Tickets API
+export const supportTicketAPI = {
+  getAll: (params?: { status?: string; priority?: string; category?: string; search?: string }) => 
+    api.get('/support-tickets', { params }),
+  getById: (id: string) => 
+    api.get(`/support-tickets/${id}`),
+  create: (data: {
+    subject: string;
+    description: string;
+    contactName: string;
+    contactEmail: string;
+    contactPhone?: string;
+    category?: string;
+    priority?: string;
+  }) => api.post('/support-tickets', data),
+  update: (id: string, data: { status?: string; priority?: string; category?: string }) => 
+    api.patch(`/support-tickets/${id}`, data),
+  addComment: (id: string, data: { comment: string }) => 
+    api.post(`/support-tickets/${id}/comments`, data),
+  getStats: () => 
+    api.get('/support-tickets/stats'),
+};
+
+// System Health & Diagnostics API
+export const systemHealthAPI = {
+  getSystemHealth: () => api.get('/audit/system-health'),
+  inspect: (query: string) => api.get('/audit/inspect', { params: { query } }),
+  triggerCheckpoint: () => api.post('/audit/checkpoint'),
+};
+
 
 
 

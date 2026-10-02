@@ -1,5 +1,6 @@
 
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../config/database';
+export { prisma };
 import { z } from 'zod';
 import multer from 'multer';
 import multerS3 from 'multer-s3';
@@ -9,9 +10,6 @@ import { combineDateTime } from '../../utils/datetime';
 import { parseDateDDMMYYYY, parseSafeDate } from '../../utils/dateParser';
 export { parseSafeDate };
 import { s3Client, S3_CONFIG, generateS3Key, generateUniqueFileName, isS3Configured } from '../../config/s3';
-
-// Export Prisma client instance (shared across all route files)
-export const prisma = new PrismaClient();
 
 // Flight number validation regex: 2-3 alphanumeric + optional dash + 1-10 alphanumeric
 export const FLIGHT_NUMBER_REGEX = /^[A-Z0-9]{2,3}-?[A-Z0-9]{1,10}$/;

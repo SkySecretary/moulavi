@@ -3,6 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { getUser } from '@/lib/auth';
 import { 
   User, 
   MapPin, 
@@ -19,11 +20,16 @@ import {
   Calendar,
   Settings as SettingsIcon,
   ChevronRight,
-  Compass
+  Compass,
+  LifeBuoy,
+  Activity,
+  ShieldCheck
 } from 'lucide-react';
 
 const masterItems = [
-  { name: 'User Management', description: 'Manage system users and access', icon: User, path: '/dashboard/masters/user', category: 'General' },
+  { name: 'System Health & Diagnostics', description: 'Live health audit, voucher sequence check, WAL flusher, and deep entity inspector', icon: Activity, path: '/dashboard/system-health', category: 'General', adminOnly: true },
+  { name: 'User Management', description: 'Manage system users and access', icon: User, path: '/dashboard/masters/user', category: 'General', adminOnly: true },
+  { name: 'Support Tickets', description: 'Manage support tickets and customer/agency issues', icon: LifeBuoy, path: '/dashboard/support-tickets', category: 'General' },
   { name: 'Country Master', description: 'Manage countries', icon: MapPin, path: '/dashboard/masters/country', category: 'Region' },
   { name: 'City Master', description: 'Manage cities', icon: Building2, path: '/dashboard/masters/city', category: 'Region' },
   { name: 'Currency Master', description: 'Configure system currencies', icon: DollarSign, path: '/dashboard/masters/currency', category: 'Financial' },
@@ -48,6 +54,8 @@ const categories = ['General', 'Region', 'Financial', 'Transport', 'External', '
 
 export default function SettingsPage() {
   const router = useRouter();
+  const user = getUser();
+  const isAdmin = user?.role === 'admin';
 
   return (
     <div className="container mx-auto p-6 space-y-8 animate-in fade-in duration-500">
@@ -64,7 +72,7 @@ export default function SettingsPage() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {masterItems
-              .filter((item) => item.category === category)
+              .filter((item) => item.category === category && (!item.adminOnly || isAdmin))
               .map((item) => (
                 <Card 
                   key={item.name} 

@@ -1,19 +1,18 @@
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../config/database';
 
 /**
  * Generate next sequential voucher number starting from "001"
  * Format: "001", "002", "003", etc.
  * Global sequence across all vouchers (not year-based) - used as reservation number
  */
-export async function generateVoucherNumber(): Promise<string> {
+export async function generateVoucherNumber(tx?: any): Promise<string> {
+  const db = tx || prisma;
   try {
     // Find the highest voucher number across all vouchers (global, not year-based)
-    const lastVoucher = await prisma.voucher.findFirst({
+    const lastVoucher = await db.voucher.findFirst({
       orderBy: {
-        voucherNumber: 'desc',
+        createdAt: 'desc',
       },
       select: {
         voucherNumber: true,
@@ -75,15 +74,16 @@ export function formatDate(date: Date | string | null | undefined): string {
  * Route numbers are 5-digit, global across all vouchers, sequential
  * @returns The next route number to use (as string, padded to 5 digits)
  */
-export async function getNextRouteNumber(): Promise<string> {
+export async function getNextRouteNumber(tx?: any): Promise<string> {
+  const db = tx || prisma;
   try {
     // Get the highest route number from voucher_movements
-    const lastMovement = await prisma.voucherMovement.findFirst({
+    const lastMovement = await db.voucherMovement.findFirst({
       where: {
         route: { not: null },
       },
       orderBy: {
-        route: 'desc',
+        createdAt: 'desc',
       },
       select: {
         route: true,
@@ -110,11 +110,13 @@ export async function getNextRouteNumber(): Promise<string> {
 /**
  * Generate sequential route numbers for voucher movements
  * @param count - Number of route numbers to generate
+ * @param tx - Optional transaction client
  * @returns Array of route numbers (5-digit strings)
  */
-export async function generateRouteNumbersForVoucher(count: number): Promise<string[]> {
+export async function generateRouteNumbersForVoucher(count: number, tx?: any): Promise<string[]> {
+  const db = tx || prisma;
   try {
-    const nextRouteNumber = await getNextRouteNumber();
+    const nextRouteNumber = await getNextRouteNumber(db);
     const baseNumber = parseInt(nextRouteNumber, 10);
     
     const routes: string[] = [];

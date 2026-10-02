@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { getFileUrl } from '@/lib/utils';
+import { cn, getFileUrl } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +49,7 @@ export default function TripInfoPage() {
   const [departureDateFrom, setDepartureDateFrom] = useState('');
   const [departureDateTo, setDepartureDateTo] = useState('');
   const [ticketStatus, setTicketStatus] = useState<string>('all');
+  const [selectedVisaType, setSelectedVisaType] = useState<string>('all');
   const [pendingLoadBasis, setPendingLoadBasis] = useState<'arrival' | 'departure'>('arrival');
   const [pendingBookingsCount, setPendingBookingsCount] = useState(0);
   const [pagination, setPagination] = useState({
@@ -225,7 +226,7 @@ export default function TripInfoPage() {
     fetchBookings(pagination.page);
     fetchPendingLoad();
     fetchPendingCount();
-  }, [pagination.page, pagination.limit, searchQuery, arrivalDateFrom, arrivalDateTo, departureDateFrom, departureDateTo, activeTab, iqamaSubTab, hotelSubTab, pendingLoadBasis, ticketStatus]);
+  }, [pagination.page, pagination.limit, searchQuery, arrivalDateFrom, arrivalDateTo, departureDateFrom, departureDateTo, activeTab, iqamaSubTab, hotelSubTab, pendingLoadBasis, ticketStatus, selectedVisaType]);
 
   const fetchPendingLoad = async () => {
     try {
@@ -254,6 +255,7 @@ export default function TripInfoPage() {
       departureDateFrom: departureDateFrom,
       departureDateTo: departureDateTo,
       accommodationType: activeTab,
+      visaType: selectedVisaType !== 'all' ? selectedVisaType : undefined,
       status: ['group_assigned', 'voucher', 'bill'],
       tripStatus: tripStatus,
       ticketStatus: ticketStatus !== 'all' ? ticketStatus : undefined
@@ -526,7 +528,12 @@ export default function TripInfoPage() {
 
     let reEntryInfo = '';
     if (booking.visaType === 're_entry') {
-      reEntryInfo = `🔑 *Umrah Visa Number:* ${booking.umrahVisaNumber || 'N/A'}\n\n`;
+      const passengerVisaNumbers = booking.passengers
+        ?.map((p: any) => p.visaNumber)
+        .filter((v: any) => v)
+        .join(', ');
+      const visaToPrint = booking.umrahVisaNumber || passengerVisaNumbers || 'N/A';
+      reEntryInfo = `🔑 *Umrah Visa Number:* ${visaToPrint}\n\n`;
     }
 
     let text = '';
@@ -1002,7 +1009,7 @@ export default function TripInfoPage() {
               </div>
 
               {/* Search and Filters */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                   <Input
@@ -1012,6 +1019,23 @@ export default function TripInfoPage() {
                     className="pl-10"
                   />
                 </div>
+                <Select
+                  value={selectedVisaType}
+                  onValueChange={(val) => {
+                    setSelectedVisaType(val);
+                    setPagination(prev => ({ ...prev, page: 1 }));
+                  }}
+                >
+                  <SelectTrigger className="w-full bg-white font-medium text-xs">
+                    <SelectValue placeholder="Visa Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Visa Types</SelectItem>
+                    <SelectItem value="re_entry">Re-Entry</SelectItem>
+                    <SelectItem value="individual_visa">Individual Visa</SelectItem>
+                    <SelectItem value="group_visa">Group Visa</SelectItem>
+                  </SelectContent>
+                </Select>
                 <DatePicker
                   placeholder="Arrival Date From"
                   value={arrivalDateFrom}
@@ -1091,8 +1115,18 @@ export default function TripInfoPage() {
                             {/* Visa Type */}
                             <TableCell>
                               <div className="flex flex-col gap-1">
-                                <Badge variant={booking.visaType === 'group_visa' ? 'default' : 'secondary'} className="text-xs">
-                                  {booking.visaType === 'group_visa' ? 'Group Visa' : 'Individual Visa'}
+                                <Badge 
+                                  variant="outline"
+                                  className={cn(
+                                    "text-xs font-bold w-fit",
+                                    booking.visaType === 're_entry'
+                                      ? "bg-amber-100 text-amber-900 border-amber-300"
+                                      : booking.visaType === 'group_visa'
+                                        ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                                        : "bg-blue-100 text-blue-900 border-blue-300"
+                                  )}
+                                >
+                                  {booking.visaType === 're_entry' ? 'Re-Entry' : booking.visaType === 'group_visa' ? 'Group Visa' : 'Individual Visa'}
                                 </Badge>
                                 {booking.hasMultipleGroup && (
                                   <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-300 font-medium">
