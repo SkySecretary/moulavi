@@ -1049,126 +1049,6 @@ router.get(
   })
 );
 
-// Get single voucher by ID
-router.get(
-  '/:id',
-  authenticate,
-  authorize('admin', 'staff', 'party'),
-  asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { id } = req.params;
-    const user = req.user!;
-
-    const voucher = await prisma.voucher.findUnique({
-      where: { id },
-      include: {
-        generatedByUser: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        umrahCompany: {
-          select: { id: true, partyName: true, address: true, contactNumber: true, whatsappNumber: true, email: true, logoPath: true, partyCode: true }
-        },
-        party: {
-          select: { id: true, partyName: true, partyCode: true, whatsappNumber: true, contactNumber: true }
-        },
-        transportCompany: {
-          select: { id: true, partyName: true, partyCode: true }
-        },
-        booking: {
-          select: {
-            id: true,
-            umrahVisaProviderId: true,
-            transportCompanyId: true,
-            umrahVisaProvider: {
-              select: { id: true, partyName: true, address: true, contactNumber: true, whatsappNumber: true, email: true, logoPath: true, partyCode: true }
-            },
-            transportCompany: {
-              select: { id: true, partyName: true, partyCode: true }
-            }
-          }
-        },
-        movements: {
-          orderBy: {
-            sr: 'asc',
-          },
-        },
-        hotels: {
-          orderBy: {
-            number: 'asc',
-          },
-        },
-        flights: {
-          orderBy: {
-            date: 'asc',
-          },
-        },
-      },
-    });
-
-    if (!voucher) {
-      return res.status(404).json({ error: 'Voucher not found' });
-    }
-
-    // Access control for party role
-    if (user.role === 'party' && voucher.partyId !== user.partyId) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    const umrahCompany = voucher.umrahCompany || voucher.booking?.umrahVisaProvider || null;
-    const transportCompany = voucher.transportCompany || voucher.booking?.transportCompany || null;
-
-    // Transform normalized data to match frontend expectations (for backward compatibility)
-    const voucherResponse = {
-      ...voucher,
-      umrahCompany,
-      transportCompany,
-      bookingReference: voucher.bookingReference || '',
-      movementDetails: voucher.movements.map((m) => ({
-        sr: m.sr,
-        route: m.route || '',
-        date: m.date.toISOString().split('T')[0],
-        time: m.time,
-        from: m.from,
-        fromLocation: m.fromLocation,
-        fromLocationId: m.fromLocationId,
-        to: m.to,
-        toLocation: m.toLocation,
-        toLocationId: m.toLocationId,
-        driverDetails1: m.driverDetails1,
-        driverDetails2: m.driverDetails2,
-        vehicleNumber: m.vehicleNumber,
-        whatsappSent: m.whatsappSent,
-        paxCount: m.paxCount,
-        price: m.price,
-        vehicleType: m.vehicleType,
-      })),
-      hotelSchedules: voucher.hotels.map((h) => ({
-        number: h.number,
-        location: h.location,
-        hotelName: h.hotelName,
-        checkIn: h.checkIn.toISOString().split('T')[0],
-        checkOut: h.checkOut.toISOString().split('T')[0],
-        days: h.days,
-        brn: h.brn,
-      })),
-      flightDetails: voucher.flights.map((f) => ({
-        type: f.type,
-        carrier: f.carrier,
-        number: f.number,
-        date: f.date.toISOString().split('T')[0],
-        from: f.from,
-        to: f.to,
-        etd: f.etd,
-        eta: f.eta,
-      })),
-    };
-
-    res.json({ voucher: voucherResponse });
-  })
-);
 
 // Generate unique request number for Quick Voucher Requests
 const generateRequestNumber = async (tx: any = prisma): Promise<string> => {
@@ -1849,6 +1729,127 @@ router.delete(
       success: true,
       message: 'Quick voucher request deleted successfully',
     });
+  })
+);
+
+// Get single voucher by ID
+router.get(
+  '/:id',
+  authenticate,
+  authorize('admin', 'staff', 'party'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const user = req.user!;
+
+    const voucher = await prisma.voucher.findUnique({
+      where: { id },
+      include: {
+        generatedByUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        umrahCompany: {
+          select: { id: true, partyName: true, address: true, contactNumber: true, whatsappNumber: true, email: true, logoPath: true, partyCode: true }
+        },
+        party: {
+          select: { id: true, partyName: true, partyCode: true, whatsappNumber: true, contactNumber: true }
+        },
+        transportCompany: {
+          select: { id: true, partyName: true, partyCode: true }
+        },
+        booking: {
+          select: {
+            id: true,
+            umrahVisaProviderId: true,
+            transportCompanyId: true,
+            umrahVisaProvider: {
+              select: { id: true, partyName: true, address: true, contactNumber: true, whatsappNumber: true, email: true, logoPath: true, partyCode: true }
+            },
+            transportCompany: {
+              select: { id: true, partyName: true, partyCode: true }
+            }
+          }
+        },
+        movements: {
+          orderBy: {
+            sr: 'asc',
+          },
+        },
+        hotels: {
+          orderBy: {
+            number: 'asc',
+          },
+        },
+        flights: {
+          orderBy: {
+            date: 'asc',
+          },
+        },
+      },
+    });
+
+    if (!voucher) {
+      return res.status(404).json({ error: 'Voucher not found' });
+    }
+
+    // Access control for party role
+    if (user.role === 'party' && voucher.partyId !== user.partyId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const umrahCompany = voucher.umrahCompany || voucher.booking?.umrahVisaProvider || null;
+    const transportCompany = voucher.transportCompany || voucher.booking?.transportCompany || null;
+
+    // Transform normalized data to match frontend expectations (for backward compatibility)
+    const voucherResponse = {
+      ...voucher,
+      umrahCompany,
+      transportCompany,
+      bookingReference: voucher.bookingReference || '',
+      movementDetails: voucher.movements.map((m) => ({
+        sr: m.sr,
+        route: m.route || '',
+        date: m.date.toISOString().split('T')[0],
+        time: m.time,
+        from: m.from,
+        fromLocation: m.fromLocation,
+        fromLocationId: m.fromLocationId,
+        to: m.to,
+        toLocation: m.toLocation,
+        toLocationId: m.toLocationId,
+        driverDetails1: m.driverDetails1,
+        driverDetails2: m.driverDetails2,
+        vehicleNumber: m.vehicleNumber,
+        whatsappSent: m.whatsappSent,
+        paxCount: m.paxCount,
+        price: m.price,
+        vehicleType: m.vehicleType,
+      })),
+      hotelSchedules: voucher.hotels.map((h) => ({
+        number: h.number,
+        location: h.location,
+        hotelName: h.hotelName,
+        checkIn: h.checkIn.toISOString().split('T')[0],
+        checkOut: h.checkOut.toISOString().split('T')[0],
+        days: h.days,
+        brn: h.brn,
+      })),
+      flightDetails: voucher.flights.map((f) => ({
+        type: f.type,
+        carrier: f.carrier,
+        number: f.number,
+        date: f.date.toISOString().split('T')[0],
+        from: f.from,
+        to: f.to,
+        etd: f.etd,
+        eta: f.eta,
+      })),
+    };
+
+    res.json({ voucher: voucherResponse });
   })
 );
 
