@@ -160,7 +160,7 @@ router.get(
   })
 );
 
-// Map use case to channel (with templateName, language, customMessage, isCloudApi)
+// Map use case to channel (with templateName, language, header, params, customMessage, isCloudApi)
 router.post(
   '/mappings',
   authenticate,
@@ -170,12 +170,30 @@ router.post(
     body('channelId').isString().notEmpty().trim().withMessage('Channel ID is required'),
     body('templateName').optional({ nullable: true }).isString(),
     body('language').optional({ nullable: true }).isString(),
+    body('headerType').optional({ nullable: true }).isString(),
+    body('headerText').optional({ nullable: true }).isString(),
+    body('headerUrl').optional({ nullable: true }).isString(),
+    body('templateParams').optional({ nullable: true }).isString(),
+    body('buttonUrlParam').optional({ nullable: true }).isString(),
     body('customMessage').optional({ nullable: true }).isString(),
     body('isCloudApi').optional({ nullable: true }).isBoolean(),
     body('isActive').optional().isBoolean(),
   ],
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { useCase, channelId, templateName, language, customMessage, isCloudApi, isActive } = req.body;
+    const { 
+      useCase, 
+      channelId, 
+      templateName, 
+      language, 
+      headerType, 
+      headerText, 
+      headerUrl, 
+      templateParams, 
+      buttonUrlParam, 
+      customMessage, 
+      isCloudApi, 
+      isActive 
+    } = req.body;
 
     // Check if channel exists
     const channel = await prisma.whatsappChannel.findUnique({
@@ -195,6 +213,11 @@ router.post(
         channelId,
         templateName: templateName !== undefined ? (templateName ? templateName.trim() : null) : undefined,
         language: language !== undefined ? (language ? language.trim() : 'en_US') : undefined,
+        headerType: headerType !== undefined ? (headerType ? headerType.trim() : 'none') : undefined,
+        headerText: headerText !== undefined ? (headerText ? headerText.trim() : null) : undefined,
+        headerUrl: headerUrl !== undefined ? (headerUrl ? headerUrl.trim() : null) : undefined,
+        templateParams: templateParams !== undefined ? (templateParams ? templateParams.trim() : null) : undefined,
+        buttonUrlParam: buttonUrlParam !== undefined ? (buttonUrlParam ? buttonUrlParam.trim() : null) : undefined,
         customMessage: customMessage !== undefined ? (customMessage ? customMessage.trim() : null) : undefined,
         isCloudApi: effectiveIsCloudApi,
         isActive: isActive !== undefined ? isActive : true,
@@ -204,6 +227,11 @@ router.post(
         channelId,
         templateName: templateName ? templateName.trim() : null,
         language: language ? language.trim() : 'en_US',
+        headerType: headerType ? headerType.trim() : 'none',
+        headerText: headerText ? headerText.trim() : null,
+        headerUrl: headerUrl ? headerUrl.trim() : null,
+        templateParams: templateParams ? templateParams.trim() : null,
+        buttonUrlParam: buttonUrlParam ? buttonUrlParam.trim() : null,
         customMessage: customMessage ? customMessage.trim() : null,
         isCloudApi: effectiveIsCloudApi,
         isActive: isActive !== undefined ? isActive : true,
@@ -225,12 +253,29 @@ router.put(
   authorize('admin'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
-    const { channelId, templateName, language, customMessage, isCloudApi, isActive } = req.body;
+    const { 
+      channelId, 
+      templateName, 
+      language, 
+      headerType, 
+      headerText, 
+      headerUrl, 
+      templateParams, 
+      buttonUrlParam, 
+      customMessage, 
+      isCloudApi, 
+      isActive 
+    } = req.body;
 
     const dataToUpdate: any = {};
     if (channelId !== undefined) dataToUpdate.channelId = channelId;
     if (templateName !== undefined) dataToUpdate.templateName = templateName ? templateName.trim() : null;
     if (language !== undefined) dataToUpdate.language = language ? language.trim() : 'en_US';
+    if (headerType !== undefined) dataToUpdate.headerType = headerType ? headerType.trim() : 'none';
+    if (headerText !== undefined) dataToUpdate.headerText = headerText ? headerText.trim() : null;
+    if (headerUrl !== undefined) dataToUpdate.headerUrl = headerUrl ? headerUrl.trim() : null;
+    if (templateParams !== undefined) dataToUpdate.templateParams = templateParams ? templateParams.trim() : null;
+    if (buttonUrlParam !== undefined) dataToUpdate.buttonUrlParam = buttonUrlParam ? buttonUrlParam.trim() : null;
     if (customMessage !== undefined) dataToUpdate.customMessage = customMessage ? customMessage.trim() : null;
     if (isCloudApi !== undefined) dataToUpdate.isCloudApi = isCloudApi;
     if (isActive !== undefined) dataToUpdate.isActive = isActive;
@@ -287,10 +332,28 @@ router.post(
     body('isCloudApi').optional().isBoolean(),
     body('templateName').optional().isString(),
     body('language').optional().isString(),
+    body('headerType').optional().isString(),
+    body('headerText').optional().isString(),
+    body('headerUrl').optional().isString(),
+    body('parameters').optional().isArray(),
     body('message').optional().isString(),
   ],
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { baseUrl, apiKey, apiSecret, channelId, to, isCloudApi, templateName, language, message } = req.body;
+    const { 
+      baseUrl, 
+      apiKey, 
+      apiSecret, 
+      channelId, 
+      to, 
+      isCloudApi, 
+      templateName, 
+      language, 
+      headerType, 
+      headerText, 
+      headerUrl, 
+      parameters, 
+      message 
+    } = req.body;
 
     // Clean phone number (e.g. +1234567890)
     const cleanTo = to.replace(/\D/g, '');
@@ -308,10 +371,45 @@ router.post(
 
     if (isCloudApi) {
       targetUrl = `${baseUrl.trim().replace(/\/$/, '')}/messages/template`;
+      
+      const tName = templateName ? templateName.trim() : 'hello_world';
+      const lang = language ? language.trim() : 'en_US';
+      
+      // Parse parameters
+      const bodyParams = Array.isArray(parameters) ? parameters : [];
+      
+      let headerPayload: any = undefined;
+      let headerParameters: any[] | undefined = undefined;
+      const hType = headerType || 'none';
+      if (hType === 'text' && headerText) {
+        headerPayload = { type: 'text', text: headerText.trim() };
+        headerParameters = [{ type: 'text', text: headerText.trim() }];
+      } else if (['image', 'document', 'video'].includes(hType) && headerUrl) {
+        headerPayload = { type: hType, url: headerUrl.trim() };
+        headerParameters = [{ type: hType, [hType]: { link: headerUrl.trim() } }];
+      }
+
+      const components: any[] = [];
+      if (headerParameters && headerParameters.length > 0) {
+        components.push({
+          type: 'header',
+          parameters: headerParameters,
+        });
+      }
+      if (bodyParams.length > 0) {
+        components.push({
+          type: 'body',
+          parameters: bodyParams.map((val: string) => ({ type: 'text', text: String(val) })),
+        });
+      }
+
       payload = {
         to: formattedTo,
-        templateName: templateName ? templateName.trim() : 'hello_world',
-        language: language ? language.trim() : 'en_US',
+        templateName: tName,
+        language: lang,
+        ...(bodyParams.length > 0 ? { parameters: bodyParams, bodyParams } : {}),
+        ...(headerPayload ? { header: headerPayload, headerParameters } : {}),
+        ...(components.length > 0 ? { components } : {}),
       };
     } else {
       targetUrl = `${baseUrl.trim().replace(/\/$/, '')}/messages`;

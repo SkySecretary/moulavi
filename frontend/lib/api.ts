@@ -577,6 +577,11 @@ export const whatsappChannelAPI = {
     channelId: string;
     templateName?: string | null;
     language?: string | null;
+    headerType?: string | null;
+    headerText?: string | null;
+    headerUrl?: string | null;
+    templateParams?: string | null;
+    buttonUrlParam?: string | null;
     customMessage?: string | null;
     isCloudApi?: boolean | null;
     isActive?: boolean;
@@ -585,6 +590,11 @@ export const whatsappChannelAPI = {
     channelId?: string;
     templateName?: string | null;
     language?: string | null;
+    headerType?: string | null;
+    headerText?: string | null;
+    headerUrl?: string | null;
+    templateParams?: string | null;
+    buttonUrlParam?: string | null;
     customMessage?: string | null;
     isCloudApi?: boolean | null;
     isActive?: boolean;
@@ -599,6 +609,10 @@ export const whatsappChannelAPI = {
     isCloudApi?: boolean;
     templateName?: string;
     language?: string;
+    headerType?: string;
+    headerText?: string;
+    headerUrl?: string;
+    parameters?: string[];
     message?: string;
   }) => api.post('/whatsapp-channels/test-config', data),
 };

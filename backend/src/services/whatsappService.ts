@@ -262,12 +262,66 @@ const sendWhatsAppMessage = async (
       const templateName = mapping?.templateName ? mapping.templateName.trim() : (DEFAULT_CLOUD_TEMPLATES[useCase] || 'hello_world');
       const language = mapping?.language ? mapping.language.trim() : 'en_US';
       targetUrl = `${channel.baseUrl.trim().replace(/\/$/, '')}/messages/template`;
+
+      // Parse and interpolate template body parameters
+      let bodyParamsList: string[] = [];
+      if (mapping?.templateParams) {
+        try {
+          const parsed = JSON.parse(mapping.templateParams);
+          if (Array.isArray(parsed)) {
+            bodyParamsList = parsed.map((p: any) => interpolateWhatsAppTemplate(String(p), dynamicData));
+          }
+        } catch {
+          // If stored as comma-separated
+          bodyParamsList = mapping.templateParams.split(',').map((p: string) => interpolateWhatsAppTemplate(p.trim(), dynamicData));
+        }
+      }
+
+      // Handle Header (Text / Media)
+      let headerPayload: any = undefined;
+      let headerParameters: any[] | undefined = undefined;
+      const headerType = mapping?.headerType || 'none';
+
+      if (headerType === 'text' && mapping?.headerText) {
+        const interpolatedHeaderText = interpolateWhatsAppTemplate(mapping.headerText, dynamicData);
+        headerPayload = {
+          type: 'text',
+          text: interpolatedHeaderText,
+        };
+        headerParameters = [{ type: 'text', text: interpolatedHeaderText }];
+      } else if (['image', 'document', 'video'].includes(headerType) && mapping?.headerUrl) {
+        const interpolatedHeaderUrl = interpolateWhatsAppTemplate(mapping.headerUrl, dynamicData);
+        headerPayload = {
+          type: headerType,
+          url: interpolatedHeaderUrl,
+        };
+        headerParameters = [{ type: headerType, [headerType]: { link: interpolatedHeaderUrl } }];
+      }
+
+      // Build Meta-compatible components
+      const components: any[] = [];
+      if (headerParameters && headerParameters.length > 0) {
+        components.push({
+          type: 'header',
+          parameters: headerParameters,
+        });
+      }
+      if (bodyParamsList.length > 0) {
+        components.push({
+          type: 'body',
+          parameters: bodyParamsList.map((val: string) => ({ type: 'text', text: String(val) })),
+        });
+      }
+
       payload = {
         to: linalaNumber,
         templateName,
         language,
+        ...(bodyParamsList.length > 0 ? { parameters: bodyParamsList, bodyParams: bodyParamsList } : {}),
+        ...(headerPayload ? { header: headerPayload, headerParameters } : {}),
+        ...(components.length > 0 ? { components } : {}),
       };
-      console.log(`${logPrefix} Mode: Cloud API Template (${templateName}, lang: ${language})`);
+      console.log(`${logPrefix} Mode: Cloud API Template (${templateName}, lang: ${language}, params: ${bodyParamsList.length}, header: ${headerType})`);
     } else {
       // Standard QR Code / Text message format
       let finalMessage = message;

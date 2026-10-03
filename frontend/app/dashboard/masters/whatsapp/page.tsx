@@ -34,7 +34,13 @@ import {
   QrCode,
   FileCode,
   RotateCcw,
-  Copy
+  Copy,
+  ListOrdered,
+  Heading,
+  Image as ImageIcon,
+  FileText,
+  Video as VideoIcon,
+  HelpCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { whatsappChannelAPI } from '@/lib/api';
@@ -59,6 +65,11 @@ interface UseCaseMapping {
   channelId: string;
   templateName?: string | null;
   language?: string | null;
+  headerType?: string | null;
+  headerText?: string | null;
+  headerUrl?: string | null;
+  templateParams?: string | null;
+  buttonUrlParam?: string | null;
   customMessage?: string | null;
   isCloudApi?: boolean | null;
   isActive?: boolean;
@@ -268,6 +279,10 @@ export default function WhatsappMastersPage() {
   const [testIsCloudApi, setTestIsCloudApi] = useState(false);
   const [testTemplateName, setTestTemplateName] = useState('hello_world');
   const [testLanguage, setTestLanguage] = useState('en_US');
+  const [testHeaderType, setTestHeaderType] = useState('none');
+  const [testHeaderText, setTestHeaderText] = useState('');
+  const [testHeaderUrl, setTestHeaderUrl] = useState('');
+  const [testParameters, setTestParameters] = useState<string[]>([]);
   const [testMessage, setTestMessage] = useState('Hello! This is a test message from the NuSync WhatsApp Multichannel system. 🚀');
   const [testLoading, setTestLoading] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string; details?: any } | null>(null);
@@ -279,6 +294,13 @@ export default function WhatsappMastersPage() {
   const [templateFormIsCloudApi, setTemplateFormIsCloudApi] = useState(false);
   const [templateFormTemplateName, setTemplateFormTemplateName] = useState('');
   const [templateFormLanguage, setTemplateFormLanguage] = useState('en_US');
+  const [templateFormHeaderType, setTemplateFormHeaderType] = useState<'none' | 'text' | 'image' | 'document' | 'video'>('none');
+  const [templateFormHeaderText, setTemplateFormHeaderText] = useState('');
+  const [templateFormHeaderUrl, setTemplateFormHeaderUrl] = useState('');
+  const [templateFormParams, setTemplateFormParams] = useState<string[]>([]);
+  const [templateFormButtonUrlParam, setTemplateFormButtonUrlParam] = useState('');
+  const [focusedParamIndex, setFocusedParamIndex] = useState<number | null>(0);
+  const [isHeaderFocused, setIsHeaderFocused] = useState(false);
   const [templateFormCustomMessage, setTemplateFormCustomMessage] = useState('');
   const [savingTemplate, setSavingTemplate] = useState(false);
 
@@ -459,12 +481,97 @@ export default function WhatsappMastersPage() {
       ? existingMapping.isCloudApi
       : (mappedChannel?.isCloudApi || false);
 
+    let parsedParams: string[] = [];
+    if (existingMapping?.templateParams) {
+      try {
+        const parsed = JSON.parse(existingMapping.templateParams);
+        if (Array.isArray(parsed)) parsedParams = parsed;
+      } catch {
+        parsedParams = existingMapping.templateParams.split(',').map(s => s.trim()).filter(Boolean);
+      }
+    } else if (useCase.placeholders && useCase.placeholders.length > 0) {
+      // Default to common placeholders
+      parsedParams = useCase.placeholders.slice(0, 3).map(p => `{${p}}`);
+    }
+
     setTemplateFormChannelId(existingMapping?.channelId || channels.find(c => c.isActive)?.id || channels[0]?.id || '');
     setTemplateFormIsCloudApi(isCloud);
     setTemplateFormTemplateName(existingMapping?.templateName || useCase.defaultTemplateName);
     setTemplateFormLanguage(existingMapping?.language || 'en_US');
+    setTemplateFormHeaderType((existingMapping?.headerType as any) || 'none');
+    setTemplateFormHeaderText(existingMapping?.headerText || '');
+    setTemplateFormHeaderUrl(existingMapping?.headerUrl || '');
+    setTemplateFormParams(parsedParams);
+    setTemplateFormButtonUrlParam(existingMapping?.buttonUrlParam || '');
     setTemplateFormCustomMessage(existingMapping?.customMessage || useCase.defaultMessage);
+    setFocusedParamIndex(parsedParams.length > 0 ? 0 : null);
+    setIsHeaderFocused(false);
     setIsTemplateEditOpen(true);
+  };
+
+  // Add a parameter row
+  const handleAddParam = () => {
+    setTemplateFormParams(prev => {
+      const next = [...prev, ''];
+      setFocusedParamIndex(next.length - 1);
+      setIsHeaderFocused(false);
+      return next;
+    });
+  };
+
+  // Remove a parameter row
+  const handleRemoveParam = (index: number) => {
+    setTemplateFormParams(prev => {
+      const next = prev.filter((_, i) => i !== index);
+      if (focusedParamIndex === index) {
+        setFocusedParamIndex(next.length > 0 ? Math.max(0, index - 1) : null);
+      } else if (focusedParamIndex !== null && focusedParamIndex > index) {
+        setFocusedParamIndex(focusedParamIndex - 1);
+      }
+      return next;
+    });
+  };
+
+  // Change a parameter value
+  const handleParamChange = (index: number, val: string) => {
+    setTemplateFormParams(prev => {
+      const next = [...prev];
+      next[index] = val;
+      return next;
+    });
+  };
+
+  // Insert placeholder helper
+  const handleInsertPlaceholder = (ph: string) => {
+    const token = `{${ph}}`;
+    if (isHeaderFocused) {
+      if (templateFormHeaderType === 'text') {
+        setTemplateFormHeaderText(prev => prev ? `${prev} ${token}` : token);
+      } else if (['image', 'document', 'video'].includes(templateFormHeaderType)) {
+        setTemplateFormHeaderUrl(prev => prev ? `${prev}${token}` : token);
+      }
+      return;
+    }
+
+    if (templateFormIsCloudApi) {
+      if (focusedParamIndex !== null && focusedParamIndex >= 0 && focusedParamIndex < templateFormParams.length) {
+        handleParamChange(
+          focusedParamIndex,
+          templateFormParams[focusedParamIndex]
+            ? `${templateFormParams[focusedParamIndex]} ${token}`
+            : token
+        );
+      } else {
+        // Append as new parameter
+        setTemplateFormParams(prev => {
+          const next = [...prev, token];
+          setFocusedParamIndex(next.length - 1);
+          return next;
+        });
+      }
+    } else {
+      setTemplateFormCustomMessage(prev => prev ? `${prev} ${token}` : token);
+    }
   };
 
   // Save Template Configuration
@@ -482,6 +589,11 @@ export default function WhatsappMastersPage() {
         channelId: templateFormChannelId,
         templateName: templateFormTemplateName.trim() || null,
         language: templateFormLanguage.trim() || 'en_US',
+        headerType: templateFormHeaderType || 'none',
+        headerText: templateFormHeaderText.trim() || null,
+        headerUrl: templateFormHeaderUrl.trim() || null,
+        templateParams: JSON.stringify(templateFormParams.filter(p => p !== undefined)),
+        buttonUrlParam: templateFormButtonUrlParam.trim() || null,
         customMessage: templateFormCustomMessage.trim() || null,
         isCloudApi: templateFormIsCloudApi,
         isActive: true,
@@ -508,6 +620,10 @@ export default function WhatsappMastersPage() {
     setTestIsCloudApi(channel.isCloudApi || false);
     setTestTemplateName('hello_world');
     setTestLanguage('en_US');
+    setTestHeaderType('none');
+    setTestHeaderText('');
+    setTestHeaderUrl('');
+    setTestParameters([]);
     setTestMessage('Hello! This is a test message from the NuSync WhatsApp Multichannel system. 🚀');
     setIsTestOpen(true);
   };
@@ -532,6 +648,10 @@ export default function WhatsappMastersPage() {
         isCloudApi: testIsCloudApi,
         templateName: testTemplateName,
         language: testLanguage,
+        headerType: testHeaderType,
+        headerText: testHeaderText,
+        headerUrl: testHeaderUrl,
+        parameters: testParameters.filter(Boolean),
         message: testMessage,
       });
 
@@ -995,14 +1115,14 @@ export default function WhatsappMastersPage() {
 
       {/* Dialog Modal: Edit Message / Template for Use Case */}
       <Dialog open={isTemplateEditOpen} onOpenChange={setIsTemplateEditOpen}>
-        <DialogContent className="sm:max-w-[650px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[720px] max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-bold text-slate-900">
               <Edit3 className="h-5 w-5 text-indigo-600" />
               Configure Template: {selectedUseCase?.name}
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Customize dynamic message content for QR Code channels or enter Meta template name for Cloud API channels.
+              Configure Meta Cloud API approved template name, headers, and parameters, or customize dynamic message text for QR Code channels.
             </DialogDescription>
           </DialogHeader>
 
@@ -1041,7 +1161,7 @@ export default function WhatsappMastersPage() {
                   <span className="font-bold text-xs text-slate-800">Cloud API Template Mode</span>
                 </div>
                 <p className="text-[11px] text-slate-500">
-                  Switch on to send pre-approved template name via <code>/messages/template</code>.
+                  Switch on to send Meta pre-approved templates via <code>/messages/template</code> with headers and parameters.
                 </p>
               </div>
               <Switch
@@ -1052,44 +1172,235 @@ export default function WhatsappMastersPage() {
 
             {/* Cloud API Fields */}
             {templateFormIsCloudApi ? (
-              <div className="space-y-4 p-4 rounded-xl bg-sky-50/60 border border-sky-200">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-sky-950">Template Name *</Label>
-                    <Input
-                      value={templateFormTemplateName}
-                      onChange={(e) => setTemplateFormTemplateName(e.target.value)}
-                      placeholder="e.g. hello_world"
-                      className="bg-white text-xs font-mono"
-                    />
-                    <p className="text-[10px] text-sky-700">Must match your Meta approved template name exactly.</p>
+              <div className="space-y-4">
+                {/* 1. Template Basics */}
+                <div className="p-4 rounded-xl bg-sky-50/70 border border-sky-200 space-y-4">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-sky-950 uppercase tracking-wider">
+                    <FileCode className="h-4 w-4 text-sky-600" />
+                    1. Approved Template Details
                   </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-sky-950">Template Name *</Label>
+                      <Input
+                        value={templateFormTemplateName}
+                        onChange={(e) => setTemplateFormTemplateName(e.target.value)}
+                        placeholder="e.g. booking_confirmation"
+                        className="bg-white text-xs font-mono"
+                      />
+                      <p className="text-[10px] text-sky-700">Must match your approved Meta template name exactly.</p>
+                    </div>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-sky-950">Language Code *</Label>
-                    <Input
-                      value={templateFormLanguage}
-                      onChange={(e) => setTemplateFormLanguage(e.target.value)}
-                      placeholder="e.g. en_US, ar, en"
-                      className="bg-white text-xs font-mono"
-                    />
-                    <p className="text-[10px] text-sky-700">Language code configured in Meta (e.g. en_US, ar).</p>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-sky-950">Language Code *</Label>
+                      <Input
+                        value={templateFormLanguage}
+                        onChange={(e) => setTemplateFormLanguage(e.target.value)}
+                        placeholder="e.g. en_US, ar, en"
+                        className="bg-white text-xs font-mono"
+                      />
+                      <p className="text-[10px] text-sky-700">Language code configured in Meta (e.g. en_US, ar).</p>
+                    </div>
                   </div>
                 </div>
 
+                {/* 2. Header Configuration */}
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 uppercase tracking-wider">
+                      <Heading className="h-4 w-4 text-indigo-600" />
+                      2. Template Header (Optional)
+                    </div>
+                    {templateFormHeaderType !== 'none' && (
+                      <Badge variant="outline" className="bg-white text-indigo-700 border-indigo-200 text-[10px] uppercase">
+                        {templateFormHeaderType} Header
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-slate-700">Header Type</Label>
+                      <Select
+                        value={templateFormHeaderType}
+                        onValueChange={(val: any) => setTemplateFormHeaderType(val)}
+                      >
+                        <SelectTrigger className="bg-white text-xs">
+                          <SelectValue placeholder="Select Header Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none" className="text-xs">None (No Header)</SelectItem>
+                          <SelectItem value="text" className="text-xs">Text Header</SelectItem>
+                          <SelectItem value="image" className="text-xs">Image Header</SelectItem>
+                          <SelectItem value="document" className="text-xs">Document (PDF) Header</SelectItem>
+                          <SelectItem value="video" className="text-xs">Video Header</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {templateFormHeaderType === 'text' && (
+                      <div className="sm:col-span-2 space-y-1.5">
+                        <Label className="text-xs font-medium text-slate-700">Header Text</Label>
+                        <Input
+                          value={templateFormHeaderText}
+                          onChange={(e) => setTemplateFormHeaderText(e.target.value)}
+                          onFocus={() => { setIsHeaderFocused(true); }}
+                          placeholder="e.g. NuSync - {agencyName}"
+                          className="bg-white text-xs font-mono"
+                        />
+                        <p className="text-[10px] text-slate-500">Supports static text and dynamic variables.</p>
+                      </div>
+                    )}
+
+                    {['image', 'document', 'video'].includes(templateFormHeaderType) && (
+                      <div className="sm:col-span-2 space-y-1.5">
+                        <Label className="text-xs font-medium text-slate-700">Header Media URL</Label>
+                        <Input
+                          value={templateFormHeaderUrl}
+                          onChange={(e) => setTemplateFormHeaderUrl(e.target.value)}
+                          onFocus={() => { setIsHeaderFocused(true); }}
+                          placeholder="e.g. https://... or {voucherPdfUrl}"
+                          className="bg-white text-xs font-mono"
+                        />
+                        <p className="text-[10px] text-slate-500">Direct HTTPS URL to image/document/video asset.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. Body Parameters Config */}
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3.5">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 uppercase tracking-wider">
+                        <ListOrdered className="h-4 w-4 text-emerald-600" />
+                        3. Template Body Parameters ({`{{1}}`}, {`{{2}}`}, {`{{3}}`}...)
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        Mapped sequentially to variables <code>{`{{1}}`}</code>, <code>{`{{2}}`}</code>, etc. in your approved template.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (selectedUseCase?.placeholders) {
+                            setTemplateFormParams(selectedUseCase.placeholders.slice(0, 4).map(p => `{${p}}`));
+                            setFocusedParamIndex(0);
+                            setIsHeaderFocused(false);
+                          }
+                        }}
+                        className="h-7 text-[10px] text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 font-semibold"
+                      >
+                        <RotateCcw className="h-3 w-3 mr-1" />
+                        Load Defaults
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddParam}
+                        className="h-7 text-xs bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50 font-semibold"
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-1" />
+                        Add Param
+                      </Button>
+                    </div>
+                  </div>
+
+                  {templateFormParams.length === 0 ? (
+                    <div className="p-4 text-center rounded-lg border border-dashed border-slate-300 bg-white text-slate-500 text-xs">
+                      No parameters added yet. If your template has body variables like <code>{`{{1}}`}</code>, click <strong>+ Add Param</strong>.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {templateFormParams.map((paramVal, idx) => (
+                        <div 
+                          key={idx} 
+                          className={`flex items-center gap-2 p-2 rounded-lg border transition-all ${
+                            focusedParamIndex === idx && !isHeaderFocused
+                              ? 'bg-emerald-50/50 border-emerald-300 ring-1 ring-emerald-300'
+                              : 'bg-white border-slate-200'
+                          }`}
+                        >
+                          <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 font-mono text-[11px] px-2 py-0.5 shrink-0">
+                            {`{{${idx + 1}}}`}
+                          </Badge>
+                          <Input
+                            value={paramVal}
+                            onChange={(e) => handleParamChange(idx, e.target.value)}
+                            onFocus={() => {
+                              setFocusedParamIndex(idx);
+                              setIsHeaderFocused(false);
+                            }}
+                            placeholder={`Parameter {{${idx + 1}}} value (e.g. {name} or static text)`}
+                            className="text-xs font-mono h-8 bg-transparent"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveParam(idx)}
+                            className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50 shrink-0"
+                            title="Remove Parameter"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Available Placeholders Chip Tray */}
+                {selectedUseCase?.placeholders && selectedUseCase.placeholders.length > 0 && (
+                  <div className="space-y-2 p-3.5 rounded-xl bg-indigo-50/60 border border-indigo-200">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[11px] font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+                        Dynamic Variable Placeholders (Click to insert):
+                      </Label>
+                      <span className="text-[10px] text-indigo-700">
+                        {isHeaderFocused ? 'Inserting into Header' : focusedParamIndex !== null ? `Inserting into Parameter {{${focusedParamIndex + 1}}}` : 'Click chip to insert'}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {selectedUseCase.placeholders.map((ph) => (
+                        <button
+                          key={ph}
+                          type="button"
+                          onClick={() => handleInsertPlaceholder(ph)}
+                          className="px-2.5 py-1 rounded-md bg-white hover:bg-indigo-100/80 border border-indigo-200 hover:border-indigo-400 text-[11px] font-mono font-semibold text-indigo-800 transition-colors shadow-2xs cursor-pointer"
+                        >
+                          +{`{${ph}}`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 5. Live Payload Preview */}
                 <div className="space-y-1 pt-1">
-                  <Label className="text-[10px] font-bold text-sky-800 uppercase tracking-wider">Payload Preview:</Label>
-                  <pre className="text-[10px] font-mono bg-white p-2.5 rounded-lg border border-sky-200 overflow-x-auto text-slate-800">
-{`curl -X POST https://wa.linalapro.com/api/v1/messages/template \\
-  -H "x-api-key: YOUR_API_KEY" \\
-  -H "x-api-secret: YOUR_API_SECRET" \\
-  -H "x-channel-id: YOUR_META_CHANNEL_ID" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "to": "+1234567890",
-    "templateName": "${templateFormTemplateName || 'hello_world'}",
-    "language": "${templateFormLanguage || 'en_US'}"
-  }'`}
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Live Cloud API Payload Preview:</Label>
+                    <span className="text-[10px] font-mono text-slate-400">POST /messages/template</span>
+                  </div>
+                  <pre className="text-[10px] font-mono bg-slate-900 text-slate-100 p-3 rounded-xl overflow-x-auto">
+{JSON.stringify({
+  to: "+1234567890",
+  templateName: templateFormTemplateName || 'booking_confirmation',
+  language: templateFormLanguage || 'en_US',
+  ...(templateFormHeaderType !== 'none' ? {
+    header: templateFormHeaderType === 'text' 
+      ? { type: 'text', text: templateFormHeaderText || 'Example Header' }
+      : { type: templateFormHeaderType, url: templateFormHeaderUrl || 'https://...' }
+  } : {}),
+  ...(templateFormParams.length > 0 ? {
+    parameters: templateFormParams.map(p => p || '{placeholder}')
+  } : {})
+}, null, 2)}
                   </pre>
                 </div>
               </div>
@@ -1163,7 +1474,7 @@ export default function WhatsappMastersPage() {
 
       {/* Dialog Modal: Test Sender Channel */}
       <Dialog open={isTestOpen} onOpenChange={setIsTestOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Play className="h-5 w-5 text-emerald-500 fill-current" />
@@ -1190,7 +1501,7 @@ export default function WhatsappMastersPage() {
             </div>
 
             {testIsCloudApi ? (
-              <div className="space-y-3 p-3.5 rounded-xl bg-sky-50 border border-sky-200">
+              <div className="space-y-3.5 p-3.5 rounded-xl bg-sky-50 border border-sky-200">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-sky-900">
                   <Cloud className="h-4 w-4 text-sky-600" />
                   Cloud API Template Test (/messages/template)
@@ -1214,6 +1525,90 @@ export default function WhatsappMastersPage() {
                       className="bg-white text-xs font-mono"
                     />
                   </div>
+                </div>
+
+                {/* Optional Test Header */}
+                <div className="space-y-2 pt-1 border-t border-sky-200">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-semibold text-sky-900">Header Type</Label>
+                      <Select
+                        value={testHeaderType}
+                        onValueChange={(val) => setTestHeaderType(val)}
+                      >
+                        <SelectTrigger className="bg-white text-xs h-8">
+                          <SelectValue placeholder="Header" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none" className="text-xs">None</SelectItem>
+                          <SelectItem value="text" className="text-xs">Text</SelectItem>
+                          <SelectItem value="image" className="text-xs">Image</SelectItem>
+                          <SelectItem value="document" className="text-xs">Document</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {testHeaderType === 'text' ? (
+                      <div className="col-span-2 space-y-1">
+                        <Label className="text-[10px] font-semibold text-sky-900">Header Text</Label>
+                        <Input
+                          value={testHeaderText}
+                          onChange={(e) => setTestHeaderText(e.target.value)}
+                          placeholder="Header text..."
+                          className="bg-white text-xs h-8"
+                        />
+                      </div>
+                    ) : testHeaderType !== 'none' ? (
+                      <div className="col-span-2 space-y-1">
+                        <Label className="text-[10px] font-semibold text-sky-900">Media URL</Label>
+                        <Input
+                          value={testHeaderUrl}
+                          onChange={(e) => setTestHeaderUrl(e.target.value)}
+                          placeholder="https://..."
+                          className="bg-white text-xs h-8 font-mono"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Optional Test Parameters */}
+                <div className="space-y-2 pt-1 border-t border-sky-200">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] font-semibold text-sky-900">Body Parameters (Optional)</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setTestParameters(prev => [...prev, ''])}
+                      className="h-5 text-[10px] text-sky-700 hover:bg-sky-100"
+                    >
+                      + Add Param
+                    </Button>
+                  </div>
+                  {testParameters.map((p, pIdx) => (
+                    <div key={pIdx} className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-mono text-sky-800 shrink-0">{`{{${pIdx + 1}}}`}:</span>
+                      <Input
+                        value={p}
+                        onChange={(e) => {
+                          const next = [...testParameters];
+                          next[pIdx] = e.target.value;
+                          setTestParameters(next);
+                        }}
+                        placeholder={`Value for {{${pIdx + 1}}}`}
+                        className="bg-white text-xs h-7"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setTestParameters(prev => prev.filter((_, i) => i !== pIdx))}
+                        className="h-7 w-7 p-0 text-slate-400 hover:text-red-600"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               </div>
             ) : (
