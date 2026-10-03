@@ -2278,26 +2278,34 @@ export class NusukService {
     };
   }
 
-  // Search passengers globally by passport number (autocomplete/match search)
+  // Search passengers globally by passport number, name, visa number, border number, group, or booking reference
   static async searchPassengersByPassport(query: string, role?: string, partyId?: string) {
+    const trimmed = query.trim();
+    if (!trimmed) return [];
+
+    const isPartyUser = (role === 'customer' || role === 'party') && !!partyId;
+
     const where: any = {
       isDeleted: false,
-      passportNumber: {
-        contains: query
-      },
       booking: {
-        isDeleted: false
-      }
+        isDeleted: false,
+        ...(isPartyUser ? { partyId } : {})
+      },
+      OR: [
+        { passportNumber: { contains: trimmed } },
+        { fullName: { contains: trimmed } },
+        { visaNumber: { contains: trimmed } },
+        { borderNumber: { contains: trimmed } },
+        { mofaNumber: { contains: trimmed } },
+        { phoneNumber: { contains: trimmed } },
+        { booking: { bookingReference: { contains: trimmed } } },
+        { booking: { groupNumber: { contains: trimmed } } },
+      ]
     };
-
-    // If the logged-in user is a customer, restrict to their own bookings
-    if ((role === 'customer' || role === 'party') && partyId) {
-      where.booking.partyId = partyId;
-    }
 
     const passengers = await prisma.umrahPassenger.findMany({
       where,
-      take: 20, // limit to 20 autocomplete results
+      take: 50, // limit to 50 matches
       orderBy: { updatedAt: 'desc' },
       include: {
         booking: {
@@ -2306,25 +2314,34 @@ export class NusukService {
             bookingReference: true,
             groupNumber: true,
             status: true,
+            submittedAt: true,
+            createdAt: true,
             party: {
               select: {
                 id: true,
-                partyName: true
+                partyName: true,
+                partyCode: true,
+                contactNumber: true,
+                whatsappNumber: true,
               }
             },
             umrahVisaProvider: {
               select: {
                 id: true,
-                partyName: true
+                partyName: true,
+                partyCode: true,
               }
             },
             vouchers: {
               select: {
                 id: true,
                 voucherNumber: true,
+                isQuickVoucher: true,
+                reservationDate: true,
                 transportCompany: {
                   select: {
-                    partyName: true
+                    partyName: true,
+                    partyCode: true,
                   }
                 }
               },
@@ -2350,6 +2367,27 @@ export class NusukService {
                 }
               }
             },
+            travelDetails: {
+              where: {
+                isAlternate: false
+              },
+              include: {
+                arrivalAirport: {
+                  select: {
+                    id: true,
+                    name: true,
+                    code: true,
+                  }
+                },
+                departureAirport: {
+                  select: {
+                    id: true,
+                    name: true,
+                    code: true,
+                  }
+                }
+              }
+            },
             sponsorIqamaDetails: {
               where: {
                 isAlternate: false
@@ -2357,7 +2395,10 @@ export class NusukService {
               select: {
                 iqamaSponserName: true,
                 iqamaNumber: true,
-                sponserMobileNumber: true
+                sponserMobileNumber: true,
+                sponserNationalShortAddress: true,
+                makkahHotelName: true,
+                madinahHotelName: true,
               }
             }
           }
@@ -2365,31 +2406,47 @@ export class NusukService {
       }
     });
 
-    return passengers.map(p => {
+    return passengers.map((p: any) => {
       // Find Makkah and Madinah hotels
       let makkaHotelName = '';
       let madinaHotelName = '';
+      let makkahCheckIn: any = null;
+      let makkahCheckOut: any = null;
+      let madinahCheckIn: any = null;
+      let madinahCheckOut: any = null;
       
-      if (p.booking.hotelBookings) {
+      if (p.booking?.hotelBookings) {
         p.booking.hotelBookings.forEach((hb: any) => {
-          const cityName = hb.city?.name?.toLowerCase() || '';
+          const cityName = (hb.city?.name || hb.hotel?.city || '').toLowerCase();
           if (cityName.includes('makkah') || cityName.includes('makka') || cityName.includes('mcca') || cityName.includes('meca')) {
-            makkaHotelName = hb.hotel?.name || '';
+            makkaHotelName = hb.hotel?.name || makkaHotelName;
+            makkahCheckIn = hb.checkInDate || makkahCheckIn;
+            makkahCheckOut = hb.checkOutDate || makkahCheckOut;
           } else if (cityName.includes('madinah') || cityName.includes('madina') || cityName.includes('medina')) {
-            madinaHotelName = hb.hotel?.name || '';
+            madinaHotelName = hb.hotel?.name || madinaHotelName;
+            madinahCheckIn = hb.checkInDate || madinahCheckIn;
+            madinahCheckOut = hb.checkOutDate || madinahCheckOut;
           }
         });
       }
 
-      const iqamaInfo = p.booking.sponsorIqamaDetails?.[0] || null;
-      const voucher = p.booking.vouchers?.[0] || null;
+      const iqamaInfo = p.booking?.sponsorIqamaDetails?.[0] || null;
+      if (!makkaHotelName && iqamaInfo?.makkahHotelName) {
+        makkaHotelName = iqamaInfo.makkahHotelName;
+      }
+      if (!madinaHotelName && iqamaInfo?.madinahHotelName) {
+        madinaHotelName = iqamaInfo.madinahHotelName;
+      }
+
+      const voucher = p.booking?.vouchers?.[0] || null;
+      const travel = p.booking?.travelDetails?.[0] || null;
 
       // Calculate days in Kingdom if entered
-      let daysInKingdom = null;
+      let daysInKingdom: number | null = null;
       if (p.entryDate) {
         const entry = new Date(p.entryDate);
-        const today = new Date();
-        const diffTime = Math.abs(today.getTime() - entry.getTime());
+        const endDate = p.exitDate ? new Date(p.exitDate) : new Date();
+        const diffTime = Math.abs(endDate.getTime() - entry.getTime());
         daysInKingdom = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       }
 
@@ -2397,32 +2454,63 @@ export class NusukService {
         id: p.id,
         fullName: p.fullName,
         passportNumber: p.passportNumber,
+        nationality: p.nationality,
+        gender: p.gender,
+        dateOfBirth: p.dateOfBirth,
+        passportExpiry: p.passportExpiry,
+        phoneNumber: p.phoneNumber,
+        visaNumber: p.visaNumber,
+        mofaNumber: p.mofaNumber,
+        borderNumber: p.borderNumber,
+        visaIssueDate: p.visaIssueDate,
         mutamerStatus: p.mutamerStatus || 'N/A',
         currentlyInKingdom: p.currentlyInKingdom || 'No',
+        isConsulateReview: p.isConsulateReview || false,
+        isLeadPassenger: p.isLeadPassenger || false,
         entryDate: p.entryDate,
         exitDate: p.exitDate,
         daysInKingdom,
         booking: {
-          id: p.booking.id,
-          bookingReference: p.booking.bookingReference,
-          groupNumber: p.booking.groupNumber || 'N/A',
-          status: p.booking.status,
+          id: p.booking?.id || '',
+          bookingReference: p.booking?.bookingReference || 'N/A',
+          groupNumber: p.booking?.groupNumber || 'N/A',
+          status: p.booking?.status || 'N/A',
+          submittedAt: p.booking?.submittedAt || null,
+          createdAt: p.booking?.createdAt || null,
           party: {
-            id: p.booking.party.id,
-            partyName: p.booking.party.partyName
+            id: p.booking?.party?.id || '',
+            partyName: p.booking?.party?.partyName || 'N/A',
+            partyCode: p.booking?.party?.partyCode || '',
+            contactNumber: p.booking?.party?.contactNumber || '',
+            whatsappNumber: p.booking?.party?.whatsappNumber || '',
           },
-          umrahCompany: p.booking.umrahVisaProvider?.partyName || 'N/A',
+          umrahCompany: p.booking?.umrahVisaProvider?.partyName || 'N/A',
           voucher: voucher ? {
             id: voucher.id,
             voucherNumber: voucher.voucherNumber,
+            isQuickVoucher: voucher.isQuickVoucher,
+            reservationDate: voucher.reservationDate,
             transportCompanyName: voucher.transportCompany?.partyName || 'N/A'
           } : null,
           makkaHotel: makkaHotelName || 'N/A',
+          makkahCheckIn,
+          makkahCheckOut,
           madinaHotel: madinaHotelName || 'N/A',
+          madinahCheckIn,
+          madinahCheckOut,
+          travel: travel ? {
+            arrivalFlightNumber: travel.arrivalFlightNumber,
+            arrivalDateTime: travel.arrivalDateTime,
+            arrivalAirport: travel.arrivalAirport?.name || travel.arrivalAirport?.code || 'N/A',
+            departureFlightNumber: travel.departureFlightNumber,
+            departureDateTime: travel.departureDateTime,
+            departureAirport: travel.departureAirport?.name || travel.departureAirport?.code || 'N/A',
+          } : null,
           iqama: iqamaInfo ? {
             hostName: iqamaInfo.iqamaSponserName,
             iqamaNumber: iqamaInfo.iqamaNumber,
-            phoneNumber: iqamaInfo.sponserMobileNumber
+            phoneNumber: iqamaInfo.sponserMobileNumber,
+            address: iqamaInfo.sponserNationalShortAddress,
           } : null
         }
       };
