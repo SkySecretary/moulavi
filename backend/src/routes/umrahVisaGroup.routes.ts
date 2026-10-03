@@ -442,6 +442,7 @@ router.post('/group/create-booking', authenticate, uploadGroup.fields([
           umrahVisaProviderId: step1Data.umrahVisaProviderId || null,
           status: 'group_assigned',
           visaType: 'group_visa',
+          isCompanyBrn: Boolean(req.body.isCompanyBrn || step1Data.isCompanyBrn || step2Data.isCompanyBrn || (hotelBookingsData && Array.isArray(hotelBookingsData) && hotelBookingsData.some((h: any) => h.isCompanyBrn))),
           isOneWay: false,
           isWithoutTicket: !!step2Data.isWithoutTicket,
           accommodationType: 'hotel',
@@ -538,6 +539,7 @@ router.post('/group/create-booking', authenticate, uploadGroup.fields([
                 hotelId: hotel.hotelId,
                 checkInDate,
                 checkOutDate,
+                isCompanyBrn: Boolean(hotel.isCompanyBrn || step2Data.isCompanyBrn || req.body.isCompanyBrn),
                 brn: hotel.brn && Array.isArray(hotel.brn) && hotel.brn.length > 0 
                   ? hotel.brn 
                   : null,

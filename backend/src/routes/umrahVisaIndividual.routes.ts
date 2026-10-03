@@ -557,9 +557,10 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
           hasGroupNumber,
           passengerCount: step2Data.passengerCount || finalPassengerCount,
           umrahVisaProviderId: step1Data.umrahVisaProviderId || null,
-           status: initialStatus,
+          status: initialStatus,
           visaType: req.body.visaType || step1Data.visaType || 'individual_visa',
           umrahVisaNumber: req.body.umrahVisaNumber || step1Data.umrahVisaNumber || (isReEntry && visaNumbers && visaNumbers[0]) || null,
+          isCompanyBrn: Boolean(req.body.isCompanyBrn || step1Data.isCompanyBrn || step3Data.isCompanyBrn || (step3Data.hotelBookings && Array.isArray(step3Data.hotelBookings) && step3Data.hotelBookings.some((h: any) => h.isCompanyBrn))),
           isOneWay: !!step2Data.isOneWay,
           isWithoutTicket: !!step2Data.isWithoutTicket,
           oneWayContactName: step2Data.isOneWay ? (step2Data.oneWayContactName || null) : null,
@@ -659,6 +660,7 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
                   hotelId: hotel.hotelId,
                   checkInDate,
                   checkOutDate,
+                  isCompanyBrn: Boolean(hotel.isCompanyBrn || step3Data.isCompanyBrn || req.body.isCompanyBrn),
                   brn: hotel.brn && Array.isArray(hotel.brn) && hotel.brn.length > 0 
                     ? hotel.brn 
                     : null,
@@ -686,6 +688,7 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
             sponserMobileNumber: step3Data.iqamaDetails.iqamaMobile || '',
             sponserNationalShortAddress: step3Data.iqamaDetails.iqamaNationalShortAddress || '',
             sponserNationality: step3Data.iqamaDetails.sponserNationality || step3Data.iqamaDetails.iqamaNationality || 'India',
+            isCompanyBrn: Boolean(step3Data.iqamaDetails.isCompanyBrn || step3Data.isCompanyBrn || req.body.isCompanyBrn),
           },
         });
       }
@@ -1246,10 +1249,13 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
     }
 
     // Update accommodation type in booking table if provided
-    if (accommodationType) {
+    if (accommodationType || req.body.isCompanyBrn !== undefined) {
       await prisma.umrahVisaBooking.update({
         where: { id: bookingId },
-        data: { accommodationType },
+        data: {
+          accommodationType: accommodationType || undefined,
+          isCompanyBrn: req.body.isCompanyBrn !== undefined ? Boolean(req.body.isCompanyBrn) : undefined,
+        },
       });
     }
 
@@ -1271,6 +1277,7 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
           sponserMobileNumber: sponserMobileNumber ?? undefined,
           sponserNationalShortAddress: sponserNationalShortAddress ?? undefined,
           sponserNationality: sponserNationality ?? undefined,
+          isCompanyBrn: req.body.isCompanyBrn !== undefined ? Boolean(req.body.isCompanyBrn) : undefined,
           makkahHotelName: makkahHotelName ?? undefined,
           makkahBrn: makkahBrn ?? undefined,
           makkahCateringBrn: makkahCateringBrn ?? undefined,
@@ -1287,6 +1294,7 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
           sponserMobileNumber: sponserMobileNumber || '',
           sponserNationalShortAddress: sponserNationalShortAddress || '',
           sponserNationality: sponserNationality || 'India',
+          isCompanyBrn: Boolean(req.body.isCompanyBrn),
           makkahHotelName: makkahHotelName || null,
           makkahBrn: makkahBrn || null,
           makkahCateringBrn: makkahCateringBrn || null,
@@ -1316,6 +1324,7 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
               hotelId: h.hotelId ?? undefined,
               checkInDate: parseSafeDate(h.checkInDate) || undefined,
               checkOutDate: parseSafeDate(h.checkOutDate) || undefined,
+              isCompanyBrn: h.isCompanyBrn !== undefined ? Boolean(h.isCompanyBrn) : undefined,
               brn: h.brn ?? undefined,
               cateringBrn: h.cateringBrn ?? undefined,
               additionalBrns: h.additionalBrns ? (h.additionalBrns as any) : undefined,

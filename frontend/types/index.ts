@@ -246,6 +246,7 @@ export interface UmrahVisaBooking {
   visaType?: VisaType;
   umrahVisaNumber?: string;
   requestNumber?: string;
+  isCompanyBrn?: boolean;
   makkahCheckIn?: string;
   makkahCheckOut?: string;
   madinaCheckIn?: string;
@@ -302,6 +303,7 @@ export interface UmrahVisaBooking {
     sponserDob?: string;
     sponserMobileNumber?: string;
     sponserNationalShortAddress?: string;
+    isCompanyBrn?: boolean;
     makkahHotelName?: string;
     makkahBrn?: string;
     makkahCateringBrn?: string;
@@ -318,6 +320,7 @@ export interface UmrahVisaBooking {
     locationId: string;
     checkIn: string;
     checkOut: string;
+    isCompanyBrn?: boolean;
     brn?: any;
     cateringBrn?: any;
     checkInDate?: string;

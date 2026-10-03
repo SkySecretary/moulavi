@@ -823,6 +823,11 @@ export default function UmrahVisaPage() {
                                      Full Ticket
                                    </Badge>
                                  )}
+                                 {(booking.isCompanyBrn || (booking.hotelBookings && booking.hotelBookings.some((h: any) => h.isCompanyBrn))) && (
+                                   <Badge variant="outline" className="text-[10px] bg-purple-50 text-purple-700 border-purple-200 font-medium">
+                                     🏢 Company BRN
+                                   </Badge>
+                                 )}
                                </div>
                              </TableCell>
                             <TableCell>

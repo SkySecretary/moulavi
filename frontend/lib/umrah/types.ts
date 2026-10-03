@@ -10,6 +10,7 @@ export interface Step1Data {
   umrahVisaNumber?: string;
   guestName?: string;
   guestMobile?: string;
+  isCompanyBrn?: boolean;
 }
 
 export interface Step2Data {
@@ -28,6 +29,8 @@ export interface Step2Data {
   isWithoutTicket?: boolean;
   oneWayContactName?: string;
   oneWayWhatsapp?: string;
+  isCompanyBrn?: boolean;
+  brn?: string;
 }
 
 // Unified Movement interface - replaces transportSegments and ziyaraths
@@ -62,6 +65,7 @@ export interface Step3Data {
   accommodationType?: 'hotel' | 'iqama';
   iqamaDetails?: IqamaDetails;
   hotelBookings?: HotelBooking[];
+  isCompanyBrn?: boolean;
   // OLD: Kept for backward compatibility during migration
   movements?: Movement[];
   transportSegments?: TransportBooking[];
@@ -141,6 +145,7 @@ export interface HotelBooking {
   hotelId: string;
   checkInDate: string;
   checkOutDate: string;
+  isCompanyBrn?: boolean;
   brn?: string[];
   cateringBrn?: string[];
   bedsQuantity?: number | null;
@@ -160,6 +165,7 @@ export interface IqamaDetails {
   iqamaNationalShortAddress?: string;
   iqamaNationality?: string;
   sponserNationality?: string;
+  isCompanyBrn?: boolean;
 }
 
 export interface Passenger {

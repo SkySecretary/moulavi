@@ -571,9 +571,9 @@ router.get('/missing-brn', authenticate, authorize('admin', 'staff', 'party'), a
       // 1. If it has NO hotel bookings at all, it's missing.
       if (!booking.hotelBookings || booking.hotelBookings.length === 0) return true;
 
-      // Helper to check if BRN is populated
+      // Helper to check if BRN is populated (or marked as Company BRN)
       const isBrnFilled = (hotel: any) => {
-        return hotel.brn && (Array.isArray(hotel.brn) ? hotel.brn.length > 0 : String(hotel.brn).trim() !== '');
+        return hotel.isCompanyBrn || booking.isCompanyBrn || (hotel.brn && (Array.isArray(hotel.brn) ? hotel.brn.length > 0 : String(hotel.brn).trim() !== ''));
       };
 
       // Check if there are any Makkah/Madinah hotels defined
