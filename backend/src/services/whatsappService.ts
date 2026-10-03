@@ -625,10 +625,8 @@ export const sendWhatsAppImage = async (
   console.log(`${logPrefix} Caption: ${caption || 'No caption'}`);
 
   // Resolve channel profile
-  let channel = await getChannelForUseCase('custom');
-  if (!channel) {
-    channel = await getFallbackChannel();
-  }
+  const channelData = await getChannelForUseCase('custom');
+  let channel = channelData ? channelData.channel : await getFallbackChannel();
 
   // If we have a multichannel profile configured, we send as text (caption + URL)
   if (channel) {
