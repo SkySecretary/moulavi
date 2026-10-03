@@ -14,11 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { MovementsTable } from '@/components/umrah-booking/components/MovementsTable';
 import { HotelBookingTable, PickBrnInventoryDialog } from '@/components/umrah-booking/components/HotelBookingTable';
-import { Calendar, Plane, Users, Building, MapPin, Mail, ArrowLeft, Clock, DollarSign, Route, Truck, X, Plus, Save, Database } from 'lucide-react';
+import { Calendar, Plane, Users, Building, MapPin, Mail, ArrowLeft, Clock, DollarSign, Route, Truck, X, Plus, Save, Database, Sparkles } from 'lucide-react';
 import { Movement, LocationMaster } from '@/lib/umrah/types';
 import { TimePicker } from '@/components/ui/time-picker';
 import { formatTransportRoute } from '@/lib/utils';
 import { formatFlightNumber, toDisplayDate, fromDisplayDate, isValidStrictDate, extractDateFromISO, extractTimeFromISO, combineDateAndTime } from '@/lib/umrah/validation';
+import { generateMovementsFromHotels, calculateLastMovementTime, findZiyarathLocation } from '@/lib/umrah/generateMovements';
 import { UMRAH_VISA_STATUS_CONFIG } from '@/lib/constants';
 import { NATIONALITY_OPTIONS } from '@/lib/umrahConstants';
 
@@ -288,6 +289,9 @@ export default function EditUmrahVisaBookingPage() {
           );
           return {
             ...hb,
+            checkInDate: toDisplayDate(hb.checkInDate),
+            checkOutDate: toDisplayDate(hb.checkOutDate),
+            isCompanyBrn: hb.isCompanyBrn || b.isCompanyBrn || false,
             locationId: location?.id || '',
           };
         });
@@ -451,6 +455,7 @@ export default function EditUmrahVisaBookingPage() {
               cateringBrn: h.cateringBrn,
               additionalBrns: h.additionalBrns,
               bedsQuantity: h.bedsQuantity,
+              isCompanyBrn: h.isCompanyBrn || false,
             };
           });
 
@@ -474,6 +479,7 @@ export default function EditUmrahVisaBookingPage() {
               cateringBrn: h.cateringBrn,
               additionalBrns: h.additionalBrns,
               bedsQuantity: h.bedsQuantity,
+              isCompanyBrn: h.isCompanyBrn || false,
             };
           })
           .filter(h => h.cityId && h.hotelId);
@@ -518,6 +524,189 @@ export default function EditUmrahVisaBookingPage() {
       setSaving(false);
     }
   };
+
+  const handleArrivalDateChange = (newDate: string) => {
+    setArrivalDate(newDate);
+    if (newDate) {
+      // Update first hotel checkInDate if hotel bookings exist
+      setHotelBookings(prev => {
+        if (prev.length === 0) return prev;
+        const updated = [...prev];
+        updated[0] = { ...updated[0], checkInDate: newDate };
+        return updated;
+      });
+      // Update arrival movement date (first movement if transport)
+      setMovements(prev => {
+        if (prev.length === 0) return prev;
+        const updated = [...prev];
+        if (updated[0] && updated[0].type === 'transport') {
+          updated[0] = { ...updated[0], date: newDate };
+        }
+        return updated;
+      });
+    }
+  };
+
+  const handleArrivalTimeChange = (newTime: string) => {
+    setArrivalTime(newTime);
+    if (newTime) {
+      // Update arrival movement time (first movement if transport)
+      setMovements(prev => {
+        if (prev.length === 0) return prev;
+        const updated = [...prev];
+        if (updated[0] && updated[0].type === 'transport') {
+          updated[0] = { ...updated[0], time: newTime };
+        }
+        return updated;
+      });
+    }
+  };
+
+  const handleDepartureDateChange = (newDate: string) => {
+    setDepartureDate(newDate);
+    if (newDate) {
+      // Update last hotel checkOutDate
+      setHotelBookings(prev => {
+        if (prev.length === 0) return prev;
+        const updated = [...prev];
+        const lastIdx = updated.length - 1;
+        updated[lastIdx] = { ...updated[lastIdx], checkOutDate: newDate };
+        return updated;
+      });
+      // Update last movement date/time
+      setMovements(prev => {
+        if (prev.length === 0) return prev;
+        const updated = [...prev];
+        const lastIdx = updated.length - 1;
+        if (lastIdx >= 0 && updated[lastIdx]?.type === 'transport') {
+          const lastHotel = hotelBookings[hotelBookings.length - 1];
+          const hotelLoc = locationMasters.find((lm: any) => lm.id === lastHotel?.hotelId || lm.id === lastHotel?.cityId || lm.id === lastHotel?.locationId);
+          const hotelCityName = hotelLoc?.city || hotelLoc?.cityMaster?.name || null;
+          const airportLoc = locationMasters.find((lm: any) => lm.id === departureAirportId);
+          const { date: mDate, time: mTime } = calculateLastMovementTime(
+            hotelCityName,
+            airportLoc?.name || null,
+            airportLoc?.city || null,
+            newDate,
+            departureTime || '20:30'
+          );
+          updated[lastIdx] = { ...updated[lastIdx], date: mDate, time: mTime };
+        }
+        return updated;
+      });
+    }
+  };
+
+  const handleDepartureTimeChange = (newTime: string) => {
+    setDepartureTime(newTime);
+    if (newTime && departureDate) {
+      setMovements(prev => {
+        if (prev.length === 0) return prev;
+        const updated = [...prev];
+        const lastIdx = updated.length - 1;
+        if (lastIdx >= 0 && updated[lastIdx]?.type === 'transport') {
+          const lastHotel = hotelBookings[hotelBookings.length - 1];
+          const hotelLoc = locationMasters.find((lm: any) => lm.id === lastHotel?.hotelId || lm.id === lastHotel?.cityId || lm.id === lastHotel?.locationId);
+          const hotelCityName = hotelLoc?.city || hotelLoc?.cityMaster?.name || null;
+          const airportLoc = locationMasters.find((lm: any) => lm.id === departureAirportId);
+          const { date: mDate, time: mTime } = calculateLastMovementTime(
+            hotelCityName,
+            airportLoc?.name || null,
+            airportLoc?.city || null,
+            departureDate,
+            newTime
+          );
+          updated[lastIdx] = { ...updated[lastIdx], date: mDate, time: mTime };
+        }
+        return updated;
+      });
+    }
+  };
+
+  const handleArrivalAirportChange = (newAirportId: string) => {
+    setArrivalAirportId(newAirportId);
+    if (newAirportId) {
+      setMovements(prev => {
+        if (prev.length === 0) return prev;
+        const updated = [...prev];
+        if (updated[0] && updated[0].type === 'transport') {
+          updated[0] = { ...updated[0], fromLocationId: newAirportId };
+        }
+        return updated;
+      });
+    }
+  };
+
+  const handleDepartureAirportChange = (newAirportId: string) => {
+    setDepartureAirportId(newAirportId);
+    if (newAirportId) {
+      setMovements(prev => {
+        if (prev.length === 0) return prev;
+        const updated = [...prev];
+        const lastIdx = updated.length - 1;
+        if (lastIdx >= 0 && updated[lastIdx]?.type === 'transport') {
+          const lastHotel = hotelBookings[hotelBookings.length - 1];
+          const hotelLoc = locationMasters.find((lm: any) => lm.id === lastHotel?.hotelId || lm.id === lastHotel?.cityId || lm.id === lastHotel?.locationId);
+          const hotelCityName = hotelLoc?.city || hotelLoc?.cityMaster?.name || null;
+          const airportLoc = locationMasters.find((lm: any) => lm.id === newAirportId);
+          const { date: mDate, time: mTime } = calculateLastMovementTime(
+            hotelCityName,
+            airportLoc?.name || null,
+            airportLoc?.city || null,
+            departureDate,
+            departureTime || '20:30'
+          );
+          updated[lastIdx] = { ...updated[lastIdx], toLocationId: newAirportId, date: mDate, time: mTime };
+        }
+        return updated;
+      });
+    }
+  };
+
+  const handleRegenerateItinerary = useCallback(() => {
+    if (!hotelBookings || hotelBookings.length === 0) {
+      toast.error('Please add at least one hotel booking first.');
+      return;
+    }
+
+    // First, sync hotel check-in/out dates if needed
+    const updatedHotels = [...hotelBookings];
+    if (arrivalDate && updatedHotels[0]) {
+      updatedHotels[0].checkInDate = arrivalDate;
+    }
+    if (departureDate && updatedHotels[updatedHotels.length - 1]) {
+      updatedHotels[updatedHotels.length - 1].checkOutDate = departureDate;
+    }
+    setHotelBookings(updatedHotels);
+
+    const generated = generateMovementsFromHotels({
+      hotelBookings: updatedHotels.map(h => ({
+        id: h.id,
+        cityId: h.cityId || h.locationId,
+        hotelId: h.hotelId,
+        checkInDate: h.checkInDate,
+        checkOutDate: h.checkOutDate,
+        brn: h.brn,
+        cateringBrn: h.cateringBrn,
+        isCompanyBrn: h.isCompanyBrn,
+      })),
+      arrivalAirportId,
+      departureAirportId,
+      arrivalDate,
+      arrivalTime: arrivalTime || '20:30',
+      departureDate,
+      departureTime: departureTime || '20:30',
+      locationMasters,
+      findZiyarathByCity: (cityName: string) => findZiyarathLocation(cityName, locationMasters),
+    });
+
+    if (generated.length > 0) {
+      setMovements(generated);
+      toast.success(`Itinerary regenerated: ${generated.length} movements generated!`);
+    } else {
+      toast.info('No movements generated. Please ensure airports and hotel locations are selected.');
+    }
+  }, [hotelBookings, arrivalDate, arrivalTime, arrivalAirportId, departureDate, departureTime, departureAirportId, locationMasters]);
 
   const updateMovement = useCallback((index: number, field: keyof Movement, value: any) => {
     setMovements(prev => {
@@ -913,16 +1102,16 @@ export default function EditUmrahVisaBookingPage() {
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-xs text-gray-600 mb-1 block">Date</label>
-                        <DatePicker value={arrivalDate} onChange={setArrivalDate} disabled={saving} />
+                        <DatePicker value={arrivalDate} onChange={handleArrivalDateChange} disabled={saving} />
                       </div>
                       <div>
                         <label className="text-xs text-gray-600 mb-1 block">Time</label>
-                        <TimePicker value={arrivalTime} onChange={setArrivalTime} />
+                        <TimePicker value={arrivalTime} onChange={handleArrivalTimeChange} />
                       </div>
                     </div>
                     <div>
                       <label className="text-xs text-gray-600 mb-1 block">Airport</label>
-                      <Select value={arrivalAirportId} onValueChange={setArrivalAirportId}>
+                      <Select value={arrivalAirportId} onValueChange={handleArrivalAirportChange}>
                         <SelectTrigger><SelectValue placeholder="Select airport" /></SelectTrigger>
                         <SelectContent>{airports.map(a => (<SelectItem key={a.id} value={a.id}>{a.code} - {a.name || a.airportName} ({a.city})</SelectItem>))}</SelectContent>
                       </Select>
@@ -952,16 +1141,16 @@ export default function EditUmrahVisaBookingPage() {
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="text-xs text-gray-600 mb-1 block">Date</label>
-                            <DatePicker value={departureDate} onChange={setDepartureDate} disabled={saving} />
+                            <DatePicker value={departureDate} onChange={handleDepartureDateChange} disabled={saving} />
                           </div>
                           <div>
                             <label className="text-xs text-gray-600 mb-1 block">Time</label>
-                            <TimePicker value={departureTime} onChange={setDepartureTime} />
+                            <TimePicker value={departureTime} onChange={handleDepartureTimeChange} />
                           </div>
                         </div>
                         <div>
                           <label className="text-xs text-gray-600 mb-1 block">Airport</label>
-                          <Select value={departureAirportId} onValueChange={setDepartureAirportId}>
+                          <Select value={departureAirportId} onValueChange={handleDepartureAirportChange}>
                             <SelectTrigger><SelectValue placeholder="Select airport" /></SelectTrigger>
                             <SelectContent>{airports.map(a => (<SelectItem key={a.id} value={a.id}>{a.code} - {a.name || a.airportName} ({a.city})</SelectItem>))}</SelectContent>
                           </Select>
@@ -984,9 +1173,30 @@ export default function EditUmrahVisaBookingPage() {
             {/* Movement Details */}
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg flex items-center gap-2"><Route className="h-5 w-5 text-blue-600" /> Movement Details ({movements.length})</CardTitle>
-                  <Button type="button" variant="outline" size="sm" onClick={addMovement}><Plus className="h-4 w-4 mr-1" /> Add Movement</Button>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Route className="h-5 w-5 text-blue-600" /> Movement Details ({movements.length})
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Itinerary movements are synced with flight timings and hotel check-in/out dates.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRegenerateItinerary}
+                      className="bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 font-bold"
+                    >
+                      <Sparkles className="h-4 w-4 mr-1 text-indigo-600" />
+                      Regenerate Itinerary
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={addMovement}>
+                      <Plus className="h-4 w-4 mr-1" /> Add Movement
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>

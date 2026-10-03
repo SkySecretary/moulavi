@@ -154,7 +154,7 @@ function subtractHoursFromDateTime(
  * Calculate movement time and date for last movement (hotel to departure airport)
  * Based on city and airport combination
  */
-function calculateLastMovementTime(
+export function calculateLastMovementTime(
   hotelCityName: string | null,
   airportName: string | null,
   airportCity: string | null,

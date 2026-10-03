@@ -1663,7 +1663,7 @@ export default function TripInfoPage() {
                                         </div>
                                         <div className="flex items-center gap-1 text-gray-500">
                                           <span>BRN:</span>{' '}
-                                          {(booking.isCompanyBrn || editingIqama[booking.id!]?.isCompanyBrn) ? (
+                                          {(booking.isCompanyBrn || (editingIqama[booking.id!] as any)?.isCompanyBrn) ? (
                                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-800">
                                               🏢 Company BRN
                                             </span>
@@ -1714,7 +1714,7 @@ export default function TripInfoPage() {
                                         </div>
                                         <div className="flex items-center gap-1 text-gray-500">
                                           <span>BRN:</span>{' '}
-                                          {(booking.isCompanyBrn || editingIqama[booking.id!]?.isCompanyBrn) ? (
+                                          {(booking.isCompanyBrn || (editingIqama[booking.id!] as any)?.isCompanyBrn) ? (
                                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-800">
                                               🏢 Company BRN
                                             </span>
