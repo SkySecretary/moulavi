@@ -40,7 +40,8 @@ import {
   Image as ImageIcon,
   FileText,
   Video as VideoIcon,
-  HelpCircle
+  HelpCircle,
+  CheckCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { whatsappChannelAPI } from '@/lib/api';
@@ -471,6 +472,94 @@ export default function WhatsappMastersPage() {
     }
   };
 
+  const [isBodyFocused, setIsBodyFocused] = useState(false);
+
+  // Helper to extract variables {{1}}, {{2}}, etc. from template body text with surrounding snippet context
+  const getDetectedVariables = (bodyText: string) => {
+    if (!bodyText) return [];
+    const regex = /\{\{(\d+|[a-zA-Z0-9_-]+)\}\}/g;
+    const matches: { index: number; raw: string; label: string; context: string }[] = [];
+    let m;
+    const seenIndices = new Set<number>();
+
+    while ((m = regex.exec(bodyText)) !== null) {
+      const raw = m[0];
+      const key = m[1];
+      const num = parseInt(key, 10);
+      const varIndex = !isNaN(num) && num > 0 ? num - 1 : matches.length;
+
+      const start = Math.max(0, m.index - 20);
+      const end = Math.min(bodyText.length, m.index + raw.length + 20);
+      const snippet = bodyText.substring(start, end).replace(/\n/g, ' ').trim();
+
+      if (!seenIndices.has(varIndex)) {
+        seenIndices.add(varIndex);
+        matches.push({
+          index: varIndex,
+          raw,
+          label: `{{${varIndex + 1}}}`,
+          context: (start > 0 ? '...' : '') + snippet + (end < bodyText.length ? '...' : ''),
+        });
+      }
+    }
+
+    return matches.sort((a, b) => a.index - b.index);
+  };
+
+  // Helper to generate simulated message preview with realistic test values
+  const getSimulatedPreview = () => {
+    const body = templateFormCustomMessage || selectedUseCase?.defaultMessage || '';
+    if (!body) return 'No template body content entered.';
+
+    let preview = body;
+    const sampleValues: Record<string, string> = {
+      name: 'Ahmed Khan',
+      partyName: 'Al-Madinah Travels',
+      agencyName: 'Al-Madinah Travels',
+      email: 'ahmed.khan@example.com',
+      password: 'TemporaryPass#2026',
+      frontendUrl: 'https://umra.moulavi.in',
+      bookingId: 'UB-260630-008',
+      bookingRef: 'UB-260630-008',
+      bookingReference: 'UB-260630-008',
+      groupNumber: '480900194418',
+      groupCode: '480900194418',
+      serviceType: 'Umrah Visa (Individual)',
+      voucherNumber: '191',
+      date: '24-Oct-2026',
+      time: '14:30',
+      fromLocation: 'Jeddah KAIA Airport',
+      toLocation: 'Makkah Hotel',
+      driverDetails1: 'Mohammed Ali (+966-50-123-4567)',
+      driverDetails2: 'Tariq Saeed (+966-55-987-6543)',
+      driverName: 'Mohammed Ali',
+      driverMobile: '+966-50-123-4567',
+      vehicleNumber: 'KSA-9821-B',
+      routeName: 'JEDDAH AIRPORT -> MAKKAH HOTEL',
+      reportingTime: '14:00 (30 mins before arrival)',
+      transportCompany: 'Qafilat Hijaz Transport',
+      passengerCount: '4',
+      makkahHotel: 'Al-Olayan Al-Khalil',
+      madinaHotel: 'Amjad Al-Salam',
+    };
+
+    if (templateFormIsCloudApi) {
+      // Replace {{1}}, {{2}}, etc. with mapped parameter sample values
+      templateFormParams.forEach((paramVal, i) => {
+        let resolved = paramVal || `[Param {{${i + 1}}} Unmapped]`;
+        if (paramVal) {
+          resolved = resolved.replace(/\{([a-zA-Z0-9_]+)\}/g, (_, key) => sampleValues[key] || `{${key}}`);
+        }
+        preview = preview.replace(new RegExp(`\\{\\{${i + 1}\\}\\}`, 'g'), resolved);
+      });
+    }
+
+    // Also replace any remaining {placeholder} tokens in preview
+    preview = preview.replace(/\{([a-zA-Z0-9_]+)\}/g, (_, key) => sampleValues[key] || `{${key}}`);
+
+    return preview;
+  };
+
   // Open Template / Custom Message Editor Dialog
   const handleOpenTemplateEditor = (useCase: typeof SYSTEM_USE_CASES[0]) => {
     setSelectedUseCase(useCase);
@@ -491,7 +580,22 @@ export default function WhatsappMastersPage() {
       }
     } else if (useCase.placeholders && useCase.placeholders.length > 0) {
       // Default to common placeholders
-      parsedParams = useCase.placeholders.slice(0, 3).map(p => `{${p}}`);
+      parsedParams = useCase.placeholders.slice(0, 4).map(p => `{${p}}`);
+    }
+
+    // Initialize template body: if already saved, load it.
+    // If empty and cloud api, convert default template to {{1}}, {{2}} format
+    let initialBody = existingMapping?.customMessage || '';
+    if (!initialBody) {
+      if (useCase.placeholders && useCase.placeholders.length > 0) {
+        let converted = useCase.defaultMessage;
+        useCase.placeholders.forEach((ph, i) => {
+          converted = converted.replace(new RegExp(`\\{${ph}\\}`, 'g'), `{{${i + 1}}}`);
+        });
+        initialBody = converted;
+      } else {
+        initialBody = useCase.defaultMessage;
+      }
     }
 
     setTemplateFormChannelId(existingMapping?.channelId || channels.find(c => c.isActive)?.id || channels[0]?.id || '');
@@ -503,9 +607,10 @@ export default function WhatsappMastersPage() {
     setTemplateFormHeaderUrl(existingMapping?.headerUrl || '');
     setTemplateFormParams(parsedParams);
     setTemplateFormButtonUrlParam(existingMapping?.buttonUrlParam || '');
-    setTemplateFormCustomMessage(existingMapping?.customMessage || useCase.defaultMessage);
+    setTemplateFormCustomMessage(initialBody);
     setFocusedParamIndex(parsedParams.length > 0 ? 0 : null);
     setIsHeaderFocused(false);
+    setIsBodyFocused(false);
     setIsTemplateEditOpen(true);
   };
 
@@ -515,6 +620,7 @@ export default function WhatsappMastersPage() {
       const next = [...prev, ''];
       setFocusedParamIndex(next.length - 1);
       setIsHeaderFocused(false);
+      setIsBodyFocused(false);
       return next;
     });
   };
@@ -536,6 +642,10 @@ export default function WhatsappMastersPage() {
   const handleParamChange = (index: number, val: string) => {
     setTemplateFormParams(prev => {
       const next = [...prev];
+      // Auto extend if index exceeds array length
+      while (next.length <= index) {
+        next.push('');
+      }
       next[index] = val;
       return next;
     });
@@ -553,8 +663,13 @@ export default function WhatsappMastersPage() {
       return;
     }
 
+    if (isBodyFocused) {
+      setTemplateFormCustomMessage(prev => prev ? `${prev} ${token}` : token);
+      return;
+    }
+
     if (templateFormIsCloudApi) {
-      if (focusedParamIndex !== null && focusedParamIndex >= 0 && focusedParamIndex < templateFormParams.length) {
+      if (focusedParamIndex !== null && focusedParamIndex >= 0) {
         handleParamChange(
           focusedParamIndex,
           templateFormParams[focusedParamIndex]
@@ -572,6 +687,30 @@ export default function WhatsappMastersPage() {
     } else {
       setTemplateFormCustomMessage(prev => prev ? `${prev} ${token}` : token);
     }
+  };
+
+  // Insert token like {{1}}, {{2}} into template body text
+  const handleInsertTokenToBody = (token: string) => {
+    setTemplateFormCustomMessage(prev => prev ? `${prev} ${token}` : token);
+  };
+
+  // Auto sync parameters from detected variables in body
+  const handleSyncParamsFromDetected = () => {
+    const detected = getDetectedVariables(templateFormCustomMessage);
+    if (detected.length === 0) {
+      toast.info('No {{1}}, {{2}} variables detected in the template body text.');
+      return;
+    }
+    const maxIdx = Math.max(...detected.map(d => d.index));
+    setTemplateFormParams(prev => {
+      const next = [...prev];
+      while (next.length <= maxIdx) {
+        const defaultPh = selectedUseCase?.placeholders?.[next.length] ? `{${selectedUseCase.placeholders[next.length]}}` : '';
+        next.push(defaultPh);
+      }
+      return next;
+    });
+    toast.success(`Synced ${maxIdx + 1} parameter mapping slots from template body.`);
   };
 
   // Save Template Configuration
@@ -1115,14 +1254,14 @@ export default function WhatsappMastersPage() {
 
       {/* Dialog Modal: Edit Message / Template for Use Case */}
       <Dialog open={isTemplateEditOpen} onOpenChange={setIsTemplateEditOpen}>
-        <DialogContent className="sm:max-w-[720px] max-h-[92vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[860px] max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-bold text-slate-900">
               <Edit3 className="h-5 w-5 text-indigo-600" />
               Configure Template: {selectedUseCase?.name}
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Configure Meta Cloud API approved template name, headers, and parameters, or customize dynamic message text for QR Code channels.
+              Configure Meta Cloud API approved template name, headers, full message body, and map variables ({`{{1}}`}, {`{{2}}`}) to ERP placeholders.
             </DialogDescription>
           </DialogHeader>
 
@@ -1161,7 +1300,7 @@ export default function WhatsappMastersPage() {
                   <span className="font-bold text-xs text-slate-800">Cloud API Template Mode</span>
                 </div>
                 <p className="text-[11px] text-slate-500">
-                  Switch on to send Meta pre-approved templates via <code>/messages/template</code> with headers and parameters.
+                  Switch on to send Meta pre-approved templates via <code>/messages/template</code> with headers, body text, and parameters.
                 </p>
               </div>
               <Switch
@@ -1174,10 +1313,10 @@ export default function WhatsappMastersPage() {
             {templateFormIsCloudApi ? (
               <div className="space-y-4">
                 {/* 1. Template Basics */}
-                <div className="p-4 rounded-xl bg-sky-50/70 border border-sky-200 space-y-4">
+                <div className="p-4 rounded-xl bg-sky-50/70 border border-sky-200 space-y-3.5">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-sky-950 uppercase tracking-wider">
                     <FileCode className="h-4 w-4 text-sky-600" />
-                    1. Approved Template Details
+                    1. Approved Template Details (Meta WhatsApp Manager)
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
@@ -1244,9 +1383,13 @@ export default function WhatsappMastersPage() {
                         <Input
                           value={templateFormHeaderText}
                           onChange={(e) => setTemplateFormHeaderText(e.target.value)}
-                          onFocus={() => { setIsHeaderFocused(true); }}
+                          onFocus={() => { 
+                            setIsHeaderFocused(true); 
+                            setIsBodyFocused(false);
+                            setFocusedParamIndex(null);
+                          }}
                           placeholder="e.g. NuSync - {agencyName}"
-                          className="bg-white text-xs font-mono"
+                          className={`bg-white text-xs font-mono ${isHeaderFocused ? 'ring-2 ring-indigo-400' : ''}`}
                         />
                         <p className="text-[10px] text-slate-500">Supports static text and dynamic variables.</p>
                       </div>
@@ -1258,9 +1401,13 @@ export default function WhatsappMastersPage() {
                         <Input
                           value={templateFormHeaderUrl}
                           onChange={(e) => setTemplateFormHeaderUrl(e.target.value)}
-                          onFocus={() => { setIsHeaderFocused(true); }}
+                          onFocus={() => { 
+                            setIsHeaderFocused(true); 
+                            setIsBodyFocused(false);
+                            setFocusedParamIndex(null);
+                          }}
                           placeholder="e.g. https://... or {voucherPdfUrl}"
-                          className="bg-white text-xs font-mono"
+                          className={`bg-white text-xs font-mono ${isHeaderFocused ? 'ring-2 ring-indigo-400' : ''}`}
                         />
                         <p className="text-[10px] text-slate-500">Direct HTTPS URL to image/document/video asset.</p>
                       </div>
@@ -1268,16 +1415,115 @@ export default function WhatsappMastersPage() {
                   </div>
                 </div>
 
-                {/* 3. Body Parameters Config */}
+                {/* 3. Template Body Content (Direct CRM Copy & Paste) */}
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 uppercase tracking-wider">
+                        <MessageSquare className="h-4 w-4 text-emerald-600" />
+                        3. Template Body / Content (Paste from Meta / CRM)
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        Paste your CRM or Meta approved message body. Use <code>{`{{1}}`}</code>, <code>{`{{2}}`}</code>, etc. for variables.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-semibold text-slate-500 mr-1">Insert Variable:</span>
+                      {[1, 2, 3, 4, 5].map((num) => (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => handleInsertTokenToBody(`{{${num}}}`)}
+                          className="px-2 py-0.5 rounded bg-emerald-100/70 hover:bg-emerald-200 border border-emerald-300 text-[10px] font-mono font-bold text-emerald-800 transition-colors shadow-2xs"
+                          title={`Insert {{${num}}} into template body`}
+                        >
+                          +{`{{${num}}}`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Textarea
+                    value={templateFormCustomMessage}
+                    onChange={(e) => setTemplateFormCustomMessage(e.target.value)}
+                    onFocus={() => {
+                      setIsBodyFocused(true);
+                      setIsHeaderFocused(false);
+                      setFocusedParamIndex(null);
+                    }}
+                    rows={5}
+                    className={`font-mono text-xs bg-white resize-y transition-all ${
+                      isBodyFocused ? 'ring-2 ring-emerald-400 border-emerald-400' : ''
+                    }`}
+                    placeholder={`e.g. Assalamu Alaikum {{1}},\nYour Umrah Booking {{2}} has been confirmed with {{3}}.\nService: {{4}}\nVoucher #: {{5}}\nDates: {{6}} to {{7}}\nHotel: {{8}}`}
+                  />
+
+                  {/* Body Variable Detection Summary & Sync Tools */}
+                  {(() => {
+                    const detected = getDetectedVariables(templateFormCustomMessage);
+                    return (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {detected.length > 0 ? (
+                            <Badge variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-300 text-[11px] font-mono px-2 py-0.5">
+                              ✨ {detected.length} Variable{detected.length > 1 ? 's' : ''} Detected ({detected.map(d => d.label).join(', ')})
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-300 text-[10px]">
+                              No {`{{1}}`} variables detected in body
+                            </Badge>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {detected.length > 0 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={handleSyncParamsFromDetected}
+                              className="h-7 text-xs bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50 font-semibold"
+                            >
+                              <RotateCcw className="h-3 w-3 mr-1" />
+                              Auto-Sync {detected.length} Parameter Rows
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              if (selectedUseCase) {
+                                let converted = selectedUseCase.defaultMessage;
+                                if (selectedUseCase.placeholders && selectedUseCase.placeholders.length > 0) {
+                                  selectedUseCase.placeholders.forEach((ph, i) => {
+                                    converted = converted.replace(new RegExp(`\\{${ph}\\}`, 'g'), `{{${i + 1}}}`);
+                                  });
+                                }
+                                setTemplateFormCustomMessage(converted);
+                              }
+                            }}
+                            className="h-7 text-[11px] text-slate-600 hover:text-slate-800 hover:bg-slate-100"
+                          >
+                            Reset Template
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* 4. Body Parameters Mapping Config */}
                 <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3.5">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 uppercase tracking-wider">
                         <ListOrdered className="h-4 w-4 text-emerald-600" />
-                        3. Template Body Parameters ({`{{1}}`}, {`{{2}}`}, {`{{3}}`}...)
+                        4. Variable Mapping & Parameters ({`{{1}}`}, {`{{2}}`}, {`{{3}}`}...)
                       </div>
                       <p className="text-[11px] text-slate-500">
-                        Mapped sequentially to variables <code>{`{{1}}`}</code>, <code>{`{{2}}`}</code>, etc. in your approved template.
+                        Map each variable to an ERP dynamic placeholder (e.g. <code>{`{name}`}</code>, <code>{`{bookingReference}`}</code>) or static value.
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1287,9 +1533,10 @@ export default function WhatsappMastersPage() {
                         size="sm"
                         onClick={() => {
                           if (selectedUseCase?.placeholders) {
-                            setTemplateFormParams(selectedUseCase.placeholders.slice(0, 4).map(p => `{${p}}`));
+                            setTemplateFormParams(selectedUseCase.placeholders.slice(0, 5).map(p => `{${p}}`));
                             setFocusedParamIndex(0);
                             setIsHeaderFocused(false);
+                            setIsBodyFocused(false);
                           }
                         }}
                         className="h-7 text-[10px] text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 font-semibold"
@@ -1312,58 +1559,101 @@ export default function WhatsappMastersPage() {
 
                   {templateFormParams.length === 0 ? (
                     <div className="p-4 text-center rounded-lg border border-dashed border-slate-300 bg-white text-slate-500 text-xs">
-                      No parameters added yet. If your template has body variables like <code>{`{{1}}`}</code>, click <strong>+ Add Param</strong>.
+                      No parameters mapped yet. Click <strong>+ Add Param</strong> or <strong>Auto-Sync Parameter Rows</strong> above.
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      {templateFormParams.map((paramVal, idx) => (
-                        <div 
-                          key={idx} 
-                          className={`flex items-center gap-2 p-2 rounded-lg border transition-all ${
-                            focusedParamIndex === idx && !isHeaderFocused
-                              ? 'bg-emerald-50/50 border-emerald-300 ring-1 ring-emerald-300'
-                              : 'bg-white border-slate-200'
-                          }`}
-                        >
-                          <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 font-mono text-[11px] px-2 py-0.5 shrink-0">
-                            {`{{${idx + 1}}}`}
-                          </Badge>
-                          <Input
-                            value={paramVal}
-                            onChange={(e) => handleParamChange(idx, e.target.value)}
-                            onFocus={() => {
-                              setFocusedParamIndex(idx);
-                              setIsHeaderFocused(false);
-                            }}
-                            placeholder={`Parameter {{${idx + 1}}} value (e.g. {name} or static text)`}
-                            className="text-xs font-mono h-8 bg-transparent"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveParam(idx)}
-                            className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50 shrink-0"
-                            title="Remove Parameter"
+                    <div className="space-y-2.5">
+                      {templateFormParams.map((paramVal, idx) => {
+                        const detectedList = getDetectedVariables(templateFormCustomMessage);
+                        const match = detectedList.find(d => d.index === idx);
+
+                        return (
+                          <div 
+                            key={idx} 
+                            className={`p-2.5 rounded-lg border transition-all space-y-2 ${
+                              focusedParamIndex === idx && !isHeaderFocused && !isBodyFocused
+                                ? 'bg-emerald-50/50 border-emerald-300 ring-1 ring-emerald-300'
+                                : 'bg-white border-slate-200'
+                            }`}
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      ))}
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 font-mono text-[11px] px-2 py-0.5 shrink-0 font-bold">
+                                {`{{${idx + 1}}}`}
+                              </Badge>
+
+                              {match?.context && (
+                                <span className="text-[11px] font-mono text-slate-500 truncate max-w-[220px] bg-slate-100 px-2 py-0.5 rounded" title={match.context}>
+                                  {match.context}
+                                </span>
+                              )}
+
+                              <Input
+                                value={paramVal}
+                                onChange={(e) => handleParamChange(idx, e.target.value)}
+                                onFocus={() => {
+                                  setFocusedParamIndex(idx);
+                                  setIsHeaderFocused(false);
+                                  setIsBodyFocused(false);
+                                }}
+                                placeholder={`Mapped value e.g. {${selectedUseCase?.placeholders?.[idx] || 'name'}} or static text`}
+                                className="text-xs font-mono h-8 bg-transparent flex-1"
+                              />
+
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveParam(idx)}
+                                className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50 shrink-0"
+                                title="Remove Parameter"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+
+                            {/* Quick Select Variable Pills for this param */}
+                            {selectedUseCase?.placeholders && selectedUseCase.placeholders.length > 0 && (
+                              <div className="flex items-center gap-1.5 flex-wrap pl-8">
+                                <span className="text-[10px] text-slate-400">Quick Map:</span>
+                                {selectedUseCase.placeholders.slice(0, 6).map((ph) => (
+                                  <button
+                                    key={ph}
+                                    type="button"
+                                    onClick={() => handleParamChange(idx, `{${ph}}`)}
+                                    className={`px-2 py-0.5 rounded text-[10px] font-mono transition-colors ${
+                                      paramVal === `{${ph}}`
+                                        ? 'bg-emerald-600 text-white font-bold'
+                                        : 'bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200'
+                                    }`}
+                                  >
+                                    {`{${ph}}`}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
 
-                {/* 4. Available Placeholders Chip Tray */}
+                {/* 5. Available System Variables Tray */}
                 {selectedUseCase?.placeholders && selectedUseCase.placeholders.length > 0 && (
                   <div className="space-y-2 p-3.5 rounded-xl bg-indigo-50/60 border border-indigo-200">
                     <div className="flex items-center justify-between">
                       <Label className="text-[11px] font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
                         <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
-                        Dynamic Variable Placeholders (Click to insert):
+                        All Dynamic ERP Variables (Click to insert):
                       </Label>
-                      <span className="text-[10px] text-indigo-700">
-                        {isHeaderFocused ? 'Inserting into Header' : focusedParamIndex !== null ? `Inserting into Parameter {{${focusedParamIndex + 1}}}` : 'Click chip to insert'}
+                      <span className="text-[10px] text-indigo-700 font-medium">
+                        {isHeaderFocused 
+                          ? '👉 Inserting into Header' 
+                          : isBodyFocused 
+                            ? '👉 Inserting into Body Content'
+                            : focusedParamIndex !== null 
+                              ? `👉 Inserting into Parameter {{${focusedParamIndex + 1}}}` 
+                              : 'Click chip to insert into active input'}
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-1.5 pt-1">
@@ -1381,27 +1671,89 @@ export default function WhatsappMastersPage() {
                   </div>
                 )}
 
-                {/* 5. Live Payload Preview */}
-                <div className="space-y-1 pt-1">
+                {/* 6. WhatsApp Chat Simulated Live Preview & Payload */}
+                <div className="space-y-3 pt-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Live Cloud API Payload Preview:</Label>
-                    <span className="text-[10px] font-mono text-slate-400">POST /messages/template</span>
+                    <Label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <MessageSquare className="h-4 w-4 text-emerald-600" />
+                      Live WhatsApp Simulated Preview
+                    </Label>
+                    <Badge variant="outline" className="text-[10px] text-slate-500 bg-white">
+                      Rendered with test data
+                    </Badge>
                   </div>
-                  <pre className="text-[10px] font-mono bg-slate-900 text-slate-100 p-3 rounded-xl overflow-x-auto">
+
+                  {/* WhatsApp Bubble Preview */}
+                  <div className="p-4 rounded-xl bg-[#e5ddd5] border border-slate-300 space-y-3">
+                    <div className="max-w-[480px] bg-white rounded-2xl rounded-tl-sm p-3.5 shadow-md space-y-2 border border-slate-100">
+                      {/* Optional Header Rendering */}
+                      {templateFormHeaderType === 'text' && templateFormHeaderText && (
+                        <div className="font-bold text-xs text-slate-900 border-b border-slate-100 pb-1.5">
+                          {templateFormHeaderText.replace(/\{([a-zA-Z0-9_]+)\}/g, 'Al-Madinah Travels')}
+                        </div>
+                      )}
+                      {['image', 'document', 'video'].includes(templateFormHeaderType) && (
+                        <div className="p-2.5 rounded-lg bg-slate-100 border border-slate-200 flex items-center gap-2 text-xs text-slate-700">
+                          {templateFormHeaderType === 'image' && <ImageIcon className="h-4 w-4 text-emerald-600" />}
+                          {templateFormHeaderType === 'document' && <FileText className="h-4 w-4 text-emerald-600" />}
+                          {templateFormHeaderType === 'video' && <VideoIcon className="h-4 w-4 text-emerald-600" />}
+                          <span className="font-medium truncate font-mono text-[11px]">
+                            [{templateFormHeaderType.toUpperCase()} Header: {templateFormHeaderUrl || 'Media Asset'}]
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Body Message */}
+                      <div className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed font-sans">
+                        {getSimulatedPreview()}
+                      </div>
+
+                      {/* Timestamp & Read Tick */}
+                      <div className="flex items-center justify-end gap-1 text-[10px] text-slate-400 pt-1">
+                        <span>12:45 PM</span>
+                        <CheckCheck className="h-3.5 w-3.5 text-sky-500" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* JSON Payload Details (Collapsible Preview) */}
+                  <div className="space-y-1 pt-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Live Cloud API JSON Payload:</Label>
+                      <span className="text-[10px] font-mono text-slate-400">POST /v18.0/{'{phone_number_id}'}/messages</span>
+                    </div>
+                    <pre className="text-[10px] font-mono bg-slate-900 text-slate-100 p-3 rounded-xl overflow-x-auto max-h-36">
 {JSON.stringify({
-  to: "+1234567890",
-  templateName: templateFormTemplateName || 'booking_confirmation',
-  language: templateFormLanguage || 'en_US',
-  ...(templateFormHeaderType !== 'none' ? {
-    header: templateFormHeaderType === 'text' 
-      ? { type: 'text', text: templateFormHeaderText || 'Example Header' }
-      : { type: templateFormHeaderType, url: templateFormHeaderUrl || 'https://...' }
-  } : {}),
-  ...(templateFormParams.length > 0 ? {
-    parameters: templateFormParams.map(p => p || '{placeholder}')
-  } : {})
+  messaging_product: "whatsapp",
+  recipient_type: "individual",
+  to: "+966501234567",
+  type: "template",
+  template: {
+    name: templateFormTemplateName || 'booking_confirmation',
+    language: {
+      code: templateFormLanguage || 'en_US'
+    },
+    components: [
+      ...(templateFormHeaderType !== 'none' ? [{
+        type: 'header',
+        parameters: [
+          templateFormHeaderType === 'text' 
+            ? { type: 'text', text: templateFormHeaderText || 'Header Text' }
+            : { type: templateFormHeaderType, [templateFormHeaderType]: { link: templateFormHeaderUrl || 'https://...' } }
+        ]
+      }] : []),
+      ...(templateFormParams.length > 0 ? [{
+        type: 'body',
+        parameters: templateFormParams.map(p => ({
+          type: 'text',
+          text: p || '{placeholder}'
+        }))
+      }] : [])
+    ]
+  }
 }, null, 2)}
-                  </pre>
+                    </pre>
+                  </div>
                 </div>
               </div>
             ) : (
