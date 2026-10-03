@@ -1011,6 +1011,7 @@ model WhatsappChannel {
   apiKey      String   @map("api_key")
   apiSecret   String   @map("api_secret")
   channelId   String   @map("channel_id")
+  isCloudApi  Boolean  @default(false) @map("is_cloud_api")
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
@@ -1021,13 +1022,17 @@ model WhatsappChannel {
 }
 
 model WhatsappUseCaseMapping {
-  id          String   @id @default(uuid())
-  useCase     String   @unique @map("use_case") // e.g. "credentials", "service_confirmation", "movement_update", "iqama_confirmation", "custom"
-  channelId   String   @map("channel_id")
-  isActive    Boolean  @default(true) @map("is_active")
-  channel     WhatsappChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  id            String   @id @default(uuid())
+  useCase       String   @unique @map("use_case") // e.g. "credentials", "service_confirmation", "movement_update", "iqama_confirmation", "custom"
+  channelId     String   @map("channel_id")
+  templateName  String?  @map("template_name")
+  language      String?  @default("en_US") @map("language")
+  customMessage String?  @map("custom_message")
+  isCloudApi    Boolean? @map("is_cloud_api")
+  isActive      Boolean  @default(true) @map("is_active")
+  channel       WhatsappChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@map("whatsapp_use_case_mappings")
 }

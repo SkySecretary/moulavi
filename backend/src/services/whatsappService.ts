@@ -141,6 +141,28 @@ const formatPhoneNumber = (phoneNumber: string): string => {
   return cleaned;
 };
 
+// Default Cloud API Template names
+const DEFAULT_CLOUD_TEMPLATES: Record<string, string> = {
+  credentials: 'account_credentials',
+  service_confirmation: 'service_confirmation',
+  movement_update: 'movement_update',
+  driver_update: 'driver_details_update',
+  iqama_confirmation: 'absher_approval_request',
+  package_expired: 'package_expired_alert',
+  custom: 'hello_world',
+};
+
+// Utility function to interpolate placeholders in custom message templates
+export const interpolateWhatsAppTemplate = (templateText: string, data?: Record<string, any>): string => {
+  if (!data || !templateText) return templateText || '';
+  let result = templateText;
+  for (const [key, value] of Object.entries(data)) {
+    const regex = new RegExp(`\\{${key}\\}`, 'gi');
+    result = result.replace(regex, String(value ?? ''));
+  }
+  return result;
+};
+
 // Resolve the active WhatsApp channel for a specific use case
 const getChannelForUseCase = async (useCase: string) => {
   try {
@@ -150,7 +172,7 @@ const getChannelForUseCase = async (useCase: string) => {
     });
     
     if (mapping && mapping.channel && mapping.channel.isActive) {
-      return mapping.channel;
+      return { channel: mapping.channel, mapping };
     }
   } catch (err) {
     console.error(`[WHATSAPP] Error resolving channel for usecase '${useCase}':`, err);
@@ -171,20 +193,25 @@ const getFallbackChannel = async () => {
   return null;
 };
 
-const sendWhatsAppMessage = async (to: string, message: string, useCase: string = 'custom'): Promise<void> => {
+const sendWhatsAppMessage = async (
+  to: string, 
+  message: string, 
+  useCase: string = 'custom',
+  dynamicData?: Record<string, any>
+): Promise<void> => {
   const startTime = Date.now();
   const logPrefix = `[WHATSAPP-${useCase.toUpperCase()}]`;
 
   console.log(`${logPrefix} ========== START: Sending WhatsApp Message ==========`);
   console.log(`${logPrefix} Timestamp: ${new Date().toISOString()}`);
   console.log(`${logPrefix} Original Recipient: ${to}`);
-  console.log(`${logPrefix} Message Length: ${message.length} characters`);
-  console.log(`${logPrefix} Message Preview: ${message.substring(0, 150)}${message.length > 150 ? '...' : ''}`);
 
   // Check if mapping exists and is disabled
+  let mapping: any = null;
   try {
-    const mapping = await prisma.whatsappUseCaseMapping.findUnique({
-      where: { useCase }
+    mapping = await prisma.whatsappUseCaseMapping.findUnique({
+      where: { useCase },
+      include: { channel: true }
     });
     if (mapping && !mapping.isActive) {
       console.log(`${logPrefix} Notification for use case '${useCase}' is explicitly disabled in settings. Skipping dispatch.`);
@@ -199,15 +226,15 @@ const sendWhatsAppMessage = async (to: string, message: string, useCase: string 
   console.log(`${logPrefix} Formatted Recipient: ${formattedNumber}`);
   
   // Resolve channel configuration
-  let channel = await getChannelForUseCase(useCase);
+  let channel = mapping?.channel && mapping.channel.isActive ? mapping.channel : null;
   if (!channel) {
     console.log(`${logPrefix} No specific channel mapped/active for use case '${useCase}'. Looking for fallback active channel...`);
     channel = await getFallbackChannel();
   }
 
-  // If a channel from database is resolved, use the new multichannel API (Linalapro)
+  // If a channel from database is resolved, dispatch via Linalapro Multichannel API
   if (channel) {
-    console.log(`${logPrefix} Using Database Channel Profile: ${channel.name} (${channel.id})`);
+    console.log(`${logPrefix} Using Database Channel Profile: ${channel.name} (${channel.id}) [Cloud API: ${channel.isCloudApi}]`);
     
     // Clean phone number (Linalapro expects format like +911234567890 or +1234567890)
     let linalaNumber = formattedNumber;
@@ -223,15 +250,41 @@ const sendWhatsAppMessage = async (to: string, message: string, useCase: string 
       'Content-Type': 'application/json',
     };
 
-    const payload = {
-      to: linalaNumber,
-      message: message,
-    };
+    const isCloudApi = mapping?.isCloudApi !== null && mapping?.isCloudApi !== undefined
+      ? mapping.isCloudApi
+      : channel.isCloudApi;
 
-    const targetUrl = `${channel.baseUrl.trim().replace(/\/$/, '')}/messages`;
+    let targetUrl: string;
+    let payload: any;
+
+    if (isCloudApi) {
+      // Cloud API Template dispatch format
+      const templateName = mapping?.templateName ? mapping.templateName.trim() : (DEFAULT_CLOUD_TEMPLATES[useCase] || 'hello_world');
+      const language = mapping?.language ? mapping.language.trim() : 'en_US';
+      targetUrl = `${channel.baseUrl.trim().replace(/\/$/, '')}/messages/template`;
+      payload = {
+        to: linalaNumber,
+        templateName,
+        language,
+      };
+      console.log(`${logPrefix} Mode: Cloud API Template (${templateName}, lang: ${language})`);
+    } else {
+      // Standard QR Code / Text message format
+      let finalMessage = message;
+      if (mapping?.customMessage && dynamicData) {
+        finalMessage = interpolateWhatsAppTemplate(mapping.customMessage, dynamicData);
+      }
+      targetUrl = `${channel.baseUrl.trim().replace(/\/$/, '')}/messages`;
+      payload = {
+        to: linalaNumber,
+        message: finalMessage,
+      };
+      console.log(`${logPrefix} Mode: QR Code / Text message (${finalMessage.length} chars)`);
+    }
     
     console.log(`${logPrefix} Request URL: ${targetUrl}`);
     console.log(`${logPrefix} Request Headers (masked): x-api-key: ${channel.apiKey.substring(0, 5)}..., x-channel-id: ${channel.channelId}`);
+    console.log(`${logPrefix} Request Payload:`, JSON.stringify(payload));
 
     try {
       const response = await axios.post(targetUrl, payload, {
@@ -335,7 +388,12 @@ export const sendCredentialsWhatsApp = async (
   const message = WHATSAPP_TEMPLATES.credentials(name, email, password, frontendUrl);
   
   try {
-    await sendWhatsAppMessage(phoneNumber, message, 'credentials');
+    await sendWhatsAppMessage(phoneNumber, message, 'credentials', {
+      name,
+      email,
+      password,
+      frontendUrl,
+    });
   } catch (error: any) {
     console.error('[WHATSAPP] sendCredentialsWhatsApp failed:', error?.message);
     throw error;
@@ -352,7 +410,12 @@ export const sendServiceConfirmationWhatsApp = async (
   const message = WHATSAPP_TEMPLATES.serviceConfirmation(name, serviceType, bookingId);
   
   try {
-    await sendWhatsAppMessage(phoneNumber, message, 'service_confirmation');
+    await sendWhatsAppMessage(phoneNumber, message, 'service_confirmation', {
+      name,
+      serviceType,
+      bookingId,
+      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+    });
   } catch (error: any) {
     console.error('[WHATSAPP] sendServiceConfirmationWhatsApp failed:', error?.message);
     throw error;
@@ -362,10 +425,11 @@ export const sendServiceConfirmationWhatsApp = async (
 // Send custom WhatsApp message
 export const sendCustomWhatsApp = async (
   phoneNumber: string,
-  message: string
+  message: string,
+  dynamicData?: Record<string, any>
 ): Promise<void> => {
   try {
-    await sendWhatsAppMessage(phoneNumber, message, 'custom');
+    await sendWhatsAppMessage(phoneNumber, message, 'custom', dynamicData);
   } catch (error: any) {
     console.error('[WHATSAPP] sendCustomWhatsApp failed:', error?.message);
     throw error;
@@ -404,7 +468,18 @@ Your movement details have been updated:
 Thank you for choosing our services!`;
 
   try {
-    await sendWhatsAppMessage(phoneNumber, message, 'movement_update');
+    await sendWhatsAppMessage(phoneNumber, message, 'movement_update', {
+      partyName,
+      name: partyName,
+      voucherNumber,
+      date: movementDetails.date,
+      time: movementDetails.time || 'N/A',
+      fromLocation: movementDetails.fromLocation || 'N/A',
+      toLocation: movementDetails.toLocation || 'N/A',
+      driverDetails1: movementDetails.driverDetails1 || 'N/A',
+      driverDetails2: movementDetails.driverDetails2 || 'N/A',
+      vehicleNumber: movementDetails.vehicleNumber || 'N/A',
+    });
   } catch (error: any) {
     console.error('[WHATSAPP] sendMovementUpdateWhatsApp failed:', error?.message);
     throw error;
@@ -420,7 +495,14 @@ export const sendIqamaConfirmationWhatsApp = async (
   const message = WHATSAPP_TEMPLATES.iqamaConfirmation(name, bookingDetails);
 
   try {
-    await sendWhatsAppMessage(phoneNumber, message, 'iqama_confirmation');
+    await sendWhatsAppMessage(phoneNumber, message, 'iqama_confirmation', {
+      name,
+      groupCode: bookingDetails?.groupNumber || 'N/A',
+      groupNumber: bookingDetails?.groupNumber || 'N/A',
+      bookingRef: bookingDetails?.bookingReference || 'N/A',
+      bookingReference: bookingDetails?.bookingReference || 'N/A',
+      passengerCount: bookingDetails?.passengerCount || 0,
+    });
   } catch (error: any) {
     console.error('[WHATSAPP] sendIqamaConfirmationWhatsApp failed:', error?.message);
     throw error;
@@ -437,7 +519,12 @@ export const sendPackageExpiredWhatsApp = async (
   const message = WHATSAPP_TEMPLATES.packageExpired(hostName, hostIqamaNo, pilgrimDetails);
 
   try {
-    await sendWhatsAppMessage(phoneNumber, message, 'package_expired');
+    await sendWhatsAppMessage(phoneNumber, message, 'package_expired', {
+      hostName,
+      name: hostName,
+      hostIqamaNo,
+      pilgrimDetails,
+    });
   } catch (error: any) {
     console.error('[WHATSAPP] sendPackageExpiredWhatsApp failed:', error?.message);
     throw error;
@@ -504,7 +591,17 @@ Any changes or cancellations must be requested at least *48 Hours* before the sc
 ${signatureFooter}`.trim();
 
   try {
-    await sendWhatsAppMessage(phoneNumber, message, 'driver_update');
+    await sendWhatsAppMessage(phoneNumber, message, 'driver_update', {
+      voucherNumber: data.voucherNumber,
+      agencyName: data.agencyName,
+      name: data.agencyName,
+      routeName: data.routeName,
+      date: data.date,
+      reportingTime: data.reportingTime,
+      driverName: data.driverName,
+      driverMobile: data.driverMobile,
+      transportCompany: data.transportCompany,
+    });
   } catch (error: any) {
     console.error('[WHATSAPP] sendDriverUpdateWhatsApp failed:', error?.message);
     throw error;

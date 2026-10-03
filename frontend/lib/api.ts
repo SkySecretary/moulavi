@@ -572,10 +572,35 @@ export const whatsappChannelAPI = {
   update: (id: string, data: any) => api.put(`/whatsapp-channels/${id}`, data),
   delete: (id: string) => api.delete(`/whatsapp-channels/${id}`),
   getMappings: () => api.get('/whatsapp-channels/mappings'),
-  saveMapping: (useCase: string, channelId: string, isActive?: boolean) => api.post('/whatsapp-channels/mappings', { useCase, channelId, isActive }),
+  saveMapping: (data: {
+    useCase: string;
+    channelId: string;
+    templateName?: string | null;
+    language?: string | null;
+    customMessage?: string | null;
+    isCloudApi?: boolean | null;
+    isActive?: boolean;
+  }) => api.post('/whatsapp-channels/mappings', data),
+  updateMapping: (id: string, data: {
+    channelId?: string;
+    templateName?: string | null;
+    language?: string | null;
+    customMessage?: string | null;
+    isCloudApi?: boolean | null;
+    isActive?: boolean;
+  }) => api.put(`/whatsapp-channels/mappings/${id}`, data),
   toggleMapping: (id: string, isActive: boolean) => api.patch(`/whatsapp-channels/mappings/${id}`, { isActive }),
-  testConfig: (data: { baseUrl: string; apiKey: string; apiSecret: string; channelId: string; to: string; message: string }) =>
-    api.post('/whatsapp-channels/test-config', data),
+  testConfig: (data: {
+    baseUrl: string;
+    apiKey: string;
+    apiSecret: string;
+    channelId: string;
+    to: string;
+    isCloudApi?: boolean;
+    templateName?: string;
+    language?: string;
+    message?: string;
+  }) => api.post('/whatsapp-channels/test-config', data),
 };
 
 // Support Tickets API
