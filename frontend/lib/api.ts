@@ -509,6 +509,18 @@ export const voucherAPI = {
     api.put(`/vouchers/${voucherId}/movement/${movementIndex}`, data),
   notifyMovementUpdate: (voucherId: string, movementIndex: number) =>
     api.post(`/vouchers/${voucherId}/movement/${movementIndex}/notify`),
+
+  // Quick Voucher Requests
+  getQuickRequests: (params?: { status?: string; search?: string; page?: number; limit?: number }) =>
+    api.get('/vouchers/quick-requests', { params }),
+  getQuickRequestById: (id: string) =>
+    api.get(`/vouchers/quick-requests/${id}`),
+  approveQuickRequest: (id: string, data?: any) =>
+    api.post(`/vouchers/quick-requests/${id}/approve`, data || {}),
+  rejectQuickRequest: (id: string, rejectionReason?: string) =>
+    api.post(`/vouchers/quick-requests/${id}/reject`, { rejectionReason }),
+  deleteQuickRequest: (id: string) =>
+    api.delete(`/vouchers/quick-requests/${id}`),
 };
 
 // Nusuk Integration API

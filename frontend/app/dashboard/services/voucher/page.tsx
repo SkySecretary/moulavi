@@ -39,6 +39,8 @@ import {
   Copy,
   Receipt,
   MessageSquare,
+  Sparkles,
+  Zap,
 } from 'lucide-react';
 import {
   Dialog,
@@ -732,8 +734,10 @@ function VoucherServiceContent() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-2 rounded-xl border shadow-sm">
                 <TabsList className="bg-gray-100 border p-1 h-9 rounded-lg">
                   <TabsTrigger value="all" className="data-[state=active]:bg-white data-[state=active]:text-primary text-xs font-bold px-6 h-7 rounded-md transition-all">All Records</TabsTrigger>
-                  {hasRole(['admin', 'staff']) && (
-                    <TabsTrigger value="quick" className="data-[state=active]:bg-white data-[state=active]:text-primary text-xs font-bold px-6 h-7 rounded-md transition-all">Quick Create</TabsTrigger>
+                  {hasRole(['admin', 'staff', 'party']) && (
+                    <TabsTrigger value="quick" className="data-[state=active]:bg-white data-[state=active]:text-primary text-xs font-bold px-6 h-7 rounded-md transition-all">
+                      {hasRole('party') ? '⚡ Request Quick Voucher' : 'Quick Create'}
+                    </TabsTrigger>
                   )}
                 </TabsList>
                 {activeVoucherSubTab === 'all' && (
@@ -852,7 +856,17 @@ function VoucherServiceContent() {
                            vouchers.length === 0 ? <TableRow><TableCell colSpan={9} className="text-center py-16 text-gray-400 font-medium tracking-tight">No voucher records matching your query</TableCell></TableRow> :
                            vouchers.map(v => (
                             <TableRow key={v.id} className="hover:bg-gray-50/50 transition-colors border-gray-50">
-                              <TableCell className="px-6 font-black text-primary text-sm">{v.voucherNumber}</TableCell>
+                              <TableCell className="px-6 font-black text-primary text-sm">
+                                <div className="flex flex-col items-start gap-1">
+                                  <span>{v.voucherNumber}</span>
+                                  {(v.isQuickVoucher || (!v.bookingId && !v.bookingReference)) && (
+                                    <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-[10px] font-bold px-1.5 py-0.5 shadow-none hover:bg-purple-100 flex items-center gap-1 w-fit">
+                                      <Zap className="h-2.5 w-2.5 text-purple-600 fill-purple-600" />
+                                      Quick Voucher
+                                    </Badge>
+                                  )}
+                                </div>
+                              </TableCell>
                               <TableCell className="text-xs font-bold text-secondary uppercase max-w-[150px] break-all whitespace-normal">{v.groupCode || '—'}</TableCell>
                               <TableCell><div><p className="font-bold text-sm text-gray-900">{v.guestName}</p><p className="text-[10px] text-gray-400 font-medium">{v.guestMobile}</p></div></TableCell>
                               <TableCell><Badge variant="outline" className="font-black bg-blue-50/50 border-blue-100 text-blue-700">{v.paxCount} PAX</Badge></TableCell>

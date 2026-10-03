@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { partyAPI } from '@/lib/api';
+import { partyAPI, locationMasterAPI } from '@/lib/api';
 import { getUser } from '@/lib/auth';
 import { API_ENDPOINTS } from '@/lib/umrah/constants';
 import { BookingState, MasterData, Step1Data, Step2Data, Step3Data, Step4Data, Step5Data, Step6Data } from '@/lib/umrah/types';

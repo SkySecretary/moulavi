@@ -1170,13 +1170,39 @@ router.get(
   })
 );
 
-// Create quick voucher
+// Generate unique request number for Quick Voucher Requests
+const generateRequestNumber = async (tx: any = prisma): Promise<string> => {
+  const currentYear = new Date().getFullYear();
+  const prefix = `QVR-${currentYear}-`;
+
+  const lastReq = await tx.quickVoucherRequest.findFirst({
+    where: {
+      requestNumber: { startsWith: prefix },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  let nextSeq = 1;
+  if (lastReq && lastReq.requestNumber) {
+    const parts = lastReq.requestNumber.split('-');
+    const lastNum = parseInt(parts[parts.length - 1], 10);
+    if (!isNaN(lastNum)) {
+      nextSeq = lastNum + 1;
+    }
+  }
+
+  return `${prefix}${String(nextSeq).padStart(4, '0')}`;
+};
+
+// Create quick voucher (or quick voucher request if called by party / agency)
 router.post(
   '/quick',
   authenticate,
-  authorize('admin', 'staff'),
+  authorize('admin', 'staff', 'party'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const user = req.user!;
+    const isAgency = user.role === 'party';
+
     const {
       guestName,
       guestMobile,
@@ -1189,7 +1215,8 @@ router.post(
       hotelSchedules,
       movementDetails,
       flightDetails,
-      transportOptions, // Optional - for reference, not stored in voucher
+      transportOptions,
+      notes,
     } = req.body;
 
     if (!guestName || !paxCount) {
@@ -1202,6 +1229,61 @@ router.post(
 
     const cleanedGroupCode = typeof groupCode === 'string' ? groupCode.trim() : '';
 
+    // If user is a party (customer / agency), create a Pending Request (DO NOT allocate voucher number)
+    if (isAgency) {
+      let party = await prisma.party.findFirst({
+        where: { userId: user.id },
+      });
+      if (!party && user.email) {
+        party = await prisma.party.findFirst({
+          where: { email: user.email },
+        });
+      }
+
+      if (!party) {
+        return res.status(400).json({ error: 'Agency party profile not found for this account' });
+      }
+
+      const requestNumber = await generateRequestNumber();
+
+      const newRequest = await prisma.quickVoucherRequest.create({
+        data: {
+          requestNumber,
+          status: 'pending',
+          guestName,
+          guestMobile: guestMobile || null,
+          groupCode: cleanedGroupCode || null,
+          paxCount: parseInt(String(paxCount), 10) || 1,
+          reservationDate: reservationDate ? new Date(reservationDate) : new Date(),
+          partyId: party.id,
+          umrahCompanyId: umrahCompanyId || null,
+          transportCompanyId: transportCompanyId || null,
+          hotelSchedules: hotelSchedules || [],
+          movementDetails: movementDetails || [],
+          flightDetails: flightDetails || [],
+          transportOptions: transportOptions || [],
+          notes: notes || null,
+          requestedBy: user.id,
+        },
+        include: {
+          party: {
+            select: { id: true, partyName: true, partyCode: true, contactNumber: true, email: true },
+          },
+          transportCompany: {
+            select: { id: true, partyName: true, partyCode: true },
+          },
+        },
+      });
+
+      return res.status(201).json({
+        success: true,
+        isRequest: true,
+        message: `Quick voucher request #${requestNumber} submitted successfully. It is currently pending admin approval.`,
+        request: newRequest,
+      });
+    }
+
+    // Otherwise, user is admin/staff: generate confirmed Voucher immediately
     if (cleanedGroupCode) {
       // Validate that no voucher already exists with this group code
       const existingVoucherWithGroup = await prisma.voucher.findFirst({
@@ -1240,18 +1322,19 @@ router.post(
       // Create voucher
       const newVoucher = await tx.voucher.create({
         data: {
-          voucherNumber, // Voucher number is used as reservation number
+          voucherNumber,
           reservationDate: reservationDate ? new Date(reservationDate) : new Date(),
           guestName,
           guestMobile: guestMobile || null,
           groupCode: cleanedGroupCode || null,
-          paxCount,
+          paxCount: parseInt(String(paxCount), 10) || 1,
           partyId: partyId || matchingBooking?.partyId || null,
           umrahCompanyId: umrahCompanyId || matchingBooking?.umrahVisaProviderId || null,
           transportCompanyId: transportCompanyId || null,
           generatedBy: user.id,
           bookingId: matchingBooking?.id || null,
           bookingReference: matchingBooking?.bookingReference || null,
+          isQuickVoucher: true,
         },
       });
 
@@ -1326,8 +1409,6 @@ router.post(
       if (flightDetails && Array.isArray(flightDetails)) {
         await Promise.all(
           flightDetails.map((flight: any) => {
-            // For arrival (AA), airport is in arrivalAirport (or from as fallback)
-            // For departure (AD), airport is in departureAirport (or to as fallback)
             const airport = flight.type === 'AA' 
               ? (flight.arrivalAirport || flight.from || '')
               : (flight.departureAirport || flight.to || '');
@@ -1342,7 +1423,6 @@ router.post(
                 carrier: String(flight.carrier || '').substring(0, 50),
                 number: String(flight.number || '').substring(0, 50),
                 date: validFlightDate,
-                // Store airport in 'from' for AA, in 'to' for AD (for PDF display)
                 from: flight.type === 'AA' ? String(airport).substring(0, 50) : 'JED',
                 to: flight.type === 'AD' ? String(airport).substring(0, 50) : 'JED',
                 etd: flight.etd ? String(flight.etd).substring(0, 20) : null,
@@ -1357,6 +1437,418 @@ router.post(
     });
 
     res.status(201).json({ voucher });
+  })
+);
+
+// Get Quick Voucher Requests (Pending / Approved / Rejected)
+router.get(
+  '/quick-requests',
+  authenticate,
+  authorize('admin', 'staff', 'party'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = req.user!;
+    const isAgency = user.role === 'party';
+    const { status, search, page = 1, limit = 20 } = req.query;
+
+    const pageNum = parseInt(page as string, 10) || 1;
+    const limitNum = parseInt(limit as string, 10) || 20;
+    const skip = (pageNum - 1) * limitNum;
+
+    const where: any = {};
+
+    if (isAgency) {
+      let party = await prisma.party.findFirst({
+        where: { userId: user.id },
+      });
+      if (!party && user.email) {
+        party = await prisma.party.findFirst({
+          where: { email: user.email },
+        });
+      }
+      where.partyId = party ? party.id : 'no-party-found';
+    }
+
+    if (status && status !== 'all') {
+      where.status = status;
+    }
+
+    if (search && typeof search === 'string' && search.trim()) {
+      const searchStr = search.trim();
+      where.OR = [
+        { requestNumber: { contains: searchStr } },
+        { guestName: { contains: searchStr } },
+        { guestMobile: { contains: searchStr } },
+        { groupCode: { contains: searchStr } },
+        { party: { partyName: { contains: searchStr } } },
+      ];
+    }
+
+    const [requests, total] = await Promise.all([
+      prisma.quickVoucherRequest.findMany({
+        where,
+        skip,
+        take: limitNum,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          party: {
+            select: { id: true, partyName: true, partyCode: true, contactNumber: true, email: true },
+          },
+          transportCompany: {
+            select: { id: true, partyName: true, partyCode: true },
+          },
+          requestedByUser: {
+            select: { id: true, name: true, email: true },
+          },
+          reviewedByUser: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      }),
+      prisma.quickVoucherRequest.count({ where }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        requests,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          totalPages: Math.ceil(total / limitNum),
+        },
+      },
+    });
+  })
+);
+
+// Get single Quick Voucher Request by ID
+router.get(
+  '/quick-requests/:id',
+  authenticate,
+  authorize('admin', 'staff', 'party'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const user = req.user!;
+
+    const request = await prisma.quickVoucherRequest.findUnique({
+      where: { id },
+      include: {
+        party: true,
+        transportCompany: true,
+        requestedByUser: { select: { id: true, name: true, email: true } },
+        reviewedByUser: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    if (!request) {
+      return res.status(404).json({ error: 'Quick voucher request not found' });
+    }
+
+    if (user.role === 'party') {
+      let party = await prisma.party.findFirst({ where: { userId: user.id } });
+      if (!party && user.email) {
+        party = await prisma.party.findFirst({ where: { email: user.email } });
+      }
+      if (!party || request.partyId !== party.id) {
+        return res.status(403).json({ error: 'Unauthorized to view this request' });
+      }
+    }
+
+    res.json({ success: true, request });
+  })
+);
+
+// Approve Quick Voucher Request & Generate Voucher (Admin / Staff only)
+router.post(
+  '/quick-requests/:id/approve',
+  authenticate,
+  authorize('admin', 'staff'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const user = req.user!;
+
+    const existingRequest = await prisma.quickVoucherRequest.findUnique({
+      where: { id },
+    });
+
+    if (!existingRequest) {
+      return res.status(404).json({ error: 'Quick voucher request not found' });
+    }
+
+    if (existingRequest.status === 'approved') {
+      return res.status(400).json({ error: 'This request has already been approved' });
+    }
+
+    // Allow payload overrides if admin made edits in the review dialog
+    const guestName = req.body.guestName || existingRequest.guestName;
+    const guestMobile = req.body.guestMobile !== undefined ? req.body.guestMobile : existingRequest.guestMobile;
+    const groupCode = req.body.groupCode !== undefined ? req.body.groupCode : existingRequest.groupCode;
+    const paxCount = parseInt(String(req.body.paxCount || existingRequest.paxCount), 10) || 1;
+    const reservationDate = req.body.reservationDate || existingRequest.reservationDate;
+    const partyId = req.body.partyId || existingRequest.partyId;
+    const umrahCompanyId = req.body.umrahCompanyId !== undefined ? req.body.umrahCompanyId : existingRequest.umrahCompanyId;
+    const transportCompanyId = req.body.transportCompanyId || existingRequest.transportCompanyId;
+    const hotelSchedules = req.body.hotelSchedules !== undefined ? req.body.hotelSchedules : existingRequest.hotelSchedules;
+    const movementDetails = req.body.movementDetails !== undefined ? req.body.movementDetails : existingRequest.movementDetails;
+    const flightDetails = req.body.flightDetails !== undefined ? req.body.flightDetails : existingRequest.flightDetails;
+
+    const cleanedGroupCode = typeof groupCode === 'string' ? groupCode.trim() : '';
+
+    if (cleanedGroupCode) {
+      const existingVoucherWithGroup = await prisma.voucher.findFirst({
+        where: { groupCode: cleanedGroupCode },
+        select: { id: true, voucherNumber: true, bookingReference: true },
+      });
+
+      if (existingVoucherWithGroup) {
+        return res.status(400).json({
+          error: `A voucher with Group Code "${cleanedGroupCode}" already exists (Voucher #${existingVoucherWithGroup.voucherNumber}).`,
+        });
+      }
+    }
+
+    // Auto-link to booking if exists
+    let matchingBooking: any = null;
+    if (cleanedGroupCode) {
+      matchingBooking = await prisma.umrahVisaBooking.findFirst({
+        where: {
+          groupNumber: cleanedGroupCode,
+          isDeleted: false,
+        },
+        select: { id: true, bookingReference: true, partyId: true, umrahVisaProviderId: true },
+      });
+    }
+
+    const { voucher, updatedRequest } = await prisma.$transaction(async (tx) => {
+      const voucherNumber = await generateVoucherNumber(tx);
+
+      const movementCount = movementDetails && Array.isArray(movementDetails) ? movementDetails.length : 0;
+      const routeNumbers = movementCount > 0 
+        ? await generateRouteNumbersForVoucher(movementCount, tx)
+        : [];
+
+      const newVoucher = await tx.voucher.create({
+        data: {
+          voucherNumber,
+          reservationDate: reservationDate ? new Date(reservationDate) : new Date(),
+          guestName,
+          guestMobile: guestMobile || null,
+          groupCode: cleanedGroupCode || null,
+          paxCount,
+          partyId: partyId || matchingBooking?.partyId || null,
+          umrahCompanyId: umrahCompanyId || matchingBooking?.umrahVisaProviderId || null,
+          transportCompanyId: transportCompanyId || null,
+          generatedBy: user.id,
+          bookingId: matchingBooking?.id || null,
+          bookingReference: matchingBooking?.bookingReference || null,
+          isQuickVoucher: true,
+          quickVoucherRequestId: existingRequest.id,
+        },
+      });
+
+      // Create movements
+      if (movementDetails && Array.isArray(movementDetails)) {
+        await Promise.all(
+          movementDetails.map((movement: any, index: number) => {
+            const moveDate = movement.date ? new Date(movement.date) : new Date();
+            const validMoveDate = isNaN(moveDate.getTime()) ? new Date() : moveDate;
+
+            return tx.voucherMovement.create({
+              data: {
+                voucherId: newVoucher.id,
+                sr: movement.sr || index + 1,
+                route: routeNumbers[index] || null,
+                date: validMoveDate,
+                time: movement.time || '',
+                from: movement.from || '',
+                fromLocation: movement.fromLocation || '',
+                fromLocationId: movement.fromLocationId || null,
+                to: movement.to || '',
+                toLocation: movement.toLocation || '',
+                toLocationId: movement.toLocationId || null,
+                driverDetails1: movement.driverDetails1 || null,
+                driverDetails2: movement.driverDetails2 || null,
+                vehicleNumber: movement.vehicleNumber || null,
+                paxCount: movement.paxCount || null,
+                price: movement.price ? parseFloat(movement.price) : null,
+                vehicleType: movement.vehicleType || null,
+              },
+            });
+          })
+        );
+      }
+
+      // Create hotels
+      if (hotelSchedules && Array.isArray(hotelSchedules)) {
+        await Promise.all(
+          hotelSchedules.map((hotel: any) => {
+            let brnValue: string | null = null;
+            if (hotel.brn) {
+              if (Array.isArray(hotel.brn)) {
+                brnValue = hotel.brn.length > 0 ? hotel.brn.join(', ') : null;
+              } else if (typeof hotel.brn === 'string') {
+                brnValue = hotel.brn;
+              }
+            }
+            
+            const inDate = hotel.checkIn ? new Date(hotel.checkIn) : new Date();
+            const outDate = hotel.checkOut ? new Date(hotel.checkOut) : new Date();
+            const validInDate = isNaN(inDate.getTime()) ? new Date() : inDate;
+            const validOutDate = isNaN(outDate.getTime()) ? new Date() : outDate;
+
+            return tx.voucherHotel.create({
+              data: {
+                voucherId: newVoucher.id,
+                number: hotel.number || 0,
+                location: hotel.location || '',
+                hotelName: hotel.hotelName || '',
+                checkIn: validInDate,
+                checkOut: validOutDate,
+                days: hotel.days || 0,
+                brn: brnValue,
+              },
+            });
+          })
+        );
+      }
+
+      // Create flights
+      if (flightDetails && Array.isArray(flightDetails)) {
+        await Promise.all(
+          flightDetails.map((flight: any) => {
+            const airport = flight.type === 'AA' 
+              ? (flight.arrivalAirport || flight.from || '')
+              : (flight.departureAirport || flight.to || '');
+            
+            const flightDate = flight.date ? new Date(flight.date) : new Date();
+            const validFlightDate = isNaN(flightDate.getTime()) ? new Date() : flightDate;
+
+            return tx.voucherFlight.create({
+              data: {
+                voucherId: newVoucher.id,
+                type: String(flight.type || 'AA').substring(0, 10),
+                carrier: String(flight.carrier || '').substring(0, 50),
+                number: String(flight.number || '').substring(0, 50),
+                date: validFlightDate,
+                from: flight.type === 'AA' ? String(airport).substring(0, 50) : 'JED',
+                to: flight.type === 'AD' ? String(airport).substring(0, 50) : 'JED',
+                etd: flight.etd ? String(flight.etd).substring(0, 20) : null,
+                eta: flight.eta ? String(flight.eta).substring(0, 20) : null,
+              },
+            });
+          })
+        );
+      }
+
+      // Update QuickVoucherRequest
+      const reqUpdated = await tx.quickVoucherRequest.update({
+        where: { id: existingRequest.id },
+        data: {
+          status: 'approved',
+          voucherId: newVoucher.id,
+          reviewedBy: user.id,
+          reviewedAt: new Date(),
+          guestName,
+          guestMobile: guestMobile || null,
+          groupCode: cleanedGroupCode || null,
+          paxCount,
+          reservationDate: reservationDate ? new Date(reservationDate) : new Date(),
+          partyId,
+          transportCompanyId,
+          umrahCompanyId: umrahCompanyId || null,
+          hotelSchedules: hotelSchedules || [],
+          movementDetails: movementDetails || [],
+          flightDetails: flightDetails || [],
+        },
+      });
+
+      return { voucher: newVoucher, updatedRequest: reqUpdated };
+    });
+
+    res.json({
+      success: true,
+      message: `Quick Voucher #${voucher.voucherNumber} approved and finalized successfully!`,
+      voucher,
+      request: updatedRequest,
+    });
+  })
+);
+
+// Reject Quick Voucher Request (Admin / Staff only)
+router.post(
+  '/quick-requests/:id/reject',
+  authenticate,
+  authorize('admin', 'staff'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const { rejectionReason } = req.body;
+    const user = req.user!;
+
+    const existing = await prisma.quickVoucherRequest.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Quick voucher request not found' });
+    }
+
+    const updated = await prisma.quickVoucherRequest.update({
+      where: { id },
+      data: {
+        status: 'rejected',
+        rejectionReason: rejectionReason || null,
+        reviewedBy: user.id,
+        reviewedAt: new Date(),
+      },
+    });
+
+    res.json({
+      success: true,
+      message: `Quick voucher request #${existing.requestNumber} rejected`,
+      request: updated,
+    });
+  })
+);
+
+// Delete / Cancel Quick Voucher Request
+router.delete(
+  '/quick-requests/:id',
+  authenticate,
+  authorize('admin', 'staff', 'party'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const user = req.user!;
+
+    const existing = await prisma.quickVoucherRequest.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Quick voucher request not found' });
+    }
+
+    if (user.role === 'party') {
+      let party = await prisma.party.findFirst({ where: { userId: user.id } });
+      if (!party && user.email) {
+        party = await prisma.party.findFirst({ where: { email: user.email } });
+      }
+      if (!party || existing.partyId !== party.id) {
+        return res.status(403).json({ error: 'Unauthorized to delete this request' });
+      }
+      if (existing.status !== 'pending') {
+        return res.status(400).json({ error: 'Only pending requests can be cancelled' });
+      }
+    }
+
+    await prisma.quickVoucherRequest.delete({
+      where: { id },
+    });
+
+    res.json({
+      success: true,
+      message: 'Quick voucher request deleted successfully',
+    });
   })
 );
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -357,7 +357,7 @@ interface HotelBookingTableProps {
   locations: Location[];
   hotels: HotelType[];
   getHotelsForLocation: (cityId: string) => HotelType[];
-  onUpdateBooking: (index: number, field: keyof HotelBooking, value: string | string[]) => void;
+  onUpdateBooking: (index: number, field: keyof HotelBooking, value: any) => void;
   onRemoveBooking?: (index: number) => void;
   onAddBooking?: () => void;
   disabled?: boolean;
@@ -395,12 +395,12 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
   // Search state for hotels
   const [hotelSearch, setHotelSearch] = useState<{ [key: number]: string }>({});
   // Local hotels cache for dynamically added hotels to ensure instant selection
-  const [localHotels, setLocalHotels] = useState<Hotel[]>([]);
+  const [localHotels, setLocalHotels] = useState<HotelType[]>([]);
 
   const getEffectiveHotelsForLocation = useCallback((cityId?: string) => {
     const list = cityId ? (getHotelsForLocation(cityId) || []) : [];
-    const extra = localHotels.filter(h => h.cityId === cityId || (h.city && typeof h.city === 'object' && (h.city as any).id === cityId));
-    const seen = new Set(list.map(h => h.id));
+    const extra = localHotels.filter((h: any) => h.cityId === cityId || (h.city && typeof h.city === 'object' && (h.city as any).id === cityId));
+    const seen = new Set(list.map((h: any) => h.id));
     const result = [...list];
     for (const h of extra) {
       if (!seen.has(h.id)) {
@@ -488,7 +488,7 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
   const handleQuickAddSuccess = async (newHotelId: string, createdHotel?: any) => {
     if (activeBookingIndex !== null) {
       if (createdHotel) {
-        const hotelObj: Hotel = {
+        const hotelObj: HotelType = {
           id: createdHotel.id || newHotelId,
           name: createdHotel.name,
           hotelName: createdHotel.name,

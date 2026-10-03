@@ -21,14 +21,14 @@ import {
 
 interface PartyLayoutProps {
   children: React.ReactNode;
-  title: string;
+  title?: string;
   subtitle?: string;
   showHeader?: boolean;
 }
 
 export const PartyLayout: React.FC<PartyLayoutProps> = ({
   children,
-  title,
+  title = 'Agency Portal',
   subtitle,
   showHeader = true,
 }) => {

@@ -612,7 +612,7 @@ export default function HotelInventoryPage() {
         onOpenChange={setDeleteConfirmOpen}
         onConfirm={handleDeleteConfirm}
         title="Delete Inventory Lot?"
-        description={`Are you sure you want to delete the BRN inventory lot "${inventoryToDelete?.brnNumber}" for "${inventoryToDelete?.hotel?.name}"? This action cannot be undone.`}
+        message={`Are you sure you want to delete the BRN inventory lot "${inventoryToDelete?.brnNumber}" for "${inventoryToDelete?.hotel?.name}"? This action cannot be undone.`}
       />
     </div>
   );

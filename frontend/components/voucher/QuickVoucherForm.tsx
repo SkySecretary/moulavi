@@ -29,6 +29,7 @@ import { cn, formatCurrency } from '@/lib/utils';
 import { DatePicker } from '@/components/ui/date-picker';
 import { TimePicker } from '@/components/ui/time-picker';
 import { fromDisplayDate, toDisplayDate, extractDateFromISO, extractTimeFromISO, combineDateAndTime, formatFlightNumber } from '@/lib/umrah/validation';
+import { getUser } from '@/lib/auth';
 
 interface QuickVoucherFormProps {
   onSuccess: () => void;
@@ -87,6 +88,8 @@ interface TransportOption {
 }
 
 export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
+  const currentUser = getUser();
+  const isAgency = currentUser?.role === 'party';
   const [submitting, setSubmitting] = useState(false);
   const [loadingMasters, setLoadingMasters] = useState(true);
   
@@ -324,7 +327,20 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
       setAllParties(partiesData);
       
       // Regular agents (isCustomer true)
-      setParties(partiesData.filter((p: any) => p.isCustomer));
+      const customerParties = partiesData.filter((p: any) => p.isCustomer);
+      setParties(customerParties);
+      
+      const currentUser = getUser();
+      if (currentUser?.role === 'party') {
+        const myParty = customerParties.find((p: any) => 
+          p.id === currentUser.partyId || 
+          p.userId === currentUser.id || 
+          (currentUser.email && p.email && p.email.toLowerCase() === currentUser.email.toLowerCase())
+        );
+        if (myParty) {
+          setFormData(prev => ({ ...prev, partyId: myParty.id }));
+        }
+      }
       
       // Suppliers
       const suppliers = partiesData.filter((p: any) => p.isSupplier);
@@ -944,7 +960,11 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
         transportOptions: formData.transportOptions,
       });
 
-      toast.success('Quick voucher created successfully');
+      if (isAgency) {
+        toast.success('Quick voucher request submitted successfully! Admin will review and generate the voucher.');
+      } else {
+        toast.success('Quick voucher created successfully');
+      }
       onSuccess();
       
       // Reset form
@@ -1330,7 +1350,9 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
         <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-white shadow-md">
           <Ticket className="h-4 w-4" />
         </div>
-        <h2 className="text-lg font-bold text-primary uppercase tracking-tight">Create Voucher</h2>
+        <h2 className="text-lg font-bold text-primary uppercase tracking-tight">
+          {isAgency ? 'Request Quick Voucher' : 'Create Voucher'}
+        </h2>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
@@ -1399,8 +1421,8 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[11px] font-bold text-muted-foreground ml-0.5 uppercase tracking-wider">Agent (Party)</Label>
-                  <Select value={formData.partyId} onValueChange={(v) => setFormData({...formData, partyId: v})}>
-                    <SelectTrigger className="h-11 rounded-md border-gray-200 text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
+                  <Select value={formData.partyId} onValueChange={(v) => setFormData({...formData, partyId: v})} disabled={isAgency}>
+                    <SelectTrigger className="h-11 rounded-md border-gray-200 text-sm disabled:opacity-80"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
                       {parties.map(p => <SelectItem key={p.id} value={p.id} className="text-sm">{p.partyName}</SelectItem>)}
                     </SelectContent>
@@ -1594,7 +1616,14 @@ export function QuickVoucherForm({ onSuccess }: QuickVoucherFormProps) {
                   onClick={handleSubmit} 
                   disabled={submitting || formData.transportOptions.length === 0 || !formData.transportCompanyId}
                 >
-                  {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <><CheckCircle2 className="h-3.5 w-3.5 mr-2" /> Finalize</>}
+                  {submitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-2" />
+                      {isAgency ? 'Submit Voucher Request' : 'Finalize & Create Voucher'}
+                    </>
+                  )}
                 </Button>
                 <Button variant="ghost" className="w-full h-9 rounded-xl text-muted-foreground font-bold uppercase text-[9px] hover:bg-destructive/5 hover:text-destructive" onClick={() => onSuccess()}>Cancel</Button>
               </div>

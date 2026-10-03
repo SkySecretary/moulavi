@@ -25,6 +25,8 @@ model User {
   bookingsLastUpdated         UmrahVisaBooking[]     @relation("BookingLastUpdatedBy")
   bookingsDocumentsDownloaded UmrahVisaBooking[]     @relation("BookingDocumentsDownloadedBy")
   vouchersGenerated           Voucher[]              @relation("VoucherGeneratedBy")
+  quickVouchersRequested      QuickVoucherRequest[]  @relation("QuickVoucherRequestedBy")
+  quickVouchersReviewed       QuickVoucherRequest[]  @relation("QuickVoucherReviewedBy")
   brnUpdates                  BrnUpdateHistory[]
   supportTickets              SupportTicket[]
   supportComments             SupportTicketComment[]
@@ -81,6 +83,8 @@ model Party {
   transportCompanyVouchers Voucher[]          @relation("TransportCompany")
   umrahCompanyVouchers     Voucher[]          @relation("UmrahCompany")
   partyVouchers            Voucher[]          @relation("VoucherParty")
+  partyQuickVoucherRequests QuickVoucherRequest[] @relation("PartyQuickVoucherRequests")
+  transportQuickVoucherRequests QuickVoucherRequest[] @relation("TransportQuickVoucherRequests")
   complianceMetrics        SubAgentMetric?
   complianceAuditLogs      ComplianceAuditLog[]
   supportTickets           SupportTicket[]
@@ -629,6 +633,8 @@ model Voucher {
   bookingReference    String?           @map("booking_reference")
   appendedBookings    Json?             @map("appended_bookings")
   invoiceGenerated    Boolean           @default(false) @map("invoice_generated")
+  isQuickVoucher      Boolean           @default(false) @map("is_quick_voucher")
+  quickVoucherRequestId String?         @map("quick_voucher_request_id")
   flights             VoucherFlight[]
   hotels              VoucherHotel[]
   movements           VoucherMovement[]
@@ -641,7 +647,45 @@ model Voucher {
   @@index([voucherNumber])
   @@index([generatedAt])
   @@index([generatedBy])
+  @@index([isQuickVoucher])
   @@map("vouchers")
+}
+
+model QuickVoucherRequest {
+  id                 String    @id @default(uuid())
+  requestNumber      String    @unique @map("request_number")
+  status             String    @default("pending") @map("status") // "pending", "approved", "rejected"
+  guestName          String    @map("guest_name")
+  guestMobile        String?   @map("guest_mobile")
+  groupCode          String?   @map("group_code")
+  paxCount           Int       @map("pax_count")
+  reservationDate    DateTime  @map("reservation_date")
+  partyId            String    @map("party_id")
+  umrahCompanyId     String?   @map("umrah_company_id")
+  transportCompanyId String?   @map("transport_company_id")
+  hotelSchedules     Json?     @map("hotel_schedules")
+  movementDetails    Json?     @map("movement_details")
+  flightDetails      Json?     @map("flight_details")
+  transportOptions   Json?     @map("transport_options")
+  notes              String?   @map("notes")
+  rejectionReason    String?   @map("rejection_reason")
+  voucherId          String?   @map("voucher_id")
+  requestedBy        String    @map("requested_by")
+  reviewedBy         String?   @map("reviewed_by")
+  reviewedAt         DateTime? @map("reviewed_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  party              Party     @relation("PartyQuickVoucherRequests", fields: [partyId], references: [id])
+  transportCompany   Party?    @relation("TransportQuickVoucherRequests", fields: [transportCompanyId], references: [id])
+  requestedByUser    User      @relation("QuickVoucherRequestedBy", fields: [requestedBy], references: [id])
+  reviewedByUser     User?     @relation("QuickVoucherReviewedBy", fields: [reviewedBy], references: [id])
+
+  @@index([status])
+  @@index([partyId])
+  @@index([requestedBy])
+  @@index([createdAt])
+  @@map("quick_voucher_requests")
 }
 
 model VoucherMovement {

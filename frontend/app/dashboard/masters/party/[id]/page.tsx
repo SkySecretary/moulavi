@@ -657,7 +657,7 @@ export default function PartyDetailPage() {
       <CreatePartyDialog
         open={showEditDialog}
         onOpenChange={(open) => !open && setShowEditDialog(false)}
-        editingParty={party}
+        editingParty={party as any}
         title="Edit Party Profile"
         onSubmit={async (partyData) => {
           await partyAPI.update(party.id, partyData);

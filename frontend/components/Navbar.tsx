@@ -168,6 +168,7 @@ export default function Navbar() {
     { name: 'Invoices', path: '/dashboard/umrah-visa/invoice', icon: FileText },
     { name: 'Support Tickets', path: '/dashboard/support-tickets', icon: LifeBuoy },
   ] : [
+    { name: '⚡ Quick Voucher Requests', path: '/party/quick-voucher', icon: Ticket },
     { name: 'Missing BRN', path: '/party/missing-brn', icon: AlertCircle },
     { name: 'Missing Flight Transport', path: '/party/missing-return-ticket', icon: Plane },
     { name: 'Add to Existing', path: '/party/add-to-existing-booking', icon: PlusCircle },
