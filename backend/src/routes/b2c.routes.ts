@@ -770,8 +770,28 @@ router.post(
       }
     });
 
+    // Attach uploaded/provided documents if present
+    if (req.body.documents && Array.isArray(req.body.documents) && req.body.documents.length > 0) {
+      for (const doc of req.body.documents) {
+        try {
+          await prisma.document.create({
+            data: {
+              bookingId: booking.id,
+              documentType: doc.documentType || 'passport_copy',
+              fileName: doc.fileName || `doc-${Date.now()}.pdf`,
+              filePath: doc.filePath || doc.url || '',
+              fileSize: doc.fileSize || 0,
+              mimeType: doc.mimeType || 'application/pdf',
+            }
+          });
+        } catch (docErr: any) {
+          console.warn('[B2C CHECKOUT] Document attach notice:', docErr.message);
+        }
+      }
+    }
+
     try {
-      const msg = `*Ministry of Hajj approved Umrah Voucher*\n\nDear ${fullName},\nYour booking is confirmed!\n\nBooking Ref: *${bookingRef}*\nVoucher Ref: *${voucherRef}*\nPassengers: *${travelersCount}* Pax\n\nKaaba awaits you. Safe travels!`;
+      const msg = `*Ministry of Hajj approved Umrah Voucher*\n\nDear ${fullName},\nYour booking is confirmed!\n\nBooking Ref: *${bookingRef}*\nVoucher Ref: *${voucherRef}*\nPassengers: *${travelersCount}* Pax\nType: *${(req.body.visaType || accommodationType || 'Umrah').toUpperCase()}*\n\nKaaba awaits you. Safe travels!`;
       await sendCustomWhatsApp(mobileNumber, msg);
     } catch (err: any) {
       console.error('[B2C CHECKOUT] WhatsApp dispatch failed:', err.message);
@@ -780,7 +800,442 @@ router.post(
     res.status(201).json({
       success: true,
       bookingReference: bookingRef,
+      voucherNumber: voucherRef,
+      id: booking.id,
+      visaType: booking.visaType,
+      accommodationType: booking.accommodationType,
+      passengerCount: booking.passengerCount,
       message: 'B2C Booking completed, allotments locked, and WhatsApp voucher dispatched successfully',
+    });
+  })
+);
+
+// ==========================================
+// 7. Dedicated B2C WhatsApp Automation Booking API
+// ==========================================
+router.post(
+  '/whatsapp-booking',
+  asyncHandler(async (req: any, res: Response) => {
+    const {
+      bookingType, // 're_entry' | 'individual' | 'group'
+      guestName,
+      guestMobile,
+      passengerCount = 1,
+      passengers = [],
+      // Accommodation
+      accommodationType = 'hotel', // 'hotel' | 'iqama'
+      makkahHotelId,
+      makkahHotelName,
+      makkahNights = 4,
+      madinahHotelId,
+      madinahHotelName,
+      madinahNights = 3,
+      checkInDate = new Date().toISOString().split('T')[0],
+      // Re-entry / Iqama Details
+      iqamaNumber,
+      iqamaSponserName,
+      sponserDob,
+      sponserMobileNumber,
+      sponserNationalShortAddress,
+      // Travel & Flight Details
+      arrivalAirportCode = 'JED',
+      arrivalAirportName,
+      arrivalFlightNumber,
+      arrivalDateTime,
+      departureAirportCode = 'MED',
+      departureAirportName,
+      departureFlightNumber,
+      departureDateTime,
+      isWithoutTicket = false,
+      isOneWay = false,
+      // Movements / Transports
+      movements = [],
+      hasTransportation = false,
+      vehicleType,
+      // Group specifics
+      groupNumber,
+      groupName,
+      // Documents
+      documents = [],
+    } = req.body;
+
+    const adminUser = await prisma.user.findFirst({ where: { role: 'admin' } });
+    if (!adminUser) {
+      return res.status(500).json({ success: false, error: 'Admin user configuration missing' });
+    }
+
+    let b2cParty = await prisma.party.findUnique({
+      where: { email: 'b2c-direct@moulavi.in' },
+    });
+
+    if (!b2cParty) {
+      const currency = await prisma.currencyMaster.findFirst();
+      if (!currency) {
+        return res.status(500).json({ success: false, error: 'Currency master seeding missing' });
+      }
+
+      b2cParty = await prisma.party.create({
+        data: {
+          partyCode: 'B2C_DIRECT',
+          partyName: 'B2C Consumer Channel',
+          email: 'b2c-direct@moulavi.in',
+          customerType: 'direct',
+          isCustomer: true,
+          isSupplier: false,
+          createdBy: adminUser.id,
+          accountCurrencyId: currency.id,
+        },
+      });
+    }
+
+    const defaultAirport = await prisma.locationMaster.findFirst({
+      where: { locationType: 'AIRPORT' }
+    }) || (await prisma.locationMaster.findFirst());
+
+    const defaultAirportId = defaultAirport?.id || '';
+
+    // Resolve Makkah / Madinah Hotels
+    let makkahHotel: any = null;
+    if (makkahHotelId) {
+      makkahHotel = await prisma.locationMaster.findUnique({ where: { id: makkahHotelId } });
+    } else if (makkahHotelName) {
+      makkahHotel = await prisma.locationMaster.findFirst({
+        where: { name: { contains: makkahHotelName } }
+      });
+    }
+
+    let madinahHotel: any = null;
+    if (madinahHotelId) {
+      madinahHotel = await prisma.locationMaster.findUnique({ where: { id: madinahHotelId } });
+    } else if (madinahHotelName) {
+      madinahHotel = await prisma.locationMaster.findFirst({
+        where: { name: { contains: madinahHotelName } }
+      });
+    }
+
+    const resolvedVisaType = bookingType === 're_entry' 
+      ? 're_entry' 
+      : bookingType === 'group' || (passengerCount > 10) 
+      ? 'group_visa' 
+      : 'individual_visa';
+
+    const randomSuffix = Math.floor(100000 + Math.random() * 900000);
+    const bookingRef = `UMR-2026-${randomSuffix}`;
+
+    const numPax = parseInt(String(passengerCount), 10) || 1;
+    const resolvedCheckIn = new Date(checkInDate);
+    const numMakkahNights = parseInt(String(makkahNights), 10) || 0;
+    const numMadinahNights = parseInt(String(madinahNights), 10) || 0;
+    const totalNights = (numMakkahNights + numMadinahNights) || 7;
+
+    const booking = await prisma.umrahVisaBooking.create({
+      data: {
+        partyId: b2cParty.id,
+        bookingReference: bookingRef,
+        passengerCount: numPax,
+        visaType: resolvedVisaType,
+        accommodationType: accommodationType === 'iqama' ? 'iqama' : 'hotel',
+        isWithoutTicket: !!isWithoutTicket,
+        isOneWay: !!isOneWay,
+        guestName: guestName || 'B2C Pilgrim',
+        guestMobile: guestMobile || '',
+        status: 'booking_success',
+        groupNumber: groupNumber || (resolvedVisaType === 'group_visa' ? `GRP-${randomSuffix}` : null),
+        groupName: groupName || `B2C-${(guestName || 'Pilgrim').split(' ')[0]}`,
+        hasTransportation: hasTransportation || (movements && movements.length > 0),
+        passengers: {
+          create: (passengers && Array.isArray(passengers) && passengers.length > 0)
+            ? passengers.map((p: any) => ({
+                fullName: p.fullName || guestName || 'Pilgrim',
+                passportNumber: p.passportNumber || '',
+                nationality: p.nationality || 'Saudi / Expat',
+                gender: p.gender === 'female' || p.gender === 'FEMALE' ? 'FEMALE' : 'MALE',
+                dateOfBirth: p.dateOfBirth ? new Date(p.dateOfBirth) : null,
+                passportExpiry: p.passportExpiry ? new Date(p.passportExpiry) : null,
+                phoneNumber: p.phoneNumber || guestMobile || '',
+              }))
+            : [
+                {
+                  fullName: guestName || 'Pilgrim',
+                  passportNumber: '',
+                  nationality: 'Saudi / Expat',
+                  gender: 'MALE',
+                }
+              ]
+        },
+        travelDetails: {
+          create: [
+            {
+              arrivalDateTime: arrivalDateTime ? new Date(arrivalDateTime) : resolvedCheckIn,
+              arrivalAirportId: defaultAirportId,
+              arrivalFlightNumber: isWithoutTicket ? 'NT-0000' : (arrivalFlightNumber || 'SV-300'),
+              departureDateTime: departureDateTime ? new Date(departureDateTime) : new Date(resolvedCheckIn.getTime() + totalNights * 86400000),
+              departureAirportId: defaultAirportId,
+              departureFlightNumber: isWithoutTicket ? 'NT-0000' : (departureFlightNumber || 'SV-301'),
+            }
+          ]
+        }
+      }
+    });
+
+    // Handle Iqama Details for Re-Entry
+    if (accommodationType === 'iqama' || bookingType === 're_entry') {
+      await prisma.umrahSponserIqamaDetails.create({
+        data: {
+          bookingId: booking.id,
+          iqamaSponserName: iqamaSponserName || guestName || 'Sponsor Name',
+          iqamaNumber: iqamaNumber || '1000000000',
+          sponserDob: sponserDob ? new Date(sponserDob) : new Date('1990-01-01'),
+          sponserMobileNumber: sponserMobileNumber || guestMobile || '',
+          sponserNationalShortAddress: sponserNationalShortAddress || 'KSA National Address',
+          isAlternate: false,
+          makkahHotelName: makkahHotelName || makkahHotel?.name || null,
+          madinahHotelName: madinahHotelName || madinahHotel?.name || null,
+        }
+      });
+    }
+
+    // Handle Makkah Hotel
+    if (makkahHotel && numMakkahNights > 0) {
+      await prisma.umrahHotelBooking.create({
+        data: {
+          bookingId: booking.id,
+          hotelId: makkahHotel.id,
+          cityId: makkahHotel.cityId,
+          checkInDate: resolvedCheckIn,
+          checkOutDate: new Date(resolvedCheckIn.getTime() + numMakkahNights * 86400000),
+          brn: 'B2C_AUTO_BRN_1',
+          bedsQuantity: numPax,
+        }
+      });
+      await InventoryService.recalculateInventory(makkahHotel.id, 'B2C_AUTO_BRN_1');
+    }
+
+    // Handle Madinah Hotel
+    if (madinahHotel && numMadinahNights > 0) {
+      const madinahCheckIn = new Date(resolvedCheckIn.getTime() + numMakkahNights * 86400000);
+      await prisma.umrahHotelBooking.create({
+        data: {
+          bookingId: booking.id,
+          hotelId: madinahHotel.id,
+          cityId: madinahHotel.cityId,
+          checkInDate: madinahCheckIn,
+          checkOutDate: new Date(madinahCheckIn.getTime() + numMadinahNights * 86400000),
+          brn: 'B2C_AUTO_BRN_2',
+          bedsQuantity: numPax,
+        }
+      });
+      await InventoryService.recalculateInventory(madinahHotel.id, 'B2C_AUTO_BRN_2');
+    }
+
+    // Handle Transport Movements
+    if (movements && Array.isArray(movements) && movements.length > 0) {
+      const defaultCity = await prisma.cityMaster.findFirst();
+      const defaultCityId = defaultCity?.id || '';
+
+      for (const m of movements) {
+        let tDate = resolvedCheckIn;
+        if (m.travelDateTime) {
+          tDate = new Date(m.travelDateTime);
+        } else if (m.date) {
+          tDate = new Date(m.date);
+        }
+
+        await prisma.umrahMovementDetail.create({
+          data: {
+            bookingId: booking.id,
+            travelDateTime: tDate,
+            fromLocationId: m.fromLocationId || defaultAirportId,
+            toLocationId: m.toLocationId || defaultAirportId,
+            fromCityId: m.fromCityId || defaultCityId,
+            toCityId: m.toCityId || defaultCityId,
+            isAlternate: false,
+          }
+        });
+      }
+    }
+
+    // Attach documents
+    if (documents && Array.isArray(documents) && documents.length > 0) {
+      for (const doc of documents) {
+        try {
+          await prisma.document.create({
+            data: {
+              bookingId: booking.id,
+              documentType: doc.documentType || 'passport_copy',
+              fileName: doc.fileName || `doc-${Date.now()}.pdf`,
+              filePath: doc.filePath || doc.url || '',
+              fileSize: doc.fileSize || 0,
+              mimeType: doc.mimeType || 'application/pdf',
+            }
+          });
+        } catch (docErr: any) {
+          console.warn('[WHATSAPP BOOKING] Document upload notice:', docErr.message);
+        }
+      }
+    }
+
+    // Create Voucher
+    const voucherRef = `VCH-${randomSuffix}`;
+    await prisma.voucher.create({
+      data: {
+        bookingId: booking.id,
+        voucherNumber: voucherRef,
+        reservationDate: new Date(),
+        guestName: guestName || 'B2C Pilgrim',
+        guestMobile: guestMobile || '',
+        partyId: b2cParty.id,
+        paxCount: numPax,
+        generatedBy: adminUser.id,
+        hotels: {
+          create: [
+            ...(makkahHotel ? [{
+              number: 1,
+              location: 'Makkah',
+              hotelName: makkahHotel.name,
+              checkIn: resolvedCheckIn,
+              checkOut: new Date(resolvedCheckIn.getTime() + numMakkahNights * 86400000),
+              days: numMakkahNights,
+              brn: 'B2C_AUTO_BRN_1',
+            }] : []),
+            ...(madinahHotel ? [{
+              number: 2,
+              location: 'Madinah',
+              hotelName: madinahHotel.name,
+              checkIn: new Date(resolvedCheckIn.getTime() + numMakkahNights * 86400000),
+              checkOut: new Date(resolvedCheckIn.getTime() + (numMakkahNights + numMadinahNights) * 86400000),
+              days: numMadinahNights,
+              brn: 'B2C_AUTO_BRN_2',
+            }] : []),
+          ]
+        }
+      }
+    });
+
+    // Send WhatsApp Confirmation if mobile is provided
+    if (guestMobile) {
+      try {
+        const typeLabel = resolvedVisaType === 're_entry' ? 'Re-Entry / Iqama Sponsor' : resolvedVisaType === 'group_visa' ? 'Group Umrah Package' : 'Individual Umrah Package';
+        const msg = `*🕋 Moulavi Travels — Booking Confirmation*\n\nDear *${guestName || 'Pilgrim'}*,\nYour booking has been received and confirmed!\n\n📋 *Booking Reference:* ${bookingRef}\n🎫 *Voucher Reference:* ${voucherRef}\n👥 *Pilgrims:* ${numPax} Pax\n🏷️ *Type:* ${typeLabel}\n\nOur team is finalizing your Ministry of Hajj approvals. Have a blessed journey!`;
+        await sendCustomWhatsApp(guestMobile, msg);
+      } catch (waErr: any) {
+        console.error('[WHATSAPP BOOKING] Confirmation send failed:', waErr.message);
+      }
+    }
+
+    return res.status(201).json({
+      success: true,
+      bookingReference: bookingRef,
+      voucherNumber: voucherRef,
+      bookingId: booking.id,
+      visaType: resolvedVisaType,
+      accommodationType: booking.accommodationType,
+      passengerCount: numPax,
+      status: 'confirmed',
+      message: 'Booking registered successfully in Moulavi ERP',
+    });
+  })
+);
+
+// ==========================================
+// 8. B2C Booking Status Lookup (by Ref or Mobile)
+// ==========================================
+router.get(
+  '/booking/status/:identifier',
+  asyncHandler(async (req: any, res: Response) => {
+    const { identifier } = req.params;
+    const clean = identifier ? identifier.trim() : '';
+
+    const booking = await prisma.umrahVisaBooking.findFirst({
+      where: {
+        OR: [
+          { bookingReference: clean },
+          { guestMobile: clean },
+          { guestMobile: { contains: clean.replace(/\+/g, '') } },
+          { vouchers: { some: { voucherNumber: clean } } }
+        ]
+      },
+      include: {
+        passengers: true,
+        travelDetails: true,
+        hotelBookings: { include: { hotel: true } },
+        movementDetails: { include: { fromLocation: true, toLocation: true } },
+        sponsorIqamaDetails: true,
+        vouchers: true,
+        documents: true,
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        error: `No booking found for identifier: ${identifier}`,
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        bookingReference: booking.bookingReference,
+        status: booking.status,
+        visaType: booking.visaType,
+        accommodationType: booking.accommodationType,
+        guestName: booking.guestName,
+        guestMobile: booking.guestMobile,
+        passengerCount: booking.passengerCount,
+        passengers: booking.passengers.map(p => ({
+          fullName: p.fullName,
+          passportNumber: p.passportNumber,
+          nationality: p.nationality,
+        })),
+        travelDetails: booking.travelDetails[0] || null,
+        hotels: booking.hotelBookings.map(h => ({
+          hotelName: h.hotel?.name || 'Hotel',
+          checkInDate: h.checkInDate,
+          checkOutDate: h.checkOutDate,
+        })),
+        vouchers: booking.vouchers.map(v => ({
+          voucherNumber: v.voucherNumber,
+          reservationDate: v.reservationDate,
+        })),
+        documentsCount: booking.documents.length,
+        submittedAt: booking.submittedAt,
+      }
+    });
+  })
+);
+
+// ==========================================
+// 9. B2C Master Catalogs (Hotels, Airports, Routes)
+// ==========================================
+router.get(
+  '/masters',
+  asyncHandler(async (_req: any, res: Response) => {
+    const [hotels, airports, transportRoutes] = await Promise.all([
+      prisma.locationMaster.findMany({
+        where: { locationType: 'HOTEL' },
+        select: { id: true, name: true, cityId: true },
+        take: 30,
+      }),
+      prisma.locationMaster.findMany({
+        where: { locationType: 'AIRPORT' },
+        select: { id: true, name: true, iataCode: true },
+        take: 30,
+      }),
+      prisma.transportRouteMaster.findMany({
+        select: { id: true, routeName: true, routeCode: true, fromCity: true, toCity: true },
+        take: 30,
+      })
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        hotels,
+        airports,
+        transportRoutes,
+      }
     });
   })
 );
