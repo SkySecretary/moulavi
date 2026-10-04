@@ -752,4 +752,87 @@ router.delete(
   })
 );
 
+// Get current party's API key
+router.get(
+  '/my-api-key',
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    let party = await prisma.party.findFirst({
+      where: {
+        OR: [
+          { userId: user.id },
+          { email: user.email }
+        ]
+      },
+      select: {
+        id: true,
+        partyCode: true,
+        partyName: true,
+        email: true,
+        apiKey: true,
+      }
+    });
+
+    if (!party) {
+      return res.status(404).json({ error: 'No party account linked to this user' });
+    }
+
+    // Auto-generate if missing
+    if (!party.apiKey) {
+      const crypto = require('crypto');
+      const newApiKey = `ns_live_${crypto.randomBytes(16).toString('hex')}`;
+      party = await prisma.party.update({
+        where: { id: party.id },
+        data: { apiKey: newApiKey },
+        select: {
+          id: true,
+          partyCode: true,
+          partyName: true,
+          email: true,
+          apiKey: true,
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      data: party,
+    });
+  })
+);
+
+// Generate or regenerate API key for a Party
+router.post(
+  '/:id/generate-api-key',
+  authenticate,
+  authorize('admin', 'staff'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const crypto = require('crypto');
+    const newApiKey = `ns_live_${crypto.randomBytes(16).toString('hex')}`;
+
+    const updated = await prisma.party.update({
+      where: { id },
+      data: { apiKey: newApiKey },
+      select: {
+        id: true,
+        partyCode: true,
+        partyName: true,
+        email: true,
+        apiKey: true,
+        updatedAt: true,
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'API Key generated successfully',
+      party: updated,
+    });
+  })
+);
+
 export default router;

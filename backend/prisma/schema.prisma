@@ -71,6 +71,7 @@ model Party {
   allowWithoutTicket       Boolean            @default(false) @map("allow_without_ticket")
   allowReEntryOneWayTicket Boolean            @default(false) @map("allow_reentry_one_way_ticket")
   allowReEntryWithoutTicket Boolean           @default(false) @map("allow_reentry_without_ticket")
+  apiKey                   String?            @unique @map("api_key")
   user                     User?              @relation("PartyUser", fields: [userId], references: [id])
   creator                  User               @relation("CreatedBy", fields: [createdBy], references: [id])
   accountCurrency          CurrencyMaster     @relation(fields: [accountCurrencyId], references: [id])

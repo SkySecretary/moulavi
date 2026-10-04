@@ -23,7 +23,8 @@ import {
   Compass,
   LifeBuoy,
   Activity,
-  ShieldCheck
+  ShieldCheck,
+  Code
 } from 'lucide-react';
 
 const masterItems = [
@@ -36,6 +37,7 @@ const masterItems = [
   { name: 'Location Master', description: 'Manage locations and points of interest', icon: Database, path: '/dashboard/masters/location', category: 'Region' },
   { name: 'Vehicle Type Master', icon: Car, path: '/dashboard/masters/vehicle-type', category: 'Transport', description: 'Manage vehicle types' },
   { name: 'Party Master', icon: Users, path: '/dashboard/masters/party', category: 'External', description: 'Manage agencies and parties' },
+  { name: 'Partner API & Docs', icon: Code, path: '/dashboard/settings/api-docs', category: 'External', description: 'Interactive developer documentation, sandbox, and API key management for external integrations' },
   { name: 'Agent Compliance Audit', icon: Users, path: '/dashboard/umrah-visa/agent-compliance', category: 'External', description: 'Monitor sub-agent scores and compliance lock status' },
   { name: 'Transport Route Master', icon: Route, path: '/dashboard/masters/transport-route', category: 'Transport', description: 'Define transport routes' },
   { name: 'Transport Master', icon: Truck, path: '/dashboard/masters/transport', category: 'Transport', description: 'Configure transportation services' },

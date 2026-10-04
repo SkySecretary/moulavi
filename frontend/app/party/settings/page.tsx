@@ -11,11 +11,13 @@ import { Separator } from '@/components/ui/separator';
 import { PartyLayout } from '@/components/layouts/PartyLayout';
 import { getUser, hasRole } from '@/lib/auth';
 import { partyAPI, authAPI } from '@/lib/api';
-import { Loader2, Save, Lock, User } from 'lucide-react';
+import { Loader2, Save, Lock, User, Key, Copy, Check, ExternalLink, Code } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Party {
   id: string;
+  partyCode?: string;
+  apiKey?: string;
   partyName: string;
   email: string;
   contactNumber?: string;
@@ -45,7 +47,8 @@ export default function PartySettingsPage() {
   const [saving, setSaving] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [party, setParty] = useState<Party | null>(null);
-  const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'api'>('profile');
+  const [copiedPartyKey, setCopiedPartyKey] = useState(false);
   
   const [formData, setFormData] = useState({
     partyName: '',
@@ -265,6 +268,17 @@ export default function PartySettingsPage() {
               >
                 <Lock className="h-4 w-4" />
                 Security & Password
+              </button>
+              <button
+                onClick={() => setActiveTab('api')}
+                className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
+                  activeTab === 'api'
+                    ? 'bg-primary/20 text-secondary shadow-sm'
+                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                }`}
+              >
+                <Key className="h-4 w-4" />
+                API & Developer Integration
               </button>
           </div>
 
@@ -562,6 +576,89 @@ export default function PartySettingsPage() {
                 </div>
               </CardContent>
             </Card>
+            </div>
+          )}
+
+          {activeTab === 'api' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <Card className="border-none shadow-md overflow-hidden">
+                <CardHeader className="bg-white border-b border-gray-50">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-xl font-bold text-secondary flex items-center gap-2">
+                        <Key className="h-5 w-5 text-primary" />
+                        Partner API & Developer Integration
+                      </CardTitle>
+                      <CardDescription>
+                        Integrate your agency software or CRM directly with NuSync to submit bookings programmatically.
+                      </CardDescription>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => router.push('/api-docs')}
+                      className="bg-primary text-white font-bold text-xs"
+                    >
+                      <Code className="h-4 w-4 mr-1.5" />
+                      Open Full API Docs & Sandbox
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6 space-y-6">
+                  {/* API Key Box */}
+                  <div className="p-5 rounded-2xl bg-slate-900 text-white space-y-3 shadow-inner">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">Your Unique Agency API Key</span>
+                      <span className="text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded-full font-mono">
+                        ACTIVE
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Input
+                        readOnly
+                        value={party?.apiKey || 'ns_live_test_api_key_123456789'}
+                        className="font-mono text-sm bg-slate-950 text-emerald-400 border-slate-800 h-11"
+                      />
+                      <Button
+                        onClick={() => {
+                          navigator.clipboard.writeText(party?.apiKey || 'ns_live_test_api_key_123456789');
+                          setCopiedPartyKey(true);
+                          toast.success('API Key copied to clipboard!');
+                          setTimeout(() => setCopiedPartyKey(false), 2000);
+                        }}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-11 px-4"
+                      >
+                        {copiedPartyKey ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+
+                    <p className="text-[11px] text-slate-400">
+                      Pass this key in the <code className="text-emerald-300 font-mono">x-api-key</code> HTTP header when calling <code className="text-emerald-300 font-mono">/api/v1/external/bookings</code>.
+                    </p>
+                  </div>
+
+                  {/* Quick Usage Guide */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-2">
+                      <h4 className="font-bold text-xs text-secondary uppercase tracking-wider">Supported Booking Types</h4>
+                      <ul className="text-xs text-gray-600 space-y-1">
+                        <li>• <strong>Individual Visa:</strong> Standard bookings with hotels or Iqama.</li>
+                        <li>• <strong>Re-Entry Visa:</strong> Re-entry pilgrims with visa numbers.</li>
+                        <li>• <strong>Group Visa:</strong> Large groups with official group numbers.</li>
+                      </ul>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-2">
+                      <h4 className="font-bold text-xs text-secondary uppercase tracking-wider">Production Endpoints</h4>
+                      <ul className="text-[11px] font-mono text-gray-600 space-y-1">
+                        <li>• <code className="text-indigo-600 font-bold">POST</code> /api/v1/external/bookings</li>
+                        <li>• <code className="text-indigo-600 font-bold">GET</code> /api/v1/external/bookings</li>
+                        <li>• <code className="text-indigo-600 font-bold">GET</code> /api/v1/external/masters/lookup</li>
+                      </ul>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
         </div>

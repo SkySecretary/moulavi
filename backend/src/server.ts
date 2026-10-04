@@ -38,6 +38,7 @@ import hotelInventoryRoutes from './routes/hotelInventory.routes';
 import whatsappChannelRoutes from './routes/whatsappChannel.routes';
 import b2cRoutes from './routes/b2c.routes';
 import supportTicketRoutes from './routes/supportTicket.routes';
+import externalBookingRoutes from './routes/externalBooking.routes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
@@ -133,6 +134,8 @@ app.use('/api/hotel-inventories', hotelInventoryRoutes);
 app.use('/api/whatsapp-channels', whatsappChannelRoutes);
 app.use('/api/b2c', b2cRoutes);
 app.use('/api/support-tickets', supportTicketRoutes);
+app.use('/api/v1/external', externalBookingRoutes);
+app.use('/api/v1/bookings', externalBookingRoutes);
 
 // Error handlers
 app.use(notFoundHandler);
