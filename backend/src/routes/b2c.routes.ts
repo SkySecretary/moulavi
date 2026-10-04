@@ -949,7 +949,7 @@ router.post(
                 fullName: p.fullName || guestName || 'Pilgrim',
                 passportNumber: p.passportNumber || '',
                 nationality: p.nationality || 'Saudi / Expat',
-                gender: p.gender === 'female' || p.gender === 'FEMALE' ? 'FEMALE' : 'MALE',
+                gender: p.gender === 'female' || p.gender === 'FEMALE' ? 'female' : 'male',
                 dateOfBirth: p.dateOfBirth ? new Date(p.dateOfBirth) : null,
                 passportExpiry: p.passportExpiry ? new Date(p.passportExpiry) : null,
                 phoneNumber: p.phoneNumber || guestMobile || '',
@@ -959,7 +959,7 @@ router.post(
                   fullName: guestName || 'Pilgrim',
                   passportNumber: '',
                   nationality: 'Saudi / Expat',
-                  gender: 'MALE',
+                  gender: 'male',
                 }
               ]
         },
@@ -1220,11 +1220,14 @@ router.get(
       }),
       prisma.locationMaster.findMany({
         where: { locationType: 'AIRPORT' },
-        select: { id: true, name: true, iataCode: true },
+        select: { id: true, name: true, code: true },
         take: 30,
       }),
       prisma.transportRouteMaster.findMany({
-        select: { id: true, routeName: true, routeCode: true, fromCity: true, toCity: true },
+        include: {
+          city1: { select: { id: true, name: true } },
+          city2: { select: { id: true, name: true } },
+        },
         take: 30,
       })
     ]);

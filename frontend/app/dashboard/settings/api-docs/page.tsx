@@ -12,26 +12,29 @@ import {
   Copy, 
   Check, 
   Play, 
-  FileCode, 
-  ExternalLink, 
-  Sparkles, 
   Layers, 
   CheckCircle2, 
   AlertCircle, 
   RefreshCw, 
   Code, 
-  BookOpen, 
   Terminal,
   Send,
   Building2,
-  Plane,
   ShieldCheck,
-  UserCheck
+  Users,
+  Search,
+  Trash2,
+  Eye,
+  EyeOff,
+  Bot,
+  Zap,
+  Globe
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 
 const SAMPLE_INDIVIDUAL_JSON = {
+  partyId: "", // Optional for Admin (leave empty for Direct B2C or specify Agency ID/Code)
   visaType: "individual_visa",
   guestName: "Mohammad Farooq",
   guestMobile: "+919876543210",
@@ -84,6 +87,7 @@ const SAMPLE_INDIVIDUAL_JSON = {
 };
 
 const SAMPLE_REENTRY_JSON = {
+  partyId: "", // Optional for Admin (leave empty for Direct B2C or specify Agency ID/Code)
   visaType: "re_entry",
   umrahVisaNumber: "6092184910",
   guestName: "Tariq Mahmood",
@@ -101,40 +105,44 @@ const SAMPLE_REENTRY_JSON = {
     }
   ],
   arrivalDate: "2026-11-05",
-  arrivalTime: "10:00",
+  arrivalTime: "08:00",
   arrivalAirportCode: "JED",
-  arrivalFlightNumber: "SV-711",
-  departureDate: "2026-11-15",
-  departureTime: "18:00",
+  arrivalFlightNumber: "PK-731",
+  departureDate: "2026-11-20",
+  departureTime: "16:45",
   departureAirportCode: "JED",
-  departureFlightNumber: "SV-712",
+  departureFlightNumber: "PK-732",
   accommodationType: "iqama",
   iqamaDetails: {
-    iqamaNumber: "2489012345",
-    iqamaSponserName: "Abdulrahman Al-Ghamdi",
-    sponserDob: "1978-06-14",
-    sponserMobileNumber: "+966509988776",
-    sponserNationalShortAddress: "RRTA2941, Jeddah",
+    iqamaNumber: "2498172635",
+    iqamaSponserName: "Al-Rajhi Contracting Co.",
+    sponserDob: "1980-01-01",
+    sponserMobileNumber: "+966551122334",
+    sponserNationalShortAddress: "RRRD2938 Riyadh",
     sponserNationality: "Saudi Arabia",
-    makkahHotelName: "Iqama Resident Host Makkah"
+    makkahHotelName: "Al Diwan Tower",
+    madinahHotelName: "Elaf Taiba"
   }
 };
 
 const SAMPLE_GROUP_JSON = {
+  partyId: "", // Optional for Admin (leave empty for Direct B2C or specify Agency ID/Code)
   visaType: "group_visa",
-  groupNumber: "GRP-88992201",
-  groupName: "Al-Badr Group Nov 2026",
-  guestName: "Sheikh Usman Ghani",
-  guestMobile: "+919844556677",
+  groupNumber: "GRP-2026-9921",
+  groupName: "Delhi Premier Umrah Group Nov 2026",
+  guestName: "Delhi Premier Group",
+  guestMobile: "+919811223344",
+  passengerCount: 2,
   passengers: [
     {
-      fullName: "Sheikh Usman Ghani",
+      fullName: "Usman Ghani",
       isLeadPassenger: true,
       passportNumber: "K1122334",
       nationality: "IN",
       gender: "male",
-      dateOfBirth: "1975-01-10",
-      passportExpiry: "2031-09-12"
+      dateOfBirth: "1975-02-10",
+      passportExpiry: "2030-09-12",
+      phoneNumber: "+919811223344"
     },
     {
       fullName: "Zainab Usman",
@@ -174,30 +182,118 @@ const SAMPLE_GROUP_JSON = {
 };
 
 export default function ApiDocsPage() {
-  const [apiKey, setApiKey] = useState('ns_live_test_api_key_123456789');
-  const [copiedKey, setCopiedKey] = useState(false);
+  // Admin Master Key State
+  const [adminApiKey, setAdminApiKey] = useState('');
+  const [showAdminKey, setShowAdminKey] = useState(false);
+  const [copiedAdminKey, setCopiedAdminKey] = useState(false);
+  const [isRegeneratingAdminKey, setIsRegeneratingAdminKey] = useState(false);
+
+  // Agency Tokens State
+  const [agencies, setAgencies] = useState<any[]>([]);
+  const [agencySearch, setAgencySearch] = useState('');
+  const [loadingAgencies, setLoadingAgencies] = useState(false);
+  const [actionInProgressId, setActionInProgressId] = useState<string | null>(null);
+
+  // Sandbox State
+  const [authMode, setAuthMode] = useState<'admin' | 'agency'>('admin');
+  const [selectedAgencyToken, setSelectedAgencyToken] = useState<string>('');
+  const [activeApiKey, setActiveApiKey] = useState('');
   const [selectedVisaType, setSelectedVisaType] = useState<'individual' | 're_entry' | 'group'>('individual');
-  const [codeLang, setCodeLang] = useState<'curl' | 'javascript' | 'python' | 'php'>('curl');
+  const [codeLang, setCodeLang] = useState<'curl' | 'javascript' | 'python' | 'php' | 'whatsapp'>('curl');
   const [testPayload, setTestPayload] = useState(JSON.stringify(SAMPLE_INDIVIDUAL_JSON, null, 2));
   const [testResponse, setTestResponse] = useState<any>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Master Catalogs
   const [masterLookups, setMasterLookups] = useState<any>(null);
   const [loadingLookups, setLoadingLookups] = useState(false);
 
   useEffect(() => {
-    fetchMyApiKey();
+    fetchAdminMasterKey();
+    fetchAgencies();
     fetchLookups();
   }, []);
 
-  const fetchMyApiKey = async () => {
+  useEffect(() => {
+    if (authMode === 'admin') {
+      setActiveApiKey(adminApiKey || 'ns_master_demo_key');
+    } else {
+      setActiveApiKey(selectedAgencyToken || 'ns_live_agency_token');
+    }
+  }, [authMode, adminApiKey, selectedAgencyToken]);
+
+  const fetchAdminMasterKey = async () => {
     try {
-      const res = await api.get('/parties/my-api-key');
+      const res = await api.get('/parties/admin/master-api-key');
       if (res.data?.data?.apiKey) {
-        setApiKey(res.data.data.apiKey);
+        setAdminApiKey(res.data.data.apiKey);
+        setActiveApiKey(res.data.data.apiKey);
       }
-    } catch {
-      // Keep default fallback
+    } catch (e) {
+      console.error('Failed to fetch admin master key:', e);
+    }
+  };
+
+  const handleRegenerateAdminKey = async () => {
+    if (!confirm('Are you sure you want to regenerate your Admin Master API Key? Any external automation or bot using the old key will need to be updated.')) {
+      return;
+    }
+    try {
+      setIsRegeneratingAdminKey(true);
+      const res = await api.post('/parties/admin/generate-master-api-key');
+      if (res.data?.data?.apiKey) {
+        setAdminApiKey(res.data.data.apiKey);
+        setActiveApiKey(res.data.data.apiKey);
+        toast.success('Admin Master API Key regenerated successfully!');
+      }
+    } catch (e: any) {
+      toast.error(e.response?.data?.error || 'Failed to regenerate Master API Key');
+    } finally {
+      setIsRegeneratingAdminKey(false);
+    }
+  };
+
+  const fetchAgencies = async () => {
+    try {
+      setLoadingAgencies(true);
+      const res = await api.get('/parties/admin/partner-keys');
+      if (res.data?.data) {
+        setAgencies(res.data.data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch partner keys:', e);
+    } finally {
+      setLoadingAgencies(false);
+    }
+  };
+
+  const handleIssueAgencyKey = async (agencyId: string) => {
+    try {
+      setActionInProgressId(agencyId);
+      const res = await api.post(`/parties/${agencyId}/generate-api-key`);
+      toast.success(res.data?.message || 'Agency API Key issued successfully!');
+      await fetchAgencies();
+    } catch (e: any) {
+      toast.error(e.response?.data?.error || 'Failed to generate agency API key');
+    } finally {
+      setActionInProgressId(null);
+    }
+  };
+
+  const handleRevokeAgencyKey = async (agencyId: string) => {
+    if (!confirm('Are you sure you want to revoke this agency API key? All programmatic requests from this agency will immediately fail.')) {
+      return;
+    }
+    try {
+      setActionInProgressId(agencyId);
+      const res = await api.post(`/parties/${agencyId}/revoke-api-key`);
+      toast.success(res.data?.message || 'Agency API Key revoked successfully!');
+      await fetchAgencies();
+    } catch (e: any) {
+      toast.error(e.response?.data?.error || 'Failed to revoke agency API key');
+    } finally {
+      setActionInProgressId(null);
     }
   };
 
@@ -205,7 +301,7 @@ export default function ApiDocsPage() {
     try {
       setLoadingLookups(true);
       const res = await api.get('/v1/external/masters/lookup', {
-        headers: { 'x-api-key': apiKey }
+        headers: { 'x-api-key': adminApiKey || 'ns_master_demo_key' }
       });
       if (res.data?.data) {
         setMasterLookups(res.data.data);
@@ -238,7 +334,7 @@ export default function ApiDocsPage() {
       setIsValidating(true);
       const parsed = JSON.parse(testPayload);
       const res = await api.post('/v1/external/bookings/validate', parsed, {
-        headers: { 'x-api-key': apiKey }
+        headers: { 'x-api-key': activeApiKey }
       });
       setTestResponse({
         status: res.status,
@@ -263,7 +359,7 @@ export default function ApiDocsPage() {
       setIsSubmitting(true);
       const parsed = JSON.parse(testPayload);
       const res = await api.post('/v1/external/bookings', parsed, {
-        headers: { 'x-api-key': apiKey }
+        headers: { 'x-api-key': activeApiKey }
       });
       setTestResponse({
         status: res.status,
@@ -287,23 +383,33 @@ export default function ApiDocsPage() {
     const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/v1/external` : 'https://umra.moulavi.in/api/v1/external';
 
     if (codeLang === 'curl') {
-      return `curl -X POST ${baseUrl}/bookings \\\n  -H "Content-Type: application/json" \\\n  -H "x-api-key: ${apiKey}" \\\n  -d '${testPayload.replace(/'/g, "'\\''")}'`;
+      return `curl -X POST ${baseUrl}/bookings \\\n  -H "Content-Type: application/json" \\\n  -H "x-api-key: ${activeApiKey}" \\\n  -d '${testPayload.replace(/'/g, "'\\''")}'`;
     }
 
     if (codeLang === 'javascript') {
-      return `const axios = require('axios');\n\nconst payload = ${testPayload};\n\nasync function createBooking() {\n  try {\n    const response = await axios.post(\n      '${baseUrl}/bookings',\n      payload,\n      {\n        headers: {\n          'x-api-key': '${apiKey}',\n          'Content-Type': 'application/json'\n        }\n      }\n    );\n    console.log('Booking Reference:', response.data.data.bookingReference);\n  } catch (error) {\n    console.error('Booking Error:', error.response?.data || error.message);\n  }\n}\n\ncreateBooking();`;
+      return `const axios = require('axios');\n\nconst payload = ${testPayload};\n\nasync function createBooking() {\n  try {\n    const response = await axios.post(\n      '${baseUrl}/bookings',\n      payload,\n      {\n        headers: {\n          'x-api-key': '${activeApiKey}',\n          'Content-Type': 'application/json'\n        }\n      }\n    );\n    console.log('Created Booking Reference:', response.data.data.bookingReference);\n  } catch (error) {\n    console.error('Booking Error:', error.response?.data || error.message);\n  }\n}\n\ncreateBooking();`;
     }
 
     if (codeLang === 'python') {
-      return `import requests\nimport json\n\nurl = "${baseUrl}/bookings"\nheaders = {\n    "x-api-key": "${apiKey}",\n    "Content-Type": "application/json"\n}\npayload = ${testPayload.replace(/true/g, 'True').replace(/false/g, 'False')}\n\nresponse = requests.post(url, json=payload, headers=headers)\nprint(response.json())`;
+      return `import requests\nimport json\n\nurl = "${baseUrl}/bookings"\nheaders = {\n    "x-api-key": "${activeApiKey}",\n    "Content-Type": "application/json"\n}\npayload = ${testPayload.replace(/true/g, 'True').replace(/false/g, 'False')}\n\nresponse = requests.post(url, json=payload, headers=headers)\nprint(response.json())`;
     }
 
     if (codeLang === 'php') {
-      return `<?php\n$curl = curl_init();\n\ncurl_setopt_array($curl, array(\n  CURLOPT_URL => '${baseUrl}/bookings',\n  CURLOPT_RETURNTRANSFER => true,\n  CURLOPT_CUSTOMREQUEST => 'POST',\n  CURLOPT_POSTFIELDS => '${testPayload.replace(/'/g, "\\'")}',\n  CURLOPT_HTTPHEADER => array(\n    'x-api-key: ${apiKey}',\n    'Content-Type: application/json'\n  ),\n));\n\n$response = curl_exec($curl);\ncurl_close($curl);\necho $response;`;
+      return `<?php\n$curl = curl_init();\n\ncurl_setopt_array($curl, array(\n  CURLOPT_URL => '${baseUrl}/bookings',\n  CURLOPT_RETURNTRANSFER => true,\n  CURLOPT_CUSTOMREQUEST => 'POST',\n  CURLOPT_POSTFIELDS => '${testPayload.replace(/'/g, "\\'")}',\n  CURLOPT_HTTPHEADER => array(\n    'x-api-key: ${activeApiKey}',\n    'Content-Type: application/json'\n  ),\n));\n\n$response = curl_exec($curl);\ncurl_close($curl);\necho $response;`;
+    }
+
+    if (codeLang === 'whatsapp') {
+      return `// Example WhatsApp Webhook / Node.js Chatbot Handler\napp.post('/whatsapp/webhook', async (req, res) => {\n  const { message, senderPhone } = req.body;\n  \n  // 1. Construct booking payload\n  const bookingPayload = {\n    visaType: 'individual_visa',\n    guestName: message.guestName,\n    guestMobile: senderPhone,\n    passengers: [{ fullName: message.guestName, isLeadPassenger: true }],\n    arrivalDate: message.travelDate,\n    accommodationType: 'hotel',\n    hotelBookings: [{ hotelName: 'fajr alnosk', cityName: 'Makkah', checkInDate: message.travelDate, checkOutDate: message.returnDate }]\n  };\n\n  // 2. Submit to NuSync ERP via Admin Master API Key\n  const { data } = await axios.post('${baseUrl}/bookings', bookingPayload, {\n    headers: { 'x-api-key': '${adminApiKey || "YOUR_ADMIN_MASTER_KEY"}' }\n  });\n\n  // 3. Send confirmation WhatsApp back to customer\n  await sendWhatsApp(senderPhone, 'Booking confirmed! Reference: ' + data.data.bookingReference);\n  res.sendStatus(200);\n});`;
     }
 
     return '';
   };
+
+  const filteredAgencies = agencies.filter(a => 
+    a.partyName?.toLowerCase().includes(agencySearch.toLowerCase()) ||
+    a.partyCode?.toLowerCase().includes(agencySearch.toLowerCase()) ||
+    a.email?.toLowerCase().includes(agencySearch.toLowerCase())
+  );
 
   return (
     <div className="container mx-auto p-6 space-y-8 animate-in fade-in duration-500">
@@ -311,39 +417,106 @@ export default function ApiDocsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Partner & External Booking API</h1>
-            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 font-mono text-xs">v1.0 REST</Badge>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">API Control & Developer Portal</h1>
+            <Badge className="bg-indigo-100 text-indigo-800 border-indigo-300 font-mono text-xs">Admin Master & Partner REST</Badge>
           </div>
           <p className="text-sm text-slate-500">
-            Comprehensive developer documentation and sandbox for integrating Individual, Group, and Re-Entry Umrah Visa bookings.
+            Issue and manage API tokens for external agencies, configure master automation keys, and test live booking payloads.
           </p>
-        </div>
-
-        {/* API Key Box */}
-        <div className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-sm border border-slate-800">
-          <Key className="h-4 w-4 text-emerald-400 shrink-0" />
-          <div className="space-y-0.5">
-            <span className="text-[10px] text-slate-400 font-mono uppercase tracking-wider block">Your Agency API Key</span>
-            <span className="font-mono text-xs font-semibold text-emerald-300">{apiKey}</span>
-          </div>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              handleCopy(apiKey, 'API Key');
-              setCopiedKey(true);
-              setTimeout(() => setCopiedKey(false), 2000);
-            }}
-            className="h-8 px-2 text-slate-300 hover:text-white hover:bg-slate-800 ml-2"
-          >
-            {copiedKey ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
-          </Button>
         </div>
       </div>
 
+      {/* Admin Master Key Card */}
+      <Card className="border-indigo-100 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-lg overflow-hidden">
+        <CardHeader className="pb-3 border-b border-indigo-800/40">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
+                <Key className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-base font-bold text-white flex items-center gap-2">
+                  Admin Master API Key
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full font-mono font-medium">
+                    FULL ACCESS
+                  </span>
+                </CardTitle>
+                <CardDescription className="text-xs text-indigo-200/70">
+                  Use this master key for WhatsApp bots, 3rd-party CRMs, Zapier/n8n, and backend scripts to create bookings for any agency.
+                </CardDescription>
+              </div>
+            </div>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRegenerateAdminKey}
+              disabled={isRegeneratingAdminKey}
+              className="border-indigo-400/30 text-indigo-200 hover:text-white hover:bg-indigo-800/50 bg-transparent text-xs h-8"
+            >
+              {isRegeneratingAdminKey ? <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+              Regenerate Master Key
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <div className="relative flex-1 w-full">
+              <Input
+                readOnly
+                type={showAdminKey ? 'text' : 'password'}
+                value={adminApiKey || 'ns_master_fetching_key...'}
+                className="font-mono text-sm bg-slate-950/80 text-emerald-400 border-indigo-800/60 h-11 pr-24"
+              />
+              <div className="absolute right-2 top-1.5 flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowAdminKey(!showAdminKey)}
+                  className="h-8 px-2 text-indigo-300 hover:text-white hover:bg-slate-800"
+                >
+                  {showAdminKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    handleCopy(adminApiKey, 'Admin Master Key');
+                    setCopiedAdminKey(true);
+                    setTimeout(() => setCopiedAdminKey(false), 2000);
+                  }}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white h-8 px-3 text-xs font-bold"
+                >
+                  {copiedAdminKey ? <Check className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
+                  Copy
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs text-indigo-200/80">
+            <div className="flex items-center gap-2 bg-indigo-950/40 p-2.5 rounded-lg border border-indigo-800/30">
+              <Bot className="h-4 w-4 text-emerald-400 shrink-0" />
+              <span><strong>WhatsApp Chatbots:</strong> Direct booking intake</span>
+            </div>
+            <div className="flex items-center gap-2 bg-indigo-950/40 p-2.5 rounded-lg border border-indigo-800/30">
+              <Zap className="h-4 w-4 text-amber-400 shrink-0" />
+              <span><strong>Automation:</strong> Route via <code className="text-indigo-300">partyId</code> or Direct</span>
+            </div>
+            <div className="flex items-center gap-2 bg-indigo-950/40 p-2.5 rounded-lg border border-indigo-800/30">
+              <Globe className="h-4 w-4 text-sky-400 shrink-0" />
+              <span><strong>Bypass:</strong> No ticket restrictions enforced</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Main Content Tabs */}
-      <Tabs defaultValue="sandbox" className="space-y-6">
+      <Tabs defaultValue="agencies" className="space-y-6">
         <TabsList className="bg-slate-100 p-1">
+          <TabsTrigger value="agencies" className="flex items-center gap-1.5 text-xs">
+            <Users className="h-3.5 w-3.5" />
+            Agency Token Issuance
+          </TabsTrigger>
           <TabsTrigger value="sandbox" className="flex items-center gap-1.5 text-xs">
             <Play className="h-3.5 w-3.5" />
             Interactive Sandbox
@@ -356,13 +529,144 @@ export default function ApiDocsPage() {
             <Building2 className="h-3.5 w-3.5" />
             Master Catalogs
           </TabsTrigger>
-          <TabsTrigger value="lifecycle" className="flex items-center gap-1.5 text-xs">
-            <ShieldCheck className="h-3.5 w-3.5" />
-            Admin Lifecycle
+          <TabsTrigger value="automations" className="flex items-center gap-1.5 text-xs">
+            <Bot className="h-3.5 w-3.5" />
+            Automation & Webhooks
           </TabsTrigger>
         </TabsList>
 
-        {/* TAB 1: INTERACTIVE SANDBOX */}
+        {/* TAB 1: AGENCY TOKEN ISSUANCE */}
+        <TabsContent value="agencies" className="space-y-4">
+          <Card className="border-slate-200">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <Users className="h-4 w-4 text-indigo-600" />
+                    Registered Partner Agencies & API Tokens
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Issue, rotate, or revoke API access tokens for partner agencies. Only Admin can issue and view tokens.
+                  </CardDescription>
+                </div>
+
+                <div className="relative w-full sm:w-64">
+                  <Search className="h-4 w-4 absolute left-3 top-2.5 text-slate-400" />
+                  <Input
+                    placeholder="Search agency name, code..."
+                    value={agencySearch}
+                    onChange={(e) => setAgencySearch(e.target.value)}
+                    className="pl-9 h-9 text-xs"
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {loadingAgencies ? (
+                <div className="p-8 text-center text-sm text-slate-500">
+                  <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2 text-indigo-600" />
+                  Loading agencies...
+                </div>
+              ) : filteredAgencies.length === 0 ? (
+                <div className="p-8 text-center text-sm text-slate-500">
+                  No agencies matching your search.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                        <th className="py-3 px-4">Agency Name</th>
+                        <th className="py-3 px-4">Party Code</th>
+                        <th className="py-3 px-4">Contact</th>
+                        <th className="py-3 px-4">Token Status</th>
+                        <th className="py-3 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredAgencies.map((agency) => (
+                        <tr key={agency.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-3 px-4 font-semibold text-slate-900">
+                            {agency.partyName}
+                          </td>
+                          <td className="py-3 px-4 font-mono text-slate-600">
+                            {agency.partyCode || '—'}
+                          </td>
+                          <td className="py-3 px-4 text-slate-500">
+                            <div>{agency.email}</div>
+                            {agency.whatsappNumber && <div className="text-[10px] text-emerald-600">WA: {agency.whatsappNumber}</div>}
+                          </td>
+                          <td className="py-3 px-4">
+                            {agency.apiKey ? (
+                              <div className="flex items-center gap-1.5">
+                                <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 font-mono text-[10px]">
+                                  Active
+                                </Badge>
+                                <span className="font-mono text-[11px] text-slate-500">
+                                  {agency.apiKey.substring(0, 12)}...
+                                </span>
+                              </div>
+                            ) : (
+                              <Badge variant="outline" className="text-slate-400 text-[10px]">
+                                Not Issued
+                              </Badge>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-right space-x-2">
+                            {agency.apiKey ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleCopy(agency.apiKey, `API Key for ${agency.partyName}`)}
+                                  className="h-7 text-xs px-2"
+                                >
+                                  <Copy className="h-3 w-3 mr-1" />
+                                  Copy Key
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleIssueAgencyKey(agency.id)}
+                                  disabled={actionInProgressId === agency.id}
+                                  className="h-7 text-xs px-2 text-indigo-600 hover:text-indigo-700"
+                                >
+                                  <RefreshCw className="h-3 w-3 mr-1" />
+                                  Rotate
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleRevokeAgencyKey(agency.id)}
+                                  disabled={actionInProgressId === agency.id}
+                                  className="h-7 text-xs px-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                size="sm"
+                                onClick={() => handleIssueAgencyKey(agency.id)}
+                                disabled={actionInProgressId === agency.id}
+                                className="h-7 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                              >
+                                <Key className="h-3 w-3 mr-1" />
+                                Issue Token
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB 2: INTERACTIVE SANDBOX */}
         <TabsContent value="sandbox" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left: Request Payload Builder (7 cols) */}
@@ -373,10 +677,10 @@ export default function ApiDocsPage() {
                     <div>
                       <CardTitle className="text-base font-bold flex items-center gap-2">
                         <Terminal className="h-4 w-4 text-indigo-600" />
-                        Request Payload Builder
+                        Request Payload Builder & Tester
                       </CardTitle>
                       <CardDescription className="text-xs">
-                        Select a template or customize JSON to test live against the API.
+                        Simulate booking creation live using Master Admin credentials or simulate specific agency tokens.
                       </CardDescription>
                     </div>
 
@@ -442,7 +746,7 @@ export default function ApiDocsPage() {
                       size="sm"
                       onClick={handleExecuteLiveBooking}
                       disabled={isValidating || isSubmitting}
-                      className="text-xs bg-primary text-white font-semibold shadow-sm"
+                      className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-sm"
                     >
                       {isSubmitting ? <RefreshCw className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />}
                       Create Live Booking Request
@@ -451,24 +755,24 @@ export default function ApiDocsPage() {
                 </CardContent>
               </Card>
 
-              {/* Code Generator Card */}
+              {/* Code Snippets Box */}
               <Card className="border-slate-200">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm font-bold flex items-center gap-2">
-                      <Code className="h-4 w-4 text-emerald-600" />
-                      Client Code Snippet Generator
+                      <Code className="h-4 w-4 text-indigo-600" />
+                      Client Code Snippets
                     </CardTitle>
-                    <div className="flex items-center gap-1">
-                      {(['curl', 'javascript', 'python', 'php'] as const).map((lang) => (
+                    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+                      {(['curl', 'javascript', 'python', 'php', 'whatsapp'] as const).map((lang) => (
                         <button
                           key={lang}
                           onClick={() => setCodeLang(lang)}
-                          className={`px-2.5 py-1 text-xs font-mono rounded-md transition-colors ${
-                            codeLang === lang ? 'bg-slate-900 text-white font-bold' : 'text-slate-600 hover:bg-slate-100'
+                          className={`text-[11px] px-2.5 py-1 rounded-md font-medium transition-colors ${
+                            codeLang === lang ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'
                           }`}
                         >
-                          {lang.toUpperCase()}
+                          {lang === 'javascript' ? 'Node.js' : lang.toUpperCase()}
                         </button>
                       ))}
                     </div>
@@ -476,14 +780,14 @@ export default function ApiDocsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="relative">
-                    <pre className="text-[11px] font-mono bg-slate-900 text-slate-100 p-3.5 rounded-xl overflow-x-auto max-h-56">
+                    <pre className="p-4 bg-slate-900 text-slate-200 rounded-xl font-mono text-xs overflow-x-auto max-h-56 leading-relaxed">
                       {generateCodeSnippet()}
                     </pre>
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleCopy(generateCodeSnippet(), `${codeLang.toUpperCase()} snippet`)}
-                      className="absolute top-2 right-2 h-7 px-2 text-slate-400 hover:text-white hover:bg-slate-800"
+                      onClick={() => handleCopy(generateCodeSnippet(), 'Code snippet')}
+                      className="absolute top-3 right-3 h-7 px-2 text-slate-400 hover:text-white hover:bg-slate-800"
                     >
                       <Copy className="h-3.5 w-3.5" />
                     </Button>
@@ -492,44 +796,67 @@ export default function ApiDocsPage() {
               </Card>
             </div>
 
-            {/* Right: API Response Viewer (5 cols) */}
+            {/* Right: Live Response Inspector (5 cols) */}
             <div className="lg:col-span-5 space-y-4">
-              <Card className="border-slate-200 h-full flex flex-col">
+              <Card className="border-slate-200 sticky top-6">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base font-bold flex items-center gap-2">
-                      <FileCode className="h-4 w-4 text-emerald-600" />
-                      Live API Response
+                      <Layers className="h-4 w-4 text-emerald-600" />
+                      Live Response Inspector
                     </CardTitle>
                     {testResponse && (
-                      <Badge className={testResponse.status < 300 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-red-100 text-red-800 border-red-300'}>
+                      <Badge
+                        className={`text-xs font-mono ${
+                          testResponse.status >= 200 && testResponse.status < 300
+                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                            : 'bg-rose-100 text-rose-800 border-rose-300'
+                        }`}
+                      >
                         HTTP {testResponse.status} {testResponse.statusText}
                       </Badge>
                     )}
                   </div>
                   <CardDescription className="text-xs">
-                    Real-time output returned from the server endpoint.
+                    Real-time response payload returned from the API backend.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="flex-1">
+                <CardContent>
                   {testResponse ? (
-                    <div className="relative h-full">
-                      <pre className="text-xs font-mono bg-slate-950 text-emerald-300 p-4 rounded-xl overflow-x-auto max-h-[550px] leading-relaxed">
-                        {JSON.stringify(testResponse.data, null, 2)}
-                      </pre>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleCopy(JSON.stringify(testResponse.data, null, 2), 'Response JSON')}
-                        className="absolute top-3 right-3 h-7 px-2 text-slate-400 hover:text-white hover:bg-slate-800"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </Button>
+                    <div className="space-y-3">
+                      <div className="relative">
+                        <pre className="p-4 bg-slate-950 text-emerald-400 rounded-xl font-mono text-xs overflow-x-auto max-h-[500px] leading-relaxed">
+                          {JSON.stringify(testResponse.data, null, 2)}
+                        </pre>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleCopy(JSON.stringify(testResponse.data, null, 2), 'Response JSON')}
+                          className="absolute top-3 right-3 h-7 px-2 text-slate-400 hover:text-white hover:bg-slate-800"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+
+                      {testResponse.data?.data?.bookingReference && (
+                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
+                          <div className="flex items-center gap-2 text-xs font-bold text-emerald-900">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                            Booking Queued in Admin Portal
+                          </div>
+                          <p className="text-[11px] text-emerald-800">
+                            Booking reference <span className="font-mono font-bold">{testResponse.data.data.bookingReference}</span> has been saved and is immediately visible in <strong>Umrah Visa &gt; Bookings</strong> and <strong>Assign Group</strong>.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    <div className="h-64 border border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-slate-400 text-xs p-6 text-center">
-                      <Send className="h-8 w-8 mb-2 opacity-40" />
-                      Click <strong>Dry-Run Validate</strong> or <strong>Create Live Booking Request</strong> to view response payload.
+                    <div className="flex flex-col items-center justify-center p-12 text-center text-slate-400 border border-dashed rounded-xl bg-slate-50/50">
+                      <Send className="h-8 w-8 mb-2 text-slate-300" />
+                      <p className="text-xs font-medium text-slate-600">No request executed yet</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Click "Dry-Run Validate" or "Create Live Booking" on the left to inspect the output.
+                      </p>
                     </div>
                   )}
                 </CardContent>
@@ -538,220 +865,236 @@ export default function ApiDocsPage() {
           </div>
         </TabsContent>
 
-        {/* TAB 2: ENDPOINTS CATALOG */}
+        {/* TAB 3: ENDPOINTS & SCHEMA */}
         <TabsContent value="endpoints" className="space-y-6">
-          <div className="grid grid-cols-1 gap-4">
-            {/* Endpoint 1: POST /bookings */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* POST /bookings */}
             <Card className="border-slate-200">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-3">
-                  <Badge className="bg-emerald-600 text-white font-mono uppercase text-xs px-2.5 py-0.5">POST</Badge>
-                  <code className="text-sm font-bold text-slate-900">/api/v1/external/bookings</code>
-                  <Badge variant="outline" className="ml-auto text-slate-500">Core Booking Endpoint</Badge>
-                </div>
-                <CardDescription className="text-xs pt-1">
-                  Creates a new booking request in the ERP. Assigns a unique reference number (e.g. <code>UB-261004-001</code>) and places the booking in Admin queue for group assignment, trip info, and voucher issuance.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-slate-700 uppercase">Core Request Fields</Label>
-                  <div className="border rounded-lg overflow-x-auto text-xs">
-                    <table className="w-full text-left">
-                      <thead className="bg-slate-50 border-b">
-                        <tr>
-                          <th className="p-2.5 font-semibold">Field</th>
-                          <th className="p-2.5 font-semibold">Type</th>
-                          <th className="p-2.5 font-semibold">Required</th>
-                          <th className="p-2.5 font-semibold">Description</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y font-mono text-[11px]">
-                        <tr>
-                          <td className="p-2.5 font-bold text-indigo-600">visaType</td>
-                          <td className="p-2.5">string</td>
-                          <td className="p-2.5"><Badge variant="default" className="text-[10px] bg-red-500">Required</Badge></td>
-                          <td className="p-2.5 font-sans"><code>individual_visa</code> | <code>group_visa</code> | <code>re_entry</code></td>
-                        </tr>
-                        <tr>
-                          <td className="p-2.5 font-bold text-indigo-600">guestName</td>
-                          <td className="p-2.5">string</td>
-                          <td className="p-2.5"><Badge variant="outline" className="text-[10px]">Optional</Badge></td>
-                          <td className="p-2.5 font-sans">Lead passenger / contact name.</td>
-                        </tr>
-                        <tr>
-                          <td className="p-2.5 font-bold text-indigo-600">passengers</td>
-                          <td className="p-2.5">array</td>
-                          <td className="p-2.5"><Badge variant="default" className="text-[10px] bg-red-500">Required</Badge></td>
-                          <td className="p-2.5 font-sans">Array of passenger objects (<code>fullName</code>, <code>passportNumber</code>, <code>nationality</code>, <code>gender</code>, <code>dateOfBirth</code>, <code>passportExpiry</code>).</td>
-                        </tr>
-                        <tr>
-                          <td className="p-2.5 font-bold text-indigo-600">accommodationType</td>
-                          <td className="p-2.5">string</td>
-                          <td className="p-2.5"><Badge variant="default" className="text-[10px] bg-red-500">Required</Badge></td>
-                          <td className="p-2.5 font-sans"><code>hotel</code> (requires <code>hotelBookings</code>) or <code>iqama</code> (requires <code>iqamaDetails</code>).</td>
-                        </tr>
-                        <tr>
-                          <td className="p-2.5 font-bold text-indigo-600">arrivalDate</td>
-                          <td className="p-2.5">string</td>
-                          <td className="p-2.5"><Badge variant="default" className="text-[10px] bg-red-500">Required</Badge></td>
-                          <td className="p-2.5 font-sans">Arrival date (<code>YYYY-MM-DD</code>).</td>
-                        </tr>
-                        <tr>
-                          <td className="p-2.5 font-bold text-indigo-600">departureDate</td>
-                          <td className="p-2.5">string</td>
-                          <td className="p-2.5"><Badge variant="default" className="text-[10px] bg-red-500">Required</Badge></td>
-                          <td className="p-2.5 font-sans">Departure date (<code>YYYY-MM-DD</code>). Max 80 days from arrival.</td>
-                        </tr>
-                      </tbody>
-                    </table>
+              <CardHeader className="pb-3 border-b bg-slate-50/50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-emerald-600 text-white font-mono">POST</Badge>
+                    <code className="font-mono font-bold text-xs">/api/v1/external/bookings</code>
                   </div>
+                  <Badge variant="outline" className="text-slate-600 text-[10px]">Create Booking</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 space-y-3 text-xs">
+                <p className="text-slate-600">
+                  Creates a new booking request in NuSync. Generates a unique reference <code className="text-indigo-600 font-bold font-mono">UB-YYMMDD-XXX</code> and notifies the agency via WhatsApp asynchronously.
+                </p>
+                <div className="space-y-1">
+                  <div className="font-bold text-slate-800">Key Parameters:</div>
+                  <ul className="list-disc list-inside text-slate-600 space-y-0.5 pl-1">
+                    <li><code className="font-bold font-mono">partyId</code> (Optional for Admin): Target agency ID or partyCode.</li>
+                    <li><code className="font-bold font-mono">visaType</code>: <code className="text-emerald-700">individual_visa</code> | <code className="text-sky-700">re_entry</code> | <code className="text-purple-700">group_visa</code></li>
+                    <li><code className="font-bold font-mono">passengers[]</code>: Array of passenger objects with names & passports.</li>
+                    <li><code className="font-bold font-mono">accommodationType</code>: <code className="font-mono">hotel</code> (with hotelBookings array) or <code className="font-mono">iqama</code> (with iqamaDetails object).</li>
+                  </ul>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Endpoint 2: GET /bookings/:idOrReference */}
+            {/* POST /bookings/validate */}
             <Card className="border-slate-200">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-3">
-                  <Badge className="bg-sky-600 text-white font-mono uppercase text-xs px-2.5 py-0.5">GET</Badge>
-                  <code className="text-sm font-bold text-slate-900">/api/v1/external/bookings/:bookingReference</code>
+              <CardHeader className="pb-3 border-b bg-slate-50/50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-sky-600 text-white font-mono">POST</Badge>
+                    <code className="font-mono font-bold text-xs">/api/v1/external/bookings/validate</code>
+                  </div>
+                  <Badge variant="outline" className="text-slate-600 text-[10px]">Dry-Run Check</Badge>
                 </div>
-                <CardDescription className="text-xs pt-1">
-                  Fetches single booking by Reference Number (e.g. <code>UB-261004-001</code>) or Database ID, returning complete passenger roster, flight schedule, hotel stay dates, and issued voucher status.
-                </CardDescription>
               </CardHeader>
+              <CardContent className="p-4 space-y-3 text-xs">
+                <p className="text-slate-600">
+                  Pre-flight dry-run check without persisting to the database. Returns boolean <code className="font-mono">valid</code>, with arrays of <code className="font-mono">errors</code> and <code className="font-mono">warnings</code>.
+                </p>
+                <div className="space-y-1">
+                  <div className="font-bold text-slate-800">Validation Rules:</div>
+                  <ul className="list-disc list-inside text-slate-600 space-y-0.5 pl-1">
+                    <li>Flight date chronological ordering & maximum duration (80 days).</li>
+                    <li>Duplicate group number conflict detection.</li>
+                    <li>Hotel name/code and city resolution check.</li>
+                    <li>Iqama sponsor details and maximum 5 pax ceiling.</li>
+                  </ul>
+                </div>
+              </CardContent>
             </Card>
 
-            {/* Endpoint 3: POST /bookings/validate */}
+            {/* GET /bookings */}
             <Card className="border-slate-200">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-3">
-                  <Badge className="bg-emerald-600 text-white font-mono uppercase text-xs px-2.5 py-0.5">POST</Badge>
-                  <code className="text-sm font-bold text-slate-900">/api/v1/external/bookings/validate</code>
+              <CardHeader className="pb-3 border-b bg-slate-50/50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-indigo-600 text-white font-mono">GET</Badge>
+                    <code className="font-mono font-bold text-xs">/api/v1/external/bookings</code>
+                  </div>
+                  <Badge variant="outline" className="text-slate-600 text-[10px]">Query List</Badge>
                 </div>
-                <CardDescription className="text-xs pt-1">
-                  Dry-run validation endpoint. Validates all business rules (date limits, passport numbers, Iqama restrictions) without writing records to the database.
-                </CardDescription>
               </CardHeader>
+              <CardContent className="p-4 space-y-3 text-xs">
+                <p className="text-slate-600">
+                  List bookings. Admin credentials return bookings across all agencies (or filterable by <code className="font-mono">?partyId=...</code>). Agency credentials return only their own.
+                </p>
+                <div className="space-y-1">
+                  <div className="font-bold text-slate-800">Query Filters:</div>
+                  <ul className="list-disc list-inside text-slate-600 space-y-0.5 pl-1">
+                    <li><code className="font-mono">status</code>: <code className="text-slate-700">pending | group_assigned | voucher_generated</code></li>
+                    <li><code className="font-mono">search</code>: Search by guest name, passport, or reference.</li>
+                    <li><code className="font-mono">page</code> & <code className="font-mono">limit</code>: Standard pagination.</li>
+                  </ul>
+                </div>
+              </CardContent>
             </Card>
 
-            {/* Endpoint 4: GET /masters/lookup */}
+            {/* GET /masters/lookup */}
             <Card className="border-slate-200">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-3">
-                  <Badge className="bg-sky-600 text-white font-mono uppercase text-xs px-2.5 py-0.5">GET</Badge>
-                  <code className="text-sm font-bold text-slate-900">/api/v1/external/masters/lookup</code>
+              <CardHeader className="pb-3 border-b bg-slate-50/50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-amber-600 text-white font-mono">GET</Badge>
+                    <code className="font-mono font-bold text-xs">/api/v1/external/masters/lookup</code>
+                  </div>
+                  <Badge variant="outline" className="text-slate-600 text-[10px]">Catalogs</Badge>
                 </div>
-                <CardDescription className="text-xs pt-1">
-                  Returns active catalogs for Airports, Hotels (Makkah & Madinah), Cities, Transport Routes, and Visa Providers for client-side dropdown building.
-                </CardDescription>
               </CardHeader>
+              <CardContent className="p-4 space-y-3 text-xs">
+                <p className="text-slate-600">
+                  Fetches active lookup values: Airports (JED, MED, RUH), Makkah & Madinah Hotels with internal codes, Cities, Transport Routes, and Agencies.
+                </p>
+                <div className="space-y-1">
+                  <div className="font-bold text-slate-800">Benefits:</div>
+                  <ul className="list-disc list-inside text-slate-600 space-y-0.5 pl-1">
+                    <li>Pre-populate dropdown menus in external booking engines.</li>
+                    <li>Map external hotel names directly to NuSync master codes.</li>
+                  </ul>
+                </div>
+              </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        {/* TAB 3: MASTER CATALOGS */}
-        <TabsContent value="catalogs" className="space-y-6">
+        {/* TAB 4: MASTER CATALOGS */}
+        <TabsContent value="catalogs" className="space-y-4">
           <Card className="border-slate-200">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-base font-bold flex items-center gap-2">
                     <Building2 className="h-4 w-4 text-indigo-600" />
-                    Active Master Catalogs
+                    Master Data Lookup Explorer
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Live system catalogs used for Location & Airport resolution.
+                    Live system catalogs used for payload resolution.
                   </CardDescription>
                 </div>
-                <Button size="sm" variant="outline" onClick={fetchLookups} disabled={loadingLookups} className="h-8 text-xs">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={fetchLookups}
+                  disabled={loadingLookups}
+                  className="h-8 text-xs"
+                >
                   <RefreshCw className={`h-3.5 w-3.5 mr-1 ${loadingLookups ? 'animate-spin' : ''}`} />
                   Refresh Catalogs
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Airports */}
-                <div className="border rounded-xl p-4 bg-slate-50/50 space-y-2">
-                  <h3 className="text-xs font-bold text-slate-900 uppercase flex items-center gap-1.5">
-                    <Plane className="h-4 w-4 text-sky-600" />
-                    Supported Airports ({masterLookups?.airports?.length || 0})
-                  </h3>
-                  <div className="max-h-48 overflow-y-auto space-y-1.5 pr-2">
-                    {masterLookups?.airports?.map((apt: any) => (
-                      <div key={apt.id} className="flex items-center justify-between bg-white p-2 rounded-lg border text-xs">
-                        <span className="font-medium text-slate-800">{apt.name}</span>
-                        <Badge variant="outline" className="font-mono text-[10px] font-bold text-sky-700 bg-sky-50">{apt.code}</Badge>
-                      </div>
-                    ))}
-                  </div>
+            <CardContent>
+              {loadingLookups ? (
+                <div className="p-8 text-center text-sm text-slate-500">
+                  <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2 text-indigo-600" />
+                  Loading master catalogs...
                 </div>
+              ) : masterLookups ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <h4 className="font-bold text-slate-900 flex items-center justify-between">
+                      <span>Airports</span>
+                      <Badge variant="secondary" className="font-mono">{masterLookups.airports?.length || 0}</Badge>
+                    </h4>
+                    <div className="max-h-60 overflow-y-auto space-y-1.5 font-mono text-[11px]">
+                      {masterLookups.airports?.map((a: any) => (
+                        <div key={a.id} className="p-1.5 bg-white rounded border border-slate-100 flex justify-between">
+                          <span className="font-bold text-indigo-600">{a.code}</span>
+                          <span className="text-slate-600 truncate max-w-[140px]">{a.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
-                {/* Hotels */}
-                <div className="border rounded-xl p-4 bg-slate-50/50 space-y-2">
-                  <h3 className="text-xs font-bold text-slate-900 uppercase flex items-center gap-1.5">
-                    <Building2 className="h-4 w-4 text-indigo-600" />
-                    Sample Registered Hotels ({masterLookups?.hotels?.length || 0})
-                  </h3>
-                  <div className="max-h-48 overflow-y-auto space-y-1.5 pr-2">
-                    {masterLookups?.hotels?.slice(0, 15).map((htl: any) => (
-                      <div key={htl.id} className="flex items-center justify-between bg-white p-2 rounded-lg border text-xs">
-                        <span className="font-medium text-slate-800 truncate max-w-[200px]">{htl.name}</span>
-                        <Badge variant="outline" className="font-mono text-[10px] text-indigo-700 bg-indigo-50">{htl.city}</Badge>
-                      </div>
-                    ))}
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <h4 className="font-bold text-slate-900 flex items-center justify-between">
+                      <span>Hotels (Sample)</span>
+                      <Badge variant="secondary" className="font-mono">{masterLookups.hotels?.length || 0}</Badge>
+                    </h4>
+                    <div className="max-h-60 overflow-y-auto space-y-1.5 font-mono text-[11px]">
+                      {masterLookups.hotels?.slice(0, 15).map((h: any) => (
+                        <div key={h.id} className="p-1.5 bg-white rounded border border-slate-100 flex justify-between">
+                          <span className="font-bold text-emerald-700">{h.code || 'HTL'}</span>
+                          <span className="text-slate-600 truncate max-w-[140px]">{h.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <h4 className="font-bold text-slate-900 flex items-center justify-between">
+                      <span>Cities</span>
+                      <Badge variant="secondary" className="font-mono">{masterLookups.cities?.length || 0}</Badge>
+                    </h4>
+                    <div className="max-h-60 overflow-y-auto space-y-1.5 font-mono text-[11px]">
+                      {masterLookups.cities?.map((c: any) => (
+                        <div key={c.id} className="p-1.5 bg-white rounded border border-slate-100 flex justify-between">
+                          <span className="font-bold text-slate-800">{c.name}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : null}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* TAB 4: ADMIN LIFECYCLE */}
-        <TabsContent value="lifecycle" className="space-y-6">
+        {/* TAB 5: AUTOMATIONS & WEBHOOKS */}
+        <TabsContent value="automations" className="space-y-4">
           <Card className="border-slate-200">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-bold flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                Booking Status Lifecycle & Admin Review Flow
+                <Bot className="h-4 w-4 text-emerald-600" />
+                WhatsApp Chatbot & 3rd-Party Automation Blueprint
               </CardTitle>
               <CardDescription className="text-xs">
-                How created bookings move through operations to final Voucher and Tafweej dispatch.
+                How to integrate WhatsApp Business Cloud API bots, Zapier, or n8n with NuSync ERP.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-2">
-                  <Badge className="bg-amber-500 text-white font-mono text-[10px]">1. pending</Badge>
-                  <h4 className="font-bold text-xs text-amber-950">Booking Request Created</h4>
-                  <p className="text-[11px] text-amber-800 leading-relaxed">
-                    Created via API. Awaiting Group Number allocation by admin operator.
+            <CardContent className="space-y-4 text-xs text-slate-600">
+              <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-2">
+                <h4 className="font-bold text-emerald-950 text-sm flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  Direct Booking Intake from WhatsApp Messages
+                </h4>
+                <p>
+                  When your WhatsApp bot or CRM receives pilgrim details from customer chats, your backend can submit the structured payload to <code className="font-mono bg-emerald-100 text-emerald-900 px-1 py-0.5 rounded">POST /api/v1/external/bookings</code> with your <strong>Admin Master API Key</strong>.
+                </p>
+                <p>
+                  The booking will immediately appear in the admin dashboard with its reference (<code className="font-mono text-emerald-800 font-bold">UB-YYMMDD-XXX</code>) for operator processing.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-slate-50 border rounded-xl space-y-2">
+                  <h5 className="font-bold text-slate-900">Step 1: Parse Incoming Chat</h5>
+                  <p className="text-slate-500">
+                    Extract passenger names, passport numbers, travel dates, and hotel preference from WhatsApp conversation.
                   </p>
                 </div>
-
-                <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 space-y-2">
-                  <Badge className="bg-blue-600 text-white font-mono text-[10px]">2. group_assigned</Badge>
-                  <h4 className="font-bold text-xs text-blue-950">Group Number Attached</h4>
-                  <p className="text-[11px] text-blue-800 leading-relaxed">
-                    Group Number and provider are attached. Ready for Trip Info verification.
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-xl bg-purple-50 border border-purple-200 space-y-2">
-                  <Badge className="bg-purple-600 text-white font-mono text-[10px]">3. voucher_generated</Badge>
-                  <h4 className="font-bold text-xs text-purple-950">Voucher Issued</h4>
-                  <p className="text-[11px] text-purple-800 leading-relaxed">
-                    Official Voucher # assigned. Hotel BRNs and transport movements locked.
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-2">
-                  <Badge className="bg-emerald-600 text-white font-mono text-[10px]">4. completed</Badge>
-                  <h4 className="font-bold text-xs text-emerald-950">Trip Completed</h4>
-                  <p className="text-[11px] text-emerald-800 leading-relaxed">
-                    Pilgrims departed Kingdom after successful Umrah completion.
+                <div className="p-4 bg-slate-50 border rounded-xl space-y-2">
+                  <h5 className="font-bold text-slate-900">Step 2: Submit with Master Key</h5>
+                  <p className="text-slate-500">
+                    POST payload to NuSync API with header <code className="font-mono text-indigo-600">x-api-key: {adminApiKey || 'YOUR_MASTER_KEY'}</code>.
                   </p>
                 </div>
               </div>

@@ -5,13 +5,15 @@ import { prisma } from '../lib/prisma';
 
 export interface PartnerAuthRequest extends AuthRequest {
   party?: any;
+  isAdmin?: boolean;
   isApiKeyAuth?: boolean;
 }
 
 /**
  * Middleware that authenticates external API requests via either:
- * 1. API Key (Header `x-api-key`, `X-API-Key`, or Query `apiKey`)
- * 2. Bearer JWT Access Token (Header `Authorization: Bearer <token>`)
+ * 1. Admin Master API Key / User API Key (Header `x-api-key`, `X-API-Key`, or Query `apiKey`)
+ * 2. Partner Agency API Key (Header `x-api-key`, `X-API-Key`, or Query `apiKey`)
+ * 3. Bearer JWT Access Token (Header `Authorization: Bearer <token>`)
  */
 export const partnerAuthenticate = async (
   req: PartnerAuthRequest,
@@ -31,7 +33,35 @@ export const partnerAuthenticate = async (
     if (apiKey && typeof apiKey === 'string' && apiKey.trim().length > 0) {
       const cleanKey = apiKey.trim();
 
-      // Find party by exact apiKey or partyCode
+      // 1A. Check if this is an Admin or User API Key
+      const user = await prisma.user.findFirst({
+        where: {
+          apiKey: cleanKey,
+          isActive: true
+        },
+        include: {
+          party: {
+            include: { accountCurrency: true }
+          }
+        }
+      });
+
+      if (user) {
+        req.user = {
+          id: user.id,
+          email: user.email,
+          role: user.role as any,
+          partyId: user.party?.id
+        };
+        req.isAdmin = (user.role === 'admin');
+        req.isApiKeyAuth = true;
+        if (user.party) {
+          req.party = user.party;
+        }
+        return next();
+      }
+
+      // 1B. Check if this is a Partner Agency API Key (or party code)
       const party = await prisma.party.findFirst({
         where: {
           OR: [
@@ -45,25 +75,25 @@ export const partnerAuthenticate = async (
         }
       });
 
-      if (!party) {
-        return res.status(401).json({
-          success: false,
-          error: 'Invalid API Key provided',
-          code: 'INVALID_API_KEY',
-          message: 'The provided x-api-key does not match any active registered partner agency.'
-        });
+      if (party) {
+        req.party = party;
+        req.isAdmin = false;
+        req.isApiKeyAuth = true;
+        req.user = {
+          id: party.userId || 'api-partner-system',
+          email: party.email,
+          role: 'partner' as any,
+          partyId: party.id
+        };
+        return next();
       }
 
-      req.party = party;
-      req.isApiKeyAuth = true;
-      req.user = {
-        id: party.userId || 'api-partner-system',
-        email: party.email,
-        role: 'partner' as any,
-        partyId: party.id
-      };
-
-      return next();
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid API Key provided',
+        code: 'INVALID_API_KEY',
+        message: 'The provided API key does not match any active Admin account or registered partner agency.'
+      });
     }
 
     // 2. Try Bearer JWT Authentication
@@ -82,6 +112,7 @@ export const partnerAuthenticate = async (
       }
 
       req.user = payload;
+      req.isAdmin = (payload.role === 'admin');
 
       // Look up party linked to this user account if applicable
       const linkedParty = await prisma.party.findFirst({

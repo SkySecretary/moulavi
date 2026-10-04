@@ -17,16 +17,26 @@ This document provides a comprehensive integration guide for the **NuSync Umrah 
 
 ## 🔑 2. Authentication
 
-The API supports two authentication mechanisms:
+The API supports two authentication tiers:
 
-### Option A: API Key (Recommended for External Systems & Server-to-Server)
-Pass your agency API key in the `x-api-key` HTTP request header:
+### Tier 1: Admin Master API Key (For WhatsApp Bots, Internal Automations & 3rd-Party Software)
+Pass your Admin Master Key in the `x-api-key` HTTP header:
 ```http
-x-api-key: ns_live_your_agency_api_key_here
+x-api-key: ns_master_your_admin_master_key_here
 ```
-*(You can generate your unique API key from the Agency Settings or Admin Party Master).*
+- **Unrestricted Access:** Bypasses agency-level ticket restrictions (one-way and without-ticket).
+- **Multi-Agency Routing:** Specify any target agency via `"partyId": "uuid"` or `"partyCode": "AGN123"` in the request payload, or omit it to create direct in-house bookings (`B2C_DIRECT`).
+- **Full Scope:** Admins can query and list bookings across all agencies or filter by `?partyId=...`.
 
-### Option B: Bearer JWT Token
+### Tier 2: Partner Agency API Key (Issued & Managed Exclusively by Admin)
+Pass an agency API key in the `x-api-key` header:
+```http
+x-api-key: ns_live_agency_token_here
+```
+- **Agency Scope:** Bookings created are strictly attributed to the agency owning the token.
+- **Admin Issuance:** Agency tokens can only be issued, rotated, or revoked by Admin under **Settings > API Control & Developer Portal**.
+
+### Tier 3: Bearer JWT Token
 Pass a standard Bearer token acquired from `/api/auth/login`:
 ```http
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6...

@@ -250,7 +250,8 @@ export class ExternalBookingService {
    */
   public static async validateBookingPayload(
     input: ExternalBookingCreateInput,
-    resolvedParty: any
+    resolvedParty: any,
+    isAdmin?: boolean
   ): Promise<{ valid: boolean; errors: string[]; warnings: string[] }> {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -347,27 +348,29 @@ export class ExternalBookingService {
       }
     }
 
-    // 6. Ticket Permission Constraints
-    if (input.isOneWay) {
-      const allowedOneWay = input.visaType === 're_entry'
-        ? (resolvedParty?.allowReEntryOneWayTicket || resolvedParty?.allowOneWayTicket)
-        : resolvedParty?.allowOneWayTicket;
+    // 6. Ticket Permission Constraints (Skipped for Admins)
+    if (!isAdmin) {
+      if (input.isOneWay) {
+        const allowedOneWay = input.visaType === 're_entry'
+          ? (resolvedParty?.allowReEntryOneWayTicket || resolvedParty?.allowOneWayTicket)
+          : resolvedParty?.allowOneWayTicket;
 
-      if (!allowedOneWay && resolvedParty) {
-        warnings.push('Agency account is not explicitly flagged for one-way ticket authorization. Admin manual review will be required.');
+        if (!allowedOneWay && resolvedParty) {
+          warnings.push('Agency account is not explicitly flagged for one-way ticket authorization. Admin manual review will be required.');
+        }
+        if (input.accommodationType !== 'iqama') {
+          warnings.push('One-way bookings typically require Iqama accommodation.');
+        }
       }
-      if (input.accommodationType !== 'iqama') {
-        warnings.push('One-way bookings typically require Iqama accommodation.');
-      }
-    }
 
-    if (input.isWithoutTicket) {
-      const allowedWithoutTicket = input.visaType === 're_entry'
-        ? (resolvedParty?.allowReEntryWithoutTicket || resolvedParty?.allowWithoutTicket)
-        : resolvedParty?.allowWithoutTicket;
+      if (input.isWithoutTicket) {
+        const allowedWithoutTicket = input.visaType === 're_entry'
+          ? (resolvedParty?.allowReEntryWithoutTicket || resolvedParty?.allowWithoutTicket)
+          : resolvedParty?.allowWithoutTicket;
 
-      if (!allowedWithoutTicket && resolvedParty) {
-        warnings.push('Agency account is not explicitly flagged for travel without tickets. Admin manual review will be required.');
+        if (!allowedWithoutTicket && resolvedParty) {
+          warnings.push('Agency account is not explicitly flagged for travel without tickets. Admin manual review will be required.');
+        }
       }
     }
 
@@ -421,11 +424,57 @@ export class ExternalBookingService {
    */
   public static async createBooking(
     input: ExternalBookingCreateInput,
-    party: any,
-    createdByUserId?: string
+    party?: any,
+    createdByUserId?: string,
+    isAdmin?: boolean
   ) {
-    // 1. Validate payload
-    const validation = await this.validateBookingPayload(input, party);
+    // 1. Resolve Target Agency / Party
+    let targetParty = party;
+    if (isAdmin) {
+      if (input.partyId || input.partyCode) {
+        const lookup = (input.partyId || input.partyCode)!.trim();
+        targetParty = await prisma.party.findFirst({
+          where: {
+            OR: [
+              { id: lookup },
+              { partyCode: lookup },
+              { partyName: lookup }
+            ],
+            isCustomer: true
+          },
+          include: { accountCurrency: true }
+        });
+        if (!targetParty) {
+          throw {
+            statusCode: 400,
+            message: `Specified partner agency '${lookup}' not found.`,
+            code: 'PARTY_NOT_FOUND'
+          };
+        }
+      } else if (!targetParty) {
+        // Fallback to direct / system channel
+        targetParty = await prisma.party.findFirst({
+          where: {
+            OR: [
+              { partyCode: 'B2C_DIRECT' },
+              { isCustomer: true }
+            ]
+          },
+          include: { accountCurrency: true }
+        });
+      }
+    }
+
+    if (!targetParty) {
+      throw {
+        statusCode: 400,
+        message: 'No active partner agency could be resolved for this booking request.',
+        code: 'PARTY_REQUIRED'
+      };
+    }
+
+    // 2. Validate payload
+    const validation = await this.validateBookingPayload(input, targetParty, isAdmin);
     if (!validation.valid) {
       throw {
         statusCode: 400,
@@ -435,7 +484,7 @@ export class ExternalBookingService {
       };
     }
 
-    // 2. Pre-fetch and resolve Master records
+    // 3. Pre-fetch and resolve Master records
     const defaultAirport = await prisma.locationMaster.findFirst({
       where: { locationType: 'AIRPORT', isActive: true }
     });
@@ -551,7 +600,7 @@ export class ExternalBookingService {
           // 3.1 Create Main Booking
           const booking = await tx.umrahVisaBooking.create({
             data: {
-              partyId: party.id,
+              partyId: targetParty.id,
               bookingReference,
               submittedAt: new Date(),
               groupNumber: input.groupNumber?.trim() || null,
@@ -575,7 +624,7 @@ export class ExternalBookingService {
               oneWayWhatsapp: input.isOneWay ? (input.oneWayWhatsapp || guestMobile) : null,
               accommodationType: input.accommodationType,
               hasTransportation: !!(input.hasTransportation || (preparedMovements.length > 0)),
-              lastUpdatedBy: createdByUserId || party.userId || null,
+              lastUpdatedBy: createdByUserId || targetParty.userId || null,
             },
           });
 
@@ -678,8 +727,8 @@ export class ExternalBookingService {
               bookingId: booking.id,
               oldStatus: null,
               newStatus: initialStatus,
-              changedBy: createdByUserId || party.userId || 'api-partner-system',
-              reason: `Booking request created via Partner API (Ref: ${bookingReference})`,
+              changedBy: createdByUserId || targetParty.userId || 'api-system',
+              reason: `Booking request created via ${isAdmin ? 'Admin / System External API' : 'Partner Agency API'} (Ref: ${bookingReference})`,
             }
           });
 
@@ -711,15 +760,15 @@ export class ExternalBookingService {
     try {
       const notifyMsg = `*NuSync ERP - New Booking Request*\n\n` +
         `*Reference:* ${fullBooking.bookingReference}\n` +
-        `*Agency:* ${party.partyName}\n` +
+        `*Agency:* ${targetParty.partyName}\n` +
         `*Visa Type:* ${fullBooking.visaType}\n` +
         `*Pax Count:* ${fullBooking.passengerCount}\n` +
         `*Guest:* ${fullBooking.guestName}\n` +
         `*Status:* ${fullBooking.status}\n` +
         `*Submitted At:* ${new Date().toLocaleString()}`;
 
-      if (party.whatsappNumber) {
-        sendCustomWhatsApp(party.whatsappNumber, notifyMsg).catch(() => {});
+      if (targetParty.whatsappNumber) {
+        sendCustomWhatsApp(targetParty.whatsappNumber, notifyMsg).catch(() => {});
       }
     } catch (e) {
       // Non-blocking notification

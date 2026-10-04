@@ -804,6 +804,136 @@ router.get(
   })
 );
 
+// Get or auto-generate Master API key for logged-in Admin
+router.get(
+  '/admin/master-api-key',
+  authenticate,
+  authorize('admin'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    let user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        apiKey: true,
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (!user.apiKey) {
+      const crypto = require('crypto');
+      const newApiKey = `ns_master_${crypto.randomBytes(18).toString('hex')}`;
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { apiKey: newApiKey },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          apiKey: true,
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      data: user,
+    });
+  })
+);
+
+// Regenerate Master API key for logged-in Admin
+router.post(
+  '/admin/generate-master-api-key',
+  authenticate,
+  authorize('admin'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const crypto = require('crypto');
+    const newApiKey = `ns_master_${crypto.randomBytes(18).toString('hex')}`;
+
+    const updated = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: { apiKey: newApiKey },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        apiKey: true,
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Admin Master API Key generated successfully',
+      data: updated,
+    });
+  })
+);
+
+// Admin lists all Customer Agencies and their API keys
+router.get(
+  '/admin/partner-keys',
+  authenticate,
+  authorize('admin'),
+  asyncHandler(async (_req: AuthRequest, res: Response) => {
+    const parties = await prisma.party.findMany({
+      where: { isCustomer: true },
+      select: {
+        id: true,
+        partyCode: true,
+        partyName: true,
+        email: true,
+        contactNumber: true,
+        whatsappNumber: true,
+        apiKey: true,
+        updatedAt: true,
+        createdAt: true,
+      },
+      orderBy: { partyName: 'asc' }
+    });
+
+    res.json({
+      success: true,
+      data: parties,
+    });
+  })
+);
+
+// Revoke an agency API key
+router.post(
+  '/:id/revoke-api-key',
+  authenticate,
+  authorize('admin'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+
+    const updated = await prisma.party.update({
+      where: { id },
+      data: { apiKey: null },
+      select: {
+        id: true,
+        partyCode: true,
+        partyName: true,
+        email: true,
+        apiKey: true,
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Agency API key revoked successfully',
+      party: updated,
+    });
+  })
+);
+
 // Generate or regenerate API key for a Party
 router.post(
   '/:id/generate-api-key',

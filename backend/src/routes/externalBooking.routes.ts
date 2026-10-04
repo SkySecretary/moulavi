@@ -8,7 +8,7 @@ import fs from 'fs';
 
 const router = Router();
 
-// Configure local storage for document uploads via Partner API
+// Configure local storage for document uploads via External / Partner API
 const uploadDir = path.join(process.cwd(), 'uploads/partner-docs');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -28,18 +28,21 @@ const upload = multer({
 });
 
 /**
- * All routes require Partner / Agency authentication (API Key or Bearer Token)
+ * All routes require External Authentication (Admin Master API Key, Partner Agency API Key, or Bearer Token)
  */
 router.use(partnerAuthenticate);
 
 /**
  * POST /api/v1/external/bookings
  * Create a new Booking Request (Individual, Group, or Re-Entry)
+ * Supports both Admin credentials (with optional partyId/partyCode routing) and Partner Agency credentials.
  */
 router.post('/bookings', async (req: PartnerAuthRequest, res: Response) => {
   try {
     const party = req.party;
-    if (!party) {
+    const isAdmin = Boolean(req.isAdmin || req.user?.role === 'admin');
+
+    if (!party && !isAdmin) {
       return res.status(403).json({
         success: false,
         error: 'No associated partner agency found for this credential.',
@@ -51,12 +54,13 @@ router.post('/bookings', async (req: PartnerAuthRequest, res: Response) => {
     const booking: any = await ExternalBookingService.createBooking(
       payload,
       party,
-      req.user?.id
+      req.user?.id,
+      isAdmin
     );
 
     return res.status(201).json({
       success: true,
-      message: 'Booking request created successfully and queued for admin processing.',
+      message: 'Booking request created successfully and queued for processing.',
       data: {
         bookingReference: booking.bookingReference,
         id: booking.id,
@@ -77,11 +81,11 @@ router.post('/bookings', async (req: PartnerAuthRequest, res: Response) => {
         hotelBookings: booking.hotelBookings || [],
         sponsorIqamaDetails: booking.sponsorIqamaDetails || null,
         submittedAt: booking.submittedAt,
-        party: {
-          id: party.id,
-          partyCode: party.partyCode,
-          partyName: party.partyName
-        }
+        party: booking.party ? {
+          id: booking.party.id,
+          partyCode: booking.party.partyCode,
+          partyName: booking.party.partyName
+        } : null
       }
     });
   } catch (error: any) {
@@ -104,7 +108,8 @@ router.post('/bookings', async (req: PartnerAuthRequest, res: Response) => {
 router.post('/bookings/validate', async (req: PartnerAuthRequest, res: Response) => {
   try {
     const party = req.party;
-    const result = await ExternalBookingService.validateBookingPayload(req.body, party);
+    const isAdmin = Boolean(req.isAdmin || req.user?.role === 'admin');
+    const result = await ExternalBookingService.validateBookingPayload(req.body, party, isAdmin);
 
     return res.status(result.valid ? 200 : 422).json({
       success: result.valid,
@@ -122,15 +127,22 @@ router.post('/bookings/validate', async (req: PartnerAuthRequest, res: Response)
 
 /**
  * GET /api/v1/external/bookings
- * List bookings created by this partner agency
+ * List bookings created in the system.
+ * - Admin credentials: List all bookings or filter by specific agency (?partyId=...)
+ * - Agency credentials: Only list bookings owned by the authenticated agency.
  */
 router.get('/bookings', async (req: PartnerAuthRequest, res: Response) => {
   try {
     const party = req.party;
-    const { status, visaType, search, fromDate, toDate, page, limit } = req.query;
+    const isAdmin = Boolean(req.isAdmin || req.user?.role === 'admin');
+    const { status, visaType, search, fromDate, toDate, page, limit, partyId } = req.query;
+
+    const resolvedPartyId = isAdmin
+      ? (partyId as string | undefined)
+      : (party ? party.id : undefined);
 
     const result = await ExternalBookingService.listBookings({
-      partyId: party ? party.id : undefined,
+      partyId: resolvedPartyId,
       status: status as string,
       visaType: visaType as string,
       search: search as string,
@@ -162,10 +174,11 @@ router.get('/bookings/:idOrReference', async (req: PartnerAuthRequest, res: Resp
   try {
     const { idOrReference } = req.params;
     const party = req.party;
+    const isAdmin = Boolean(req.isAdmin || req.user?.role === 'admin');
 
     const booking = await ExternalBookingService.getBookingByIdOrReference(
       idOrReference,
-      party ? party.id : undefined
+      isAdmin ? undefined : (party ? party.id : undefined)
     );
 
     if (!booking) {
@@ -200,11 +213,12 @@ router.post(
     try {
       const { idOrReference } = req.params;
       const party = req.party;
+      const isAdmin = Boolean(req.isAdmin || req.user?.role === 'admin');
       const { documentType = 'passport_copy', passengerId } = req.body;
 
       const booking = await ExternalBookingService.getBookingByIdOrReference(
         idOrReference,
-        party ? party.id : undefined
+        isAdmin ? undefined : (party ? party.id : undefined)
       );
 
       if (!booking) {
@@ -260,12 +274,13 @@ router.post(
 router.post('/bookings/:idOrReference/cancel', async (req: PartnerAuthRequest, res: Response) => {
   try {
     const { idOrReference } = req.params;
-    const { reason = 'Cancelled via Partner API request' } = req.body;
+    const { reason = 'Cancelled via External API request' } = req.body;
     const party = req.party;
+    const isAdmin = Boolean(req.isAdmin || req.user?.role === 'admin');
 
     const booking = await ExternalBookingService.getBookingByIdOrReference(
       idOrReference,
-      party ? party.id : undefined
+      isAdmin ? undefined : (party ? party.id : undefined)
     );
 
     if (!booking) {
@@ -297,8 +312,8 @@ router.post('/bookings/:idOrReference/cancel', async (req: PartnerAuthRequest, r
           bookingId: booking.id,
           oldStatus: booking.status,
           newStatus: 'cancelled',
-          changedBy: req.user?.id || party?.userId || 'api-partner-system',
-          reason: `Partner API Cancellation Request: ${reason}`,
+          changedBy: req.user?.id || party?.userId || 'api-system',
+          reason: `External API Cancellation Request: ${reason}`,
         }
       });
 
@@ -321,14 +336,28 @@ router.post('/bookings/:idOrReference/cancel', async (req: PartnerAuthRequest, r
 
 /**
  * GET /api/v1/external/masters/lookup
- * Catalog lookup for developer integrations (Hotels, Airports, Cities, Transport Routes, Providers)
+ * Catalog lookup for developer integrations (Hotels, Airports, Cities, Transport Routes, Providers, Parties)
  */
-router.get('/masters/lookup', async (_req: PartnerAuthRequest, res: Response) => {
+router.get('/masters/lookup', async (req: PartnerAuthRequest, res: Response) => {
   try {
     const lookups = await ExternalBookingService.getMasterLookups();
+    const isAdmin = Boolean(req.isAdmin || req.user?.role === 'admin');
+
+    // If Admin, also include list of all customer agencies for easy partyId routing in external tools
+    let customerAgencies: any[] = [];
+    if (isAdmin) {
+      customerAgencies = await prisma.party.findMany({
+        where: { isCustomer: true },
+        select: { id: true, partyCode: true, partyName: true, email: true, contactNumber: true }
+      });
+    }
+
     return res.json({
       success: true,
-      data: lookups
+      data: {
+        ...lookups,
+        customerAgencies: isAdmin ? customerAgencies : undefined
+      }
     });
   } catch (error: any) {
     console.error('[MASTER LOOKUP ERROR]:', error);
