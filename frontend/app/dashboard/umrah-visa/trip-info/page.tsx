@@ -29,7 +29,8 @@ import {
   Pencil,
   FileText,
   Save,
-  Plus
+  Plus,
+  RotateCcw
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
@@ -57,6 +58,7 @@ export default function TripInfoPage() {
   const [editingRequestNumberBooking, setEditingRequestNumberBooking] = useState<{ id: string; current: string; bookingRef: string } | null>(null);
   const [requestNumberInput, setRequestNumberInput] = useState('');
   const [savingRequestNumber, setSavingRequestNumber] = useState(false);
+  const [revertingId, setRevertingId] = useState<string | null>(null);
 
   // Debounce search query to prevent constant re-renders and focus loss while typing
   useEffect(() => {
@@ -517,6 +519,28 @@ export default function TripInfoPage() {
     }
   };
 
+  const handleRevertToPending = async (booking: UmrahVisaBooking) => {
+    if (!booking.id) return;
+    const identifier = booking.guestName || booking.bookingReference || 'this trip';
+    if (!confirm(`Revert trip status for "${identifier}" back to Pending?\n\nThis will move the booking back to the Pending Trips list and restore its editable status.`)) {
+      return;
+    }
+
+    try {
+      setRevertingId(booking.id);
+      toast.info('Reverting trip to pending...');
+      await umrahVisaAPI.updateTripStatus(booking.id, 'pending');
+      toast.success('Trip status reverted to Pending successfully');
+      fetchBookings();
+      fetchPendingCount();
+    } catch (error: any) {
+      console.error('Error reverting trip status:', error);
+      toast.error(error?.response?.data?.error || 'Failed to revert trip status to pending');
+    } finally {
+      setRevertingId(null);
+    }
+  };
+
   const handleSaveRequestNumber = async () => {
     if (!editingRequestNumberBooking) return;
     try {
@@ -741,12 +765,48 @@ export default function TripInfoPage() {
               </Button>
             )}
             {currentStatus === 'hosting' && (
+              <>
+                <Button
+                  size="sm"
+                  onClick={() => handleUpdateTripStatus(booking.id!, 'completed')}
+                  className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white font-bold"
+                >
+                  Done
+                </Button>
+                {user?.role === 'admin' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleRevertToPending(booking)}
+                    disabled={revertingId === booking.id}
+                    className="flex items-center gap-1 border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 text-xs font-semibold"
+                    title="Revert to Pending"
+                  >
+                    {revertingId === booking.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin text-amber-700" />
+                    ) : (
+                      <RotateCcw className="h-3 w-3 text-amber-700" />
+                    )}
+                    Revert
+                  </Button>
+                )}
+              </>
+            )}
+            {currentStatus === 'completed' && user?.role === 'admin' && (
               <Button
                 size="sm"
-                onClick={() => handleUpdateTripStatus(booking.id!, 'completed')}
-                className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white font-bold"
+                variant="outline"
+                onClick={() => handleRevertToPending(booking)}
+                disabled={revertingId === booking.id}
+                className="flex items-center gap-1 border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 text-xs font-semibold"
+                title="Revert to Pending"
               >
-                Done
+                {revertingId === booking.id ? (
+                  <Loader2 className="h-3 w-3 animate-spin text-amber-700" />
+                ) : (
+                  <RotateCcw className="h-3 w-3 text-amber-700" />
+                )}
+                Revert to Pending
               </Button>
             )}
             {currentStatus === 'pending' && (
@@ -782,6 +842,23 @@ export default function TripInfoPage() {
                   <Check className="h-3 w-3" />
                 )}
                 Done
+              </Button>
+            )}
+            {currentStatus === 'completed' && user?.role === 'admin' && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleRevertToPending(booking)}
+                disabled={revertingId === booking.id}
+                className="flex items-center gap-1 border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 text-xs font-semibold"
+                title="Revert to Pending"
+              >
+                {revertingId === booking.id ? (
+                  <Loader2 className="h-3 w-3 animate-spin text-amber-700" />
+                ) : (
+                  <RotateCcw className="h-3 w-3 text-amber-700" />
+                )}
+                Revert to Pending
               </Button>
             )}
           </>

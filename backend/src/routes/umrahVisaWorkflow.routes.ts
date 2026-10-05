@@ -2568,8 +2568,21 @@ router.patch('/:bookingId/trip-status', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
-    let targetBookingStatus: 'voucher' | 'bill' | null = null;
+    let targetBookingStatus: 'voucher' | 'bill' | 'group_assigned' | null = null;
     let transitionReason = '';
+
+    // Revert to pending (Superadmin / Admin only)
+    if (tripStatus === 'pending' && booking.tripStatus && booking.tripStatus !== 'pending') {
+      if (user.role !== 'admin') {
+        return res.status(403).json({ error: 'Only administrators can revert trip status back to pending' });
+      }
+
+      // If booking was moved to voucher or bill upon completion and no voucher is generated yet, revert to group_assigned
+      if ((booking.status === 'voucher' || booking.status === 'bill') && !booking.voucherGeneratedAt) {
+        targetBookingStatus = 'group_assigned';
+        transitionReason = 'Trip status reverted to pending by administrator';
+      }
+    }
 
     if (tripStatus === 'completed' && 
         (booking.visaType === 'individual_visa' || booking.visaType === 're_entry') && 
