@@ -772,6 +772,54 @@ export const quotationAPI = {
   }) => api.post(`/quotations/${id}/convert`, data || {}),
 };
 
+// B2C Consumer API
+export const b2cAPI = {
+  getPackages: () => api.get('/b2c/packages'),
+  calculateQuote: (data: {
+    makkahHotelId?: string;
+    madinahHotelId?: string;
+    makkahNights: number;
+    madinahNights: number;
+    travelersCount: number;
+    transportOptionId?: string;
+    flightOptionId?: string;
+    flightPrice?: number;
+    accommodationType?: string;
+  }) => api.post('/b2c/builder/quote', data),
+  searchFlights: (params: { origin?: string; destination?: string; date?: string }) =>
+    api.get('/b2c/flights/search', { params }),
+  searchAirports: (search: string) =>
+    api.get('/b2c/flights/airports', { params: { search } }),
+  submitCheckout: (data: {
+    fullName: string;
+    passportNumber?: string;
+    nationality?: string;
+    mobileNumber: string;
+    email?: string;
+    checkInDate: string;
+    makkahNights: number;
+    madinahNights: number;
+    travelersCount: number;
+    makkahHotelId?: string;
+    madinahHotelId?: string;
+    transportOptionId?: string;
+    accommodationType?: string;
+    isWithoutTicket?: boolean;
+    arrivalFlightNumber?: string;
+    arrivalDateTime?: string;
+    arrivalAirportId?: string;
+    departureFlightNumber?: string;
+    departureDateTime?: string;
+    departureAirportId?: string;
+    passengers?: Array<{
+      fullName: string;
+      passportNumber?: string;
+      nationality?: string;
+      gender?: string;
+    }>;
+  }) => api.post('/b2c/booking/checkout', data),
+};
+
 
 
 
