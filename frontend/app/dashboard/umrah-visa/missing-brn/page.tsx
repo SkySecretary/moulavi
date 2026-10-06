@@ -324,7 +324,15 @@ export default function MissingBRNPage() {
                                       <span className="text-xs font-bold text-gray-700">
                                         {hotel.city?.name || 'Unknown City'} - Check-in: {formatDate(hotel.checkInDate)}
                                       </span>
-                                      {isMissing && <span className="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded">MISSING BRN</span>}
+                                      <div className="flex items-center gap-1.5">
+                                        {hotel.isCompanyBrn && (
+                                          <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">🏢 Company BRN</span>
+                                        )}
+                                        {hotel.isCompanyCateringBrn && (
+                                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">🍽️ Company Catering</span>
+                                        )}
+                                        {isMissing && <span className="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded">MISSING BRN</span>}
+                                      </div>
                                     </div>
                                     <div className="flex gap-2">
                                       <Input 

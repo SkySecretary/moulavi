@@ -179,15 +179,30 @@ export default function MismatchedTravelPage() {
   const handleSync = async () => {
     try {
       setSyncing(true);
-      toast.info('Triggering sync from Nusuk...');
-      const response = await nusukAPI.triggerSync();
-      toast.success(`Sync completed! ${response.data.mismatchesCount} discrepancies detected.`);
-      setCurrentPage(1); // reset to page 1
-      loadMismatches();
+      toast.info('Triggering synchronization from Nusuk in background...');
+      await nusukAPI.triggerSync();
+      
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusRes = await nusukAPI.getSyncStatus();
+          if (!statusRes.data.isSyncing) {
+            clearInterval(pollInterval);
+            setSyncing(false);
+            if (statusRes.data.lastSyncError) {
+              toast.error(`Nusuk sync failed: ${statusRes.data.lastSyncError}`);
+            } else {
+              toast.success('Sync completed successfully!');
+              setCurrentPage(1);
+              loadMismatches();
+            }
+          }
+        } catch (e) {
+          // ignore transient poll error
+        }
+      }, 2500);
     } catch (error: any) {
       console.error('Sync failed:', error);
       toast.error(error.response?.data?.error || error.message || 'Synchronization failed');
-    } finally {
       setSyncing(false);
     }
   };

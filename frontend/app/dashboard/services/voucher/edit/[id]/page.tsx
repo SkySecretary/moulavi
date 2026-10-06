@@ -328,7 +328,7 @@ export default function EditVoucherPage() {
                       <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Group Code</p>
                       <Input
                         value={groupCode}
-                        onChange={(e) => setGroupCode(e.target.value)}
+                        onChange={(e) => setGroupCode(e.target.value.replace(/\s+/g, ''))}
                         placeholder="Group Code"
                         disabled={!isAdminOrStaff}
                       />

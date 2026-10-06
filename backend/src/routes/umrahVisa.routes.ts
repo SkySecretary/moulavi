@@ -656,7 +656,7 @@ router.get('/missing-brn', authenticate, authorize('admin', 'staff', 'party'), a
 router.patch('/hotels/:hotelBookingId/brn', authenticate, authorize('admin', 'staff', 'party'), async (req, res) => {
   try {
     const { hotelBookingId } = req.params;
-    const { brn, cateringBrn } = req.body;
+    const { brn, cateringBrn, isCompanyBrn, isCompanyCateringBrn } = req.body;
     const user = (req as any).user;
 
     const existingHotel = await prisma.umrahHotelBooking.findUnique({
@@ -671,8 +671,26 @@ router.patch('/hotels/:hotelBookingId/brn', authenticate, authorize('admin', 'st
       where: { id: hotelBookingId },
       data: { 
         brn: brn !== undefined ? brn : undefined,
-        cateringBrn: cateringBrn !== undefined ? cateringBrn : undefined
+        cateringBrn: cateringBrn !== undefined ? cateringBrn : undefined,
+        isCompanyBrn: isCompanyBrn !== undefined ? Boolean(isCompanyBrn) : undefined,
+        isCompanyCateringBrn: isCompanyCateringBrn !== undefined ? Boolean(isCompanyCateringBrn) : undefined,
       },
+    });
+
+    // Recompute booking-level company flags
+    const allHotels = await prisma.umrahHotelBooking.findMany({
+      where: { bookingId: existingHotel.bookingId },
+      select: { isCompanyBrn: true, isCompanyCateringBrn: true }
+    });
+    const anyCompanyBrn = allHotels.some(h => Boolean(h.isCompanyBrn));
+    const anyCompanyCateringBrn = allHotels.some(h => Boolean(h.isCompanyCateringBrn));
+
+    await prisma.umrahVisaBooking.update({
+      where: { id: existingHotel.bookingId },
+      data: {
+        isCompanyBrn: anyCompanyBrn,
+        isCompanyCateringBrn: anyCompanyCateringBrn,
+      }
     });
 
     await prisma.brnUpdateHistory.create({
@@ -2258,7 +2276,9 @@ router.post('/:bookingId/recreate', authenticate, authorize('admin', 'staff'), a
               madinahHotelName: iq.madinahHotelName,
               madinahBrn: iq.madinahBrn,
               madinahCateringBrn: iq.madinahCateringBrn,
-              confirmationImagePath: iq.confirmationImagePath
+              confirmationImagePath: iq.confirmationImagePath,
+              isCompanyBrn: iq.isCompanyBrn ?? false,
+              isCompanyCateringBrn: iq.isCompanyCateringBrn ?? false,
             }
           });
         }
@@ -2276,6 +2296,8 @@ router.post('/:bookingId/recreate', authenticate, authorize('admin', 'staff'), a
               checkOutDate: new Date(h.checkOutDate),
               brn: h.brn ?? undefined,
               cateringBrn: h.cateringBrn ?? undefined,
+              isCompanyBrn: h.isCompanyBrn ?? false,
+              isCompanyCateringBrn: h.isCompanyCateringBrn ?? false,
               isAlternate: h.isAlternate || false
             }
           });
@@ -2294,6 +2316,8 @@ router.post('/:bookingId/recreate', authenticate, authorize('admin', 'staff'), a
               checkOutDate: h.checkOutDate,
               brn: h.brn ?? undefined,
               cateringBrn: h.cateringBrn ?? undefined,
+              isCompanyBrn: h.isCompanyBrn,
+              isCompanyCateringBrn: h.isCompanyCateringBrn,
               isAlternate: h.isAlternate
             }
           });

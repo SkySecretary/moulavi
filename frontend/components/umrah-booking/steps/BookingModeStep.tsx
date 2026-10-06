@@ -202,7 +202,7 @@ export const BookingModeStep: React.FC<BookingModeStepProps> = ({
                     id="groupNumber"
                     placeholder="Enter group number"
                     value={data.groupNumber || ''}
-                    onChange={(e) => onChange({ groupNumber: e.target.value })}
+                    onChange={(e) => onChange({ groupNumber: e.target.value.replace(/\s+/g, '') })}
                     disabled={disabled}
                     className="h-10 bg-white border-gray-100 rounded-lg font-bold text-primary focus:ring-secondary/20 pl-10 text-xs"
                   />

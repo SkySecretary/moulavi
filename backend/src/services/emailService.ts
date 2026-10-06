@@ -1335,42 +1335,155 @@ export const sendLandingRegistrationAdminNotificationEmail = async (
 };
 
 
-// Send Voucher Generated Email
+// Send Voucher Email to Agency (with PDF attachment)
+export const sendVoucherAgencyEmail = async (
+  to: string,
+  partyName: string,
+  voucherNumber: string,
+  groupCode?: string,
+  groupName?: string,
+  paxCount?: number,
+  pdfBuffer?: Buffer
+): Promise<void> => {
+  const mailOptions: nodemailer.SendMailOptions = {
+    from: EMAIL_CONFIG.from,
+    to,
+    subject: `Transport & Service Voucher Generated - ${voucherNumber}${groupCode ? ` (${groupCode})` : ''}`,
+    html: `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #3d167a 0%, #1e0847 100%); color: white; padding: 25px 20px; text-align: center;">
+          <h1 style="margin: 0; font-size: 20px; font-weight: 700;">Voucher Issued</h1>
+          <p style="margin: 5px 0 0 0; font-size: 13px; opacity: 0.9;">Moulavi Travels • NuSync Gateway</p>
+        </div>
+        <div style="padding: 25px 20px; background-color: #ffffff;">
+          <p style="font-size: 15px; margin-top: 0;">Dear <strong>${partyName}</strong>,</p>
+          <p style="font-size: 14px; color: #475569;">
+            Your transport and accommodation voucher <strong>${voucherNumber}</strong> has been successfully generated and confirmed.
+          </p>
+          <div style="background-color: #f8fafc; border-left: 4px solid #3d167a; padding: 15px; border-radius: 4px; margin: 20px 0;">
+            <table style="width: 100%; font-size: 13px; color: #334155;">
+              <tr>
+                <td style="padding: 4px 0; font-weight: bold; width: 140px;">Voucher No:</td>
+                <td style="padding: 4px 0; font-weight: bold; color: #3d167a;">${voucherNumber}</td>
+              </tr>
+              ${groupCode ? `<tr><td style="padding: 4px 0; font-weight: bold;">Group Code:</td><td style="padding: 4px 0;">${groupCode}</td></tr>` : ''}
+              ${groupName ? `<tr><td style="padding: 4px 0; font-weight: bold;">Group Name:</td><td style="padding: 4px 0;">${groupName}</td></tr>` : ''}
+              ${paxCount ? `<tr><td style="padding: 4px 0; font-weight: bold;">Number of Pilgrims:</td><td style="padding: 4px 0;">${paxCount} Pax</td></tr>` : ''}
+            </table>
+          </div>
+          <p style="font-size: 14px; color: #475569;">
+            The official PDF voucher is attached to this email. Please review all schedule and route details.
+          </p>
+          <p style="font-size: 13px; color: #64748b; margin-top: 25px;">
+            We wish your pilgrims a safe and blessed journey.<br/>
+            <strong>NuSync Operations Team</strong>
+          </p>
+        </div>
+        <div style="background-color: #f1f5f9; padding: 15px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;">
+          <p style="margin: 0;">This is an automated operational notification from NuSync Moulavi Travels.</p>
+        </div>
+      </div>
+    `,
+    attachments: pdfBuffer ? [
+      {
+        filename: `Voucher_${voucherNumber}.pdf`,
+        content: pdfBuffer,
+        contentType: 'application/pdf',
+      },
+    ] : undefined,
+  };
+
+  try {
+    await sendEmail(mailOptions);
+    console.log(`[EMAIL] ✅ sendVoucherAgencyEmail sent successfully to ${to}`);
+  } catch (error: any) {
+    console.error('[EMAIL] ❌ sendVoucherAgencyEmail failed:', error?.message);
+  }
+};
+
+// Send Voucher Email to Transport Supplier (with PDF attachment)
+export const sendVoucherSupplierEmail = async (
+  to: string,
+  supplierName: string,
+  voucherNumber: string,
+  agencyName?: string,
+  groupCode?: string,
+  groupName?: string,
+  paxCount?: number,
+  movementsSummary?: string,
+  pdfBuffer?: Buffer
+): Promise<void> => {
+  const mailOptions: nodemailer.SendMailOptions = {
+    from: EMAIL_CONFIG.from,
+    to,
+    subject: `New Transport Assignment - Voucher ${voucherNumber}${groupCode ? ` (${groupCode})` : ''}`,
+    html: `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #065f46 0%, #022c22 100%); color: white; padding: 25px 20px; text-align: center;">
+          <h1 style="margin: 0; font-size: 20px; font-weight: 700;">New Transport Booking</h1>
+          <p style="margin: 5px 0 0 0; font-size: 13px; opacity: 0.9;">Moulavi Travels • Transport Dispatch</p>
+        </div>
+        <div style="padding: 25px 20px; background-color: #ffffff;">
+          <p style="font-size: 15px; margin-top: 0;">Dear <strong>${supplierName}</strong>,</p>
+          <p style="font-size: 14px; color: #475569;">
+            A new transport voucher <strong>${voucherNumber}</strong> has been assigned to your company.
+          </p>
+          <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 15px; border-radius: 4px; margin: 20px 0;">
+            <table style="width: 100%; font-size: 13px; color: #334155;">
+              <tr>
+                <td style="padding: 4px 0; font-weight: bold; width: 140px;">Voucher No:</td>
+                <td style="padding: 4px 0; font-weight: bold; color: #065f46;">${voucherNumber}</td>
+              </tr>
+              ${agencyName ? `<tr><td style="padding: 4px 0; font-weight: bold;">Agency:</td><td style="padding: 4px 0;">${agencyName}</td></tr>` : ''}
+              ${groupCode ? `<tr><td style="padding: 4px 0; font-weight: bold;">Group Code:</td><td style="padding: 4px 0;">${groupCode}</td></tr>` : ''}
+              ${groupName ? `<tr><td style="padding: 4px 0; font-weight: bold;">Group Name:</td><td style="padding: 4px 0;">${groupName}</td></tr>` : ''}
+              ${paxCount ? `<tr><td style="padding: 4px 0; font-weight: bold;">Total Passengers:</td><td style="padding: 4px 0;">${paxCount} Pax</td></tr>` : ''}
+            </table>
+          </div>
+          ${movementsSummary ? `
+          <div style="margin: 20px 0; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+            <p style="font-size: 12px; font-weight: bold; color: #475569; margin: 0 0 6px 0; text-transform: uppercase;">Scheduled Movements:</p>
+            <p style="font-size: 13px; color: #1e293b; margin: 0; white-space: pre-line;">${movementsSummary}</p>
+          </div>
+          ` : ''}
+          <p style="font-size: 14px; color: #475569;">
+            Please find the complete official PDF voucher attached. Kindly allocate drivers and vehicles in accordance with the requested schedule.
+          </p>
+          <p style="font-size: 13px; color: #64748b; margin-top: 25px;">
+            Best regards,<br/>
+            <strong>NuSync Transport Operations</strong>
+          </p>
+        </div>
+        <div style="background-color: #f1f5f9; padding: 15px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;">
+          <p style="margin: 0;">This is an automated operational notification from NuSync Moulavi Travels.</p>
+        </div>
+      </div>
+    `,
+    attachments: pdfBuffer ? [
+      {
+        filename: `Voucher_${voucherNumber}.pdf`,
+        content: pdfBuffer,
+        contentType: 'application/pdf',
+      },
+    ] : undefined,
+  };
+
+  try {
+    await sendEmail(mailOptions);
+    console.log(`[EMAIL] ✅ sendVoucherSupplierEmail sent successfully to ${to}`);
+  } catch (error: any) {
+    console.error('[EMAIL] ❌ sendVoucherSupplierEmail failed:', error?.message);
+  }
+};
+
+// Backward-compatible wrapper
 export const sendVoucherGeneratedEmail = async (
   to: string,
   partyName: string,
   voucherNumber: string,
   pdfBuffer: Buffer
 ): Promise<void> => {
-  const mailOptions: nodemailer.SendMailOptions = {
-    from: EMAIL_CONFIG.from,
-    to,
-    subject: `Voucher Generated - Booking ${voucherNumber}`,
-    html: `
-      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #3d167a;">Voucher Generated</h2>
-        <p>Dear ${partyName},</p>
-        <p>Your transport and accommodation voucher for booking <strong>${voucherNumber}</strong> has been successfully generated.</p>
-        <p>Please find the PDF voucher attached to this email.</p>
-        <br/>
-        <p>Best regards,<br/><strong>NuSync</strong></p>
-      </div>
-    `,
-    attachments: [
-      {
-        filename: `Voucher_${voucherNumber}.pdf`,
-        content: pdfBuffer,
-        contentType: 'application/pdf',
-      },
-    ],
-  };
-
-  try {
-    await sendEmail(mailOptions);
-  } catch (error: any) {
-    console.error('[EMAIL] ❌ sendVoucherGeneratedEmail failed:', error?.message);
-    // Don't throw, just log so it doesn't break the flow
-  }
+  return sendVoucherAgencyEmail(to, partyName, voucherNumber, undefined, undefined, undefined, pdfBuffer);
 };
 
 // Send verification code email

@@ -493,6 +493,16 @@ export default function PartyBookingsPage() {
                                  Full Ticket
                                </Badge>
                              )}
+                             {(booking.isCompanyBrn || (booking.hotelBookings && booking.hotelBookings.some((h: any) => h.isCompanyBrn)) || (booking.sponsorIqamaDetails && booking.sponsorIqamaDetails.some((i: any) => i.isCompanyBrn))) && (
+                               <Badge variant="outline" className="text-[9px] bg-purple-50 text-purple-700 border-purple-200 font-medium px-1.5">
+                                 🏢 Company BRN
+                               </Badge>
+                             )}
+                             {(booking.isCompanyCateringBrn || (booking.hotelBookings && booking.hotelBookings.some((h: any) => h.isCompanyCateringBrn)) || (booking.sponsorIqamaDetails && booking.sponsorIqamaDetails.some((i: any) => i.isCompanyCateringBrn))) && (
+                               <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-700 border-emerald-200 font-medium px-1.5">
+                                 🍽️ Company Catering
+                               </Badge>
+                             )}
                            </div>
                          </TableCell>
                         <TableCell className="text-center font-bold text-gray-900">{booking.passengerCount}</TableCell>

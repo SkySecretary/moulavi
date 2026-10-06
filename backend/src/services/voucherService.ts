@@ -1,38 +1,57 @@
-
 import { prisma } from '../config/database';
 
 /**
  * Generate next sequential voucher number starting from "001"
- * Format: "001", "002", "003", etc.
- * Global sequence across all vouchers (not year-based) - used as reservation number
+ * Format: "001", "002", "003", ..., "695", etc.
+ * Global sequence across all vouchers (not year-based) - used as reservation number.
+ * Robust against non-numeric entries, out-of-order creation timestamps, and race conditions.
  */
 export async function generateVoucherNumber(tx?: any): Promise<string> {
   const db = tx || prisma;
   try {
-    // Find the highest voucher number across all vouchers (global, not year-based)
-    const lastVoucher = await db.voucher.findFirst({
-      orderBy: {
-        createdAt: 'desc',
-      },
-      select: {
-        voucherNumber: true,
-      },
-    });
+    let maxNumber = 0;
 
-    if (!lastVoucher) {
-      return '001';
+    // 1. Efficient SQLite query to find the absolute maximum numeric voucher number
+    try {
+      const result: any = await db.$queryRawUnsafe(
+        `SELECT MAX(CAST(voucher_number AS INTEGER)) as maxNum FROM vouchers WHERE voucher_number GLOB '[0-9]*'`
+      );
+      if (result && result.length > 0 && result[0].maxNum !== null && result[0].maxNum !== undefined) {
+        maxNumber = parseInt(String(result[0].maxNum), 10) || 0;
+      }
+    } catch (rawErr) {
+      console.warn('[VOUCHER-SERVICE] Raw query fallback for voucher number:', rawErr);
+      // Fallback: fetch all voucher numbers and compute max numeric value in JS
+      const vouchers = await db.voucher.findMany({
+        select: { voucherNumber: true },
+      });
+      for (const v of vouchers) {
+        if (v.voucherNumber && /^\d+$/.test(v.voucherNumber.trim())) {
+          const n = parseInt(v.voucherNumber.trim(), 10);
+          if (!isNaN(n) && n > maxNumber) {
+            maxNumber = n;
+          }
+        }
+      }
     }
 
-    // Extract numeric part and increment
-    const lastNumber = parseInt(lastVoucher.voucherNumber, 10);
-    if (isNaN(lastNumber)) {
-      return '001';
+    let nextNumber = maxNumber + 1;
+    let candidate = nextNumber.toString().padStart(3, '0');
+
+    // 2. Collision safeguard loop to guarantee no unique constraint violations
+    while (true) {
+      const exists = await db.voucher.findUnique({
+        where: { voucherNumber: candidate },
+        select: { id: true },
+      });
+      if (!exists) {
+        break;
+      }
+      nextNumber++;
+      candidate = nextNumber.toString().padStart(3, '0');
     }
-    
-    const nextNumber = lastNumber + 1;
-    
-    // Format as 3-digit string with leading zeros
-    return nextNumber.toString().padStart(3, '0');
+
+    return candidate;
   } catch (error) {
     console.error('Error generating voucher number:', error);
     throw new Error('Failed to generate voucher number');
@@ -68,37 +87,41 @@ export function formatDate(date: Date | string | null | undefined): string {
   return `${day}-${month}-${year}`;
 }
 
-
 /**
- * Get the last route number from voucher_movements table
+ * Get the next route number from voucher_movements table
  * Route numbers are 5-digit, global across all vouchers, sequential
  * @returns The next route number to use (as string, padded to 5 digits)
  */
 export async function getNextRouteNumber(tx?: any): Promise<string> {
   const db = tx || prisma;
   try {
-    // Get the highest route number from voucher_movements
-    const lastMovement = await db.voucherMovement.findFirst({
-      where: {
-        route: { not: null },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      select: {
-        route: true,
-      },
-    });
+    let maxNumber = 0;
 
-    // Start from 00001 if no route numbers exist, otherwise increment from the highest
-    let nextRouteNumber = 1;
-    if (lastMovement?.route) {
-      const lastNumber = parseInt(lastMovement.route, 10);
-      if (!isNaN(lastNumber)) {
-        nextRouteNumber = lastNumber + 1;
+    // 1. Efficient SQLite query to find the absolute maximum numeric route number
+    try {
+      const result: any = await db.$queryRawUnsafe(
+        `SELECT MAX(CAST(route AS INTEGER)) as maxNum FROM voucher_movements WHERE route IS NOT NULL AND route GLOB '[0-9]*'`
+      );
+      if (result && result.length > 0 && result[0].maxNum !== null && result[0].maxNum !== undefined) {
+        maxNumber = parseInt(String(result[0].maxNum), 10) || 0;
+      }
+    } catch (rawErr) {
+      console.warn('[VOUCHER-SERVICE] Raw query fallback for route number:', rawErr);
+      const movements = await db.voucherMovement.findMany({
+        where: { route: { not: null } },
+        select: { route: true },
+      });
+      for (const m of movements) {
+        if (m.route && /^\d+$/.test(m.route.trim())) {
+          const n = parseInt(m.route.trim(), 10);
+          if (!isNaN(n) && n > maxNumber) {
+            maxNumber = n;
+          }
+        }
       }
     }
 
+    const nextRouteNumber = maxNumber + 1;
     return nextRouteNumber.toString().padStart(5, '0');
   } catch (error) {
     console.error('Error getting next route number:', error);

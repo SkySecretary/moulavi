@@ -96,14 +96,29 @@ export default function UmrahVisaPage() {
   const handleSyncNusuk = async () => {
     try {
       setIsSyncingNusuk(true);
-      toast.info('Triggering Nusuk report fetch and synchronization...');
+      toast.info('Triggering Nusuk report fetch and synchronization in background...');
       await nusukAPI.triggerSync();
-      toast.success('Nusuk synchronization completed successfully!');
-      fetchBookings(pagination.page);
+
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusRes = await nusukAPI.getSyncStatus();
+          if (!statusRes.data.isSyncing) {
+            clearInterval(pollInterval);
+            setIsSyncingNusuk(false);
+            if (statusRes.data.lastSyncError) {
+              toast.error(`Nusuk sync failed: ${statusRes.data.lastSyncError}`);
+            } else {
+              toast.success('Nusuk synchronization completed successfully!');
+              fetchBookings(pagination.page);
+            }
+          }
+        } catch (e) {
+          // ignore transient poll error
+        }
+      }, 2500);
     } catch (error: any) {
       console.error('Nusuk manual sync failed:', error);
       toast.error(error.response?.data?.error || error.message || 'Nusuk manual sync failed');
-    } finally {
       setIsSyncingNusuk(false);
     }
   };
@@ -660,7 +675,10 @@ export default function UmrahVisaPage() {
                       <SelectItem value="all">All Customers/Agencies</SelectItem>
                       {parties.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
-                          {p.partyName} ({p.partyCode || 'N/A'})
+                          {p.customerType === 'direct' 
+                            ? `👤 [DIRECT] ${p.partyName}` 
+                            : `🏢 ${p.partyName} (${p.partyCode || 'N/A'})`
+                          }
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -828,6 +846,11 @@ export default function UmrahVisaPage() {
                                      🏢 Company BRN
                                    </Badge>
                                  )}
+                                 {(booking.party?.partyCode === 'B2C_DIRECT' || booking.party?.email?.includes('b2c') || (booking.groupName && booking.groupName.startsWith('B2C-'))) && (
+                                   <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-800 border-emerald-300 font-bold flex items-center gap-1">
+                                     <span>💬</span> B2C WhatsApp
+                                   </Badge>
+                                 )}
                                </div>
                              </TableCell>
                             <TableCell>
@@ -849,8 +872,17 @@ export default function UmrahVisaPage() {
                             </TableCell>
                             <TableCell>
                               <div className="space-y-1">
-                                <div className="font-semibold text-gray-900">{booking.party?.partyName}</div>
-                                <div className="text-xs text-gray-500">{booking.party?.email}</div>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-semibold text-gray-900">{booking.party?.partyName}</span>
+                                  {booking.party?.customerType === 'direct' && (
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                                      DIRECT
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {booking.party?.contactNumber || booking.party?.email}
+                                </div>
                               </div>
                             </TableCell>
                             <TableCell>

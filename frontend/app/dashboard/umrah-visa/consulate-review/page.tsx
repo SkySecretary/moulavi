@@ -7,8 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
-import { nusukAPI, partyAPI } from '@/lib/api';
-import { SearchableSelect } from '@/components/ui/searchable-select';
+import { nusukAPI } from '@/lib/api';
 import { Input } from '@/components/ui/input';
 import {
   FileText,
@@ -24,7 +23,8 @@ import {
   Search,
   ExternalLink,
   ShieldAlert,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -36,12 +36,17 @@ interface ConsulateReviewPassenger {
   mofaNumber: string | null;
   mutamerStatus: string | null;
   visaNumber: string | null;
-  bookingId: string;
-  bookingReference: string | null;
-  groupNumber: string | null;
-  groupName: string | null;
-  partyId: string;
-  partyName: string;
+  bookingId?: string;
+  bookingReference?: string | null;
+  groupNumber?: string | null;
+  groupName?: string | null;
+  partyId?: string;
+  partyName?: string;
+  umrahCompanyName?: string | null;
+  eaName?: string | null;
+  subEAName?: string | null;
+  mofaIssueDate?: string | null;
+  age?: number | null;
   updatedAt: string;
 }
 
@@ -56,23 +61,29 @@ export default function ConsulateReviewPage() {
   const router = useRouter();
   const user = getUser();
   
-  // State
   const [loading, setLoading] = useState(true);
   const [passengers, setPassengers] = useState<ConsulateReviewPassenger[]>([]);
   
-  // Search query & debounced search
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   
-  // Pagination & Filtering state
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [selectedAgency, setSelectedAgency] = useState<string>('all');
-  const [agencies, setAgencies] = useState<{ id: string; partyName: string }[]>([]);
+  const [pageSize, setPageSize] = useState(15);
+  const [selectedUmrahCompany, setSelectedUmrahCompany] = useState<string>('all');
+  const [selectedEACode, setSelectedEACode] = useState<string>('all');
+
+  const [filterOptions, setFilterOptions] = useState<{
+    umrahCompanies: string[];
+    externalAgents: { eaName: string; eaCode: number }[];
+  }>({
+    umrahCompanies: [],
+    externalAgents: [],
+  });
+
   const [pagination, setPagination] = useState<PaginationInfo>({
     total: 0,
     page: 1,
-    limit: 10,
+    limit: 15,
     totalPages: 1
   });
 
@@ -81,18 +92,21 @@ export default function ConsulateReviewPage() {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
       setCurrentPage(1);
-    }, 500);
+    }, 400);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const loadAgencies = async () => {
+  const loadFilterOptions = async () => {
     try {
-      const response = await partyAPI.getAll({ is_customer: 'true', limit: 1000 });
-      if (response.data && response.data.parties) {
-        setAgencies(response.data.parties);
+      const res = await nusukAPI.getFilters();
+      if (res.data) {
+        setFilterOptions({
+          umrahCompanies: res.data.umrahCompanies || [],
+          externalAgents: res.data.externalAgents || [],
+        });
       }
-    } catch (error) {
-      console.error('Error loading agencies:', error);
+    } catch (err) {
+      console.warn('Failed to load filter options:', err);
     }
   };
 
@@ -102,19 +116,15 @@ export default function ConsulateReviewPage() {
       const response = await nusukAPI.getConsulateReview({
         page: currentPage,
         limit: pageSize,
-        partyId: selectedAgency,
-        search: debouncedSearch || undefined
+        umrahCompany: selectedUmrahCompany !== 'all' ? selectedUmrahCompany : undefined,
+        eaCode: selectedEACode !== 'all' ? selectedEACode : undefined,
+        search: debouncedSearch || undefined,
       });
       
       if (response.data) {
         setPassengers(response.data.passengers || []);
         if (response.data.pagination) {
-          setPagination({
-            total: response.data.pagination.total,
-            page: response.data.pagination.page,
-            limit: response.data.pagination.limit,
-            totalPages: response.data.pagination.totalPages
-          });
+          setPagination(response.data.pagination);
         }
       }
     } catch (error: any) {
@@ -130,14 +140,14 @@ export default function ConsulateReviewPage() {
       router.push('/');
       return;
     }
-    loadAgencies();
+    loadFilterOptions();
   }, []);
 
   useEffect(() => {
     if (user && hasRole(['admin', 'staff'])) {
       loadPassengers();
     }
-  }, [currentPage, pageSize, selectedAgency, debouncedSearch]);
+  }, [currentPage, pageSize, selectedUmrahCompany, selectedEACode, debouncedSearch]);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
@@ -148,181 +158,179 @@ export default function ConsulateReviewPage() {
   if (!user) return null;
 
   return (
-    <div className="flex-1 space-y-6 p-4 lg:p-8 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Header */}
+    <div className="flex-1 space-y-6 p-4 lg:p-8 max-w-7xl mx-auto pb-16">
+      {/* Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-5">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-black text-gray-900 flex items-center gap-2.5 tracking-tight">
-            <ShieldAlert className="h-8 w-8 text-rose-600 shrink-0" />
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2.5">
+            <ShieldAlert className="h-8 w-8 text-amber-600 shrink-0" />
             Consulate Review Applications
           </h1>
-          <p className="text-xs lg:text-sm text-gray-500 font-bold uppercase tracking-widest mt-1">
-            Pilgrims without visa numbers in Nusuk report
+          <p className="text-xs lg:text-sm text-gray-500 mt-1">
+            Pilgrims under Consulate Review, Visa Not Issued, or Pending MOFA status in Nusuk Masar
           </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link href="/dashboard/umrah-visa/overstay-85-days">
+            <Button variant="outline" size="sm" className="text-xs text-rose-700 border-rose-200 hover:bg-rose-50 gap-1">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              Over 85 Days Stay Alert
+            </Button>
+          </Link>
+          <Button
+            onClick={loadPassengers}
+            disabled={loading}
+            variant="outline"
+            size="sm"
+            className="text-xs gap-1.5"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
       </div>
 
-      {/* Filters & Search Toolbar */}
-      <Card className="border-none shadow-sm bg-white rounded-2xl">
-        <CardContent className="p-4 lg:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3 flex-1">
-            {/* Search Input */}
-            <div className="relative w-full md:w-80">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+      {/* Filters & Search */}
+      <Card className="border-gray-200 shadow-sm">
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Search */}
+            <div className="relative lg:col-span-2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Search name, passport, mofa..."
+                placeholder="Search by Passport, Name, MOFA #, Group Code..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-10 rounded-xl text-xs font-semibold"
+                onChange={e => setSearchQuery(e.target.value)}
+                className="pl-9 text-sm"
               />
             </div>
 
-            {/* Agency Selection */}
-            <div className="flex items-center gap-2 min-w-[240px]">
-              <Building2 className="h-4 w-4 text-gray-400 shrink-0" />
-              <div className="w-full">
-                <SearchableSelect
-                  placeholder="All Agencies"
-                  options={[
-                    { value: 'all', label: 'All Agencies' },
-                    ...agencies.map((agency) => ({
-                      value: agency.id,
-                      label: agency.partyName
-                    }))
-                  ]}
-                  value={selectedAgency}
-                  onValueChange={(val) => {
-                    setSelectedAgency(val);
-                    setCurrentPage(1);
-                  }}
-                />
-              </div>
+            {/* Umrah Company Filter */}
+            <div>
+              <select
+                value={selectedUmrahCompany}
+                onChange={e => {
+                  setSelectedUmrahCompany(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full h-10 px-3 rounded-md border border-gray-300 bg-white text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="all">All Umrah Companies</option>
+                {filterOptions.umrahCompanies.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={loadPassengers}
-              className="h-10 px-4 rounded-xl font-bold text-xs flex items-center gap-1.5"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Refresh
-            </Button>
+            {/* External Agent Filter */}
+            <div>
+              <select
+                value={selectedEACode}
+                onChange={e => {
+                  setSelectedEACode(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full h-10 px-3 rounded-md border border-gray-300 bg-white text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="all">All External Agents</option>
+                {filterOptions.externalAgents.map(ea => (
+                  <option key={ea.eaCode} value={String(ea.eaCode)}>{ea.eaName} ({ea.eaCode})</option>
+                ))}
+              </select>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Main Passenger Table List */}
-      <Card className="border-none shadow-md bg-white rounded-3xl overflow-hidden">
+      {/* Data Table */}
+      <Card className="border-gray-200 shadow-sm overflow-hidden">
+        <CardHeader className="bg-gray-50/50 border-b py-3 px-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-700">
+              Found {pagination.total} Consulate Review Cases
+            </span>
+            <span className="text-xs text-gray-500">
+              Page {pagination.page} of {pagination.totalPages}
+            </span>
+          </div>
+        </CardHeader>
+
         <CardContent className="p-0">
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-3">
-              <Loader2 className="h-8 w-8 text-indigo-600 animate-spin" />
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fetching consulate applications...</span>
+            <div className="p-12 text-center text-gray-500 flex flex-col items-center gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-amber-600" />
+              <p className="text-sm font-medium">Loading Consulate Review records...</p>
             </div>
           ) : passengers.length === 0 ? (
-            <div className="text-center py-20 space-y-4">
-              <FileText className="h-12 w-12 text-slate-350 mx-auto" />
-              <div className="text-sm font-bold text-slate-650 uppercase tracking-wide">No consulate review applications found</div>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                No active passengers without visa numbers were identified in the latest Nusuk reports.
-              </p>
+            <div className="p-12 text-center text-gray-500">
+              <p className="font-medium">No Consulate Review applications found.</p>
+              <p className="text-xs text-gray-400 mt-1">All applications are either issued or clear.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 text-slate-500 font-bold uppercase text-[9px] tracking-wider border-b border-slate-100">
-                    <th className="py-4 px-6">Mutamer Name</th>
-                    <th className="py-4 px-6">Passport Number</th>
-                    <th className="py-4 px-6">MoFA Number</th>
-                    <th className="py-4 px-6">Nationality</th>
-                    <th className="py-4 px-6">Group Info</th>
-                    <th className="py-4 px-6">Agency / Client</th>
-                    <th className="py-4 px-6">Status / Time</th>
-                    <th className="py-4 px-6 text-right">Actions</th>
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 text-gray-600 border-b text-xs uppercase font-semibold">
+                  <tr>
+                    <th className="py-3 px-4">Pilgrim Name / Passport</th>
+                    <th className="py-3 px-4">MOFA # / Issue Date</th>
+                    <th className="py-3 px-4">Nusuk Status</th>
+                    <th className="py-3 px-4">Umrah Company</th>
+                    <th className="py-3 px-4">External Agent / Sub-Agent</th>
+                    <th className="py-3 px-4">Group Code / Name</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {passengers.map((passenger) => (
-                    <tr
-                      key={passenger.id}
-                      className="border-b border-slate-100 hover:bg-slate-50/40 transition duration-150"
-                    >
-                      {/* Name */}
-                      <td className="py-4.5 px-6 font-semibold text-slate-900">
-                        <div className="flex items-center gap-2">
-                          <User className="h-3.5 w-3.5 text-indigo-650 shrink-0" />
-                          <span>{passenger.fullName}</span>
+                <tbody className="divide-y divide-gray-100">
+                  {passengers.map(p => (
+                    <tr key={p.id} className="hover:bg-amber-50/20 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="font-semibold text-gray-900">{p.fullName}</div>
+                        <div className="font-mono text-xs text-indigo-700 font-bold mt-0.5">
+                          {p.passportNumber}
+                          {p.nationality ? ` (${p.nationality})` : ''}
                         </div>
                       </td>
 
-                      {/* Passport */}
-                      <td className="py-4.5 px-6 font-mono font-bold text-slate-700">
-                        {passenger.passportNumber}
-                      </td>
-
-                      {/* MoFA Number */}
-                      <td className="py-4.5 px-6 font-mono font-bold text-slate-700">
-                        {passenger.mofaNumber || '-'}
-                      </td>
-
-                      {/* Nationality */}
-                      <td className="py-4.5 px-6 font-medium text-slate-500">
-                        {passenger.nationality || '-'}
-                      </td>
-
-                      {/* Group Details */}
-                      <td className="py-4.5 px-6">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-mono font-semibold text-indigo-650 text-[10px]">
-                            {passenger.groupNumber || 'No Group'}
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-medium">
-                            {passenger.groupName || '-'}
-                          </span>
+                      <td className="py-3 px-4 font-mono text-xs text-gray-700">
+                        <div>MOFA: <span className="font-semibold text-gray-900">{p.mofaNumber || 'N/A'}</span></div>
+                        <div className="text-gray-500 text-[11px]">
+                          {p.mofaIssueDate ? new Date(p.mofaIssueDate).toLocaleDateString() : ''}
                         </div>
                       </td>
 
-                      {/* Agency */}
-                      <td className="py-4.5 px-6 font-medium text-slate-650">
-                        <div className="flex items-center gap-1.5">
-                          <Building2 className="h-3.5 w-3.5 text-slate-400" />
-                          <span>{passenger.partyName}</span>
-                        </div>
+                      <td className="py-3 px-4">
+                        <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">
+                          {p.mutamerStatus || 'Consulate Review'}
+                        </Badge>
                       </td>
 
-                      {/* Status / Timestamp */}
-                      <td className="py-4.5 px-6">
-                        <div className="flex flex-col gap-1">
-                          <Badge variant="outline" className="text-[9px] w-fit font-bold uppercase tracking-tight bg-rose-50 text-rose-700 border-rose-100">
-                            {passenger.mutamerStatus || 'Consulate Review'}
-                          </Badge>
-                          <span className="text-[9px] text-slate-400 font-mono flex items-center gap-0.5">
-                            <Clock className="h-2.5 w-2.5" />
-                            {new Date(passenger.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                          </span>
-                        </div>
+                      <td className="py-3 px-4 text-xs text-gray-900 font-medium">
+                        {p.umrahCompanyName || 'N/A'}
                       </td>
 
-                      {/* Actions */}
-                      <td className="py-4.5 px-6 text-right">
-                        <Link
-                          href={`/dashboard/umrah-visa/visa-management/edit/${passenger.bookingId}`}
-                          target="_blank"
-                          passHref
-                        >
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 font-bold text-xs inline-flex items-center gap-1 h-8 px-3 rounded-lg"
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                            Edit Booking
-                          </Button>
-                        </Link>
+                      <td className="py-3 px-4 text-xs text-gray-700">
+                        <div className="font-medium text-gray-900">{p.eaName || 'N/A'}</div>
+                        {p.subEAName && (
+                          <div className="text-indigo-700 text-[11px] font-semibold">
+                            Sub: {p.subEAName}
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="py-3 px-4 text-xs text-gray-700 max-w-[200px] truncate">
+                        <div className="font-mono text-gray-900">{p.groupNumber || 'N/A'}</div>
+                        <div className="text-gray-500 text-[11px] truncate">{p.groupName || ''}</div>
+                      </td>
+
+                      <td className="py-3 px-4 text-right">
+                        {p.bookingId ? (
+                          <Link href={`/dashboard/umrah-visa/visa-management/view/${p.bookingId}`}>
+                            <Button variant="ghost" size="sm" className="h-8 text-xs text-indigo-600 gap-1">
+                              View Booking
+                              <ExternalLink className="h-3 w-3" />
+                            </Button>
+                          </Link>
+                        ) : null}
                       </td>
                     </tr>
                   ))}
@@ -330,40 +338,37 @@ export default function ConsulateReviewPage() {
               </table>
             </div>
           )}
-
-          {/* Pagination Footer */}
-          {!loading && passengers.length > 0 && (
-            <div className="border-t border-slate-100 py-4 px-6 flex items-center justify-between bg-slate-50/20 text-xs">
-              <div className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">
-                Showing {passengers.length} of {pagination.total} records
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage === 1}
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  className="h-8 w-8 p-0 rounded-lg"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="font-bold text-slate-700">
-                  Page {currentPage} of {pagination.totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage === pagination.totalPages}
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  className="h-8 w-8 p-0 rounded-lg"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
+
+      {/* Pagination Footer */}
+      {pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage <= 1 || loading}
+            className="gap-1 text-xs"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Previous
+          </Button>
+          <span className="text-xs text-gray-500">
+            Page {currentPage} of {pagination.totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage >= pagination.totalPages || loading}
+            className="gap-1 text-xs"
+          >
+            Next
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

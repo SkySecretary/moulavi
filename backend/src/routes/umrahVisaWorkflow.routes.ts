@@ -1575,23 +1575,22 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
     });
     console.log('==========================================');
 
-    // Generate PDF and send email to agency
+    // Generate PDF and dispatch notifications (Email + WhatsApp with PDF) to Agency and Transport Supplier
     try {
-      if (booking.party?.email) {
-        console.log(`Sending voucher email to agency: ${booking.party.email}`);
-        const pdfBuffer = await generateVoucherPDF(voucherForPdf as any);
-        const { sendVoucherGeneratedEmail } = await import('../services/emailService');
-        await sendVoucherGeneratedEmail(
-          booking.party.email,
-          booking.party.partyName,
-          fullVoucher.voucherNumber,
-          pdfBuffer
-        );
-        console.log('✅ Voucher email sent to agency successfully');
-      }
-    } catch (emailError) {
-      console.error('⚠️ Failed to send voucher email to agency:', emailError);
-      // Don't fail the request if email fails
+      const pdfBuffer = await generateVoucherPDF(voucherForPdf as any);
+      const { dispatchVoucherIssuedAlerts } = await import('../services/voucherNotificationService');
+      await dispatchVoucherIssuedAlerts({
+        voucherId: fullVoucher.id,
+        voucherNumber: fullVoucher.voucherNumber,
+        voucherDataForPdf: voucherForPdf,
+        pdfBuffer,
+        notifyAgency: true,
+        notifySupplier: true,
+      });
+      console.log('✅ Voucher alerts dispatched to Agency and Transport Supplier successfully');
+    } catch (notifyError) {
+      console.error('⚠️ Failed to dispatch voucher notifications:', notifyError);
+      // Don't fail the request if notifications fail
     }
 
     res.json({
@@ -2088,7 +2087,7 @@ router.delete('/transport-bookings/:id', authenticate, async (req, res) => {
 router.post('/:bookingId/hotel-bookings', authenticate, async (req, res) => {
   try {
     const { bookingId } = req.params;
-    const { cityId, hotelId, checkInDate, checkOutDate, brn, cateringBrn, additionalBrns, bedsQuantity, isCompanyBrn } = req.body || {};
+    const { cityId, hotelId, checkInDate, checkOutDate, brn, cateringBrn, additionalBrns, bedsQuantity, isCompanyBrn, isCompanyCateringBrn } = req.body || {};
     
     // Verify booking exists and has hotel accommodation type
     const booking = await prisma.umrahVisaBooking.findUnique({
@@ -2112,6 +2111,7 @@ router.post('/:bookingId/hotel-bookings', authenticate, async (req, res) => {
         checkInDate: checkInDate ? new Date(checkInDate) : new Date(),
         checkOutDate: checkOutDate ? new Date(checkOutDate) : new Date(),
         isCompanyBrn: Boolean(isCompanyBrn),
+        isCompanyCateringBrn: Boolean(isCompanyCateringBrn),
         brn: brn ?? null,
         cateringBrn: cateringBrn ?? null,
         additionalBrns: additionalBrns ? (additionalBrns as any) : null,
@@ -2426,9 +2426,12 @@ router.patch('/booking/:id/group-number', authenticate, async (req, res) => {
 
     const isAdminOrStaff = user.role === 'admin' || user.role === 'staff';
 
+    const cleanGroupNumber = groupNumber ? String(groupNumber).replace(/\s+/g, '') : groupNumber;
+    const cleanGroupName = groupName ? String(groupName).trim() : groupName;
+
     const updateData: any = {
-      groupNumber,
-      groupName,
+      groupNumber: cleanGroupNumber,
+      groupName: cleanGroupName,
       brn,
       umrahVisaProviderId: umrahVisaProviderId || undefined,
       transportCompanyId: transportCompanyId || undefined,
@@ -2445,6 +2448,34 @@ router.patch('/booking/:id/group-number', authenticate, async (req, res) => {
 
     if (partyId && isAdminOrStaff) {
       updateData.partyId = partyId;
+    }
+
+    // Sync multipleGroupDetails if present
+    const existingBooking = await prisma.umrahVisaBooking.findUnique({
+      where: { id },
+      select: { hasMultipleGroup: true, multipleGroupDetails: true },
+    });
+
+    if (cleanGroupNumber) {
+      if (existingBooking?.hasMultipleGroup && Array.isArray(existingBooking.multipleGroupDetails) && existingBooking.multipleGroupDetails.length > 0) {
+        const updatedGroups = (existingBooking.multipleGroupDetails as any[]).map((g: any, idx: number) => {
+          if (idx === 0) {
+            return {
+              ...g,
+              groupNumber: cleanGroupNumber,
+              groupName: cleanGroupName || g.groupName || '',
+            };
+          }
+          return g;
+        });
+        updateData.multipleGroupDetails = updatedGroups;
+      } else {
+        updateData.multipleGroupDetails = [{
+          groupNumber: cleanGroupNumber,
+          groupName: cleanGroupName || '',
+          passengerCount: passengerCount ? Number(passengerCount) : 0,
+        }];
+      }
     }
 
     const booking = await prisma.umrahVisaBooking.update({

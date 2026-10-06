@@ -106,6 +106,7 @@ export default function ViewUmrahVisaDialog({ bookingId, open, onOpenChange }: V
   };
 
   const getStatusBadge = (status: string) => {
+    if (!status) return <Badge className="bg-gray-100 text-gray-800 border-0">N/A</Badge>;
     const statusConfig: Record<string, { color: string; icon: any }> = {
       pending: { color: 'bg-yellow-100 text-yellow-800', icon: Clock },
       processing: { color: 'bg-blue-100 text-blue-800', icon: AlertCircle },
@@ -218,6 +219,14 @@ export default function ViewUmrahVisaDialog({ bookingId, open, onOpenChange }: V
                   <p className="text-xs sm:text-sm text-gray-500">Updated At</p>
                   <p className="font-medium text-xs sm:text-sm">{formatDate(booking.updatedAt)}</p>
                 </div>
+                {(booking.party?.partyCode === 'B2C_DIRECT' || booking.party?.email?.includes('b2c') || (booking.groupName && booking.groupName.startsWith('B2C-'))) && (
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-500">Source Channel</p>
+                    <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-800 border-emerald-300 font-bold mt-1 inline-flex items-center gap-1">
+                      <span>💬</span> WhatsApp Meta Form (B2C)
+                    </Badge>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -503,7 +512,7 @@ export default function ViewUmrahVisaDialog({ bookingId, open, onOpenChange }: V
                           </div>
                         </div>
                         <Badge variant="outline" className="text-xs">
-                          {passenger.gender.charAt(0).toUpperCase() + passenger.gender.slice(1)}
+                          {passenger.gender ? passenger.gender.charAt(0).toUpperCase() + passenger.gender.slice(1) : 'N/A'}
                         </Badge>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-xs sm:text-sm">

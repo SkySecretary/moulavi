@@ -6,6 +6,7 @@ import { generateAccessToken } from '../utils/jwt';
 import { InventoryService } from '../services/inventoryService';
 import { sendCustomWhatsApp } from '../services/whatsappService';
 import { FlightService } from '../services/flightService';
+import { generateVoucherNumber } from '../services/voucherService';
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
@@ -734,7 +735,7 @@ router.post(
       }
     }
 
-    const voucherRef = `VCH-${randomSuffix}`;
+    const voucherRef = await generateVoucherNumber(prisma);
     await prisma.voucher.create({
       data: {
         bookingId: booking.id,
@@ -837,6 +838,12 @@ router.post(
       sponserDob,
       sponserMobileNumber,
       sponserNationalShortAddress,
+      passportNumber,
+      visaNumber,
+      umrahVisaNumber,
+      totalAmount,
+      paymentStatus,
+      paymentReceiptUrl,
       // Travel & Flight Details
       arrivalAirportCode = 'JED',
       arrivalAirportName,
@@ -945,9 +952,9 @@ router.post(
         hasTransportation: hasTransportation || (movements && movements.length > 0),
         passengers: {
           create: (passengers && Array.isArray(passengers) && passengers.length > 0)
-            ? passengers.map((p: any) => ({
+            ? passengers.map((p: any, idx: number) => ({
                 fullName: p.fullName || guestName || 'Pilgrim',
-                passportNumber: p.passportNumber || '',
+                passportNumber: (idx === 0 && passportNumber) ? passportNumber : (p.passportNumber || ''),
                 nationality: p.nationality || 'Saudi / Expat',
                 gender: p.gender === 'female' || p.gender === 'FEMALE' ? 'female' : 'male',
                 dateOfBirth: p.dateOfBirth ? new Date(p.dateOfBirth) : null,
@@ -957,7 +964,7 @@ router.post(
             : [
                 {
                   fullName: guestName || 'Pilgrim',
-                  passportNumber: '',
+                  passportNumber: passportNumber || '',
                   nationality: 'Saudi / Expat',
                   gender: 'male',
                 }
@@ -1056,8 +1063,19 @@ router.post(
     }
 
     // Attach documents
-    if (documents && Array.isArray(documents) && documents.length > 0) {
-      for (const doc of documents) {
+    const docList = [...(Array.isArray(documents) ? documents : [])];
+    if (paymentReceiptUrl) {
+      docList.push({
+        documentType: 'payment_receipt',
+        fileName: `payment-receipt-${Date.now()}.png`,
+        filePath: paymentReceiptUrl,
+        fileSize: 1024,
+        mimeType: 'image/png',
+      });
+    }
+
+    if (docList.length > 0) {
+      for (const doc of docList) {
         try {
           await prisma.document.create({
             data: {
@@ -1076,7 +1094,7 @@ router.post(
     }
 
     // Create Voucher
-    const voucherRef = `VCH-${randomSuffix}`;
+    const voucherRef = await generateVoucherNumber(prisma);
     await prisma.voucher.create({
       data: {
         bookingId: booking.id,

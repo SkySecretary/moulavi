@@ -90,6 +90,7 @@ model Party {
   complianceMetrics        SubAgentMetric?
   complianceAuditLogs      ComplianceAuditLog[]
   supportTickets           SupportTicket[]
+  quotations               Quotation[]
 
   @@index([email])
   @@index([partyName])
@@ -137,6 +138,7 @@ model UmrahVisaBooking {
   bookingReference          String?                    @unique @map("booking_reference")
   brn                       String?                    @map("brn")
   isCompanyBrn              Boolean                    @default(false) @map("is_company_brn")
+  isCompanyCateringBrn      Boolean                    @default(false) @map("is_company_catering_brn")
   umrahVisaNumber           String?                    @map("umrah_visa_number")
   requestNumber             String?                    @map("request_number")
   appendedBookings          Json?                      @map("appended_bookings")
@@ -144,6 +146,8 @@ model UmrahVisaBooking {
   appendedToVoucherNumber   String?                    @map("appended_to_voucher_number")
   tripStatus                TripStatus                 @default(pending) @map("trip_status")
   transportCompanyId        String?                    @map("transport_company_id")
+  isNusukSynced             Boolean                    @default(false) @map("is_nusuk_synced")
+  nusukSyncedAt             DateTime?                  @map("nusuk_synced_at")
   statusHistory             BookingStatusHistory[]
   documents                 Document[]
   hotelBookings             UmrahHotelBooking[]
@@ -162,6 +166,7 @@ model UmrahVisaBooking {
   party                     Party                      @relation("BookingParty", fields: [partyId], references: [id], onDelete: Cascade)
   consumerId                String?                    @map("consumer_id")
   consumer                  B2CConsumer?               @relation("ConsumerBookings", fields: [consumerId], references: [id])
+  quotations                Quotation[]
 
   @@index([partyId])
   @@index([status])
@@ -502,6 +507,7 @@ model UmrahHotelBooking {
   cateringBrn  Json?            @map("catering_brn")
   additionalBrns Json?            @map("additional_brns")
   isCompanyBrn   Boolean          @default(false) @map("is_company_brn")
+  isCompanyCateringBrn Boolean    @default(false) @map("is_company_catering_brn")
   bedsQuantity   Int?             @map("beds_quantity")
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @default(now()) @updatedAt @map("updated_at")
@@ -532,6 +538,7 @@ model UmrahSponserIqamaDetails {
   confirmationImagePath       String?          @map("confirmation_image_path")
   confirmationUploadedAt      DateTime?        @map("confirmation_uploaded_at")
   isCompanyBrn                Boolean          @default(false) @map("is_company_brn")
+  isCompanyCateringBrn        Boolean          @default(false) @map("is_company_catering_brn")
   createdAt                   DateTime         @default(now()) @map("created_at")
   updatedAt                   DateTime         @default(now()) @updatedAt @map("updated_at")
   madinahBrn                  String?          @map("madinah_brn")
@@ -962,14 +969,14 @@ model BrnUpdateHistory {
 model NusukSetting {
   id                      String    @id @default(uuid())
   token                   String    @map("token")
-  activeEntityId          String    @default("525592") @map("active_entity_id")
-  activeEntityTypeId      String    @default("32") @map("active_entity_type_id")
-  entityId                String    @default("525592") @map("entity_id")
+  activeEntityId          String    @default("719133") @map("active_entity_id")
+  activeEntityTypeId      String    @default("52") @map("active_entity_type_id")
+  entityId                String    @default("719133") @map("entity_id")
   selectedUmrahCompanyIds String?   @map("selected_umrah_company_ids")
   checkByPassport         Boolean   @default(false) @map("check_by_passport")
   externalAgentCodes      String    @default("22282, 6655, 1001828") @map("external_agent_codes")
   syncSchedule            String    @default("08:00, 20:00") @map("sync_schedule")
-  syncType                String    @default("excel") @map("sync_type")
+  syncType                String    @default("listing") @map("sync_type")
   isValid                 Boolean   @default(true) @map("is_valid")
   allowOneWayTicket       Boolean   @default(false) @map("allow_one_way_ticket")
   allowWithoutTicket      Boolean   @default(false) @map("allow_without_ticket")
@@ -980,6 +987,96 @@ model NusukSetting {
   updatedAt               DateTime  @default(now()) @updatedAt @map("updated_at")
 
   @@map("nusuk_settings")
+}
+
+model NusukExternalAgent {
+  id                 String    @id @default(uuid())
+  name               String    @map("name")
+  entityId           String    @map("entity_id")
+  contractId         String    @map("contract_id")
+  activeEntityTypeId String    @default("52") @map("active_entity_type_id")
+  isActive           Boolean   @default(true) @map("is_active")
+  lastSyncedAt       DateTime? @map("last_synced_at")
+  lastSyncCount      Int?      @default(0) @map("last_sync_count")
+  lastSyncStatus     String?   @map("last_sync_status")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@map("nusuk_external_agents")
+}
+
+model NusukMutamerRecord {
+  id                     String    @id @default(uuid())
+  nusukId                String?   @unique @map("nusuk_id")
+  mutamerNumber          String?   @map("mutamer_number")
+  originalMutamerNumber  String?   @map("original_mutamer_number")
+  entrySequenceNumber    Int?      @map("entry_sequence_number")
+  fullName               String    @map("full_name")
+  passportNumber         String    @map("passport_number")
+  nationalityName        String?   @map("nationality_name")
+  groupNumber            String?   @map("group_number")
+  groupCode              String?   @map("group_code")
+  groupName              String?   @map("group_name")
+  eaCountryName          String?   @map("ea_country_name")
+  eaCode                 Int?      @map("ea_code")
+  subEAName              String?   @map("sub_ea_name")
+  subEACode              Int?      @map("sub_ea_code")
+  eaName                 String?   @map("ea_name")
+  umrahCompanyId         Int?      @map("umrah_company_id")
+  umrahCompanyName       String?   @map("umrah_company_name")
+  entryCarrierNumber     String?   @map("entry_carrier_number")
+  entryDate              DateTime? @map("entry_date")
+  entryTime              String?   @map("entry_time")
+  entryPlace             String?   @map("entry_place")
+  entryPortName          String?   @map("entry_port_name")
+  exitCarrierNumber      String?   @map("exit_carrier_number")
+  exitDate               DateTime? @map("exit_date")
+  exitTime               String?   @map("exit_time")
+  exitPlace              String?   @map("exit_place")
+  exitPortName           String?   @map("exit_port_name")
+  moiNumber              String?   @map("moi_number")
+  visaNumber             String?   @map("visa_number")
+  iqamaDaysNumber        Int?      @map("iqama_days_number")
+  mutamerGender          String?   @map("mutamer_gender")
+  passportExpiryDate     DateTime? @map("passport_expiry_date")
+  programmeDuration      Int?      @map("programme_duration")
+  eaType                 String?   @map("ea_type")
+  mutamerStateId         Int?      @map("mutamer_state_id")
+  mutamerStateName       String?   @map("mutamer_state_name")
+  mutamerStateColor      String?   @map("mutamer_state_color")
+  mofaNumber             String?   @map("mofa_number")
+  mutamerAge             Int?      @map("mutamer_age")
+  isUmrahPermit          Boolean   @default(false) @map("is_umrah_permit")
+  umrahPermit            String?   @map("umrah_permit")
+  isRawdaPermit          Boolean   @default(false) @map("is_rawda_permit")
+  rawdaPermit            String?   @map("rawda_permit")
+  mutamerOutStatusId     Int?      @map("mutamer_out_status_id")
+  mutamerOutStatusName   String?   @map("mutamer_out_status_name")
+  mutamerB2CStatusId     Int?      @map("mutamer_b2c_status_id")
+  isMutamerVisaExtend    Boolean   @default(false) @map("is_mutamer_visa_extend")
+  mofaIssueDate          DateTime? @map("mofa_issue_date")
+  stayInDuration         Int?      @map("stay_in_duration")
+  isPresentMutamer       Int?      @map("is_present_mutamer")
+  packageId              String?   @map("package_id")
+  groupId                String?   @map("group_id")
+  isVisaMultiEntry       Boolean   @default(false) @map("is_visa_multi_entry")
+  totalResidencyDays     Int       @default(0) @map("total_residency_days")
+  remainingResidencyDays Int       @default(90) @map("remaining_residency_days")
+  daysInKsa              Int       @default(0) @map("days_in_ksa")
+  isOver85Days           Boolean   @default(false) @map("is_over_85_days")
+  externalAgentId        String?   @map("external_agent_id")
+  syncedAt               DateTime  @default(now()) @map("synced_at")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@index([passportNumber])
+  @@index([groupNumber])
+  @@index([mutamerStateId])
+  @@index([umrahCompanyName])
+  @@index([eaCode])
+  @@index([isOver85Days])
+  @@index([syncedAt])
+  @@map("nusuk_mutamer_records")
 }
 
 model NusukMismatch {
@@ -1184,6 +1281,88 @@ model SupportTicketComment {
   @@map("support_ticket_comments")
 }
 
+model Quotation {
+  id                    String            @id @default(uuid())
+  quotationNumber       String            @unique @map("quotation_number")
+  title                 String?           @map("title")
+  status                String            @default("DRAFT") @map("status") // DRAFT, SENT, ACCEPTED, CONVERTED, EXPIRED, REJECTED
+  validUntil            DateTime?         @map("valid_until")
 
+  // Customer / Lead info
+  customerType          String            @default("B2C") @map("customer_type") // B2C or B2B
+  partyId               String?           @map("party_id")
+  party                 Party?            @relation(fields: [partyId], references: [id], onDelete: SetNull)
+  guestName             String            @map("guest_name")
+  guestEmail            String?           @map("guest_email")
+  guestPhone            String?           @map("guest_phone")
+  guestCountry          String?           @map("guest_country")
+  guestCity             String?           @map("guest_city")
 
+  // Pax Breakdown
+  adultsCount           Int               @default(1) @map("adults_count")
+  childrenCount         Int               @default(0) @map("children_count")
+  infantsCount          Int               @default(0) @map("infants_count")
+  totalPax              Int               @default(1) @map("total_pax")
 
+  // Financials
+  currency              String            @default("SAR") @map("currency")
+  totalHotelAmount      Float             @default(0) @map("total_hotel_amount")
+  totalMealAmount       Float             @default(0) @map("total_meal_amount")
+  totalTransportAmount  Float             @default(0) @map("total_transport_amount")
+  totalFlightAmount     Float             @default(0) @map("total_flight_amount")
+  totalVisaAmount       Float             @default(0) @map("total_visa_amount")
+  totalAdditionalAmount Float             @default(0) @map("total_additional_amount")
+  subtotal              Float             @default(0) @map("subtotal")
+  taxAmount             Float             @default(0) @map("tax_amount")
+  discountAmount        Float             @default(0) @map("discount_amount")
+  grandTotal            Float             @default(0) @map("grand_total")
+  pricePerAdult         Float             @default(0) @map("price_per_adult")
+  pricePerChild         Float             @default(0) @map("price_per_child")
+
+  // Line items stored as structured JSON
+  hotels                Json?             @map("hotels")
+  transports            Json?             @map("transports")
+  flights               Json?             @map("flights")
+  visas                 Json?             @map("visas")
+  additionalItems       Json?             @map("additional_items")
+
+  // Text details
+  inclusions            String?           @map("inclusions")
+  exclusions            String?           @map("exclusions")
+  termsAndConditions    String?           @map("terms_and_conditions")
+  notes                 String?           @map("notes")
+
+  // Conversion reference
+  convertedBookingId    String?           @map("converted_booking_id")
+  convertedBooking      UmrahVisaBooking? @relation(fields: [convertedBookingId], references: [id], onDelete: SetNull)
+  convertedAt           DateTime?         @map("converted_at")
+
+  createdById           String?           @map("created_by_id")
+  createdAt             DateTime          @default(now()) @map("created_at")
+  updatedAt             DateTime          @default(now()) @updatedAt @map("updated_at")
+  isDeleted             Boolean           @default(false) @map("is_deleted")
+
+  @@index([partyId])
+  @@index([status])
+  @@index([customerType])
+  @@index([convertedBookingId])
+  @@index([createdAt])
+  @@map("quotations")
+}
+
+model ReentryPricingMaster {
+  id                 String   @id @default(uuid())
+  hotelFixedVisaFee  Decimal  @default(2000) @map("hotel_fixed_visa_fee")
+  hotelPerDayCost    Decimal  @default(200)  @map("hotel_per_day_cost")
+  iqamaFixedVisaFee  Decimal  @default(2500) @map("iqama_fixed_visa_fee")
+  iqamaPerDayCost    Decimal  @default(0)    @map("iqama_per_day_cost")
+  currency           String   @default("INR")
+  upiId              String?  @default("moulavitravels@okhdfcbank") @map("upi_id")
+  upiMerchantName    String?  @default("Moulavi Travels") @map("upi_merchant_name")
+  bankAccountDetails String?  @default("Bank: HDFC Bank\nAccount: 50200088991122\nIFSC: HDFC0001234\nHolder: Moulavi Travels & Logistics") @map("bank_account_details")
+  isActive           Boolean  @default(true) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("reentry_pricing_masters")
+}

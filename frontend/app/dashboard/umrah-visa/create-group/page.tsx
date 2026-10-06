@@ -24,12 +24,8 @@ import { TransportVehicleSelectionStep } from '@/components/umrah-booking/steps/
 import { GroupDocumentsStep } from '@/components/umrah-booking/steps/GroupDocumentsStep';
 import { validateStep1, validateStep2, validateStep3, validateStep4, validateStep5 } from '@/lib/umrah/validation';
 
-interface Party {
-  id: string;
-  partyName: string;
-  partyCode?: string;
-  email: string;
-}
+import { CustomerPartySelector } from '@/components/umrah-booking/CustomerPartySelector';
+import { Party } from '@/types';
 
 function CreateGroupContent() {
   const router = useRouter();
@@ -109,6 +105,18 @@ function CreateGroupContent() {
     }
   };
 
+  const handleSelectParty = (partyId: string, party?: Party) => {
+    setSelectedPartyId(partyId);
+    const targetParty = party || parties.find(p => p.id === partyId);
+    if (targetParty && targetParty.customerType === 'direct') {
+      updateStep1Data({
+        guestName: targetParty.partyName,
+        guestMobile: targetParty.contactNumber || targetParty.whatsappNumber || '',
+      });
+    }
+    setCurrentStep(1);
+  };
+
   const validateCurrentStep = () => {
     switch (bookingState.currentStep) {
       case 1: return validateStep1(bookingState.step1Data);
@@ -162,6 +170,8 @@ function CreateGroupContent() {
   if (!isClient) return <LoadingSpinner />;
   if (!user) return null;
 
+  const currentSelectedParty = selectedParty || parties.find(p => p.id === selectedPartyId);
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b px-4 lg:px-8 py-3 flex items-center justify-between">
@@ -173,35 +183,36 @@ function CreateGroupContent() {
         </div>
         {selectedPartyId && (
           <div className="flex items-center gap-3 px-4 py-1.5 rounded-xl bg-primary/5 border border-secondary/20 shadow-sm">
-             <Users className="h-3.5 w-3.5 text-secondary" />
-             <span className="text-[10px] font-bold text-primary uppercase">{parties.find(p => p.id === selectedPartyId)?.partyName || 'Syncing...'}</span>
+             {currentSelectedParty?.customerType === 'direct' ? (
+               <div className="flex items-center gap-2">
+                 <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-800 border border-blue-200">DIRECT CUSTOMER</span>
+                 <span className="text-[11px] font-bold text-primary uppercase">{currentSelectedParty?.partyName}</span>
+                 {currentSelectedParty?.contactNumber && (
+                   <span className="text-[10px] text-muted-foreground font-medium">({currentSelectedParty.contactNumber})</span>
+                 )}
+               </div>
+             ) : (
+               <div className="flex items-center gap-2">
+                 <Users className="h-3.5 w-3.5 text-secondary" />
+                 <span className="text-[10px] font-bold text-primary uppercase">{currentSelectedParty?.partyName || 'Syncing...'}</span>
+               </div>
+             )}
           </div>
         )}
       </header>
 
       <div className="p-4 lg:p-6 max-w-[1400px] mx-auto w-full flex-1 pb-24 overflow-auto">
         {!selectedPartyId ? (
-          <div className="max-w-xl mx-auto mt-8">
-            <Card className="border-0 shadow-2xl shadow-primary/5 rounded-[2rem] overflow-hidden">
-              <div className="bg-primary p-8 text-center">
-                <div className="mx-auto mb-4 h-12 w-12 rounded-xl bg-white/10 flex items-center justify-center text-secondary border border-white/5"><Users className="h-6 w-6" /></div>
-                <CardTitle className="text-xl font-bold text-white uppercase tracking-tight">Select Party</CardTitle>
-              </div>
-              <CardContent className="p-8 space-y-6">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-bold text-primary/60 uppercase ml-1">Choose Partner Agency</Label>
-                  <SearchableSelect
-                    options={parties.map(p => ({ value: p.id, label: p.partyName }))}
-                    value={selectedPartyId}
-                    onValueChange={(v) => { setSelectedPartyId(v); setCurrentStep(1); }}
-                    placeholder="Select a party"
-                    searchPlaceholder="Search agency..."
-                    className="h-12 rounded-xl border-gray-100"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <CustomerPartySelector
+            parties={parties}
+            selectedPartyId={selectedPartyId}
+            onSelectParty={handleSelectParty}
+            onPartyCreated={(newParty) => {
+              setParties(prev => [newParty, ...prev]);
+            }}
+            title="Select Customer / Partner Agency"
+            description="Choose whether this group booking is for a B2B Partner Agency or a Direct Customer"
+          />
         ) : (
           <div className="space-y-6">
             <StepProgress currentStep={bookingState.currentStep} completedSteps={bookingState.completedSteps} onStepClick={goToStep} steps={steps} />

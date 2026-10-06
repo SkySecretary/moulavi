@@ -121,6 +121,8 @@ export default function TripInfoPage() {
     madinahHotelId?: string;
     makkahCityId?: string;
     madinahCityId?: string;
+    isCompanyBrn?: boolean;
+    isCompanyCateringBrn?: boolean;
   }>>({});
 
   // Master data for inventory selection
@@ -313,6 +315,8 @@ export default function TripInfoPage() {
             madinahHotelName: iqama?.madinahHotelName || '',
             madinahBrn: iqama?.madinahBrn || '',
             madinahCateringBrn: iqama?.madinahCateringBrn || '',
+            isCompanyBrn: iqama?.isCompanyBrn || booking.isCompanyBrn || false,
+            isCompanyCateringBrn: iqama?.isCompanyCateringBrn || booking.isCompanyCateringBrn || false,
           };
         }
       });
@@ -353,6 +357,8 @@ export default function TripInfoPage() {
         madinahHotelName: data.madinahHotelName,
         madinahBrn: data.madinahBrn,
         madinahCateringBrn: data.madinahCateringBrn,
+        isCompanyBrn: data.isCompanyBrn,
+        isCompanyCateringBrn: data.isCompanyCateringBrn,
       });
       toast.success('Hotel details updated successfully');
       fetchBookings();
@@ -640,7 +646,10 @@ export default function TripInfoPage() {
         }
 
         const hName = hotelBooking.hotel?.name || 'N/A';
-        const hBrn = (hotelBooking.isCompanyBrn || booking.isCompanyBrn) ? 'Company Side BRN' : brnToString(hotelBooking.brn);
+        const hBrnVal = brnToString(hotelBooking.brn);
+        const hBrn = (hBrnVal && hBrnVal !== 'N/A' && hBrnVal !== '')
+          ? hBrnVal
+          : (hotelBooking.isCompanyBrn ? 'Company Side BRN' : 'N/A');
         const hCateringBrn = brnToString((hotelBooking as any).cateringBrn);
         const hCheckIn = formatDateShort(hotelBooking.checkInDate);
         const hCheckOut = formatDateShort(hotelBooking.checkOutDate);
@@ -670,10 +679,16 @@ export default function TripInfoPage() {
         const hotel2Label = isIndividual ? 'Madinah Hotel' : 'Hotel 2';
 
         const mName = mainIqama.makkahHotelName || 'N/A';
-        const mBrn = (mainIqama.isCompanyBrn || booking.isCompanyBrn) ? 'Company Side BRN' : brnToString(mainIqama.makkahBrn);
+        const mBrnVal = brnToString(mainIqama.makkahBrn);
+        const mBrn = (mBrnVal && mBrnVal !== 'N/A' && mBrnVal !== '')
+          ? mBrnVal
+          : ((mainIqama.isCompanyBrn || booking.isCompanyBrn) ? 'Company Side BRN' : 'N/A');
         const mCateringBrn = brnToString(mainIqama.makkahCateringBrn);
         const dName = mainIqama.madinahHotelName || 'N/A';
-        const dBrn = (mainIqama.isCompanyBrn || booking.isCompanyBrn) ? 'Company Side BRN' : brnToString(mainIqama.madinahBrn);
+        const dBrnVal = brnToString(mainIqama.madinahBrn);
+        const dBrn = (dBrnVal && dBrnVal !== 'N/A' && dBrnVal !== '')
+          ? dBrnVal
+          : ((mainIqama.isCompanyBrn || booking.isCompanyBrn) ? 'Company Side BRN' : 'N/A');
         const dCateringBrn = brnToString(mainIqama.madinahCateringBrn);
 
         if (mName !== 'N/A') {
@@ -1738,30 +1753,32 @@ export default function TripInfoPage() {
                                             </button>
                                           )}
                                         </div>
-                                        <div className="flex items-center gap-1 text-gray-500">
+                                        <div className="flex items-center gap-1 text-gray-500 flex-wrap">
                                           <span>BRN:</span>{' '}
-                                          {(booking.isCompanyBrn || (editingIqama[booking.id!] as any)?.isCompanyBrn) ? (
+                                          {(booking.isCompanyBrn || (editingIqama[booking.id!] as any)?.isCompanyBrn) && (
                                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-800">
                                               🏢 Company BRN
                                             </span>
-                                          ) : (
-                                            <>
-                                              <span className="font-medium text-gray-700">{editingIqama[booking.id!]?.makkahBrn || 'N/A'}</span>
-                                              {editingIqama[booking.id!]?.makkahBrn && (
-                                                <button
-                                                  onClick={() => copyToClipboard(editingIqama[booking.id!]?.makkahBrn, 'BRN')}
-                                                  className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
-                                                  title="Copy BRN"
-                                                >
-                                                  <Copy className="h-3 w-3 text-gray-500" />
-                                                </button>
-                                              )}
-                                            </>
+                                          )}
+                                          <span className="font-medium text-gray-700">{editingIqama[booking.id!]?.makkahBrn || (!(booking.isCompanyBrn || (editingIqama[booking.id!] as any)?.isCompanyBrn) ? 'N/A' : '')}</span>
+                                          {editingIqama[booking.id!]?.makkahBrn && (
+                                            <button
+                                              onClick={() => copyToClipboard(editingIqama[booking.id!]?.makkahBrn, 'BRN')}
+                                              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
+                                              title="Copy BRN"
+                                            >
+                                              <Copy className="h-3 w-3 text-gray-500" />
+                                            </button>
                                           )}
                                         </div>
-                                        <div className="flex items-center gap-1 text-gray-500">
+                                        <div className="flex items-center gap-1 text-gray-500 flex-wrap">
                                           <span>Catering BRN:</span>{' '}
-                                          <span className="font-medium text-gray-700">{editingIqama[booking.id!]?.makkahCateringBrn || 'N/A'}</span>
+                                          {((booking as any).isCompanyCateringBrn || (editingIqama[booking.id!] as any)?.isCompanyCateringBrn) && (
+                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800">
+                                              🍽️ Company Catering
+                                            </span>
+                                          )}
+                                          <span className="font-medium text-gray-700">{editingIqama[booking.id!]?.makkahCateringBrn || (!((booking as any).isCompanyCateringBrn || (editingIqama[booking.id!] as any)?.isCompanyCateringBrn) ? 'N/A' : '')}</span>
                                           {editingIqama[booking.id!]?.makkahCateringBrn && (
                                             <button
                                               onClick={() => copyToClipboard(editingIqama[booking.id!]?.makkahCateringBrn, 'Catering BRN')}
@@ -1789,30 +1806,32 @@ export default function TripInfoPage() {
                                             </button>
                                           )}
                                         </div>
-                                        <div className="flex items-center gap-1 text-gray-500">
+                                        <div className="flex items-center gap-1 text-gray-500 flex-wrap">
                                           <span>BRN:</span>{' '}
-                                          {(booking.isCompanyBrn || (editingIqama[booking.id!] as any)?.isCompanyBrn) ? (
+                                          {(booking.isCompanyBrn || (editingIqama[booking.id!] as any)?.isCompanyBrn) && (
                                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-800">
                                               🏢 Company BRN
                                             </span>
-                                          ) : (
-                                            <>
-                                              <span className="font-medium text-gray-700">{editingIqama[booking.id!]?.madinahBrn || 'N/A'}</span>
-                                              {editingIqama[booking.id!]?.madinahBrn && (
-                                                <button
-                                                  onClick={() => copyToClipboard(editingIqama[booking.id!]?.madinahBrn, 'BRN')}
-                                                  className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
-                                                  title="Copy BRN"
-                                                >
-                                                  <Copy className="h-3 w-3 text-gray-500" />
-                                                </button>
-                                              )}
-                                            </>
+                                          )}
+                                          <span className="font-medium text-gray-700">{editingIqama[booking.id!]?.madinahBrn || (!(booking.isCompanyBrn || (editingIqama[booking.id!] as any)?.isCompanyBrn) ? 'N/A' : '')}</span>
+                                          {editingIqama[booking.id!]?.madinahBrn && (
+                                            <button
+                                              onClick={() => copyToClipboard(editingIqama[booking.id!]?.madinahBrn, 'BRN')}
+                                              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
+                                              title="Copy BRN"
+                                            >
+                                              <Copy className="h-3 w-3 text-gray-500" />
+                                            </button>
                                           )}
                                         </div>
-                                        <div className="flex items-center gap-1 text-gray-500">
+                                        <div className="flex items-center gap-1 text-gray-500 flex-wrap">
                                           <span>Catering BRN:</span>{' '}
-                                          <span className="font-medium text-gray-700">{editingIqama[booking.id!]?.madinahCateringBrn || 'N/A'}</span>
+                                          {((booking as any).isCompanyCateringBrn || (editingIqama[booking.id!] as any)?.isCompanyCateringBrn) && (
+                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800">
+                                              🍽️ Company Catering
+                                            </span>
+                                          )}
+                                          <span className="font-medium text-gray-700">{editingIqama[booking.id!]?.madinahCateringBrn || (!((booking as any).isCompanyCateringBrn || (editingIqama[booking.id!] as any)?.isCompanyCateringBrn) ? 'N/A' : '')}</span>
                                           {editingIqama[booking.id!]?.madinahCateringBrn && (
                                             <button
                                               onClick={() => copyToClipboard(editingIqama[booking.id!]?.madinahCateringBrn, 'Catering BRN')}
@@ -1921,51 +1940,53 @@ export default function TripInfoPage() {
                                                </span>
                                              </div>
                                            )}
-                                          <div className="flex items-center gap-1">
+                                          <div className="flex items-center gap-1 flex-wrap">
                                             <span className="text-gray-500">BRN:</span>{' '}
-                                            {(hotelBooking.isCompanyBrn || booking.isCompanyBrn) ? (
+                                            {hotelBooking.isCompanyBrn && (
                                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-800">
                                                 🏢 Company BRN
                                               </span>
-                                            ) : (
-                                              <>
-                                                <span className="font-medium">
-                                                  {hotelBooking.brn 
-                                                    ? (typeof hotelBooking.brn === 'string' 
-                                                        ? hotelBooking.brn 
-                                                        : typeof hotelBooking.brn === 'object' 
-                                                          ? JSON.stringify(hotelBooking.brn) 
-                                                          : String(hotelBooking.brn))
-                                                    : 'N/A'}
-                                                </span>
-                                                {hotelBooking.brn && (
-                                                  <button
-                                                    onClick={() => copyToClipboard(
-                                                      typeof hotelBooking.brn === 'string' 
-                                                        ? hotelBooking.brn 
-                                                        : typeof hotelBooking.brn === 'object' 
-                                                          ? JSON.stringify(hotelBooking.brn) 
-                                                          : String(hotelBooking.brn),
-                                                      'BRN'
-                                                    )}
-                                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
-                                                    title="Copy BRN"
-                                                  >
-                                                    <Copy className="h-3 w-3 text-gray-500" />
-                                                  </button>
+                                            )}
+                                            <span className="font-medium">
+                                              {hotelBooking.brn 
+                                                ? (typeof hotelBooking.brn === 'string' 
+                                                    ? hotelBooking.brn 
+                                                    : typeof hotelBooking.brn === 'object' 
+                                                      ? (Array.isArray(hotelBooking.brn) ? hotelBooking.brn.join(', ') : JSON.stringify(hotelBooking.brn)) 
+                                                      : String(hotelBooking.brn))
+                                                : (!hotelBooking.isCompanyBrn ? 'N/A' : '')}
+                                            </span>
+                                            {hotelBooking.brn && (
+                                              <button
+                                                onClick={() => copyToClipboard(
+                                                  typeof hotelBooking.brn === 'string' 
+                                                    ? hotelBooking.brn 
+                                                    : typeof hotelBooking.brn === 'object' 
+                                                      ? (Array.isArray(hotelBooking.brn) ? hotelBooking.brn.join(', ') : JSON.stringify(hotelBooking.brn)) 
+                                                      : String(hotelBooking.brn),
+                                                  'BRN'
                                                 )}
-                                              </>
+                                                className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 rounded"
+                                                title="Copy BRN"
+                                              >
+                                                <Copy className="h-3 w-3 text-gray-500" />
+                                              </button>
                                             )}
                                           </div>
 
-                                           <div className="flex items-center gap-1">
+                                           <div className="flex items-center gap-1 flex-wrap">
                                              <span className="text-gray-500">Catering BRN:</span>{' '}
+                                             {(hotelBooking as any).isCompanyCateringBrn && (
+                                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800">
+                                                 🍽️ Company Catering
+                                               </span>
+                                             )}
                                              <span className="font-medium">
                                                {hotelBooking.cateringBrn 
                                                  ? (Array.isArray(hotelBooking.cateringBrn) 
                                                      ? hotelBooking.cateringBrn.join(', ') 
                                                      : String(hotelBooking.cateringBrn))
-                                                 : 'N/A'}
+                                                 : (!((hotelBooking as any).isCompanyCateringBrn) ? 'N/A' : '')}
                                              </span>
                                              {hotelBooking.cateringBrn && (Array.isArray(hotelBooking.cateringBrn) ? hotelBooking.cateringBrn.length > 0 : String(hotelBooking.cateringBrn).length > 0) && (
                                                <button
@@ -2316,7 +2337,21 @@ export default function TripInfoPage() {
 
                 {/* BRN Picker Input */}
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">BRN / Agreement No</label>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-gray-700">BRN / Agreement No</label>
+                    {editingIqama[activeHotelEditBookingId]?.isCompanyBrn && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-800">
+                        🏢 Company BRN
+                      </span>
+                    )}
+                  </div>
+                    {editingIqama[activeHotelEditBookingId]?.isCompanyBrn && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-800">
+                        🏢 Company BRN
+                      </span>
+                    )}
+                  </div>
                   <div className="flex gap-2 items-center">
                     <Input
                       placeholder="Enter BRN or Agreement No"
@@ -2347,7 +2382,21 @@ export default function TripInfoPage() {
 
                 {/* Catering BRN Input */}
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">Catering BRN</label>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-gray-700">Catering BRN</label>
+                    {editingIqama[activeHotelEditBookingId]?.isCompanyCateringBrn && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800">
+                        🍽️ Company Catering
+                      </span>
+                    )}
+                  </div>
+                    {editingIqama[activeHotelEditBookingId]?.isCompanyCateringBrn && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800">
+                        🍽️ Company Catering
+                      </span>
+                    )}
+                  </div>
                   <Input
                     placeholder="Enter Catering BRN"
                     value={editingIqama[activeHotelEditBookingId]?.makkahCateringBrn || ''}

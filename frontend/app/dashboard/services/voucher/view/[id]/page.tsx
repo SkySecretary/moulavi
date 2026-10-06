@@ -18,6 +18,8 @@ export default function ViewVoucherPage() {
 
   const [loading, setLoading] = useState(true);
   const [voucher, setVoucher] = useState<any>(null);
+  const [notifyingAgency, setNotifyingAgency] = useState(false);
+  const [notifyingSupplier, setNotifyingSupplier] = useState(false);
 
   useEffect(() => {
     if (!user || !hasRole(['admin', 'staff', 'party'])) {
@@ -41,6 +43,36 @@ export default function ViewVoucherPage() {
     }
   };
 
+  const handleNotifyAgency = async () => {
+    if (!voucher?.id) return;
+    try {
+      setNotifyingAgency(true);
+      toast.info('Dispatching WhatsApp and Email alerts to Agency...');
+      const response = await voucherAPI.notifyAgency(voucher.id);
+      toast.success(response.data?.message || 'Agency notifications sent successfully!');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.error || 'Failed to send agency notifications');
+    } finally {
+      setNotifyingAgency(false);
+    }
+  };
+
+  const handleNotifySupplier = async () => {
+    if (!voucher?.id) return;
+    try {
+      setNotifyingSupplier(true);
+      toast.info('Dispatching WhatsApp and Email alerts to Transport Supplier...');
+      const response = await voucherAPI.notifySupplier(voucher.id);
+      toast.success(response.data?.message || 'Transport supplier notifications sent successfully!');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.error || 'Failed to send supplier notifications');
+    } finally {
+      setNotifyingSupplier(false);
+    }
+  };
+
   const formatDate = (date?: string | Date) => {
     if (!date) return 'N/A';
     try {
@@ -61,21 +93,46 @@ export default function ViewVoucherPage() {
         {/* Header */}
         <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
           <div className="px-4 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="leading-tight">
                 <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Voucher {voucher?.voucherNumber || 'Details'}</h1>
                 <p className="text-sm text-gray-500">Reservation Number: {voucher?.voucherNumber || 'N/A'}</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2">
                 {hasRole(['admin', 'staff']) && (
-                  <Button 
-                    variant="outline" 
-                    onClick={() => router.push(`/dashboard/services/voucher/edit/${voucherId}`)}
-                  >
-                    Edit
-                  </Button>
+                  <>
+                    <Button 
+                      variant="outline"
+                      size="sm"
+                      onClick={handleNotifyAgency}
+                      disabled={notifyingAgency}
+                      className="border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs font-semibold"
+                    >
+                      <Mail className="h-3.5 w-3.5 mr-1" />
+                      {notifyingAgency ? 'Sending...' : 'Notify Agency'}
+                    </Button>
+                    {voucher?.transportCompany && (
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        onClick={handleNotifySupplier}
+                        disabled={notifyingSupplier}
+                        className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-semibold"
+                      >
+                        <Truck className="h-3.5 w-3.5 mr-1" />
+                        {notifyingSupplier ? 'Sending...' : 'Notify Supplier'}
+                      </Button>
+                    )}
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => router.push(`/dashboard/services/voucher/edit/${voucherId}`)}
+                    >
+                      Edit
+                    </Button>
+                  </>
                 )}
-                <Button variant="outline" onClick={() => router.back()}>
+                <Button variant="outline" size="sm" onClick={() => router.back()}>
                   <ArrowLeft className="h-4 w-4 mr-1" /> Back
                 </Button>
               </div>

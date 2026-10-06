@@ -1103,10 +1103,6 @@ router.post(
       return res.status(400).json({ error: 'Guest name and passenger count are required' });
     }
 
-    if (!transportCompanyId) {
-      return res.status(400).json({ error: 'Transport Company is required' });
-    }
-
     const cleanedGroupCode = typeof groupCode === 'string' ? groupCode.trim() : '';
 
     // If user is a party (customer / agency), create a Pending Request (DO NOT allocate voucher number)
@@ -1315,6 +1311,14 @@ router.post(
 
       return newVoucher;
     });
+
+    // Asynchronously dispatch notifications (Email + WhatsApp with PDF) to Agency and Supplier
+    const { dispatchVoucherIssuedAlerts } = await import('../services/voucherNotificationService');
+    dispatchVoucherIssuedAlerts({
+      voucherId: voucher.id,
+      notifyAgency: true,
+      notifySupplier: true,
+    }).catch(err => console.error('[VOUCHER-CREATE] Notification dispatch error:', err));
 
     res.status(201).json({ voucher });
   })
@@ -1645,6 +1649,14 @@ router.post(
 
       return { voucher: newVoucher, updatedRequest: reqUpdated };
     });
+
+    // Asynchronously dispatch notifications (Email + WhatsApp with PDF) to Agency and Supplier
+    const { dispatchVoucherIssuedAlerts } = await import('../services/voucherNotificationService');
+    dispatchVoucherIssuedAlerts({
+      voucherId: voucher.id,
+      notifyAgency: true,
+      notifySupplier: true,
+    }).catch(err => console.error('[QUICK-VOUCHER-APPROVE] Notification dispatch error:', err));
 
     res.json({
       success: true,
@@ -2407,6 +2419,72 @@ router.post(
       }
       res.status(500).json({ error: error.message || 'Failed to upload invoice' });
     }
+  })
+);
+
+// Manual trigger: Send Voucher alerts to Agency (WhatsApp & Email with PDF)
+router.post(
+  '/:id/notify-agency',
+  authenticate,
+  authorize('admin', 'staff'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const { dispatchVoucherIssuedAlerts } = await import('../services/voucherNotificationService');
+    const result = await dispatchVoucherIssuedAlerts({
+      voucherId: id,
+      notifyAgency: true,
+      notifySupplier: false,
+    });
+
+    res.json({
+      success: true,
+      message: 'Agency notifications dispatched successfully',
+      data: result,
+    });
+  })
+);
+
+// Manual trigger: Send Voucher alerts to Transport Supplier (WhatsApp & Email with PDF)
+router.post(
+  '/:id/notify-supplier',
+  authenticate,
+  authorize('admin', 'staff'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const { dispatchVoucherIssuedAlerts } = await import('../services/voucherNotificationService');
+    const result = await dispatchVoucherIssuedAlerts({
+      voucherId: id,
+      notifyAgency: false,
+      notifySupplier: true,
+    });
+
+    res.json({
+      success: true,
+      message: 'Transport supplier notifications dispatched successfully',
+      data: result,
+    });
+  })
+);
+
+// Manual trigger: Send Voucher alerts to Both Agency & Transport Supplier
+router.post(
+  '/:id/notify-all',
+  authenticate,
+  authorize('admin', 'staff'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const { dispatchVoucherIssuedAlerts } = await import('../services/voucherNotificationService');
+    const result = await dispatchVoucherIssuedAlerts({
+      voucherId: id,
+      notifyAgency: true,
+      notifySupplier: true,
+    });
+
+    res.json({
+      success: true,
+      message: 'All notifications dispatched successfully to Agency & Transport Supplier',
+      data: result,
+    });
   })
 );
 

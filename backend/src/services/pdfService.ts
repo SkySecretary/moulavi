@@ -763,12 +763,6 @@ function generateVoucherHTML(data: VoucherPdfData & { isBookingVoucher?: boolean
     <div class="terms-section">
         <div class="terms-title">TERMS AND CONDITIONS</div>
         <ul class="terms-list">
-            <li><strong>HOTEL CHECK-IN & CHECK-OUT TIMINGS:</strong><br>
-                Standard Check-in Time: 1600 Hrs / Standard Check-out Time: 1400 Hrs<br>
-                Ramadan Check-in Time: 1800 Hrs / Ramadan Check-out Time: 1400 Hrs<br>
-                Notes: The above timings are irrespective of Flight Arrival & Departure Timings.<br>
-                Early check-in and/or late check-out are to be dealt with directly with the hotel.
-            </li>
             <li><strong>VEHICLE WAITING TIME PERIODS:</strong><br>
                 60 Minutes at Airport / 120 Minutes at Haj Terminal / 30 Minutes at Hotels.
             </li>

@@ -82,6 +82,14 @@ export const authAPI = {
 export const partyAPI = {
   create: (data: any) => api.post('/parties', data),
   
+  createDirectCustomer: (data: {
+    name: string;
+    phone: string;
+    email?: string;
+    address?: string;
+    account_currency_id?: string;
+  }) => api.post('/parties/quick-direct-customer', data),
+  
   getAll: (params?: any) => api.get('/parties', { params }),
   
   getById: (id: string) => api.get(`/parties/${id}`),
@@ -521,6 +529,11 @@ export const voucherAPI = {
     api.post(`/vouchers/quick-requests/${id}/reject`, { rejectionReason }),
   deleteQuickRequest: (id: string) =>
     api.delete(`/vouchers/quick-requests/${id}`),
+
+  // Notification triggers
+  notifyAgency: (id: string) => api.post(`/vouchers/${id}/notify-agency`),
+  notifySupplier: (id: string) => api.post(`/vouchers/${id}/notify-supplier`),
+  notifyAll: (id: string) => api.post(`/vouchers/${id}/notify-all`),
 };
 
 // Nusuk Integration API
@@ -541,7 +554,37 @@ export const nusukAPI = {
     allowReEntryOneWayTicket?: boolean;
     allowReEntryWithoutTicket?: boolean;
   }) => api.post('/nusuk/settings', data),
-  triggerSync: (partyId?: string) => api.post('/nusuk/sync', { partyId }),
+  getExternalAgents: () => api.get('/nusuk/external-agents'),
+  saveExternalAgent: (data: {
+    id?: string;
+    name: string;
+    entityId: string;
+    contractId: string;
+    activeEntityTypeId?: string;
+    isActive?: boolean;
+  }) => api.post('/nusuk/external-agents', data),
+  toggleExternalAgent: (id: string, isActive: boolean) => api.patch(`/nusuk/external-agents/${id}/toggle`, { isActive }),
+  deleteExternalAgent: (id: string) => api.delete(`/nusuk/external-agents/${id}`),
+  triggerSync: (agentId?: string) => api.post('/nusuk/sync', { agentId }),
+  getSyncStatus: () => api.get('/nusuk/sync-status'),
+  getMutamers: (params?: {
+    page?: number;
+    limit?: number;
+    stateId?: number | string;
+    umrahCompany?: string;
+    eaCode?: number | string;
+    subEAName?: string;
+    isOver85Days?: boolean | string;
+    search?: string;
+  }) => api.get('/nusuk/mutamers', { params }),
+  getOverstay85Days: (params?: {
+    page?: number;
+    limit?: number;
+    umrahCompany?: string;
+    eaCode?: number | string;
+    search?: string;
+  }) => api.get('/nusuk/overstay-85-days', { params }),
+  getFilters: () => api.get('/nusuk/filters'),
   getMismatches: (params?: { 
     resolved?: boolean; 
     page?: number; 
@@ -573,8 +616,17 @@ export const nusukAPI = {
     page?: number;
     limit?: number;
     partyId?: string;
+    umrahCompany?: string;
+    eaCode?: number | string;
     search?: string;
   }) => api.get('/nusuk/consulate-review', { params }),
+  getUnmatchedGroups: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    eaCode?: number | string;
+    umrahCompany?: string;
+  }) => api.get('/nusuk/unmatched-groups', { params }),
 };
 
 // WhatsApp Channel Settings API
@@ -658,6 +710,68 @@ export const systemHealthAPI = {
   inspect: (query: string) => api.get('/audit/inspect', { params: { query } }),
   triggerCheckpoint: () => api.post('/audit/checkpoint'),
 };
+
+// Quotations API
+export const quotationAPI = {
+  getAll: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    customerType?: string;
+    partyId?: string;
+  }) => api.get('/quotations', { params }),
+  getById: (id: string) => api.get(`/quotations/${id}`),
+  create: (data: any) => api.post('/quotations', data),
+  update: (id: string, data: any) => api.put(`/quotations/${id}`, data),
+  delete: (id: string) => api.delete(`/quotations/${id}`),
+  duplicate: (id: string) => api.post(`/quotations/${id}/duplicate`),
+  downloadPdfUrl: (id: string, options?: { hideBreakdown?: boolean }) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : '';
+    const params = new URLSearchParams();
+    if (token) params.append('token', token);
+    if (options?.hideBreakdown) params.append('hideBreakdown', 'true');
+    const queryString = params.toString();
+    return `${API_URL}/quotations/${id}/pdf${queryString ? `?${queryString}` : ''}`;
+  },
+  downloadPdf: async (id: string, quotationNumber?: string, options?: { hideBreakdown?: boolean }) => {
+    const response = await api.get(`/quotations/${id}/pdf`, {
+      params: { hideBreakdown: options?.hideBreakdown ? 'true' : undefined },
+      responseType: 'blob'
+    });
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const suffix = options?.hideBreakdown ? '_LumpSum' : '';
+    link.setAttribute('download', `Quotation_${quotationNumber || id}${suffix}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+  },
+  openPdf: async (id: string, options?: { hideBreakdown?: boolean }) => {
+    const response = await api.get(`/quotations/${id}/pdf`, {
+      params: { hideBreakdown: options?.hideBreakdown ? 'true' : undefined },
+      responseType: 'blob'
+    });
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+  },
+  sendEmail: (id: string, data: { to?: string; subject?: string; message?: string }) =>
+    api.post(`/quotations/${id}/email`, data),
+  sendWhatsApp: (id: string, data?: { to?: string; message?: string }) =>
+    api.post(`/quotations/${id}/whatsapp`, data || {}),
+  convertToBooking: (id: string, data?: {
+    partyId?: string;
+    groupNumber?: string;
+    groupName?: string;
+    visaType?: 'individual_visa' | 'group_visa';
+  }) => api.post(`/quotations/${id}/convert`, data || {}),
+};
+
 
 
 

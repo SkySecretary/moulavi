@@ -160,28 +160,50 @@ export default function ViewUmrahVisaBookingPage() {
         )}
 
         {transports.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2"><Truck className="h-5 w-5 text-green-600" /> Transportation Vehicles ({transports.length})</CardTitle>
+          <Card className="shadow-sm border-gray-200">
+            <CardHeader className="py-3 px-4 bg-gray-50/80 border-b border-gray-200">
+              <CardTitle className="text-sm font-bold text-gray-800 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Truck className="h-4 w-4 text-green-600" />
+                  <span>Transportation Vehicles</span>
+                </div>
+                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs font-bold">
+                  {transports.length} {transports.length === 1 ? 'Vehicle' : 'Vehicles'}
+                </Badge>
+              </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full border-collapse">
                   <thead>
-                    <tr className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200">
-                      <th className="py-3 px-4">Route</th>
-                      <th className="py-3 px-4">Vehicle Type</th>
-                      <th className="py-3 px-4">Capacity</th>
-                      <th className="py-3 px-4">Price</th>
+                    <tr className="text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider bg-gray-50/50 border-b border-gray-200">
+                      <th className="py-2.5 px-3 w-10 text-center">#</th>
+                      <th className="py-2.5 px-3">Route</th>
+                      <th className="py-2.5 px-3">Vehicle Type</th>
+                      <th className="py-2.5 px-3 text-center">Capacity</th>
+                      <th className="py-2.5 px-3 text-right">Price</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {transports.map((t: any) => (
-                      <tr key={t.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="py-3 px-4 text-sm font-medium text-gray-800">{formatTransportRoute(t.transportMaster?.route)}</td>
-                        <td className="py-3 px-4 text-sm text-gray-600 capitalize">{t.transportMaster?.vehicleType?.vehicleName || 'N/A'}</td>
-                        <td className="py-3 px-4 text-sm text-gray-600">{t.transportMaster?.vehicleType?.paxCount || 0} PAX</td>
-                        <td className="py-3 px-4 text-sm font-semibold text-green-700">{t.transportMaster?.price || 0} SAR</td>
+                  <tbody className="divide-y divide-gray-100">
+                    {transports.map((t: any, idx: number) => (
+                      <tr key={t.id || idx} className="hover:bg-gray-50/80 transition-colors text-xs">
+                        <td className="py-2.5 px-3 text-center font-bold text-gray-400 bg-gray-50/30">
+                          {idx + 1}
+                        </td>
+                        <td className="py-2.5 px-3 font-semibold text-gray-900">
+                          {formatTransportRoute(t.transportMaster?.route)}
+                        </td>
+                        <td className="py-2.5 px-3 text-gray-700 capitalize font-medium">
+                          {t.transportMaster?.vehicleType?.vehicleName || 'N/A'}
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-700">
+                            {t.transportMaster?.vehicleType?.paxCount || 0} PAX
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-bold text-green-700">
+                          {t.transportMaster?.price || 0} SAR
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -192,34 +214,105 @@ export default function ViewUmrahVisaBookingPage() {
         )}
 
         {hotels.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2"><Building className="h-5 w-5 text-indigo-600" /> Hotel Bookings ({hotels.length})</CardTitle>
+          <Card className="shadow-sm border-gray-200">
+            <CardHeader className="py-3 px-4 bg-gray-50/80 border-b border-gray-200">
+              <CardTitle className="text-sm font-bold text-gray-800 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Building className="h-4 w-4 text-indigo-600" />
+                  <span>Hotel Bookings</span>
+                </div>
+                <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-xs font-bold">
+                  {hotels.length} {hotels.length === 1 ? 'Stay' : 'Stays'}
+                </Badge>
+              </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full border-collapse">
                   <thead>
-                    <tr className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200">
-                      <th className="py-3 px-4">City</th>
-                      <th className="py-3 px-4">Hotel Name</th>
-                      <th className="py-3 px-4">Check-In</th>
-                      <th className="py-3 px-4">Check-Out</th>
-                      <th className="py-3 px-4">Duration</th>
+                    <tr className="text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider bg-gray-50/50 border-b border-gray-200">
+                      <th className="py-2.5 px-3 w-10 text-center">#</th>
+                      <th className="py-2.5 px-3">City</th>
+                      <th className="py-2.5 px-3">Hotel Name</th>
+                      <th className="py-2.5 px-3">Check-In</th>
+                      <th className="py-2.5 px-3 text-center">Duration</th>
+                      <th className="py-2.5 px-3">Check-Out</th>
+                      <th className="py-2.5 px-3">BRN Details</th>
+                      <th className="py-2.5 px-3">Catering BRN</th>
+                      <th className="py-2.5 px-3 text-center">Beds</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {hotels.map((h: any) => {
+                  <tbody className="divide-y divide-gray-100">
+                    {hotels.map((h: any, idx: number) => {
                       const checkIn = new Date(h.checkInDate);
                       const checkOut = new Date(h.checkOutDate);
                       const duration = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+                      const brnStr = typeof h.brn === 'object' && h.brn?.brnNumber ? h.brn.brnNumber : (typeof h.brn === 'string' ? h.brn : (Array.isArray(h.brn) ? h.brn.join(', ') : ''));
+                      const cateringBrnStr = typeof h.cateringBrn === 'object' && h.cateringBrn?.brnNumber ? h.cateringBrn.brnNumber : (typeof h.cateringBrn === 'string' ? h.cateringBrn : (Array.isArray(h.cateringBrn) ? h.cateringBrn.join(', ') : ''));
+                      const addlBrns = Array.isArray(h.additionalBrns) ? h.additionalBrns : [];
+
                       return (
-                        <tr key={h.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                          <td className="py-3 px-4 text-sm font-medium text-gray-800">{h.city?.name || 'N/A'}</td>
-                          <td className="py-3 px-4 text-sm text-gray-600">{h.hotel?.name || 'N/A'}</td>
-                          <td className="py-3 px-4 text-sm text-gray-600">{formatDate(h.checkInDate)}</td>
-                          <td className="py-3 px-4 text-sm text-gray-600">{formatDate(h.checkOutDate)}</td>
-                          <td className="py-3 px-4 text-sm font-semibold text-indigo-700">{duration} Nights</td>
+                        <tr key={h.id || idx} className="hover:bg-gray-50/80 transition-colors text-xs">
+                          <td className="py-2.5 px-3 text-center font-bold text-gray-400 bg-gray-50/30">
+                            {idx + 1}
+                          </td>
+                          <td className="py-2.5 px-3 font-semibold text-gray-800">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-bold text-[11px]">
+                              {h.city?.name || 'N/A'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 font-bold text-gray-900">
+                            {h.hotel?.name || 'N/A'}
+                          </td>
+                          <td className="py-2.5 px-3 text-gray-700 whitespace-nowrap">
+                            {formatDate(h.checkInDate)}
+                          </td>
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700">
+                              {duration} {duration === 1 ? 'Night' : 'Nights'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-gray-700 whitespace-nowrap">
+                            {formatDate(h.checkOutDate)}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <div className="space-y-1">
+                              {h.isCompanyBrn && (
+                                <span className="inline-block px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 text-[10px] font-bold mr-1">
+                                  Company BRN
+                                </span>
+                              )}
+                              {brnStr ? (
+                                <span className="font-mono font-bold text-gray-800 text-[11px]">{brnStr}</span>
+                              ) : (
+                                !h.isCompanyBrn && <span className="text-gray-400 italic">None</span>
+                              )}
+                              {addlBrns.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-0.5">
+                                  {addlBrns.map((ab: any, sidx: number) => (
+                                    <span key={sidx} className="inline-flex items-center text-[10px] bg-gray-100 text-gray-700 px-1.5 py-0.2 rounded font-mono">
+                                      {ab.brnNumber || ab} {ab.qty ? `(${ab.qty} beds)` : ''}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            {h.isCompanyCateringBrn && (
+                              <span className="inline-block px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold mr-1">
+                                Company Catering
+                              </span>
+                            )}
+                            {cateringBrnStr ? (
+                              <span className="font-mono font-bold text-gray-800 text-[11px]">{cateringBrnStr}</span>
+                            ) : (
+                              !h.isCompanyCateringBrn && <span className="text-gray-400 italic">—</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-center font-bold text-gray-800">
+                            {h.bedsQuantity || '—'}
+                          </td>
                         </tr>
                       );
                     })}
@@ -231,36 +324,58 @@ export default function ViewUmrahVisaBookingPage() {
         )}
 
         {movements.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2"><Route className="h-5 w-5 text-amber-600" /> Movement Schedule ({movements.length})</CardTitle>
+          <Card className="shadow-sm border-gray-200">
+            <CardHeader className="py-3 px-4 bg-gray-50/80 border-b border-gray-200">
+              <CardTitle className="text-sm font-bold text-gray-800 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Route className="h-4 w-4 text-amber-600" />
+                  <span>Movement Schedule</span>
+                </div>
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs font-bold">
+                  {movements.length} {movements.length === 1 ? 'Movement' : 'Movements'}
+                </Badge>
+              </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full border-collapse">
                   <thead>
-                    <tr className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200">
-                      <th className="py-3 px-4">Date & Time</th>
-                      <th className="py-3 px-4">From</th>
-                      <th className="py-3 px-4">To</th>
+                    <tr className="text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider bg-gray-50/50 border-b border-gray-200">
+                      <th className="py-2.5 px-3 w-10 text-center">#</th>
+                      <th className="py-2.5 px-3">Date & Time</th>
+                      <th className="py-2.5 px-3">From Location</th>
+                      <th className="py-2.5 px-3">To Location</th>
+                      <th className="py-2.5 px-3 text-center">Routing Info</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {movements.sort((a: any, b: any) => new Date(a.travelDateTime).getTime() - new Date(b.travelDateTime).getTime()).map((m: any) => {
+                  <tbody className="divide-y divide-gray-100">
+                    {movements.sort((a: any, b: any) => new Date(a.travelDateTime).getTime() - new Date(b.travelDateTime).getTime()).map((m: any, idx: number) => {
                       const dt = formatDateTime(m.travelDateTime);
                       return (
-                        <tr key={m.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                          <td className="py-3 px-4 text-sm">
-                            <div className="font-medium text-gray-800">{dt.date}</div>
-                            <div className="text-xs text-gray-500">{dt.time}</div>
+                        <tr key={m.id || idx} className="hover:bg-gray-50/80 transition-colors text-xs">
+                          <td className="py-2.5 px-3 text-center font-bold text-gray-400 bg-gray-50/30">
+                            {idx + 1}
                           </td>
-                          <td className="py-3 px-4 text-sm">
-                            <div className="font-medium text-gray-800">{m.fromCity?.name}</div>
-                            <div className="text-xs text-gray-500">{m.fromLocation?.name}</div>
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <div className="font-bold text-gray-900">{dt.date}</div>
+                            <div className="text-[11px] text-gray-500 font-semibold">{dt.time}</div>
                           </td>
-                          <td className="py-3 px-4 text-sm">
-                            <div className="font-medium text-gray-800">{m.toCity?.name}</div>
-                            <div className="text-xs text-gray-500">{m.toLocation?.name}</div>
+                          <td className="py-2.5 px-3">
+                            <div className="font-bold text-gray-900">{m.fromLocation?.name || 'N/A'}</div>
+                            <div className="text-[11px] text-gray-500">{m.fromCity?.name}</div>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <div className="font-bold text-gray-900">{m.toLocation?.name || 'N/A'}</div>
+                            <div className="text-[11px] text-gray-500">{m.toCity?.name}</div>
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            {m.viabadrOverride ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                                Via Badr
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 text-[11px] font-medium">Standard</span>
+                            )}
                           </td>
                         </tr>
                       );

@@ -529,7 +529,7 @@ export function ReviewQuickVoucherDialog({
                 <Label className="text-[10px] font-bold text-slate-500 uppercase">Group Code</Label>
                 <Input
                   value={formData.groupCode}
-                  onChange={(e) => setFormData({ ...formData, groupCode: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, groupCode: e.target.value.replace(/\s+/g, '') })}
                   className="h-9 text-xs"
                 />
               </div>

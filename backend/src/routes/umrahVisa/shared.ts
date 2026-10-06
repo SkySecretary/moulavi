@@ -245,6 +245,8 @@ export const step2Schema = z.object({
     checkOutDate: z.string().transform((str) => new Date(str)),
     brn: z.array(z.string()).optional(),
     cateringBrn: z.array(z.string()).optional().nullable(),
+    isCompanyBrn: z.boolean().optional(),
+    isCompanyCateringBrn: z.boolean().optional(),
   })).optional(),
 }).refine((data) => {
   if (data.isWithoutTicket) {
@@ -274,12 +276,16 @@ export const step2Schema = z.object({
 export const step3Schema = z.object({
   accommodationType: z.enum(['hotel', 'iqama']),
   passengerCount: z.number().min(1).max(50).optional(), // Made optional since it comes in Step 4
+  isCompanyBrn: z.boolean().optional(),
+  isCompanyCateringBrn: z.boolean().optional(),
   iqamaDetails: z.object({
     iqamaNumber: z.string().optional(),
     iqamaName: z.string().optional(),
     iqamaDob: z.string().transform((str) => new Date(str)).optional(),
     iqamaMobile: z.string().optional(),
     iqamaNationalShortAddress: z.string().optional(),
+    isCompanyBrn: z.boolean().optional(),
+    isCompanyCateringBrn: z.boolean().optional(),
   }).optional(),
   hotelBookings: z.array(z.object({
     cityId: z.string().uuid(),
@@ -287,6 +293,9 @@ export const step3Schema = z.object({
     checkInDate: z.string().transform((str) => new Date(str)),
     checkOutDate: z.string().transform((str) => new Date(str)),
     brn: z.array(z.string()).optional(),
+    cateringBrn: z.array(z.string()).optional().nullable(),
+    isCompanyBrn: z.boolean().optional(),
+    isCompanyCateringBrn: z.boolean().optional(),
   })).optional(),
 }).refine((data) => {
   if (data.accommodationType === 'iqama' && data.passengerCount && data.passengerCount > 5) {
@@ -337,7 +346,7 @@ export const step5Schema = z.object({}).optional();
 
 // Group Step 1 schema
 export const groupStep1Schema = z.object({
-  groupNumber: z.string().min(1, 'Group number is required'),
+  groupNumber: z.string().min(1, 'Group number is required').transform(v => v.replace(/\s+/g, '')),
   groupName: z.string().min(1, 'Group name is required'),
   umrahVisaProviderId: z.string().uuid('Valid umrah visa provider ID is required').optional(),
 });

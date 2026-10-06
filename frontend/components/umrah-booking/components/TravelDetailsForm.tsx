@@ -9,6 +9,7 @@ import { formatFlightNumber, toDisplayDate, fromDisplayDate } from '@/lib/umrah/
 import { cn } from '@/lib/utils';
 import { TimePicker } from '@/components/ui/time-picker';
 import { DatePicker } from '@/components/ui/date-picker';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 interface TravelDetailsFormProps {
   data: Step2Data;
@@ -209,22 +210,18 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <Select
-                      value={data.arrivalAirportId}
+                    <SearchableSelect
+                      options={airports.map((airport) => ({
+                        value: airport.id,
+                        label: `${airport.airportCode} • ${airport.airportName}`
+                      }))}
+                      value={data.arrivalAirportId || ''}
                       onValueChange={(value) => handleAirportChange('arrivalAirportId', value)}
+                      placeholder="Select Hub"
+                      searchPlaceholder="Search airport..."
                       disabled={disabled}
-                    >
-                      <SelectTrigger className="h-12 border-gray-100 rounded-lg font-semibold text-primary focus:ring-secondary/20 bg-gray-50/30 text-base">
-                        <SelectValue placeholder="Select Hub" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-0 shadow-2xl p-1">
-                        {airports.map((airport) => (
-                          <SelectItem key={airport.id} value={airport.id} className="font-medium text-base p-3">
-                            {airport.airportCode} • {airport.airportName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      className="h-12 border-gray-100 rounded-lg font-semibold text-primary focus:ring-secondary/20 bg-gray-50/30 text-sm"
+                    />
                   </td>
                   <td className="px-6 py-4">
                     <Input
@@ -267,22 +264,18 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <Select
-                        value={data.departureAirportId}
+                      <SearchableSelect
+                        options={airports.map((airport) => ({
+                          value: airport.id,
+                          label: `${airport.airportCode} • ${airport.airportName}`
+                        }))}
+                        value={data.departureAirportId || ''}
                         onValueChange={(value) => handleAirportChange('departureAirportId', value)}
+                        placeholder="Select Hub"
+                        searchPlaceholder="Search airport..."
                         disabled={disabled}
-                      >
-                        <SelectTrigger className="h-12 border-gray-100 rounded-lg font-semibold text-primary focus:ring-secondary/20 bg-gray-50/30 text-base">
-                          <SelectValue placeholder="Select Hub" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl border-0 shadow-2xl p-1">
-                          {airports.map((airport) => (
-                            <SelectItem key={airport.id} value={airport.id} className="font-medium text-base p-3">
-                              {airport.airportCode} • {airport.airportName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        className="h-12 border-gray-100 rounded-lg font-semibold text-primary focus:ring-secondary/20 bg-gray-50/30 text-sm"
+                      />
                     </td>
                     <td className="px-6 py-4">
                       <Input
@@ -342,14 +335,15 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Hub</Label>
-                  <Select value={data.arrivalAirportId} onValueChange={(value) => handleAirportChange('arrivalAirportId', value)} disabled={disabled}>
-                    <SelectTrigger className="h-11 rounded-xl border-gray-100 bg-gray-50/30 font-semibold text-primary text-sm">
-                      <SelectValue placeholder="Select Hub" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border-0 shadow-2xl">
-                      {airports.map(a => <SelectItem key={a.id} value={a.id} className="text-sm font-medium">{a.airportCode} - {a.airportName}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    options={airports.map(a => ({ value: a.id, label: `${a.airportCode} - ${a.airportName}` }))}
+                    value={data.arrivalAirportId || ''}
+                    onValueChange={(value) => handleAirportChange('arrivalAirportId', value)}
+                    placeholder="Select Hub"
+                    searchPlaceholder="Search airport..."
+                    disabled={disabled}
+                    className="h-11 rounded-xl border-gray-100 bg-gray-50/30 font-semibold text-primary text-sm"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Flight Number</Label>
@@ -391,14 +385,15 @@ export const TravelDetailsForm: React.FC<TravelDetailsFormProps> = ({
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Hub</Label>
-                    <Select value={data.departureAirportId} onValueChange={(value) => handleAirportChange('departureAirportId', value)} disabled={disabled}>
-                      <SelectTrigger className="h-11 rounded-xl border-gray-100 bg-gray-50/30 font-semibold text-primary text-sm">
-                        <SelectValue placeholder="Select Hub" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-0 shadow-2xl">
-                        {airports.map(a => <SelectItem key={a.id} value={a.id} className="text-sm font-medium">{a.airportCode} - {a.airportName}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      options={airports.map(a => ({ value: a.id, label: `${a.airportCode} - ${a.airportName}` }))}
+                      value={data.departureAirportId || ''}
+                      onValueChange={(value) => handleAirportChange('departureAirportId', value)}
+                      placeholder="Select Hub"
+                      searchPlaceholder="Search airport..."
+                      disabled={disabled}
+                      className="h-11 rounded-xl border-gray-100 bg-gray-50/30 font-semibold text-primary text-sm"
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[8px] font-black text-primary/40 uppercase tracking-widest ml-1">Flight Number</Label>

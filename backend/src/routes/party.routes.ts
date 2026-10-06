@@ -262,6 +262,101 @@ router.post(
   })
 );
 
+// Quick create Direct Customer (for admin/staff direct customer booking)
+router.post(
+  '/quick-direct-customer',
+  authenticate,
+  authorize('admin', 'staff'),
+  [
+    body('name').isString().notEmpty().trim().withMessage('Customer name is required'),
+    body('phone').isString().notEmpty().trim().withMessage('Contact phone number is required'),
+    body('email').optional().isString().trim(),
+    body('address').optional().isString().trim(),
+    body('account_currency_id').optional().isString().trim(),
+  ],
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { name, phone, email, address, account_currency_id } = req.body;
+
+    const cleanPhone = (phone || '').replace(/\s+/g, '');
+    const partyName = (name || '').trim();
+
+    if (!partyName) {
+      return res.status(400).json({ error: 'Customer name is required' });
+    }
+    if (!cleanPhone) {
+      return res.status(400).json({ error: 'Contact phone number is required' });
+    }
+
+    // Determine or generate unique email
+    let finalEmail = (email && email.trim()) ? email.trim().toLowerCase() : '';
+    if (!finalEmail) {
+      const sanitizedPhone = cleanPhone.replace(/\D/g, '') || Math.floor(100000 + Math.random() * 900000);
+      finalEmail = `direct.${sanitizedPhone}.${Date.now()}@directcustomer.local`;
+    }
+
+    // Check if email is already taken
+    const existing = await prisma.party.findUnique({ where: { email: finalEmail } });
+    if (existing) {
+      if (email && email.trim()) {
+        return res.status(400).json({ error: `A customer with email "${finalEmail}" already exists.` });
+      } else {
+        finalEmail = `direct.${Date.now()}.${Math.floor(1000 + Math.random() * 9000)}@directcustomer.local`;
+      }
+    }
+
+    // Determine default currency ID
+    let currencyId = account_currency_id;
+    if (!currencyId) {
+      const defaultCurrency = await prisma.currencyMaster.findFirst({
+        where: { isActive: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (!defaultCurrency) {
+        return res.status(400).json({ error: 'No active currency found in currency master.' });
+      }
+      currencyId = defaultCurrency.id;
+    }
+
+    // Generate unique partyCode e.g. DC-1049
+    let partyCode = `DC-${Math.floor(1000 + Math.random() * 9000)}`;
+    let codeExists = await prisma.party.findUnique({ where: { partyCode } });
+    while (codeExists) {
+      partyCode = `DC-${Math.floor(1000 + Math.random() * 9000)}`;
+      codeExists = await prisma.party.findUnique({ where: { partyCode } });
+    }
+
+    const party = await prisma.party.create({
+      data: {
+        partyName,
+        partyCode,
+        email: finalEmail,
+        contactNumber: cleanPhone,
+        whatsappNumber: cleanPhone,
+        whatsappType: 'number',
+        address: address || null,
+        customerType: 'direct',
+        isCustomer: true,
+        isSupplier: false,
+        loginRequired: false,
+        emailNotification: false,
+        smsNotification: true,
+        marketingNotification: false,
+        accountCurrencyId: currencyId,
+        createdBy: req.user!.id,
+      },
+      include: {
+        accountCurrency: true,
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      party,
+      message: 'Direct customer created successfully',
+    });
+  })
+);
+
 // Get all parties (with filters and pagination)
 router.get(
   '/',
@@ -284,15 +379,9 @@ router.get(
     // Build where clause
     const where: any = {};
     
-    // If user is a party, they can only view their own party or filtered suppliers
+    // If user is a party, only show suppliers
     // Admin/staff can view all parties
     if (req.user!.role === 'party') {
-      // Party users can only fetch suppliers (for dropdowns like umrah visa providers)
-      // They cannot see all parties
-      if (!supplier_service_type) {
-        return res.status(403).json({ error: 'Access denied' });
-      }
-      // Only allow fetching suppliers, not all parties
       where.isSupplier = true;
     }
     

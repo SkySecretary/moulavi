@@ -8,143 +8,185 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
-import { nusukAPI, partyAPI } from '@/lib/api';
-import { Settings, Save, Loader2, RefreshCw, AlertTriangle, CheckCircle, ShieldAlert } from 'lucide-react';
+import { nusukAPI } from '@/lib/api';
+import { 
+  Settings, Save, Loader2, RefreshCw, AlertTriangle, CheckCircle, 
+  ShieldAlert, Plus, Edit2, Trash2, Building, FileSpreadsheet,
+  Globe, Clock, Users, ArrowUpRight, FolderX
+} from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
-import { Party } from '@/types';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import Link from 'next/link';
+
+interface ExternalAgent {
+  id: string;
+  name: string;
+  entityId: string;
+  contractId: string;
+  activeEntityTypeId: string;
+  isActive: boolean;
+  lastSyncedAt?: string | null;
+  lastSyncCount?: number | null;
+  lastSyncStatus?: string | null;
+}
 
 export default function NusukSettingsPage() {
   const router = useRouter();
   const user = getUser();
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [syncProgressStage, setSyncProgressStage] = useState<string>('');
   const [uploadingExcel, setUploadingExcel] = useState(false);
   const [excelFile, setExcelFile] = useState<File | null>(null);
-  const [umrahCompanies, setUmrahCompanies] = useState<Party[]>([]);
-  const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([]);
-  const [currentSyncingCompany, setCurrentSyncingCompany] = useState<string | null>(null);
 
-  const handleExcelUploadSync = async () => {
-    if (!excelFile) {
-      toast.error('Please select an Excel file first');
-      return;
-    }
-
-    const companiesToSync = umrahCompanies.filter(c => selectedCompanyIds.includes(c.id));
-    if (companiesToSync.length === 0) {
-      toast.error('Please select at least one Umrah Company to sync.');
-      return;
-    }
-
-    try {
-      setUploadingExcel(true);
-      let totalMismatches = 0;
-      let lastSyncedAt = null;
-
-      for (let i = 0; i < companiesToSync.length; i++) {
-        const company = companiesToSync[i];
-        setCurrentSyncingCompany(company.partyName);
-        toast.info(`Manually syncing ${company.partyName} (${i + 1}/${companiesToSync.length})...`);
-
-        const response = await nusukAPI.syncExcel(excelFile, company.id);
-        totalMismatches += response.data.mismatchesCount || 0;
-        lastSyncedAt = response.data.syncedAt;
-      }
-
-      setSettingsData(prev => ({
-        ...prev,
-        isValid: true,
-        lastSyncedAt: lastSyncedAt || new Date().toISOString(),
-      }));
-
-      toast.success(`Manual sync completed! Found ${totalMismatches} total travel detail mismatches.`);
-      setExcelFile(null);
-      
-      const fileInput = document.getElementById('manual-excel-file') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
-    } catch (error: any) {
-      console.error('Manual Nusuk sync failed:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Manual synchronization failed';
-      toast.error(errorMessage);
-    } finally {
-      setUploadingExcel(false);
-      setCurrentSyncingCompany(null);
-    }
-  };
-  
+  // Master Settings Data
   const [settingsData, setSettingsData] = useState({
     token: '',
-    activeEntityId: '525592',
-    activeEntityTypeId: '32',
-    entityId: '525592',
     checkByPassport: false,
-    externalAgentCodes: '22282, 6655, 1001828',
     syncSchedule: '08:00, 20:00',
-    syncType: 'excel',
+    syncType: 'listing',
     allowOneWayTicket: false,
     allowWithoutTicket: false,
     allowReEntryOneWayTicket: false,
     allowReEntryWithoutTicket: false,
     isValid: true,
     lastSyncedAt: null as string | null,
+    stats: {
+      totalSyncedMutamers: 0,
+      over85DaysCount: 0,
+      consulateReviewCount: 0,
+    }
   });
+
+  // External Agents List
+  const [externalAgents, setExternalAgents] = useState<ExternalAgent[]>([]);
+  
+  // Modal for Add/Edit External Agent
+  const [isAgentDialogOpen, setIsAgentDialogOpen] = useState(false);
+  const [editingAgent, setEditingAgent] = useState<Partial<ExternalAgent> | null>(null);
+  const [savingAgent, setSavingAgent] = useState(false);
+
+  // Poll sync status worker
+  const pollSyncStatus = async (): Promise<boolean> => {
+    try {
+      const res = await nusukAPI.getSyncStatus();
+      if (res.data) {
+        if (res.data.isSyncing) {
+          setSyncing(true);
+          setSyncProgressStage(res.data.stage || 'Synchronization in progress...');
+          return true; // Still in progress
+        } else {
+          setSyncing(false);
+          setSyncProgressStage('');
+          if (res.data.lastSyncError) {
+            toast.error(`Nusuk sync failed: ${res.data.lastSyncError}`);
+            if (
+              res.data.lastSyncError.toLowerCase().includes('authentication') ||
+              res.data.lastSyncError.toLowerCase().includes('token')
+            ) {
+              setSettingsData(prev => ({ ...prev, isValid: false }));
+            }
+          } else if (res.data.lastSyncResult) {
+            const resData = res.data.lastSyncResult;
+            setSettingsData(prev => ({
+              ...prev,
+              isValid: true,
+              lastSyncedAt: resData.syncedAt || new Date().toISOString(),
+              stats: {
+                totalSyncedMutamers: resData.totalRecords || resData.mutamersCount || prev.stats.totalSyncedMutamers,
+                over85DaysCount: resData.over85DaysCount ?? prev.stats.over85DaysCount,
+                consulateReviewCount: resData.consulateReviewCount ?? prev.stats.consulateReviewCount,
+              }
+            }));
+            toast.success(
+              `Sync completed! Fetched ${resData.totalRecords || resData.mutamersCount || 0} mutamer records across active contracts.`
+            );
+            loadSettingsAndAgents();
+          }
+          return false; // Completed
+        }
+      }
+    } catch (e) {
+      console.error('Error polling sync status:', e);
+    }
+    return false;
+  };
+
+  // Load Settings and External Agents
+  const loadSettingsAndAgents = async () => {
+    try {
+      setLoading(true);
+      const res = await nusukAPI.getSettings();
+      if (res.data) {
+        setSettingsData({
+          token: res.data.token || '',
+          checkByPassport: res.data.checkByPassport ?? false,
+          syncSchedule: res.data.syncSchedule || '08:00, 20:00',
+          syncType: res.data.syncType || 'listing',
+          allowOneWayTicket: res.data.allowOneWayTicket ?? false,
+          allowWithoutTicket: res.data.allowWithoutTicket ?? false,
+          allowReEntryOneWayTicket: res.data.allowReEntryOneWayTicket ?? false,
+          allowReEntryWithoutTicket: res.data.allowReEntryWithoutTicket ?? false,
+          isValid: res.data.isValid ?? true,
+          lastSyncedAt: res.data.lastSyncedAt || null,
+          stats: res.data.stats || {
+            totalSyncedMutamers: 0,
+            over85DaysCount: 0,
+            consulateReviewCount: 0,
+          }
+        });
+
+        if (Array.isArray(res.data.externalAgents)) {
+          setExternalAgents(res.data.externalAgents);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error loading Nusuk settings:', error);
+      toast.error('Failed to load Nusuk settings');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!user || !hasRole(['admin', 'staff'])) {
       router.push('/');
       return;
     }
+    loadSettingsAndAgents();
 
-    const loadSettings = async () => {
-      try {
-        setLoading(true);
-        // Load all Umrah companies
-        const companiesRes = await partyAPI.getAll({ 
-          supplier_service_type: 'umrah_service',
-          limit: 1000 
-        });
-        const companiesList = companiesRes.data.parties || [];
-        setUmrahCompanies(companiesList);
-
-        const response = await nusukAPI.getSettings();
-        if (response.data) {
-          setSettingsData({
-            token: response.data.token || '',
-            activeEntityId: response.data.activeEntityId || '525592',
-            activeEntityTypeId: response.data.activeEntityTypeId || '32',
-            entityId: response.data.entityId || '525592',
-            checkByPassport: response.data.checkByPassport ?? false,
-            externalAgentCodes: response.data.externalAgentCodes || '22282, 6655, 1001828',
-            syncSchedule: response.data.syncSchedule || '08:00, 20:00',
-            syncType: response.data.syncType || 'excel',
-            allowOneWayTicket: response.data.allowOneWayTicket ?? false,
-            allowWithoutTicket: response.data.allowWithoutTicket ?? false,
-            allowReEntryOneWayTicket: response.data.allowReEntryOneWayTicket ?? false,
-            allowReEntryWithoutTicket: response.data.allowReEntryWithoutTicket ?? false,
-            isValid: response.data.isValid ?? true,
-            lastSyncedAt: response.data.lastSyncedAt || null,
-          });
-
-          const ids = response.data.selectedUmrahCompanyIds
-            ? response.data.selectedUmrahCompanyIds.split(',').map((id: string) => id.trim()).filter(Boolean)
-            : [];
-          setSelectedCompanyIds(ids);
-        }
-      } catch (error: any) {
-        console.error('Error loading Nusuk settings:', error);
-        toast.error('Failed to load Nusuk settings');
-      } finally {
-        setLoading(false);
+    // Check if background sync is already active on page open
+    let pollInterval: NodeJS.Timeout | null = null;
+    pollSyncStatus().then(isRunning => {
+      if (isRunning) {
+        pollInterval = setInterval(async () => {
+          const stillRunning = await pollSyncStatus();
+          if (!stillRunning && pollInterval) {
+            clearInterval(pollInterval);
+          }
+        }, 2500);
       }
-    };
+    });
 
-    loadSettings();
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+    };
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Save Master Settings (Token & Schedule)
+  const handleSaveMasterSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!settingsData.token) {
+    if (!settingsData.token.trim()) {
       toast.error('Authorization Bearer Token is required');
       return;
     }
@@ -152,13 +194,8 @@ export default function NusukSettingsPage() {
     try {
       setSaving(true);
       await nusukAPI.saveSettings({
-        token: settingsData.token,
-        activeEntityId: settingsData.activeEntityId,
-        activeEntityTypeId: settingsData.activeEntityTypeId,
-        entityId: settingsData.entityId,
-        selectedUmrahCompanyIds: selectedCompanyIds.join(','),
+        token: settingsData.token.trim(),
         checkByPassport: settingsData.checkByPassport,
-        externalAgentCodes: settingsData.externalAgentCodes,
         syncSchedule: settingsData.syncSchedule,
         syncType: settingsData.syncType,
         allowOneWayTicket: settingsData.allowOneWayTicket,
@@ -167,7 +204,7 @@ export default function NusukSettingsPage() {
         allowReEntryWithoutTicket: settingsData.allowReEntryWithoutTicket,
       });
       setSettingsData(prev => ({ ...prev, isValid: true }));
-      toast.success('Nusuk settings saved successfully');
+      toast.success('Master Nusuk token and configuration saved successfully!');
     } catch (error: any) {
       console.error('Error saving settings:', error);
       toast.error(error.response?.data?.error || 'Failed to save settings');
@@ -176,511 +213,657 @@ export default function NusukSettingsPage() {
     }
   };
 
-  const handleToggleCompany = (companyId: string) => {
-    setSelectedCompanyIds(prev =>
-      prev.includes(companyId)
-        ? prev.filter(id => id !== companyId)
-        : [...prev, companyId]
-    );
+  // Open Dialog for New Agent
+  const handleOpenAddAgent = () => {
+    setEditingAgent({
+      name: '',
+      entityId: '',
+      contractId: '',
+      activeEntityTypeId: '52',
+      isActive: true,
+    });
+    setIsAgentDialogOpen(true);
   };
 
-  const handleSync = async () => {
-    if (!settingsData.token) {
+  // Open Dialog for Editing Agent
+  const handleOpenEditAgent = (agent: ExternalAgent) => {
+    setEditingAgent({ ...agent });
+    setIsAgentDialogOpen(true);
+  };
+
+  // Save Agent (Create / Update)
+  const handleSaveAgent = async () => {
+    if (!editingAgent?.name?.trim() || !editingAgent?.entityId?.trim() || !editingAgent?.contractId?.trim()) {
+      toast.error('Agent Name, Entity ID, and Contract ID are all required');
+      return;
+    }
+
+    try {
+      setSavingAgent(true);
+      const res = await nusukAPI.saveExternalAgent({
+        id: editingAgent.id,
+        name: editingAgent.name.trim(),
+        entityId: editingAgent.entityId.trim(),
+        contractId: editingAgent.contractId.trim(),
+        activeEntityTypeId: editingAgent.activeEntityTypeId || '52',
+        isActive: editingAgent.isActive ?? true,
+      });
+
+      toast.success(res.data?.message || 'External Agent saved successfully');
+      setIsAgentDialogOpen(false);
+      setEditingAgent(null);
+      await loadSettingsAndAgents();
+    } catch (error: any) {
+      console.error('Error saving external agent:', error);
+      toast.error(error.response?.data?.error || 'Failed to save External Agent');
+    } finally {
+      setSavingAgent(false);
+    }
+  };
+
+  // Toggle Agent Active State
+  const handleToggleAgentActive = async (agent: ExternalAgent) => {
+    try {
+      const nextState = !agent.isActive;
+      await nusukAPI.toggleExternalAgent(agent.id, nextState);
+      setExternalAgents(prev =>
+        prev.map(a => (a.id === agent.id ? { ...a, isActive: nextState } : a))
+      );
+      toast.success(`External Agent ${nextState ? 'activated' : 'disabled'}`);
+    } catch (error: any) {
+      console.error('Error toggling agent:', error);
+      toast.error('Failed to toggle agent status');
+    }
+  };
+
+  // Delete Agent
+  const handleDeleteAgent = async (agent: ExternalAgent) => {
+    if (!confirm(`Are you sure you want to delete External Agent "${agent.name}"?`)) {
+      return;
+    }
+
+    try {
+      await nusukAPI.deleteExternalAgent(agent.id);
+      setExternalAgents(prev => prev.filter(a => a.id !== agent.id));
+      toast.success('External Agent deleted successfully');
+    } catch (error: any) {
+      console.error('Error deleting agent:', error);
+      toast.error('Failed to delete External Agent');
+    }
+  };
+
+  // Trigger Global Sync Across All Active Agents
+  const handleGlobalSync = async () => {
+    if (!settingsData.token.trim()) {
       toast.error('Please save a valid authorization token first');
       return;
     }
 
-    const companiesToSync = umrahCompanies.filter(c => selectedCompanyIds.includes(c.id));
-    if (companiesToSync.length === 0) {
-      toast.error('Please select at least one Umrah Company to sync.');
+    const activeCount = externalAgents.filter(a => a.isActive).length;
+    if (activeCount === 0) {
+      toast.error('No active External Agent entities to sync. Please enable at least one agent.');
       return;
     }
 
     try {
       setSyncing(true);
-      let totalMismatches = 0;
-      let lastSyncedAt = null;
+      setSyncProgressStage(`Initiating sync across ${activeCount} active contracts...`);
+      toast.info(`Initiating synchronization for ${activeCount} active External Agent contracts...`);
 
-      for (let i = 0; i < companiesToSync.length; i++) {
-        const company = companiesToSync[i];
-        setCurrentSyncingCompany(company.partyName);
-        toast.info(`Syncing ${company.partyName} (${i + 1}/${companiesToSync.length})...`);
+      await nusukAPI.triggerSync();
 
-        // Trigger manual sync for this specific company
-        const response = await nusukAPI.triggerSync(company.id);
-        totalMismatches += response.data.mismatchesCount || 0;
-        lastSyncedAt = response.data.syncedAt;
-      }
+      const pollInterval = setInterval(async () => {
+        const stillRunning = await pollSyncStatus();
+        if (!stillRunning) {
+          clearInterval(pollInterval);
+        }
+      }, 2500);
+    } catch (error: any) {
+      console.error('Nusuk sync failed:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Synchronization failed to start';
+      toast.error(errorMessage);
+      setSyncing(false);
+      setSyncProgressStage('');
+    }
+  };
+
+  // Manual Excel Upload Sync
+  const handleExcelUploadSync = async () => {
+    if (!excelFile) {
+      toast.error('Please select an Excel report file first');
+      return;
+    }
+
+    try {
+      setUploadingExcel(true);
+      toast.info('Parsing and synchronizing Nusuk Excel file...');
+
+      const response = await nusukAPI.syncExcel(excelFile);
+      const resData = response.data;
 
       setSettingsData(prev => ({
         ...prev,
         isValid: true,
-        lastSyncedAt: lastSyncedAt || new Date().toISOString(),
+        lastSyncedAt: resData.syncedAt || new Date().toISOString(),
+        stats: {
+          totalSyncedMutamers: resData.mutamersCount || prev.stats.totalSyncedMutamers,
+          over85DaysCount: resData.over85DaysCount ?? prev.stats.over85DaysCount,
+          consulateReviewCount: resData.consulateReviewCount ?? prev.stats.consulateReviewCount,
+        }
       }));
 
-      toast.success(`Sync completed! Found ${totalMismatches} total travel detail mismatches.`);
+      toast.success(`Manual Excel sync completed! Processed ${resData.mutamersCount || 0} mutamers with ${resData.over85DaysCount || 0} overstay flags.`);
+      setExcelFile(null);
+      const fileInput = document.getElementById('manual-excel-file') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+      await loadSettingsAndAgents();
     } catch (error: any) {
-      console.error('Nusuk sync failed:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Synchronization failed';
-      toast.error(errorMessage);
-      
-      if (errorMessage.toLowerCase().includes('authentication') || errorMessage.toLowerCase().includes('token')) {
-        setSettingsData(prev => ({ ...prev, isValid: false }));
-      }
+      console.error('Manual Excel sync failed:', error);
+      toast.error(error.response?.data?.error || error.message || 'Manual synchronization failed');
     } finally {
-      setSyncing(false);
-      setCurrentSyncingCompany(null);
+      setUploadingExcel(false);
     }
   };
 
   if (!user) return null;
 
   return (
-    <div className="flex-1">
+    <div className="flex-1 pb-16">
       {/* Header Bar */}
-      <div className="sticky top-0 z-10 bg-white border-b px-4 lg:px-8 py-4">
-        <div className="flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-white border-b px-4 lg:px-8 py-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-xl lg:text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Settings className="h-6 w-6 text-indigo-600" />
-              Nusuk API Integration
+              <Globe className="h-6 w-6 text-indigo-600" />
+              Nusuk API & External Agent Hub
             </h1>
             <p className="text-xs lg:text-sm text-gray-500 mt-0.5">
-              Configure Bearer token credentials to sync travel reports from Saudi Nusuk portal
+              Manage Master Bearer Token, External Agent Contracts, Multi-Entity Sync & Compliance
             </p>
           </div>
+          <div className="flex items-center gap-3">
+            {syncing && syncProgressStage && (
+              <span className="text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-md font-medium animate-pulse flex items-center gap-1.5 max-w-xs truncate">
+                <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />
+                {syncProgressStage}
+              </span>
+            )}
+            <Button
+              onClick={handleGlobalSync}
+              disabled={syncing || !settingsData.token}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 shadow-sm"
+            >
+              {syncing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Syncing in Background...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4" />
+                  Sync All Active Contracts
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="p-4 lg:p-8 max-w-4xl space-y-6">
-        {/* Token warning / failure alerts */}
-        {!settingsData.isValid && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
-            <ShieldAlert className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-            <div>
-              <h3 className="font-bold text-red-800 text-sm">Authentication Failure Detected</h3>
-              <p className="text-xs text-red-700 mt-1">
-                The current Nusuk Authorization Bearer token has expired or is invalid. Please copy a new Bearer token from your Nusuk Portal web developer console and save it below.
-              </p>
-            </div>
-          </div>
-        )}
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto space-y-6">
 
-        {settingsData.isValid && settingsData.token && (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3">
-            <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
-            <div>
-              <h3 className="font-bold text-green-800 text-sm">Connection Active</h3>
-              <p className="text-xs text-green-700 mt-1">
-                Your Bearer token is verified as valid. Next scheduled sync runs in background.
-              </p>
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Main settings form */}
-          <div className="md:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">API Authentication Credentials</CardTitle>
-                <CardDescription>
-                  Enter the credentials gathered from the Nusuk Portal session.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="space-y-4 py-4 animate-pulse">
-                    <div className="h-8 bg-gray-100 rounded w-1/4"></div>
-                    <div className="h-20 bg-gray-100 rounded"></div>
-                    <div className="h-10 bg-gray-100 rounded"></div>
-                  </div>
-                ) : (
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="token" className="text-sm font-semibold">
-                        Authorization Bearer Token *
-                      </Label>
-                      <textarea
-                        id="token"
-                        rows={6}
-                        className="w-full text-xs font-mono p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                        placeholder="eyJraWQiOiJyc2FfZGVmYXVsdF9rZXkiLC..."
-                        value={settingsData.token}
-                        onChange={(e) => setSettingsData({ ...settingsData, token: e.target.value })}
-                        disabled={saving || syncing}
-                        required
-                      />
-                      <p className="text-xs text-gray-500">
-                        Copy the entire 'Authorization' header string (including or excluding 'Bearer ') from the network inspection log.
-                      </p>
-                    </div>
-
-                    <div className="space-y-3 p-3 bg-slate-50 border rounded-lg border-slate-100">
-                      <div className="space-y-0.5">
-                        <Label className="text-sm font-semibold text-slate-800">Global Fallback Credentials</Label>
-                        <p className="text-[11px] text-gray-500">
-                          These values are used as defaults if no company is selected below, or if a selected company does not have custom entity IDs configured.
-                        </p>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
-                        <div className="space-y-2">
-                          <Label htmlFor="activeEntityId" className="text-xs">Active Entity ID</Label>
-                          <Input
-                            id="activeEntityId"
-                            className="text-xs font-mono bg-white"
-                            value={settingsData.activeEntityId}
-                            onChange={(e) => setSettingsData({ ...settingsData, activeEntityId: e.target.value })}
-                            disabled={saving || syncing}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="activeEntityTypeId" className="text-xs">Active Entity Type ID</Label>
-                          <Input
-                            id="activeEntityTypeId"
-                            className="text-xs font-mono bg-white"
-                            value={settingsData.activeEntityTypeId}
-                            onChange={(e) => setSettingsData({ ...settingsData, activeEntityTypeId: e.target.value })}
-                            disabled={saving || syncing}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="entityId" className="text-xs">Entity ID</Label>
-                          <Input
-                            id="entityId"
-                            className="text-xs font-mono bg-white"
-                            value={settingsData.entityId}
-                            onChange={(e) => setSettingsData({ ...settingsData, entityId: e.target.value })}
-                            disabled={saving || syncing}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-slate-800">Umrah Companies to Sync *</Label>
-                      <div className="border rounded-lg p-3 bg-white max-h-48 overflow-y-auto space-y-2">
-                        {umrahCompanies.map((company) => {
-                          const isSelected = selectedCompanyIds.includes(company.id);
-                          return (
-                            <label key={company.id} className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1.5 rounded transition">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => handleToggleCompany(company.id)}
-                                disabled={saving || syncing}
-                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                              />
-                              <div className="flex flex-col">
-                                <span className="text-xs font-semibold text-slate-700">{company.partyName}</span>
-                                <span className="text-[10px] text-slate-400 font-mono">
-                                  {company.nusukEntityId ? `Entity ID: ${company.nusukEntityId}` : 'No Entity ID set'}
-                                </span>
-                              </div>
-                            </label>
-                          );
-                        })}
-                        {umrahCompanies.length === 0 && (
-                          <p className="text-xs text-muted-foreground p-2 text-center">
-                            No Umrah service providers found. Configure them in Masters &gt; Parties first.
-                          </p>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        Select which Umrah Companies to run syncs for. Each company will sync with its configured Entity ID settings.
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="externalAgentCodes" className="text-sm font-semibold">
-                        Filter by External Agent Codes *
-                      </Label>
-                      <Input
-                        id="externalAgentCodes"
-                        className="text-xs font-mono"
-                        placeholder="22282, 6655, 1001828"
-                        value={settingsData.externalAgentCodes}
-                        onChange={(e) => setSettingsData({ ...settingsData, externalAgentCodes: e.target.value })}
-                        disabled={saving || syncing}
-                        required
-                      />
-                      <p className="text-xs text-gray-500">
-                        Enter comma-separated codes of External Agents to process (e.g. 22282, 6655, 1001828). Rows from other external agents in the Nusuk report will be ignored during synchronization.
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="syncType" className="text-sm font-semibold">
-                        Sync Type / Method *
-                      </Label>
-                      <select
-                        id="syncType"
-                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                        value={settingsData.syncType}
-                        onChange={(e) => setSettingsData({ ...settingsData, syncType: e.target.value })}
-                        disabled={saving || syncing}
-                      >
-                        <option value="excel">Excel based (HH:MM Schedule)</option>
-                        <option value="listing">Listing based (Every 5 minutes)</option>
-                      </select>
-                      <p className="text-xs text-gray-500">
-                        {settingsData.syncType === 'listing'
-                          ? 'Listing-based sync calls the Nusuk API directly every 5 minutes to fetch active mutamers without needing to generate Excel files.'
-                          : 'Excel-based sync parses exported spreadsheets at scheduled times of day.'}
-                      </p>
-                    </div>
-
-                    {settingsData.syncType !== 'listing' && (
-                      <div className="space-y-2">
-                        <Label htmlFor="syncSchedule" className="text-sm font-semibold">
-                          Automated Sync Schedule (Times of Day) *
-                        </Label>
-                        <Input
-                          id="syncSchedule"
-                          className="text-xs font-mono"
-                          placeholder="08:00, 20:00"
-                          value={settingsData.syncSchedule}
-                          onChange={(e) => setSettingsData({ ...settingsData, syncSchedule: e.target.value })}
-                          disabled={saving || syncing}
-                          required
-                        />
-                        <p className="text-xs text-gray-500">
-                          Enter comma-separated 24-hour times (HH:MM format) when the system should automatically fetch and sync Nusuk travel data (e.g. 08:00, 20:00).
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between p-4 bg-slate-50 border rounded-lg">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="checkByPassport" className="text-sm font-semibold text-slate-800">
-                          Match with Passport Number
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          By default, synchronizations match solely by Group Number. Turn this on to also search by Passport Number when matching passengers.
-                        </p>
-                      </div>
-                      <Switch
-                        id="checkByPassport"
-                        checked={settingsData.checkByPassport}
-                        onCheckedChange={(checked) => setSettingsData({ ...settingsData, checkByPassport: checked })}
-                        disabled={saving || syncing}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 bg-slate-50 border rounded-lg">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="allowWithoutTicket" className="text-sm font-semibold text-slate-800">
-                          Allow Bookings Without Ticket
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Allows completing bookings without onward or return flight details.
-                        </p>
-                      </div>
-                      <Switch
-                        id="allowWithoutTicket"
-                        checked={settingsData.allowWithoutTicket}
-                        onCheckedChange={(checked) => setSettingsData({ ...settingsData, allowWithoutTicket: checked })}
-                        disabled={saving || syncing}
-                      />
-                    </div>
-
-                    {settingsData.allowWithoutTicket && (
-                      <div className="flex items-center space-x-2 pl-4 py-2 border-l-2 border-indigo-500 animate-in slide-in-from-top-2 duration-200">
-                        <input
-                          type="checkbox"
-                          id="allowOneWayTicket"
-                          checked={settingsData.allowOneWayTicket}
-                          onChange={(e) => setSettingsData({ ...settingsData, allowOneWayTicket: e.target.checked })}
-                          disabled={saving || syncing}
-                          className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
-                        />
-                        <div className="flex flex-col">
-                          <Label htmlFor="allowOneWayTicket" className="text-xs font-bold text-slate-800 cursor-pointer select-none">
-                            Oneway/Onward Ticket Only (General Bookings)
-                          </Label>
-                          <span className="text-[10px] text-muted-foreground">
-                            When enabled, requires only the onward flight ticket instead of none at all for general bookings.
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Re-Entry Specific Ticket Option */}
-                    <div className="flex items-center justify-between p-4 bg-amber-50/70 border border-amber-200/80 rounded-lg">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="allowReEntryWithoutTicket" className="text-sm font-semibold text-amber-950">
-                          Allow Re-Entry Bookings Without Ticket
-                        </Label>
-                        <p className="text-xs text-amber-800/80">
-                          Enable &quot;Without Ticket&quot; or &quot;Onward Only&quot; for Re-Entry visa bookings (disabled by default).
-                        </p>
-                      </div>
-                      <Switch
-                        id="allowReEntryWithoutTicket"
-                        checked={settingsData.allowReEntryWithoutTicket}
-                        onCheckedChange={(checked) => setSettingsData({ ...settingsData, allowReEntryWithoutTicket: checked })}
-                        disabled={saving || syncing}
-                      />
-                    </div>
-
-                    {settingsData.allowReEntryWithoutTicket && (
-                      <div className="flex items-center space-x-2 pl-4 py-2 border-l-2 border-amber-500 animate-in slide-in-from-top-2 duration-200">
-                        <input
-                          type="checkbox"
-                          id="allowReEntryOneWayTicket"
-                          checked={settingsData.allowReEntryOneWayTicket}
-                          onChange={(e) => setSettingsData({ ...settingsData, allowReEntryOneWayTicket: e.target.checked })}
-                          disabled={saving || syncing}
-                          className="rounded text-amber-600 focus:ring-amber-500 h-4 w-4 cursor-pointer"
-                        />
-                        <div className="flex flex-col">
-                          <Label htmlFor="allowReEntryOneWayTicket" className="text-xs font-bold text-amber-950 cursor-pointer select-none">
-                            Oneway/Onward Ticket Only (Re-Entry Bookings)
-                          </Label>
-                          <span className="text-[10px] text-amber-800/80">
-                            Requires onward flight details only for Re-Entry bookings.
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex justify-end gap-3 pt-2">
-                      <Button
-                        type="submit"
-                        disabled={saving || syncing}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                      >
-                        {saving ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Saving...
-                          </>
-                        ) : (
-                          <>
-                            <Save className="h-4 w-4 mr-2" />
-                            Save Credentials
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </form>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Sync control and status sidebar */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Synchronizer Status</CardTitle>
-                <CardDescription>
-                  Trigger report syncs and check health.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
+        {/* Overview Stats & Quick Links */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="border-indigo-100 bg-indigo-50/40">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Sync Type</div>
-                  <div className="text-sm font-semibold text-gray-900 mt-1">Automatic & Manual</div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Auto-fetches data twice every day (every 12 hours) from Nusuk.
-                  </p>
+                  <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Total Synced Mutamers</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{settingsData.stats.totalSyncedMutamers.toLocaleString()}</p>
                 </div>
+                <div className="p-3 bg-indigo-100 rounded-xl">
+                  <Users className="h-6 w-6 text-indigo-600" />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-3 flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5 text-gray-400" />
+                {settingsData.lastSyncedAt
+                  ? `Last synced: ${new Date(settingsData.lastSyncedAt).toLocaleString()}`
+                  : 'Never synced'}
+              </p>
+            </CardContent>
+          </Card>
 
+          <Card className="border-purple-200 bg-purple-50/40">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Last Synced</div>
-                  <div className="text-sm font-semibold text-gray-900 mt-1">
-                    {settingsData.lastSyncedAt 
-                      ? new Date(settingsData.lastSyncedAt).toLocaleString() 
-                      : 'Never'}
-                  </div>
+                  <p className="text-xs font-semibold text-purple-700 uppercase tracking-wider">Unlinked Groups</p>
+                  <p className="text-2xl font-bold text-purple-900 mt-1">Nusuk Groups</p>
                 </div>
-
-                <div className="pt-2 border-t">
-                  <Button
-                    onClick={handleSync}
-                    disabled={syncing || saving || loading}
-                    className="w-full bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center gap-2"
-                  >
-                    {syncing ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        {currentSyncingCompany ? `Syncing ${currentSyncingCompany}...` : 'Synchronizing...'}
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="h-4 w-4" />
-                        Sync Report Now
-                      </>
-                    )}
-                  </Button>
+                <div className="p-3 bg-purple-100 rounded-xl">
+                  <FolderX className="h-6 w-6 text-purple-700" />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+              <Link 
+                href="/dashboard/umrah-visa/unlinked-groups"
+                className="text-xs font-semibold text-purple-700 hover:text-purple-800 mt-3 inline-flex items-center gap-1 group"
+              >
+                View Unlinked Groups
+                <ArrowUpRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Manual Excel Sync</CardTitle>
-                <CardDescription>
-                  Upload a manually downloaded Nusuk report (.xlsx) to synchronize data directly.
+          <Card className="border-amber-200 bg-amber-50/40">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Consulate Review</p>
+                  <p className="text-2xl font-bold text-amber-900 mt-1">{settingsData.stats.consulateReviewCount}</p>
+                </div>
+                <div className="p-3 bg-amber-100 rounded-xl">
+                  <ShieldAlert className="h-6 w-6 text-amber-700" />
+                </div>
+              </div>
+              <Link 
+                href="/dashboard/umrah-visa/consulate-review"
+                className="text-xs font-semibold text-amber-700 hover:text-amber-800 mt-3 inline-flex items-center gap-1 group"
+              >
+                View Consulate Review Cases
+                <ArrowUpRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="border-rose-200 bg-rose-50/40">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-rose-700 uppercase tracking-wider">Over 85 Days in KSA</p>
+                  <p className="text-2xl font-bold text-rose-900 mt-1">{settingsData.stats.over85DaysCount}</p>
+                </div>
+                <div className="p-3 bg-rose-100 rounded-xl">
+                  <AlertTriangle className="h-6 w-6 text-rose-700" />
+                </div>
+              </div>
+              <Link 
+                href="/dashboard/umrah-visa/overstay-85-days"
+                className="text-xs font-semibold text-rose-700 hover:text-rose-800 mt-3 inline-flex items-center gap-1 group"
+              >
+                View 85+ Days Overstay List
+                <ArrowUpRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Section 1: External Agent Entities Hub */}
+        <Card className="shadow-sm border-gray-200">
+          <CardHeader className="border-b bg-gray-50/50 pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <Building className="h-5 w-5 text-indigo-600" />
+                  External Agent Entities & Contracts
+                </CardTitle>
+                <CardDescription className="text-xs mt-1">
+                  Configure EA Entity IDs, Contract IDs, and active syncing toggles under your primary master account.
                 </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="manual-excel-file" className="text-xs font-semibold">
-                    Select Nusuk Report (.xlsx)
+              </div>
+              <Button
+                type="button"
+                onClick={handleOpenAddAgent}
+                size="sm"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
+              >
+                <Plus className="h-4 w-4" />
+                Add External Agent
+              </Button>
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-0">
+            {externalAgents.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">
+                <p>No External Agents configured yet.</p>
+                <Button onClick={handleOpenAddAgent} variant="outline" size="sm" className="mt-3">
+                  Add Default Agent
+                </Button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-gray-50 text-gray-600 border-b text-xs uppercase font-semibold">
+                    <tr>
+                      <th className="py-3 px-4">External Agent Name</th>
+                      <th className="py-3 px-4">Entity ID (Active Entity)</th>
+                      <th className="py-3 px-4">Contract ID</th>
+                      <th className="py-3 px-4">Entity Type</th>
+                      <th className="py-3 px-4">Last Sync Status</th>
+                      <th className="py-3 px-4 text-center">Sync Active</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {externalAgents.map(agent => (
+                      <tr key={agent.id} className="hover:bg-gray-50/80 transition-colors">
+                        <td className="py-3.5 px-4 font-medium text-gray-900">
+                          {agent.name}
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-xs text-indigo-700 font-semibold">
+                          {agent.entityId}
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-xs text-gray-700">
+                          {agent.contractId}
+                        </td>
+                        <td className="py-3.5 px-4 text-xs text-gray-500">
+                          {agent.activeEntityTypeId || '52'}
+                        </td>
+                        <td className="py-3.5 px-4 text-xs">
+                          {agent.lastSyncedAt ? (
+                            <div className="flex flex-col">
+                              <span className="text-emerald-700 font-medium">
+                                ✓ {agent.lastSyncCount || 0} records
+                              </span>
+                              <span className="text-gray-400 text-[10px]">
+                                {new Date(agent.lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic">Not synced</span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <Switch
+                            checked={agent.isActive}
+                            onCheckedChange={() => handleToggleAgentActive(agent)}
+                          />
+                        </td>
+                        <td className="py-3.5 px-4 text-right space-x-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-600 hover:text-indigo-600"
+                            onClick={() => handleOpenEditAgent(agent)}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-600 hover:text-rose-600"
+                            onClick={() => handleDeleteAgent(agent)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Section 2: Master Bearer Token & Schedule Settings */}
+        <form onSubmit={handleSaveMasterSettings}>
+          <Card className="shadow-sm border-gray-200">
+            <CardHeader className="border-b bg-gray-50/50 pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <Settings className="h-5 w-5 text-indigo-600" />
+                    Master User Token & Sync Configuration
+                  </CardTitle>
+                  <CardDescription className="text-xs mt-1">
+                    Primary JWT Bearer token extracted from browser network headers (applies across all EA contracts).
+                  </CardDescription>
+                </div>
+                <div>
+                  {settingsData.isValid ? (
+                    <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 flex items-center gap-1">
+                      <CheckCircle className="h-3.5 w-3.5" />
+                      Active & Valid
+                    </Badge>
+                  ) : (
+                    <Badge variant="destructive" className="flex items-center gap-1">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      Token Expired / Invalid
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-6 space-y-6">
+              {/* Token Input */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="token" className="text-sm font-semibold text-gray-800">
+                    Master Authorization Bearer Token <span className="text-rose-500">*</span>
                   </Label>
-                  <Input
-                    id="manual-excel-file"
-                    type="file"
-                    accept=".xlsx, .xls"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        setExcelFile(e.target.files[0]);
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-indigo-600 hover:text-indigo-700 h-6 px-2"
+                    onClick={async () => {
+                      try {
+                        const clip = await navigator.clipboard.readText();
+                        if (clip) {
+                          setSettingsData(prev => ({ ...prev, token: clip.replace(/^Bearer\s+/i, '').trim() }));
+                          toast.success('Pasted token from clipboard');
+                        }
+                      } catch (err) {
+                        toast.error('Unable to access clipboard. Please paste manually.');
                       }
                     }}
-                    disabled={uploadingExcel || syncing || saving}
-                    className="text-xs cursor-pointer"
+                  >
+                    Paste from Clipboard
+                  </Button>
+                </div>
+                <textarea
+                  id="token"
+                  rows={4}
+                  value={settingsData.token}
+                  onChange={e => setSettingsData(prev => ({ ...prev, token: e.target.value }))}
+                  placeholder="eyJraWQiOiJyc2FfZGVmYXVsdF9rZXkiLCJhbGciOiJSUzI1NiJ9..."
+                  className="w-full rounded-md border border-gray-300 p-3 font-mono text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-gray-50/50"
+                  required
+                />
+                <p className="text-[11px] text-gray-500">
+                  Tip: Copy the authorization header from any <code>GetMutamerReport</code> request in DevTools on <code>masar.nusuk.sa</code>.
+                </p>
+              </div>
+
+              {/* Schedules and Options */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t">
+                <div className="space-y-2">
+                  <Label htmlFor="syncSchedule" className="text-sm font-semibold text-gray-800">
+                    Automated Sync Schedule (UTC Times)
+                  </Label>
+                  <Input
+                    id="syncSchedule"
+                    value={settingsData.syncSchedule}
+                    onChange={e => setSettingsData(prev => ({ ...prev, syncSchedule: e.target.value }))}
+                    placeholder="08:00, 20:00"
+                    className="text-sm"
                   />
+                  <p className="text-[11px] text-gray-500">Comma-separated 24h format times (e.g. 08:00, 20:00).</p>
                 </div>
 
-                <Button
-                  onClick={handleExcelUploadSync}
-                  disabled={!excelFile || uploadingExcel || syncing || saving || loading}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center gap-2 text-xs"
-                >
-                  {uploadingExcel ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      {currentSyncingCompany ? `Syncing ${currentSyncingCompany}...` : 'Processing File...'}
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4" />
-                      Sync Uploaded Excel
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between pt-2">
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-800">Allow One-Way Ticket Bookings</Label>
+                      <p className="text-xs text-gray-500">Bypass strict roundtrip flight validation during manual booking entry.</p>
+                    </div>
+                    <Switch
+                      checked={settingsData.allowOneWayTicket}
+                      onCheckedChange={checked => setSettingsData(prev => ({ ...prev, allowOneWayTicket: checked }))}
+                    />
+                  </div>
 
-            <Card className="bg-amber-50/50 border-amber-200">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold text-amber-800 flex items-center gap-1.5">
-                  <AlertTriangle className="h-4 w-4 text-amber-600" />
-                  Integration Notice
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-amber-700 leading-relaxed">
-                  Authentication tokens on Nusuk expire periodically (usually every 24-48 hours). If synchronization fails, fetch a new Bearer token and update it here.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-800">Allow Without-Ticket Bookings</Label>
+                      <p className="text-xs text-gray-500">Allow bookings to be submitted without immediate flight ticket upload.</p>
+                    </div>
+                    <Switch
+                      checked={settingsData.allowWithoutTicket}
+                      onCheckedChange={checked => setSettingsData(prev => ({ ...prev, allowWithoutTicket: checked }))}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-4 border-t">
+                <Button type="submit" disabled={saving} className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Save Settings
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </form>
+
+        {/* Section 3: Manual Excel Upload Synchronization */}
+        <Card className="shadow-sm border-gray-200">
+          <CardHeader className="border-b bg-gray-50/50 pb-4">
+            <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
+              Manual Excel Report Synchronization (Offline Fallback)
+            </CardTitle>
+            <CardDescription className="text-xs mt-1">
+              If API token is temporarily unavailable, export the Mutamers Excel report directly from Nusuk portal and upload here.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <input
+                id="manual-excel-file"
+                type="file"
+                accept=".xlsx, .xls, .csv"
+                onChange={e => setExcelFile(e.target.files?.[0] || null)}
+                className="block w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+              />
+              <Button
+                type="button"
+                onClick={handleExcelUploadSync}
+                disabled={uploadingExcel || !excelFile}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white whitespace-nowrap gap-2"
+              >
+                {uploadingExcel ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Upload & Sync Excel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
       </div>
+
+      {/* Dialog for Add / Edit External Agent Entity */}
+      <Dialog open={isAgentDialogOpen} onOpenChange={setIsAgentDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingAgent?.id ? 'Edit External Agent Entity' : 'Add External Agent Entity'}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Provide the EA name, Entity ID (Active Entity), Contract ID, and Entity Type ID (52).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="agentName" className="text-xs font-semibold">
+                Agent Company / Name <span className="text-rose-500">*</span>
+              </Label>
+              <Input
+                id="agentName"
+                value={editingAgent?.name || ''}
+                onChange={e => setEditingAgent(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g. EA-Moulavi Travel and Rec Agents Pvt Ltd"
+                className="text-sm"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="entityId" className="text-xs font-semibold">
+                  Entity ID <span className="text-rose-500">*</span>
+                </Label>
+                <Input
+                  id="entityId"
+                  value={editingAgent?.entityId || ''}
+                  onChange={e => setEditingAgent(prev => ({ ...prev, entityId: e.target.value }))}
+                  placeholder="e.g. 719133"
+                  className="text-sm font-mono"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="contractId" className="text-xs font-semibold">
+                  Contract ID <span className="text-rose-500">*</span>
+                </Label>
+                <Input
+                  id="contractId"
+                  value={editingAgent?.contractId || ''}
+                  onChange={e => setEditingAgent(prev => ({ ...prev, contractId: e.target.value }))}
+                  placeholder="e.g. 230195"
+                  className="text-sm font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="activeEntityTypeId" className="text-xs font-semibold">
+                Active Entity Type ID
+              </Label>
+              <Input
+                id="activeEntityTypeId"
+                value={editingAgent?.activeEntityTypeId || '52'}
+                onChange={e => setEditingAgent(prev => ({ ...prev, activeEntityTypeId: e.target.value }))}
+                placeholder="52"
+                className="text-sm font-mono"
+              />
+              <p className="text-[10px] text-gray-500">Standard External Agent entity type in Nusuk Masar is 52.</p>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t">
+              <div>
+                <Label className="text-xs font-semibold">Enable Sync for this Entity</Label>
+                <p className="text-[10px] text-gray-500">Include in automatic and manual sync runs.</p>
+              </div>
+              <Switch
+                checked={editingAgent?.isActive ?? true}
+                onCheckedChange={checked => setEditingAgent(prev => ({ ...prev, isActive: checked }))}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsAgentDialogOpen(false)}
+              disabled={savingAgent}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSaveAgent}
+              disabled={savingAgent}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              {savingAgent ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+              Save Agent
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

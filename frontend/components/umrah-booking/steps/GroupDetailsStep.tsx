@@ -52,7 +52,7 @@ export const GroupDetailsStep: React.FC<GroupDetailsStepProps> = ({
               id="groupNumber"
               placeholder="Enter group number"
               value={data.groupNumber || ''}
-              onChange={(e) => onChange({ groupNumber: e.target.value })}
+              onChange={(e) => onChange({ groupNumber: e.target.value.replace(/\s+/g, '') })}
               disabled={disabled}
             />
           </div>

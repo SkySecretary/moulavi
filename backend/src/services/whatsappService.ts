@@ -149,6 +149,8 @@ const DEFAULT_CLOUD_TEMPLATES: Record<string, string> = {
   driver_update: 'driver_details_update',
   iqama_confirmation: 'absher_approval_request',
   package_expired: 'package_expired_alert',
+  voucher_agency: 'voucher_agency_alert',
+  voucher_supplier: 'voucher_supplier_alert',
   custom: 'hello_world',
 };
 
@@ -193,11 +195,19 @@ const getFallbackChannel = async () => {
   return null;
 };
 
-const sendWhatsAppMessage = async (
+export interface WhatsAppAttachment {
+  url?: string;
+  filename?: string;
+  mimetype?: string;
+  buffer?: Buffer;
+}
+
+export const sendWhatsAppMessage = async (
   to: string, 
   message: string, 
   useCase: string = 'custom',
-  dynamicData?: Record<string, any>
+  dynamicData?: Record<string, any>,
+  attachment?: WhatsAppAttachment
 ): Promise<void> => {
   const startTime = Date.now();
   const logPrefix = `[WHATSAPP-${useCase.toUpperCase()}]`;
@@ -221,9 +231,9 @@ const sendWhatsAppMessage = async (
     console.error(`${logPrefix} Error checking mapping status:`, err);
   }
 
-  const isGroupId = to.includes('@');
+  const isGroupId = to.includes('@') || to.endsWith('@g.us');
   const formattedNumber = isGroupId ? to : formatPhoneNumber(to);
-  console.log(`${logPrefix} Formatted Recipient: ${formattedNumber}`);
+  console.log(`${logPrefix} Formatted Recipient: ${formattedNumber} (isGroup: ${isGroupId})`);
   
   // Resolve channel configuration
   let channel = mapping?.channel && mapping.channel.isActive ? mapping.channel : null;
@@ -236,7 +246,7 @@ const sendWhatsAppMessage = async (
   if (channel) {
     console.log(`${logPrefix} Using Database Channel Profile: ${channel.name} (${channel.id}) [Cloud API: ${channel.isCloudApi}]`);
     
-    // Clean phone number (Linalapro expects format like +911234567890 or +1234567890)
+    // Clean phone number (Linalapro expects format like +911234567890 or +1234567890 for individual, or group ID)
     let linalaNumber = formattedNumber;
     if (!isGroupId) {
       const cleanNumber = formattedNumber.replace(/\D/g, '');
@@ -277,10 +287,10 @@ const sendWhatsAppMessage = async (
         }
       }
 
-      // Handle Header (Text / Media)
+      // Handle Header (Text / Media / Attachment)
       let headerPayload: any = undefined;
       let headerParameters: any[] | undefined = undefined;
-      const headerType = mapping?.headerType || 'none';
+      const headerType = mapping?.headerType || (attachment?.url ? 'document' : 'none');
 
       if (headerType === 'text' && mapping?.headerText) {
         const interpolatedHeaderText = interpolateWhatsAppTemplate(mapping.headerText, dynamicData);
@@ -289,13 +299,22 @@ const sendWhatsAppMessage = async (
           text: interpolatedHeaderText,
         };
         headerParameters = [{ type: 'text', text: interpolatedHeaderText }];
-      } else if (['image', 'document', 'video'].includes(headerType) && mapping?.headerUrl) {
-        const interpolatedHeaderUrl = interpolateWhatsAppTemplate(mapping.headerUrl, dynamicData);
-        headerPayload = {
-          type: headerType,
-          url: interpolatedHeaderUrl,
-        };
-        headerParameters = [{ type: headerType, [headerType]: { link: interpolatedHeaderUrl } }];
+      } else if (['image', 'document', 'video'].includes(headerType)) {
+        const rawUrl = mapping?.headerUrl || attachment?.url;
+        if (rawUrl) {
+          const interpolatedHeaderUrl = interpolateWhatsAppTemplate(rawUrl, dynamicData);
+          headerPayload = {
+            type: headerType,
+            url: interpolatedHeaderUrl,
+          };
+          headerParameters = [{
+            type: headerType,
+            [headerType]: {
+              link: interpolatedHeaderUrl,
+              ...(headerType === 'document' && (attachment?.filename || mapping?.headerText) ? { filename: attachment?.filename || mapping?.headerText } : {})
+            }
+          }];
+        }
       }
 
       // Build Meta-compatible components
@@ -323,7 +342,7 @@ const sendWhatsAppMessage = async (
       };
       console.log(`${logPrefix} Mode: Cloud API Template (${templateName}, lang: ${language}, params: ${bodyParamsList.length}, header: ${headerType})`);
     } else {
-      // Standard QR Code / Text message format
+      // Standard QR Code / Text / Media message format
       let finalMessage = message;
       if (mapping?.customMessage && dynamicData) {
         finalMessage = interpolateWhatsAppTemplate(mapping.customMessage, dynamicData);
@@ -332,8 +351,17 @@ const sendWhatsAppMessage = async (
       payload = {
         to: linalaNumber,
         message: finalMessage,
+        caption: finalMessage,
+        ...(attachment?.url ? {
+          mediaUrl: attachment.url,
+          document: attachment.url,
+          url: attachment.url,
+          filename: attachment.filename || 'Quotation.pdf',
+          mimetype: attachment.mimetype || 'application/pdf',
+          mediaType: 'document',
+        } : {}),
       };
-      console.log(`${logPrefix} Mode: QR Code / Text message (${finalMessage.length} chars)`);
+      console.log(`${logPrefix} Mode: QR Code message (${finalMessage.length} chars, attachment: ${attachment?.url ? 'yes' : 'no'})`);
     }
     
     console.log(`${logPrefix} Request URL: ${targetUrl}`);
@@ -780,4 +808,305 @@ export const sendBulkWhatsAppMessages = async (
   }
 
   return { total: messages.length, successful, failed, results };
+};
+
+/**
+ * Resolves whether to send to WhatsApp Group or individual WhatsApp Phone Number:
+ * Rule: If group id is present and channel is QR Code (NOT Cloud API), send to WhatsApp Group.
+ * Otherwise, send to WhatsApp phone number.
+ */
+export const resolvePartyWhatsAppTarget = async (
+  party: {
+    whatsappGroupId?: string | null;
+    whatsappNumber?: string | null;
+    contactNumber?: string | null;
+    whatsappType?: string | null;
+  },
+  useCase: string
+): Promise<{ target: string; isGroup: boolean; isCloudApi: boolean } | null> => {
+  const channelData = await getChannelForUseCase(useCase);
+  const channel = channelData ? channelData.channel : await getFallbackChannel();
+  
+  const isCloudApi = channelData?.mapping?.isCloudApi !== null && channelData?.mapping?.isCloudApi !== undefined
+    ? channelData.mapping.isCloudApi
+    : (channel ? channel.isCloudApi : false);
+
+  // If NOT cloud API (i.e. QR Code based channel) AND group id is present, send to WhatsApp group
+  if (!isCloudApi && party.whatsappGroupId && party.whatsappGroupId.trim()) {
+    let groupId = party.whatsappGroupId.trim();
+    if (!groupId.includes('@')) {
+      groupId = `${groupId}@g.us`;
+    }
+    return {
+      target: groupId,
+      isGroup: true,
+      isCloudApi: false,
+    };
+  }
+
+  // Otherwise send to party's WhatsApp number (or contact number)
+  const rawNumber = party.whatsappNumber?.trim() || party.contactNumber?.trim();
+  if (rawNumber) {
+    return {
+      target: rawNumber,
+      isGroup: false,
+      isCloudApi,
+    };
+  }
+
+  return null;
+};
+
+// Send Voucher WhatsApp alert to Agency (with PDF attachment)
+export const sendVoucherAgencyWhatsApp = async (
+  party: {
+    partyName?: string;
+    whatsappGroupId?: string | null;
+    whatsappNumber?: string | null;
+    contactNumber?: string | null;
+  },
+  voucherData: {
+    voucherNumber: string;
+    groupCode?: string;
+    groupName?: string;
+    paxCount?: number;
+    guestName?: string;
+    guestMobile?: string;
+    transportCompany?: string;
+    reservationDate?: string;
+    firstRouteDate?: string;
+    movementsSummary?: string;
+  },
+  pdfUrl?: string
+): Promise<void> => {
+  const targetInfo = await resolvePartyWhatsAppTarget(party, 'voucher_agency');
+  if (!targetInfo) {
+    console.log('[WHATSAPP] No WhatsApp target (number or group) found for agency party:', party.partyName);
+    return;
+  }
+
+  const defaultMsg = `📄 *VOUCHER ISSUED - MOULAVI TRAVELS*
+═══════════════════
+Dear *${party.partyName || 'Valued Partner'}*,
+
+Your transport & service voucher *${voucherData.voucherNumber}* has been generated.
+
+🔖 *Voucher No:* ${voucherData.voucherNumber}
+📋 *Group Code:* ${voucherData.groupCode || 'N/A'}
+🏷️ *Group Name:* ${voucherData.groupName || 'N/A'}
+👥 *Number of Pilgrims:* ${voucherData.paxCount || 0} Pax
+👤 *Lead Guest:* ${voucherData.guestName || 'N/A'}
+🚌 *Transport Supplier:* ${voucherData.transportCompany || 'Confirmed'}
+
+📎 Please find the attached official PDF voucher.
+${pdfUrl ? `\n📥 Download PDF: ${pdfUrl}` : ''}
+
+🤲 We wish your pilgrims a safe and blessed journey.
+*NuSync - Moulavi Travels*`.trim();
+
+  await sendWhatsAppMessage(
+    targetInfo.target,
+    defaultMsg,
+    'voucher_agency',
+    {
+      name: party.partyName || 'Valued Partner',
+      agencyName: party.partyName || 'Valued Partner',
+      voucherNumber: voucherData.voucherNumber,
+      groupCode: voucherData.groupCode || 'N/A',
+      groupName: voucherData.groupName || 'N/A',
+      paxCount: voucherData.paxCount || 0,
+      guestName: voucherData.guestName || 'N/A',
+      guestMobile: voucherData.guestMobile || 'N/A',
+      transportCompany: voucherData.transportCompany || 'Confirmed',
+      reservationDate: voucherData.reservationDate || 'N/A',
+      firstRouteDate: voucherData.firstRouteDate || 'N/A',
+      movementsSummary: voucherData.movementsSummary || 'N/A',
+      pdfUrl: pdfUrl || '',
+    },
+    pdfUrl ? {
+      url: pdfUrl,
+      filename: `Voucher_${voucherData.voucherNumber}.pdf`,
+      mimetype: 'application/pdf',
+    } : undefined
+  );
+};
+
+// Send Voucher WhatsApp alert to Transport Supplier (with PDF attachment)
+export const sendVoucherSupplierWhatsApp = async (
+  supplierParty: {
+    partyName?: string;
+    whatsappGroupId?: string | null;
+    whatsappNumber?: string | null;
+    contactNumber?: string | null;
+  },
+  voucherData: {
+    voucherNumber: string;
+    agencyName?: string;
+    groupCode?: string;
+    groupName?: string;
+    paxCount?: number;
+    guestName?: string;
+    guestMobile?: string;
+    firstRouteDate?: string;
+    movementsSummary?: string;
+  },
+  pdfUrl?: string
+): Promise<void> => {
+  const targetInfo = await resolvePartyWhatsAppTarget(supplierParty, 'voucher_supplier');
+  if (!targetInfo) {
+    console.log('[WHATSAPP] No WhatsApp target (number or group) found for transport supplier:', supplierParty.partyName);
+    return;
+  }
+
+  const defaultMsg = `🚌 *NEW TRANSPORT VOUCHER ASSIGNED*
+═══════════════════
+Dear *${supplierParty.partyName || 'Transport Partner'}*,
+
+A new transport booking has been assigned to your company.
+
+🔖 *Voucher No:* ${voucherData.voucherNumber}
+🏢 *Agency:* ${voucherData.agencyName || 'NuSync Agency'}
+📋 *Group Code:* ${voucherData.groupCode || 'N/A'}
+👥 *Number of Pilgrims:* ${voucherData.paxCount || 0} Pax
+👤 *Lead Guest:* ${voucherData.guestName || 'N/A'}
+📞 *Guest Mobile:* ${voucherData.guestMobile || 'N/A'}
+
+📍 *Movement Schedule:*
+${voucherData.movementsSummary || 'Please refer to attached voucher'}
+
+📎 Please find the attached official PDF voucher.
+Kindly arrange vehicle and driver allocations accordingly.
+${pdfUrl ? `\n📥 Download PDF: ${pdfUrl}` : ''}
+
+*NuSync Operations*`.trim();
+
+  await sendWhatsAppMessage(
+    targetInfo.target,
+    defaultMsg,
+    'voucher_supplier',
+    {
+      name: supplierParty.partyName || 'Transport Partner',
+      supplierName: supplierParty.partyName || 'Transport Partner',
+      transportCompany: supplierParty.partyName || 'Transport Partner',
+      voucherNumber: voucherData.voucherNumber,
+      agencyName: voucherData.agencyName || 'NuSync Agency',
+      groupCode: voucherData.groupCode || 'N/A',
+      groupName: voucherData.groupName || 'N/A',
+      paxCount: voucherData.paxCount || 0,
+      guestName: voucherData.guestName || 'N/A',
+      guestMobile: voucherData.guestMobile || 'N/A',
+      firstRouteDate: voucherData.firstRouteDate || 'N/A',
+      movementsSummary: voucherData.movementsSummary || 'N/A',
+      pdfUrl: pdfUrl || '',
+    },
+    pdfUrl ? {
+      url: pdfUrl,
+      filename: `Voucher_${voucherData.voucherNumber}.pdf`,
+      mimetype: 'application/pdf',
+    } : undefined
+  );
+};
+
+// Send Quotation proposal WhatsApp message with PDF attachment
+export const sendQuotationWhatsApp = async (
+  quotationData: {
+    quotationNumber: string;
+    title?: string | null;
+    guestName: string;
+    guestPhone?: string | null;
+    customerType: string;
+    totalPax: number;
+    adultsCount: number;
+    childrenCount: number;
+    currency: string;
+    grandTotal: number;
+    validUntil?: Date | string | null;
+    party?: {
+      partyName?: string;
+      whatsappGroupId?: string | null;
+      whatsappNumber?: string | null;
+      contactNumber?: string | null;
+    } | null;
+  },
+  options?: {
+    pdfUrl?: string;
+    customRecipient?: string;
+    customMessage?: string;
+  }
+): Promise<{ success: boolean; target: string; isGroup: boolean; message: string }> => {
+  let target = options?.customRecipient?.trim();
+  let isGroup = false;
+
+  if (!target) {
+    if (quotationData.customerType === 'B2B' && quotationData.party) {
+      const targetInfo = await resolvePartyWhatsAppTarget(quotationData.party, 'quotation_share');
+      if (targetInfo) {
+        target = targetInfo.target;
+        isGroup = targetInfo.isGroup;
+      }
+    }
+
+    if (!target && quotationData.guestPhone && quotationData.guestPhone.trim()) {
+      target = quotationData.guestPhone.trim();
+    }
+  }
+
+  if (!target) {
+    throw new Error('No WhatsApp phone number or agency WhatsApp group found for this quotation');
+  }
+
+  const validUntilStr = quotationData.validUntil
+    ? new Date(quotationData.validUntil).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })
+    : '7 Days';
+
+  const defaultMsg = options?.customMessage || `📄 *UMRAH PACKAGE QUOTATION - MOULAVI TRAVELS*
+═══════════════════
+Dear *${quotationData.guestName}*,
+
+Thank you for choosing *Moulavi Travels*. We are pleased to present your customized Umrah package proposal.
+
+🔖 *Quotation Ref:* ${quotationData.quotationNumber}
+🏷️ *Package:* ${quotationData.title || 'Custom Umrah Package'}
+👥 *Total Pilgrims:* ${quotationData.totalPax} Pax (${quotationData.adultsCount} Adults, ${quotationData.childrenCount} Children)
+💰 *Total Amount:* *${quotationData.currency} ${Number(quotationData.grandTotal).toLocaleString()}*
+📅 *Valid Until:* ${validUntilStr}
+
+📎 *Official quotation document is attached as PDF below.*
+${options?.pdfUrl ? `\n📥 Download Link: ${options.pdfUrl}` : ''}
+
+🤲 We look forward to facilitating a spiritual and seamless journey for you and your guests.
+*Moulavi Travel & Recruitment Agents Pvt Ltd*
+═══════════════════`.trim();
+
+  await sendWhatsAppMessage(
+    target,
+    defaultMsg,
+    'quotation_share',
+    {
+      name: quotationData.guestName,
+      guestName: quotationData.guestName,
+      quotationNumber: quotationData.quotationNumber,
+      title: quotationData.title || 'Umrah Package',
+      totalPax: quotationData.totalPax,
+      adultsCount: quotationData.adultsCount,
+      childrenCount: quotationData.childrenCount,
+      currency: quotationData.currency,
+      grandTotal: quotationData.grandTotal,
+      validUntil: validUntilStr,
+      agencyName: quotationData.party?.partyName || '',
+      pdfUrl: options?.pdfUrl || '',
+    },
+    options?.pdfUrl ? {
+      url: options.pdfUrl,
+      filename: `Quotation_${quotationData.quotationNumber}.pdf`,
+      mimetype: 'application/pdf',
+    } : undefined
+  );
+
+  return {
+    success: true,
+    target,
+    isGroup,
+    message: `WhatsApp quotation successfully sent to ${target}`,
+  };
 };

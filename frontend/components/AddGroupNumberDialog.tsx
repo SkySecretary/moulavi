@@ -114,7 +114,7 @@ export default function AddGroupNumberDialog({
               <Input
                 id="groupNumber"
                 value={groupNumber}
-                onChange={(e) => setGroupNumber(e.target.value)}
+                onChange={(e) => setGroupNumber(e.target.value.replace(/\s+/g, ''))}
                 placeholder="Enter group number"
                 disabled={loading}
                 required={isGroupMode}

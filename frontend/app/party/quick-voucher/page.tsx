@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -22,7 +22,6 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  Zap,
   Plus,
   RefreshCw,
   Search,
@@ -30,17 +29,15 @@ import {
   CheckCircle2,
   XCircle,
   FileText,
-  Eye,
   Trash2,
+  Truck,
   Ticket,
-  AlertCircle,
-  TrendingUp,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getUser, hasRole } from '@/lib/auth';
 import api, { voucherAPI } from '@/lib/api';
 import QuickVoucherForm from '@/components/voucher/QuickVoucherForm';
-import NextLink from 'next/link';
+import { PartyLayout } from '@/components/layouts/PartyLayout';
 
 export default function PartyQuickVoucherPage() {
   const user = getUser();
@@ -92,7 +89,7 @@ export default function PartyQuickVoucherPage() {
       });
     } catch (error) {
       console.error('Failed to load requests:', error);
-      toast.error('Failed to load quick voucher requests');
+      toast.error('Failed to load transport booking requests');
     } finally {
       setLoading(false);
     }
@@ -173,7 +170,7 @@ export default function PartyQuickVoucherPage() {
   };
 
   const handleCancelRequest = async (id: string) => {
-    if (!confirm('Are you sure you want to cancel this pending voucher request?')) return;
+    if (!confirm('Are you sure you want to cancel this pending transport booking request?')) return;
     try {
       setCancellingId(id);
       await voucherAPI.deleteQuickRequest(id);
@@ -189,98 +186,99 @@ export default function PartyQuickVoucherPage() {
   if (!user || !hasRole('party')) return null;
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-50/50 min-h-screen pb-20">
-      {/* Header Bar */}
-      <div className="sticky top-0 z-10 bg-white border-b px-4 lg:px-8 py-4 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <PartyLayout 
+      title="Book Transport" 
+      subtitle="Request and track your transport bookings"
+    >
+      <div className="p-4 lg:p-8 space-y-6 max-w-[1600px] mx-auto pb-24">
+        {/* Top Header Card */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
           <div>
-            <h1 className="text-xl lg:text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-              <Zap className="h-5 w-5 text-amber-500" />
-              Quick Voucher Requests
+            <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+              <Truck className="h-6 w-6 text-primary" />
+              Transport Bookings
             </h1>
-            <p className="text-xs lg:text-sm text-gray-500 font-medium mt-0.5">
-              Request quick transport vouchers and monitor admin approval status
+            <p className="text-xs text-gray-500 mt-0.5">
+              Select vehicle sectors, prefill routes, and request instant transport vouchers.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <Button
               onClick={() => setShowCreateModal(true)}
-              className="bg-primary hover:bg-primary/90 text-white font-bold text-xs h-9 shadow-md flex items-center gap-1.5"
+              className="bg-primary hover:bg-primary/90 text-white font-bold text-xs h-10 px-5 rounded-xl shadow-md flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
-              <span>New Voucher Request</span>
+              <span>Book Transport</span>
             </Button>
             <Button
               onClick={() => fetchRequests(pagination.page)}
               variant="outline"
               size="sm"
-              className="h-9 font-bold flex items-center gap-1.5"
+              className="h-10 px-4 rounded-xl font-bold flex items-center gap-1.5"
             >
-              <RefreshCw className="h-3.5 w-3.5" />
+              <RefreshCw className="h-4 w-4" />
               <span>Refresh</span>
             </Button>
           </div>
         </div>
-      </div>
 
-      <div className="flex-1 overflow-auto p-4 lg:p-8 space-y-6">
         {/* Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl border p-4 shadow-sm flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold flex-shrink-0">
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex items-center gap-3.5">
+            <div className="h-11 w-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold flex-shrink-0">
               <Ticket className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Requests</p>
-              <p className="text-xl font-black text-gray-900">{stats.total}</p>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Bookings</p>
+              <p className="text-2xl font-black text-gray-900">{stats.total}</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border p-4 shadow-sm flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold flex-shrink-0">
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex items-center gap-3.5">
+            <div className="h-11 w-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold flex-shrink-0">
               <Clock className="h-5 w-5" />
             </div>
             <div>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pending</p>
-              <p className="text-xl font-black text-amber-600">{stats.pending}</p>
+              <p className="text-2xl font-black text-amber-600">{stats.pending}</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border p-4 shadow-sm flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold flex-shrink-0">
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex items-center gap-3.5">
+            <div className="h-11 w-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold flex-shrink-0">
               <CheckCircle2 className="h-5 w-5" />
             </div>
             <div>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Approved</p>
-              <p className="text-xl font-black text-emerald-600">{stats.approved}</p>
+              <p className="text-2xl font-black text-emerald-600">{stats.approved}</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border p-4 shadow-sm flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center font-bold flex-shrink-0">
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex items-center gap-3.5">
+            <div className="h-11 w-11 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold flex-shrink-0">
               <XCircle className="h-5 w-5" />
             </div>
             <div>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Rejected</p>
-              <p className="text-xl font-black text-rose-600">{stats.rejected}</p>
+              <p className="text-2xl font-black text-rose-600">{stats.rejected}</p>
             </div>
           </div>
         </div>
 
-        {/* Requests Table */}
-        <Card className="border shadow-sm rounded-2xl bg-white overflow-hidden">
-          <CardHeader className="p-4 border-b bg-gray-50/50">
+        {/* Requests Table Card */}
+        <Card className="border border-gray-100 shadow-sm rounded-2xl bg-white overflow-hidden">
+          <CardHeader className="p-4 border-b border-gray-100 bg-gray-50/50">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
-                  placeholder="Search request #, guest name, mobile, group code..."
+                  placeholder="Search booking #, guest name, mobile, group code..."
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
                     setPagination(prev => ({ ...prev, page: 1 }));
                   }}
-                  className="pl-9 h-9 text-xs"
+                  className="pl-9 h-10 text-xs rounded-xl bg-white"
                 />
               </div>
 
@@ -292,7 +290,7 @@ export default function PartyQuickVoucherPage() {
                     setPagination(prev => ({ ...prev, page: 1 }));
                   }}
                 >
-                  <SelectTrigger className="h-9 w-36 text-xs font-bold bg-white">
+                  <SelectTrigger className="h-10 w-40 text-xs font-bold bg-white rounded-xl">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -310,13 +308,13 @@ export default function PartyQuickVoucherPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50">
-                    <TableHead className="w-[140px] text-xs font-bold uppercase">Request #</TableHead>
+                    <TableHead className="w-[140px] text-xs font-bold uppercase">Booking #</TableHead>
                     <TableHead className="w-[180px] text-xs font-bold uppercase">Guest / Mobile</TableHead>
                     <TableHead className="w-[140px] text-xs font-bold uppercase">Group Code</TableHead>
-                    <TableHead className="w-[80px] text-xs font-bold uppercase">Pax</TableHead>
+                    <TableHead className="w-[80px] text-xs font-bold uppercase text-center">Pax</TableHead>
                     <TableHead className="w-[130px] text-xs font-bold uppercase">Travel Date</TableHead>
-                    <TableHead className="w-[100px] text-xs font-bold uppercase">Segments</TableHead>
-                    <TableHead className="w-[120px] text-xs font-bold uppercase">Status</TableHead>
+                    <TableHead className="w-[100px] text-xs font-bold uppercase text-center">Segments</TableHead>
+                    <TableHead className="w-[140px] text-xs font-bold uppercase">Status</TableHead>
                     <TableHead className="w-[180px] text-right text-xs font-bold uppercase pr-4">Action</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -324,25 +322,25 @@ export default function PartyQuickVoucherPage() {
                   {loading ? (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-12 text-xs text-slate-500">
-                        Loading requests...
+                        Loading transport bookings...
                       </TableCell>
                     </TableRow>
                   ) : requests.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-16 text-slate-400">
                         <div className="max-w-sm mx-auto space-y-3">
-                          <Zap className="h-10 w-10 mx-auto text-slate-300 stroke-1" />
-                          <p className="text-sm font-bold text-slate-700">No quick voucher requests found</p>
+                          <Truck className="h-12 w-12 mx-auto text-slate-300 stroke-1" />
+                          <p className="text-sm font-bold text-slate-700">No transport bookings found</p>
                           <p className="text-xs text-slate-400">
-                            Submit your transport and hotel requirements quickly without waiting for full visa filing.
+                            Book vehicles, prefill transport sectors, and obtain vouchers directly.
                           </p>
                           <Button
                             onClick={() => setShowCreateModal(true)}
                             size="sm"
-                            className="bg-primary text-white font-bold text-xs"
+                            className="bg-primary text-white font-bold text-xs rounded-xl"
                           >
                             <Plus className="h-3.5 w-3.5 mr-1" />
-                            Submit Request Now
+                            Book Transport Now
                           </Button>
                         </div>
                       </TableCell>
@@ -375,7 +373,7 @@ export default function PartyQuickVoucherPage() {
                               {req.groupCode || '—'}
                             </span>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-center">
                             <span className="font-bold text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-800">
                               {req.paxCount} PAX
                             </span>
@@ -385,7 +383,7 @@ export default function PartyQuickVoucherPage() {
                               {req.reservationDate ? new Date(req.reservationDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }) : 'N/A'}
                             </span>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-center">
                             <Badge variant="outline" className="text-[10px] font-bold">
                               {moveCount} Segments
                             </Badge>
@@ -393,7 +391,7 @@ export default function PartyQuickVoucherPage() {
                           <TableCell>
                             {req.status === 'pending' && (
                               <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] font-bold flex items-center gap-1 w-fit">
-                                <Clock className="h-3 w-3 text-amber-600" /> Pending Admin Review
+                                <Clock className="h-3 w-3 text-amber-600" /> Pending Approval
                               </Badge>
                             )}
                             {req.status === 'approved' && (
@@ -414,7 +412,7 @@ export default function PartyQuickVoucherPage() {
                                   size="sm"
                                   onClick={() => handleDownloadPDF(req.voucher.id)}
                                   disabled={downloadingId === req.voucher.id}
-                                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold h-8 flex items-center gap-1"
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold h-8 rounded-lg flex items-center gap-1"
                                 >
                                   <FileText className="h-3.5 w-3.5" />
                                   Download PDF
@@ -425,7 +423,7 @@ export default function PartyQuickVoucherPage() {
                                   variant="ghost"
                                   onClick={() => handleCancelRequest(req.id)}
                                   disabled={cancellingId === req.id}
-                                  className="h-8 text-xs font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                                  className="h-8 text-xs font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-lg"
                                 >
                                   <Trash2 className="h-3.5 w-3.5 mr-1" />
                                   Cancel
@@ -447,19 +445,19 @@ export default function PartyQuickVoucherPage() {
               </Table>
             </div>
 
-            <div className="flex items-center justify-between p-4 border-t">
+            <div className="flex items-center justify-between p-4 border-t border-gray-100">
               <p className="text-xs text-gray-500 font-medium">
                 Showing {pagination.total > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} to{' '}
                 {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-                {pagination.total} requests
+                {pagination.total} bookings
               </p>
               {pagination.totalPages > 1 && (
                 <div className="flex items-center space-x-2">
-                  <Button variant="outline" size="sm" onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))} disabled={pagination.page === 1} className="h-8 text-xs">
+                  <Button variant="outline" size="sm" onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))} disabled={pagination.page === 1} className="h-8 text-xs rounded-lg">
                     Previous
                   </Button>
                   <span className="text-xs text-gray-500">Page {pagination.page} of {pagination.totalPages}</span>
-                  <Button variant="outline" size="sm" onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))} disabled={pagination.page === pagination.totalPages} className="h-8 text-xs">
+                  <Button variant="outline" size="sm" onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))} disabled={pagination.page === pagination.totalPages} className="h-8 text-xs rounded-lg">
                     Next
                   </Button>
                 </div>
@@ -469,17 +467,17 @@ export default function PartyQuickVoucherPage() {
         </Card>
       </div>
 
-      {/* New Quick Voucher Request Modal */}
+      {/* Book Transport Modal */}
       {showCreateModal && (
         <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-          <DialogContent className="max-w-[95vw] w-full max-h-[95vh] h-[95vh] flex flex-col p-0 overflow-hidden">
+          <DialogContent className="max-w-[95vw] w-full max-h-[95vh] h-[95vh] flex flex-col p-0 overflow-hidden rounded-2xl">
             <DialogHeader className="px-6 pt-5 pb-3 border-b bg-white flex-shrink-0">
-              <DialogTitle className="text-lg font-bold text-primary flex items-center gap-2">
-                <Zap className="h-5 w-5 text-amber-500" />
-                Submit Quick Voucher Request
+              <DialogTitle className="text-lg font-black text-gray-900 flex items-center gap-2">
+                <Truck className="h-5 w-5 text-primary" />
+                Book Transport Sector
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-500">
-                Fill in the guest, flight, hotel, and movement details. Admin will review and allocate your voucher number.
+                Select your route, vehicle(s), and verify the prefilled movement schedule.
               </DialogDescription>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0 bg-slate-50/40">
@@ -493,6 +491,6 @@ export default function PartyQuickVoucherPage() {
           </DialogContent>
         </Dialog>
       )}
-    </div>
+    </PartyLayout>
   );
 }

@@ -11,6 +11,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { hotelInventoryAPI } from '@/lib/api';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 export interface PickBrnInventoryDialogProps {
   isOpen: boolean;
@@ -593,29 +594,25 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                   {index + 1}
                 </td>
                 <td className="border border-gray-200 p-3">
-                  <Select
-                    value={booking.cityId || (booking as any).locationId || undefined}
+                  <SearchableSelect
+                    options={locations
+                      .filter((location) => location.id && location.id.trim() !== '')
+                      .map((location) => ({
+                        value: location.id,
+                        label: location.destinationName
+                      }))}
+                    value={booking.cityId || (booking as any).locationId || ''}
                     onValueChange={(value) => {
                       onUpdateBooking(index, 'cityId', value);
                       if ((booking as any).locationId !== undefined) {
                         onUpdateBooking(index, 'locationId' as any, value);
                       }
                     }}
+                    placeholder="Select city"
+                    searchPlaceholder="Search city..."
                     disabled={disabled}
-                  >
-                    <SelectTrigger className="w-full h-11 text-sm font-medium">
-                      <SelectValue placeholder="Select city" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {locations
-                        .filter((location) => location.id && location.id.trim() !== '')
-                        .map((location) => (
-                          <SelectItem key={location.id} value={location.id} className="text-sm py-2">
-                            {location.destinationName}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                    className="w-full h-11 text-sm font-medium"
+                  />
                 </td>
                 <td className="border border-gray-200 p-3">
                   <div className="flex flex-col gap-2">
@@ -751,54 +748,49 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                         onChange={(e) => {
                           const checked = e.target.checked;
                           onUpdateBooking(index, 'isCompanyBrn' as any, checked);
-                          if (checked) {
-                            onUpdateBooking(index, 'brn', []);
-                            setBrnInputs(prev => ({ ...prev, [index]: '' }));
-                          }
                         }}
                         disabled={disabled}
                         className="h-3.5 w-3.5 rounded border-purple-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
                       />
-                      <span>BRN from Company Side</span>
+                      <span>BRN from Company</span>
                     </label>
+                    {booking.isCompanyBrn && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-800">
+                        🏢 Company BRN
+                      </span>
+                    )}
                   </div>
-                  {booking.isCompanyBrn ? (
-                    <div className="h-10 flex items-center px-3 bg-purple-50 border border-purple-200 rounded-md text-xs font-semibold text-purple-700">
-                      🏢 Company Side BRN (No entry required)
-                    </div>
-                  ) : (
-                    <div className="flex gap-1.5 items-center">
-                      <Input
-                        type="text"
-                        placeholder="BRN"
-                        value={brnInputs[index] ?? (Array.isArray(booking.brn) ? booking.brn.join(', ') : (booking.brn || ''))}
-                        onChange={(e) => {
-                          const inputValue = e.target.value;
-                          setBrnInputs(prev => ({ ...prev, [index]: inputValue }));
-                          const brnArray = inputValue.split(',').map(brn => brn.trim()).filter(brn => brn.length > 0);
-                          onUpdateBooking(index, 'brn', brnArray);
+                  <div className="flex gap-1.5 items-center">
+                    <Input
+                      type="text"
+                      placeholder={booking.isCompanyBrn ? "Enter BRN (Company provided)" : "BRN"}
+                      value={brnInputs[index] ?? (Array.isArray(booking.brn) ? booking.brn.join(', ') : (booking.brn || ''))}
+                      onChange={(e) => {
+                        const inputValue = e.target.value;
+                        setBrnInputs(prev => ({ ...prev, [index]: inputValue }));
+                        const brnArray = inputValue.split(',').map(brn => brn.trim()).filter(brn => brn.length > 0);
+                        onUpdateBooking(index, 'brn', brnArray);
+                      }}
+                      className="h-10 text-sm flex-1"
+                      disabled={disabled}
+                    />
+                    {showInventory && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={disabled || !booking.hotelId}
+                        onClick={() => {
+                          setSelectedHotelRowIndex(index);
+                          setRowBrnPickerOpen(true);
                         }}
-                        className="h-10 text-sm flex-1"
-                        disabled={disabled}
-                      />
-                      {showInventory && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={disabled || !booking.hotelId}
-                          onClick={() => {
-                            setSelectedHotelRowIndex(index);
-                            setRowBrnPickerOpen(true);
-                          }}
-                          className="h-10 w-10 p-0 border-indigo-200 text-indigo-600 hover:bg-indigo-50 shrink-0"
-                          title="Pick from Inventory"
-                        >
-                          <Database className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  )}
+                        className="h-10 w-10 p-0 border-indigo-200 text-indigo-600 hover:bg-indigo-50 shrink-0"
+                        title="Pick from Inventory"
+                      >
+                        <Database className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                   {showInventory && !booking.isCompanyBrn && booking.bedsQuantity && booking.brn && (Array.isArray(booking.brn) ? booking.brn.length > 0 : String(booking.brn).length > 0) && (
                     <div className="text-[10px] text-indigo-600 font-semibold mt-1">
                       Beds selected from inventory: <strong>{booking.bedsQuantity}</strong>
@@ -815,9 +807,29 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                   )}
                 </td>
                 <td className="border border-gray-200 p-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-[11px] font-semibold text-emerald-700 select-none hover:text-emerald-900">
+                      <input
+                        type="checkbox"
+                        checked={!!(booking as any).isCompanyCateringBrn}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          onUpdateBooking(index, 'isCompanyCateringBrn' as any, checked);
+                        }}
+                        disabled={disabled}
+                        className="h-3.5 w-3.5 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                      />
+                      <span>Catering from Company</span>
+                    </label>
+                    {(booking as any).isCompanyCateringBrn && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800">
+                        🍽️ Company Catering
+                      </span>
+                    )}
+                  </div>
                   <Input
                     type="text"
-                    placeholder="Catering BRN"
+                    placeholder={(booking as any).isCompanyCateringBrn ? "Enter Catering BRN (Company provided)" : "Catering BRN"}
                     value={cateringBrnInputs[index] ?? (Array.isArray((booking as any).cateringBrn) ? (booking as any).cateringBrn.join(', ') : ((booking as any).cateringBrn || ''))}
                     onChange={(e) => {
                       const inputValue = e.target.value;
@@ -893,20 +905,31 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
              <div className="grid grid-cols-1 gap-3">
                 <div className="space-y-1">
                    <Label className="text-xs">City</Label>
-                   <Select value={booking.cityId || undefined} onValueChange={(val) => onUpdateBooking(index, 'cityId', val)}>
-                      <SelectTrigger><SelectValue placeholder="City" /></SelectTrigger>
-                      <SelectContent>{locations.map(l => <SelectItem key={l.id} value={l.id}>{l.destinationName}</SelectItem>)}</SelectContent>
-                   </Select>
+                   <SearchableSelect
+                     options={locations.map(l => ({ value: l.id, label: l.destinationName }))}
+                     value={booking.cityId || ''}
+                     onValueChange={(val) => onUpdateBooking(index, 'cityId', val)}
+                     placeholder="Select City"
+                     searchPlaceholder="Search city..."
+                     disabled={disabled}
+                     className="h-10 text-xs font-medium"
+                   />
                 </div>
                 <div className="space-y-1">
                    <Label className="text-xs">Hotel</Label>
                    <div className="flex gap-2">
-                      <Select value={booking.hotelId || undefined} onValueChange={(val) => onUpdateBooking(index, 'hotelId', val)} disabled={!booking.cityId}>
-                         <SelectTrigger className="flex-1"><SelectValue placeholder="Hotel" /></SelectTrigger>
-                         <SelectContent>
-                            {getEffectiveHotelsForLocation(booking.cityId).map(h => <SelectItem key={h.id} value={h.id}>{h.name || h.hotelName}</SelectItem>)}
-                         </SelectContent>
-                      </Select>
+                      <SearchableSelect
+                        options={getEffectiveHotelsForLocation(booking.cityId).map(h => ({
+                          value: h.id,
+                          label: h.name || h.hotelName || ''
+                        }))}
+                        value={booking.hotelId || ''}
+                        onValueChange={(val) => onUpdateBooking(index, 'hotelId', val)}
+                        placeholder="Select Hotel"
+                        searchPlaceholder="Search hotel..."
+                        disabled={!booking.cityId || disabled}
+                        className="flex-1 h-10 text-xs font-medium"
+                      />
                       <Button size="icon" variant="outline" onClick={() => { setActiveBookingIndex(index); setQuickAddOpen(true); }} disabled={!booking.cityId}>
                          <Plus className="h-4 w-4" />
                       </Button>
@@ -936,17 +959,51 @@ export const HotelBookingTable: React.FC<HotelBookingTableProps> = ({
                          <span>Company Side</span>
                        </label>
                      </div>
-                     {booking.isCompanyBrn ? (
-                       <div className="h-10 flex items-center px-3 bg-purple-50 border border-purple-200 rounded-md text-xs font-semibold text-purple-700">
-                         🏢 Company Side BRN (No entry required)
+                     {booking.isCompanyBrn && (
+                       <div className="mb-1">
+                         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-800">
+                           🏢 Company BRN
+                         </span>
                        </div>
-                     ) : (
-                       <Input value={brnInputs[index] ?? (Array.isArray(booking.brn) ? booking.brn.join(', ') : (booking.brn || ''))} onChange={(e) => { setBrnInputs({...brnInputs, [index]: e.target.value}); onUpdateBooking(index, 'brn', e.target.value.split(',').map(s => s.trim()).filter(Boolean)); }} />
                      )}
+                     <Input 
+                       placeholder={booking.isCompanyBrn ? "Enter BRN (Company provided)" : "BRN"}
+                       value={brnInputs[index] ?? (Array.isArray(booking.brn) ? booking.brn.join(', ') : (booking.brn || ''))} 
+                       onChange={(e) => { 
+                         setBrnInputs({...brnInputs, [index]: e.target.value}); 
+                         onUpdateBooking(index, 'brn', e.target.value.split(',').map(s => s.trim()).filter(Boolean)); 
+                       }} 
+                     />
                   </div>
                   <div className="space-y-1">
-                     <Label className="text-xs">Catering BRN</Label>
-                     <Input value={cateringBrnInputs[index] ?? (Array.isArray((booking as any).cateringBrn) ? (booking as any).cateringBrn.join(', ') : ((booking as any).cateringBrn || ''))} onChange={(e) => { setCateringBrnInputs({...cateringBrnInputs, [index]: e.target.value}); onUpdateBooking(index, 'cateringBrn' as any, e.target.value.split(',').map(s => s.trim()).filter(Boolean)); }} />
+                     <div className="flex items-center justify-between">
+                       <Label className="text-xs">Catering BRN</Label>
+                       <label className="flex items-center gap-1.5 text-xs text-emerald-700 font-medium cursor-pointer">
+                         <input
+                           type="checkbox"
+                           checked={(booking as any).isCompanyCateringBrn || false}
+                           onChange={(e) => onUpdateBooking(index, 'isCompanyCateringBrn' as any, e.target.checked)}
+                           disabled={disabled}
+                           className="h-3.5 w-3.5 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                         />
+                         <span>Company Catering</span>
+                       </label>
+                     </div>
+                     {(booking as any).isCompanyCateringBrn && (
+                       <div className="mb-1">
+                         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800">
+                           🍽️ Company Catering
+                         </span>
+                       </div>
+                     )}
+                     <Input 
+                       placeholder={(booking as any).isCompanyCateringBrn ? "Enter Catering BRN (Company provided)" : "Catering BRN"}
+                       value={cateringBrnInputs[index] ?? (Array.isArray((booking as any).cateringBrn) ? (booking as any).cateringBrn.join(', ') : ((booking as any).cateringBrn || ''))} 
+                       onChange={(e) => { 
+                         setCateringBrnInputs({...cateringBrnInputs, [index]: e.target.value}); 
+                         onUpdateBooking(index, 'cateringBrn' as any, e.target.value.split(',').map(s => s.trim()).filter(Boolean)); 
+                       }} 
+                     />
                   </div>
                  <div className="space-y-1">
                     <Label className="text-xs">Additional BRNs</Label>

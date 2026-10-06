@@ -20,10 +20,10 @@ const saveSettingsValidation = [
   body('checkByPassport').optional().isBoolean(),
   body('externalAgentCodes').optional().isString().trim(),
   body('syncSchedule').optional().isString().trim(),
-  body('syncType').optional().isIn(['excel', 'listing']).withMessage('Sync type must be excel or listing'),
+  body('syncType').optional().isString().trim(),
 ];
 
-// Get Nusuk settings
+// Get Nusuk master settings and configured External Agents
 router.get(
   '/settings',
   authenticate,
@@ -33,7 +33,7 @@ router.get(
   })
 );
 
-// Save Nusuk settings
+// Save Nusuk master settings
 router.post(
   '/settings',
   authenticate,
@@ -47,7 +47,21 @@ router.post(
       });
     }
 
-    const { token, activeEntityId, activeEntityTypeId, entityId, selectedUmrahCompanyIds, checkByPassport, externalAgentCodes, syncSchedule, syncType, allowOneWayTicket, allowWithoutTicket, allowReEntryOneWayTicket, allowReEntryWithoutTicket } = req.body;
+    const {
+      token,
+      activeEntityId,
+      activeEntityTypeId,
+      entityId,
+      selectedUmrahCompanyIds,
+      checkByPassport,
+      externalAgentCodes,
+      syncSchedule,
+      syncType,
+      allowOneWayTicket,
+      allowWithoutTicket,
+      allowReEntryOneWayTicket,
+      allowReEntryWithoutTicket
+    } = req.body;
     
     let cleanedToken = String(token || '').trim();
     if (cleanedToken.toUpperCase().startsWith('BEARER ')) {
@@ -77,24 +91,96 @@ router.post(
   })
 );
 
-// Trigger synchronization manually
+// Get External Agent Entities
+router.get(
+  '/external-agents',
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const agents = await NusukService.getExternalAgents();
+    res.json(agents);
+  })
+);
+
+// Create or update External Agent Entity
+router.post(
+  '/external-agents',
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id, name, entityId, contractId, activeEntityTypeId, isActive } = req.body;
+    if (!name || !entityId || !contractId) {
+      return res.status(400).json({ error: 'Name, Entity ID, and Contract ID are required.' });
+    }
+
+    const agent = await NusukService.saveExternalAgent({
+      id,
+      name,
+      entityId,
+      contractId,
+      activeEntityTypeId: activeEntityTypeId || '52',
+      isActive: isActive !== undefined ? Boolean(isActive) : true,
+    });
+
+    res.json({
+      message: 'External Agent entity saved successfully',
+      agent,
+    });
+  })
+);
+
+// Toggle External Agent Entity active state
+router.patch(
+  '/external-agents/:id/toggle',
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const { isActive } = req.body;
+    const agent = await NusukService.toggleExternalAgent(id, Boolean(isActive));
+    res.json({
+      message: `External Agent ${agent.isActive ? 'activated' : 'disabled'} successfully`,
+      agent,
+    });
+  })
+);
+
+// Delete External Agent Entity
+router.delete(
+  '/external-agents/:id',
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    await NusukService.deleteExternalAgent(id);
+    res.json({ message: 'External Agent entity deleted successfully' });
+  })
+);
+
+// Trigger synchronization across all active External Agent entities (Background Execution)
 router.post(
   '/sync',
   authenticate,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     try {
-      const partyId = (req.query.partyId || req.body.partyId) as string | undefined;
-      const result = await NusukService.triggerSync(partyId);
+      const agentId = (req.query.agentId || req.body.agentId) as string | undefined;
+      const status = NusukService.startBackgroundSync(agentId);
       res.json({
-        message: 'Sync completed successfully',
-        ...result,
+        message: 'Synchronization initiated in background',
+        ...status,
       });
     } catch (error: any) {
       console.error('[NUSUK SYNC ROUTE ERROR]', error);
       res.status(400).json({
-        error: error.message || 'Synchronization failed',
+        error: error.message || 'Synchronization failed to start',
       });
     }
+  })
+);
+
+// Get real-time synchronization status & progress
+router.get(
+  '/sync-status',
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const status = NusukService.getSyncStatus();
+    res.json(status);
   })
 );
 
@@ -124,23 +210,85 @@ router.post(
   })
 );
 
-// Get consulate review list with pagination and filters
+// Get Mutamers report listing (Full Filter Matrix: Status, Umrah Company, EA, Sub EA, Over 85 Days, Search)
+router.get(
+  '/mutamers',
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+    const stateId = req.query.stateId !== undefined ? (req.query.stateId as string) : undefined;
+    const umrahCompany = req.query.umrahCompany as string || undefined;
+    const eaCode = req.query.eaCode as string || undefined;
+    const subEAName = req.query.subEAName as string || undefined;
+    const isOver85Days = req.query.isOver85Days === 'true' ? true : undefined;
+    const search = req.query.search as string || undefined;
+
+    const result = await NusukService.getMutamers({
+      page,
+      limit,
+      stateId,
+      umrahCompany,
+      eaCode,
+      subEAName,
+      isOver85Days,
+      search,
+    });
+    res.json(result);
+  })
+);
+
+// Get Pilgrims Over 85 Days Stay in KSA (Critical Overstay Risk)
+router.get(
+  '/overstay-85-days',
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+    const umrahCompany = req.query.umrahCompany as string || undefined;
+    const eaCode = req.query.eaCode as string || undefined;
+    const search = req.query.search as string || undefined;
+
+    const result = await NusukService.getOverstay85Days({
+      page,
+      limit,
+      umrahCompany,
+      eaCode,
+      search,
+    });
+    res.json(result);
+  })
+);
+
+// Get Consulate Review mutamers listing
 router.get(
   '/consulate-review',
   authenticate,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
-    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
-    const partyId = req.query.partyId as string || 'all';
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+    const umrahCompany = req.query.umrahCompany as string || undefined;
+    const eaCode = req.query.eaCode as string || undefined;
     const search = req.query.search as string || undefined;
 
     const result = await NusukService.getConsulateReview({
       page,
       limit,
-      partyId,
-      search
+      umrahCompany,
+      eaCode,
+      search,
     });
     res.json(result);
+  })
+);
+
+// Get distinct filter dropdown values (Umrah Companies, EAs, Sub EAs)
+router.get(
+  '/filters',
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const filters = await NusukService.getFilters();
+    res.json(filters);
   })
 );
 
@@ -151,7 +299,7 @@ router.get(
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const resolved = req.query.resolved === 'true' ? true : (req.query.resolved === 'false' ? false : undefined);
     const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
-    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
     const mismatchType = req.query.mismatchType as string || 'all';
     const partyId = req.query.partyId as string || 'all';
     const search = req.query.search as string || undefined;
@@ -260,6 +408,28 @@ router.get(
     
     const dashboardStats = await NusukService.getComplianceDashboard(role, partyId);
     res.json(dashboardStats);
+  })
+);
+
+// Get unlinked Nusuk groups not registered in system
+router.get(
+  '/unmatched-groups',
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const page = req.query.page ? parseInt(String(req.query.page), 10) : 1;
+    const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 20;
+    const search = req.query.search ? String(req.query.search) : undefined;
+    const eaCode = req.query.eaCode ? String(req.query.eaCode) : undefined;
+    const umrahCompany = req.query.umrahCompany ? String(req.query.umrahCompany) : undefined;
+
+    const data = await NusukService.getUnmatchedNusukGroups({
+      page,
+      limit,
+      search,
+      eaCode,
+      umrahCompany,
+    });
+    res.json(data);
   })
 );
 

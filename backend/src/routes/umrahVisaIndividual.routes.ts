@@ -28,11 +28,11 @@ const router = Router();
 // Individual Step 1 schema - specific to individual visa
 const step1Schema = z.object({
   bookingMode: z.enum(['group_number', 'travel_details']),
-  groupNumber: z.string().optional(),
+  groupNumber: z.string().transform(val => val ? val.replace(/\s+/g, '') : val).optional(),
   groupName: z.string().optional(),
   umrahVisaProviderId: z.string().uuid().optional(),
   visaType: z.string().optional(),
-  umrahVisaNumber: z.string().optional(),
+  umrahVisaNumber: z.string().transform(val => val ? val.replace(/\s+/g, '') : val).optional(),
 }).refine((data) => {
   if (data.bookingMode === 'group_number') {
     if (data.visaType === 're_entry') {
@@ -560,7 +560,8 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
           status: initialStatus,
           visaType: req.body.visaType || step1Data.visaType || 'individual_visa',
           umrahVisaNumber: req.body.umrahVisaNumber || step1Data.umrahVisaNumber || (isReEntry && visaNumbers && visaNumbers[0]) || null,
-          isCompanyBrn: Boolean(req.body.isCompanyBrn || step1Data.isCompanyBrn || step3Data.isCompanyBrn || (step3Data.hotelBookings && Array.isArray(step3Data.hotelBookings) && step3Data.hotelBookings.some((h: any) => h.isCompanyBrn))),
+          isCompanyBrn: Boolean(req.body.isCompanyBrn || step1Data.isCompanyBrn || step3Data.isCompanyBrn || (step3Data.hotelBookings && Array.isArray(step3Data.hotelBookings) && step3Data.hotelBookings.some((h: any) => h.isCompanyBrn)) || step3Data.iqamaDetails?.isCompanyBrn),
+          isCompanyCateringBrn: Boolean(req.body.isCompanyCateringBrn || step1Data.isCompanyCateringBrn || step3Data.isCompanyCateringBrn || (step3Data.hotelBookings && Array.isArray(step3Data.hotelBookings) && step3Data.hotelBookings.some((h: any) => h.isCompanyCateringBrn)) || step3Data.iqamaDetails?.isCompanyCateringBrn),
           isOneWay: !!step2Data.isOneWay,
           isWithoutTicket: !!step2Data.isWithoutTicket,
           oneWayContactName: step2Data.isOneWay ? (step2Data.oneWayContactName || null) : null,
@@ -660,7 +661,8 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
                   hotelId: hotel.hotelId,
                   checkInDate,
                   checkOutDate,
-                  isCompanyBrn: Boolean(hotel.isCompanyBrn || step3Data.isCompanyBrn || req.body.isCompanyBrn),
+                  isCompanyBrn: Boolean(hotel.isCompanyBrn),
+                  isCompanyCateringBrn: Boolean(hotel.isCompanyCateringBrn),
                   brn: hotel.brn && Array.isArray(hotel.brn) && hotel.brn.length > 0 
                     ? hotel.brn 
                     : null,
@@ -689,6 +691,7 @@ router.post('/create-booking', authenticate, uploadIndividual.fields([
             sponserNationalShortAddress: step3Data.iqamaDetails.iqamaNationalShortAddress || '',
             sponserNationality: step3Data.iqamaDetails.sponserNationality || step3Data.iqamaDetails.iqamaNationality || 'India',
             isCompanyBrn: Boolean(step3Data.iqamaDetails.isCompanyBrn || step3Data.isCompanyBrn || req.body.isCompanyBrn),
+            isCompanyCateringBrn: Boolean(step3Data.iqamaDetails.isCompanyCateringBrn || step3Data.isCompanyCateringBrn || req.body.isCompanyCateringBrn),
           },
         });
       }
@@ -1248,20 +1251,22 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'One-way bookings are only permitted with Iqama stay.' });
     }
 
-    // Update accommodation type in booking table if provided
-    if (accommodationType || req.body.isCompanyBrn !== undefined) {
-      await prisma.umrahVisaBooking.update({
-        where: { id: bookingId },
-        data: {
-          accommodationType: accommodationType || undefined,
-          isCompanyBrn: req.body.isCompanyBrn !== undefined ? Boolean(req.body.isCompanyBrn) : undefined,
-        },
-      });
-    }
-
     // Update based on accommodation type
     const finalAccommodationType = accommodationType || booking.accommodationType;
     if (finalAccommodationType === 'iqama') {
+      const companyBrn = req.body.isCompanyBrn !== undefined ? Boolean(req.body.isCompanyBrn) : false;
+      const companyCateringBrn = req.body.isCompanyCateringBrn !== undefined ? Boolean(req.body.isCompanyCateringBrn) : false;
+
+      // Update accommodation type and company flags on booking table
+      await prisma.umrahVisaBooking.update({
+        where: { id: bookingId },
+        data: {
+          accommodationType: 'iqama',
+          isCompanyBrn: companyBrn,
+          isCompanyCateringBrn: companyCateringBrn,
+        },
+      });
+
       // Update or create sponsor iqama details
       const sponsorIqama = await prisma.umrahSponserIqamaDetails.upsert({
         where: {
@@ -1277,7 +1282,8 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
           sponserMobileNumber: sponserMobileNumber ?? undefined,
           sponserNationalShortAddress: sponserNationalShortAddress ?? undefined,
           sponserNationality: sponserNationality ?? undefined,
-          isCompanyBrn: req.body.isCompanyBrn !== undefined ? Boolean(req.body.isCompanyBrn) : undefined,
+          isCompanyBrn: companyBrn,
+          isCompanyCateringBrn: companyCateringBrn,
           makkahHotelName: makkahHotelName ?? undefined,
           makkahBrn: makkahBrn ?? undefined,
           makkahCateringBrn: makkahCateringBrn ?? undefined,
@@ -1294,7 +1300,8 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
           sponserMobileNumber: sponserMobileNumber || '',
           sponserNationalShortAddress: sponserNationalShortAddress || '',
           sponserNationality: sponserNationality || 'India',
-          isCompanyBrn: Boolean(req.body.isCompanyBrn),
+          isCompanyBrn: companyBrn,
+          isCompanyCateringBrn: companyCateringBrn,
           makkahHotelName: makkahHotelName || null,
           makkahBrn: makkahBrn || null,
           makkahCateringBrn: makkahCateringBrn || null,
@@ -1324,7 +1331,8 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
               hotelId: h.hotelId ?? undefined,
               checkInDate: parseSafeDate(h.checkInDate) || undefined,
               checkOutDate: parseSafeDate(h.checkOutDate) || undefined,
-              isCompanyBrn: h.isCompanyBrn !== undefined ? Boolean(h.isCompanyBrn) : undefined,
+              isCompanyBrn: h.isCompanyBrn !== undefined ? Boolean(h.isCompanyBrn) : false,
+              isCompanyCateringBrn: h.isCompanyCateringBrn !== undefined ? Boolean(h.isCompanyCateringBrn) : false,
               brn: h.brn ?? undefined,
               cateringBrn: h.cateringBrn ?? undefined,
               additionalBrns: h.additionalBrns ? (h.additionalBrns as any) : undefined,
@@ -1333,6 +1341,23 @@ router.patch('/:bookingId/accommodation', authenticate, async (req, res) => {
           });
         }
       }
+
+      // Sync booking-level company flags based on updated hotel rows
+      const allHotels = await prisma.umrahHotelBooking.findMany({
+        where: { bookingId },
+        select: { isCompanyBrn: true, isCompanyCateringBrn: true }
+      });
+      const anyCompanyBrn = allHotels.some(h => Boolean(h.isCompanyBrn));
+      const anyCompanyCateringBrn = allHotels.some(h => Boolean(h.isCompanyCateringBrn));
+
+      await prisma.umrahVisaBooking.update({
+        where: { id: bookingId },
+        data: {
+          accommodationType: 'hotel',
+          isCompanyBrn: anyCompanyBrn,
+          isCompanyCateringBrn: anyCompanyCateringBrn,
+        },
+      });
 
       // Sync hotel changes to voucher
       await syncBookingToVoucher(prisma, bookingId);

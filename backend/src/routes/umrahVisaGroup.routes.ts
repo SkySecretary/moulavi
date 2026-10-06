@@ -443,6 +443,7 @@ router.post('/group/create-booking', authenticate, uploadGroup.fields([
           status: 'group_assigned',
           visaType: 'group_visa',
           isCompanyBrn: Boolean(req.body.isCompanyBrn || step1Data.isCompanyBrn || step2Data.isCompanyBrn || (hotelBookingsData && Array.isArray(hotelBookingsData) && hotelBookingsData.some((h: any) => h.isCompanyBrn))),
+          isCompanyCateringBrn: Boolean(req.body.isCompanyCateringBrn || step1Data.isCompanyCateringBrn || step2Data.isCompanyCateringBrn || (hotelBookingsData && Array.isArray(hotelBookingsData) && hotelBookingsData.some((h: any) => h.isCompanyCateringBrn))),
           isOneWay: false,
           isWithoutTicket: !!step2Data.isWithoutTicket,
           accommodationType: 'hotel',
@@ -539,7 +540,8 @@ router.post('/group/create-booking', authenticate, uploadGroup.fields([
                 hotelId: hotel.hotelId,
                 checkInDate,
                 checkOutDate,
-                isCompanyBrn: Boolean(hotel.isCompanyBrn || step2Data.isCompanyBrn || req.body.isCompanyBrn),
+                isCompanyBrn: Boolean(hotel.isCompanyBrn),
+                isCompanyCateringBrn: Boolean(hotel.isCompanyCateringBrn),
                 brn: hotel.brn && Array.isArray(hotel.brn) && hotel.brn.length > 0 
                   ? hotel.brn 
                   : null,

@@ -11,6 +11,7 @@ export interface Step1Data {
   guestName?: string;
   guestMobile?: string;
   isCompanyBrn?: boolean;
+  isCompanyCateringBrn?: boolean;
 }
 
 export interface Step2Data {
@@ -30,6 +31,7 @@ export interface Step2Data {
   oneWayContactName?: string;
   oneWayWhatsapp?: string;
   isCompanyBrn?: boolean;
+  isCompanyCateringBrn?: boolean;
   brn?: string;
 }
 
@@ -66,6 +68,7 @@ export interface Step3Data {
   iqamaDetails?: IqamaDetails;
   hotelBookings?: HotelBooking[];
   isCompanyBrn?: boolean;
+  isCompanyCateringBrn?: boolean;
   // OLD: Kept for backward compatibility during migration
   movements?: Movement[];
   transportSegments?: TransportBooking[];
@@ -146,6 +149,7 @@ export interface HotelBooking {
   checkInDate: string;
   checkOutDate: string;
   isCompanyBrn?: boolean;
+  isCompanyCateringBrn?: boolean;
   brn?: string[];
   cateringBrn?: string[];
   bedsQuantity?: number | null;
@@ -166,6 +170,7 @@ export interface IqamaDetails {
   iqamaNationality?: string;
   sponserNationality?: string;
   isCompanyBrn?: boolean;
+  isCompanyCateringBrn?: boolean;
 }
 
 export interface Passenger {

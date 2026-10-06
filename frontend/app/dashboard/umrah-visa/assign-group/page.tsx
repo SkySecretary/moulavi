@@ -382,7 +382,7 @@ export default function AssignGroupPage() {
                                   value={inlineGroupData[booking.id]?.groupNumber || ''}
                                   onChange={(e) => setInlineGroupData(prev => ({
                                     ...prev, 
-                                    [booking.id]: { ...prev[booking.id], groupNumber: e.target.value }
+                                    [booking.id]: { ...prev[booking.id], groupNumber: e.target.value.replace(/\s+/g, '') }
                                   }))}
                                   className="h-8 text-[11px] font-semibold"
                                 />
@@ -449,7 +449,7 @@ export default function AssignGroupPage() {
           <div className="space-y-4">
             <div>
               <Label htmlFor="groupNumber">Group Number *</Label>
-              <Input id="groupNumber" placeholder="e.g., GRP-2024-001" value={groupNumber} onChange={(e) => setGroupNumber(e.target.value)} />
+              <Input id="groupNumber" placeholder="e.g., GRP-2024-001" value={groupNumber} onChange={(e) => setGroupNumber(e.target.value.replace(/\s+/g, ''))} />
             </div>
             <div>
               <Label htmlFor="groupName">Group Name *</Label>

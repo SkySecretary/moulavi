@@ -239,6 +239,59 @@ Our records indicate that your hosted pilgrim's Umrah visa program duration has 
 Please confirm the return date to synchronize the system. Failure to proceed may result in restrictions or delays for future Umrah visa issuances.`,
   },
   {
+    key: 'voucher_agency',
+    name: 'Voucher Issued - Agency Alert',
+    desc: 'Sent to the booking agency with the PDF voucher attachment when a voucher is generated.',
+    defaultTemplateName: 'voucher_agency_alert',
+    placeholders: ['agencyName', 'voucherNumber', 'groupCode', 'groupName', 'paxCount', 'guestName', 'guestMobile', 'transportCompany', 'reservationDate', 'firstRouteDate', 'movementsSummary', 'pdfUrl'],
+    defaultMessage: `📄 *VOUCHER ISSUED - MOULAVI TRAVELS*
+═══════════════════
+Dear *{agencyName}*,
+
+Your transport & service voucher *{voucherNumber}* has been generated.
+
+🔖 *Voucher No:* {voucherNumber}
+📋 *Group Code:* {groupCode}
+🏷️ *Group Name:* {groupName}
+👥 *Number of Pilgrims:* {paxCount} Pax
+👤 *Lead Guest:* {guestName}
+🚌 *Transport Supplier:* {transportCompany}
+
+📎 Please find the attached official PDF voucher.
+{pdfUrl}
+
+🤲 We wish your pilgrims a safe and blessed journey.
+*NuSync - Moulavi Travels*`,
+  },
+  {
+    key: 'voucher_supplier',
+    name: 'Voucher Issued - Transport Supplier Alert',
+    desc: 'Sent to the transport company (supplier) with the PDF voucher attachment when a voucher is assigned.',
+    defaultTemplateName: 'voucher_supplier_alert',
+    placeholders: ['supplierName', 'voucherNumber', 'agencyName', 'groupCode', 'groupName', 'paxCount', 'guestName', 'guestMobile', 'firstRouteDate', 'movementsSummary', 'pdfUrl'],
+    defaultMessage: `🚌 *NEW TRANSPORT VOUCHER ASSIGNED*
+═══════════════════
+Dear *{supplierName}*,
+
+A new transport booking has been assigned to your company.
+
+🔖 *Voucher No:* {voucherNumber}
+🏢 *Agency:* {agencyName}
+📋 *Group Code:* {groupCode}
+👥 *Number of Pilgrims:* {paxCount} Pax
+👤 *Lead Guest:* {guestName}
+📞 *Guest Mobile:* {guestMobile}
+
+📍 *Movement Schedule:*
+{movementsSummary}
+
+📎 Please find the attached official PDF voucher.
+Kindly arrange vehicle and driver allocations accordingly.
+{pdfUrl}
+
+*NuSync Operations*`,
+  },
+  {
     key: 'custom',
     name: 'Custom Alerts & Manual Logs',
     desc: 'Sent when manually triggering test or custom messages.',
@@ -249,6 +302,31 @@ Please confirm the return date to synchronize the system. Failure to proceed may
 {message}
 
 Powered by NuSync`,
+  },
+  {
+    key: 'quotation_share',
+    name: 'Quotation Proposal - Client / Agency Alert',
+    desc: 'Sent to guest or agency with the PDF quotation attachment when sharing a quotation proposal.',
+    defaultTemplateName: 'quotation_proposal_alert',
+    placeholders: ['name', 'guestName', 'quotationNumber', 'title', 'totalPax', 'adultsCount', 'childrenCount', 'currency', 'grandTotal', 'validUntil', 'agencyName', 'pdfUrl'],
+    defaultMessage: `📄 *UMRAH PACKAGE QUOTATION - MOULAVI TRAVELS*
+═══════════════════
+Dear *{guestName}*,
+
+Thank you for choosing *Moulavi Travels*. We are pleased to present your customized Umrah package proposal.
+
+🔖 *Quotation Ref:* {quotationNumber}
+🏷️ *Package:* {title}
+👥 *Total Pilgrims:* {totalPax} Pax ({adultsCount} Adults, {childrenCount} Children)
+💰 *Total Amount:* *{currency} {grandTotal}*
+📅 *Valid Until:* {validUntil}
+
+📎 *Official quotation document is attached as PDF below.*
+{pdfUrl}
+
+🤲 We look forward to facilitating a spiritual and seamless journey for you and your guests.
+*Moulavi Travel & Recruitment Agents Pvt Ltd*
+═══════════════════`,
   },
 ];
 

@@ -291,7 +291,8 @@ export default function EditUmrahVisaBookingPage() {
             ...hb,
             checkInDate: toDisplayDate(hb.checkInDate),
             checkOutDate: toDisplayDate(hb.checkOutDate),
-            isCompanyBrn: hb.isCompanyBrn || b.isCompanyBrn || false,
+            isCompanyBrn: Boolean(hb.isCompanyBrn),
+            isCompanyCateringBrn: Boolean(hb.isCompanyCateringBrn),
             locationId: location?.id || '',
           };
         });
@@ -455,7 +456,8 @@ export default function EditUmrahVisaBookingPage() {
               cateringBrn: h.cateringBrn,
               additionalBrns: h.additionalBrns,
               bedsQuantity: h.bedsQuantity,
-              isCompanyBrn: h.isCompanyBrn || false,
+              isCompanyBrn: Boolean(h.isCompanyBrn),
+              isCompanyCateringBrn: Boolean((h as any).isCompanyCateringBrn),
             };
           });
 
@@ -479,7 +481,8 @@ export default function EditUmrahVisaBookingPage() {
               cateringBrn: h.cateringBrn,
               additionalBrns: h.additionalBrns,
               bedsQuantity: h.bedsQuantity,
-              isCompanyBrn: h.isCompanyBrn || false,
+              isCompanyBrn: Boolean(h.isCompanyBrn),
+              isCompanyCateringBrn: Boolean((h as any).isCompanyCateringBrn),
             };
           })
           .filter(h => h.cityId && h.hotelId);
@@ -487,8 +490,11 @@ export default function EditUmrahVisaBookingPage() {
           await umrahVisaAPI.createHotelBooking(bookingId, h);
         }
       } else if (accommodationType === 'iqama') {
+        const mainIqama = booking?.sponsorIqamaDetails?.find((i: any) => !i.isAlternate);
         await umrahVisaAPI.updateAccommodation(bookingId, {
           accommodationType: 'iqama',
+          isCompanyBrn: Boolean(mainIqama?.isCompanyBrn || booking?.isCompanyBrn),
+          isCompanyCateringBrn: Boolean(mainIqama?.isCompanyCateringBrn || booking?.isCompanyCateringBrn),
           iqamaSponserName: iqamaName,
           iqamaNumber: iqamaNumber,
           sponserNationality: iqamaNationality,
@@ -931,7 +937,7 @@ export default function EditUmrahVisaBookingPage() {
                     <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Group Number</p>
                     <Input 
                       value={groupNumber} 
-                      onChange={(e) => setGroupNumber(e.target.value)} 
+                      onChange={(e) => setGroupNumber(e.target.value.replace(/\s+/g, ''))} 
                       placeholder="Group Number"
                       className="font-bold"
                     />

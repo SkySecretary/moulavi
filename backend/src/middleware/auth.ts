@@ -10,12 +10,17 @@ export const authenticate = (
 ) => {
   try {
     const authHeader = req.headers.authorization;
+    let token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Support token in query parameter for direct browser downloads / PDF views
+    if (!token && req.query?.token) {
+      token = req.query.token as string;
+    }
+    
+    if (!token) {
       return res.status(401).json({ error: 'No token provided' });
     }
     
-    const token = authHeader.substring(7);
     const payload = verifyAccessToken(token);
     
     req.user = payload;

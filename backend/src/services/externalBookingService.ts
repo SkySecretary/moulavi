@@ -30,7 +30,9 @@ export interface ExternalHotelBookingInput {
   checkOutDate: string; // YYYY-MM-DD
   bedsQuantity?: number;
   brn?: string;
+  cateringBrn?: string;
   isCompanyBrn?: boolean;
+  isCompanyCateringBrn?: boolean;
 }
 
 export interface ExternalIqamaInput {
@@ -44,7 +46,10 @@ export interface ExternalIqamaInput {
   madinahHotelName?: string;
   makkahBrn?: string;
   madinahBrn?: string;
+  makkahCateringBrn?: string;
+  madinahCateringBrn?: string;
   isCompanyBrn?: boolean;
+  isCompanyCateringBrn?: boolean;
 }
 
 export interface ExternalTransportMovementInput {
@@ -530,7 +535,9 @@ export class ExternalBookingService {
       checkOutDate: Date;
       bedsQuantity: number;
       brn?: string[];
+      cateringBrn?: string[];
       isCompanyBrn: boolean;
+      isCompanyCateringBrn: boolean;
     }[] = [];
 
     if (input.accommodationType === 'hotel' && input.hotelBookings && input.hotelBookings.length > 0) {
@@ -552,7 +559,9 @@ export class ExternalBookingService {
           checkOutDate: checkOut,
           bedsQuantity: h.bedsQuantity || effectivePaxCount,
           brn: h.brn ? [h.brn] : undefined,
+          cateringBrn: h.cateringBrn ? [h.cateringBrn] : undefined,
           isCompanyBrn: !!h.isCompanyBrn,
+          isCompanyCateringBrn: !!h.isCompanyCateringBrn,
         });
       }
     }
@@ -618,6 +627,10 @@ export class ExternalBookingService {
                 (input.hotelBookings && input.hotelBookings.some(h => h.isCompanyBrn)) ||
                 input.iqamaDetails?.isCompanyBrn
               ),
+              isCompanyCateringBrn: Boolean(
+                (input.hotelBookings && input.hotelBookings.some(h => h.isCompanyCateringBrn)) ||
+                input.iqamaDetails?.isCompanyCateringBrn
+              ),
               isOneWay: !!input.isOneWay,
               isWithoutTicket: !!input.isWithoutTicket,
               oneWayContactName: input.isOneWay ? (input.oneWayContactName || guestName) : null,
@@ -677,7 +690,9 @@ export class ExternalBookingService {
                   checkOutDate: h.checkOutDate,
                   bedsQuantity: h.bedsQuantity,
                   brn: h.brn,
+                  cateringBrn: h.cateringBrn,
                   isCompanyBrn: h.isCompanyBrn,
+                  isCompanyCateringBrn: h.isCompanyCateringBrn,
                 }
               });
             }
@@ -699,7 +714,10 @@ export class ExternalBookingService {
                 madinahHotelName: iq.madinahHotelName || null,
                 makkahBrn: iq.makkahBrn || null,
                 madinahBrn: iq.madinahBrn || null,
+                makkahCateringBrn: iq.makkahCateringBrn || null,
+                madinahCateringBrn: iq.madinahCateringBrn || null,
                 isCompanyBrn: !!iq.isCompanyBrn,
+                isCompanyCateringBrn: !!iq.isCompanyCateringBrn,
               }
             });
           }

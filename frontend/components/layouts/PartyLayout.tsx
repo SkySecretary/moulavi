@@ -16,7 +16,9 @@ import {
   Menu,
   X,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Ticket,
+  Truck
 } from 'lucide-react';
 
 interface PartyLayoutProps {
@@ -84,6 +86,14 @@ export const PartyLayout: React.FC<PartyLayoutProps> = ({
       icon: FileText,
       href: '/party/dashboard',
       isActive: pathname === '/party/dashboard',
+    },
+    {
+      id: 'quick-voucher',
+      label: 'Book Transport',
+      description: 'Book and manage transport',
+      icon: Truck,
+      href: '/party/quick-voucher',
+      isActive: pathname === '/party/quick-voucher',
     },
     {
       id: 'bookings',

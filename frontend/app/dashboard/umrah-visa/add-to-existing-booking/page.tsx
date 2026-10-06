@@ -12,6 +12,8 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { getUser, hasRole } from '@/lib/auth';
 import { UploadCloud, File, X, Users, ChevronRight } from 'lucide-react';
 import { umrahVisaAPI, partyAPI } from '@/lib/api';
+import { CustomerPartySelector } from '@/components/umrah-booking/CustomerPartySelector';
+import { Party } from '@/types';
 
 interface UmrahVisaBooking {
   id: string;
@@ -23,12 +25,6 @@ interface UmrahVisaBooking {
   visaType?: 'individual_visa' | 'group_visa';
   createdAt: string;
   partyId: string;
-}
-
-interface Party {
-  id: string;
-  partyName: string;
-  email: string;
 }
 
 interface UploaderBoxProps {
@@ -281,6 +277,31 @@ export default function AdminAddToExistingBookingPage() {
               Add a new group to an existing booking on behalf of a party
             </p>
           </div>
+          {selectedPartyId && (
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
+                {parties.find(p => p.id === selectedPartyId)?.customerType === 'direct' ? (
+                  <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-800 border border-blue-200">DIRECT CUSTOMER</span>
+                ) : (
+                  <Users className="h-4 w-4 text-indigo-600" />
+                )}
+                <span className="text-xs font-bold text-gray-800">
+                  {parties.find(p => p.id === selectedPartyId)?.partyName}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedPartyId('');
+                  setFormData(prev => ({ ...prev, existingBookingId: '' }));
+                }}
+                className="text-xs h-8"
+              >
+                Change Party
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -289,53 +310,20 @@ export default function AdminAddToExistingBookingPage() {
         <div className="p-4 lg:p-8 pb-24">
           {!selectedPartyId ? (
             /* Party Selection Screen - Show first */
-            <div className="max-w-2xl mx-auto mt-12">
-              <Card className="shadow-lg">
-                <CardHeader className="text-center pb-4">
-                  <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                    <Users className="h-8 w-8 text-white" />
-                  </div>
-                  <CardTitle className="text-2xl">Select Party</CardTitle>
-                  <CardDescription className="text-base mt-2">
-                    Choose the party for which you are adding a group to an existing booking
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="partyId" className="text-base">Party *</Label>
-                    {loadingParties ? (
-                      <div className="text-sm text-gray-500 py-4 text-center">Loading parties...</div>
-                    ) : (
-                        <SearchableSelect
-                        options={parties.map(p => ({ value: p.id, label: p.partyName }))}
-                        value={selectedPartyId}
-                        onValueChange={(value) => {
-                          setSelectedPartyId(value);
-                          setFormData({ ...formData, existingBookingId: '' });
-                        }}
-                        placeholder="Select a party"
-                        searchPlaceholder="Search party..."
-                        className="h-12 text-base"
-                      />
-                    )}
-                  </div>
-                  {selectedPartyId && (
-                    <div className="pt-4 flex justify-end">
-                      <Button
-                        onClick={() => {
-                          if (selectedPartyId) {
-                            loadBookings();
-                          }
-                        }}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                      >
-                        Continue
-                        <ChevronRight className="h-4 w-4 ml-2" />
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+            <div className="max-w-2xl mx-auto mt-6">
+              <CustomerPartySelector
+                parties={parties}
+                selectedPartyId={selectedPartyId}
+                onSelectParty={(partyId) => {
+                  setSelectedPartyId(partyId);
+                  setFormData(prev => ({ ...prev, existingBookingId: '' }));
+                }}
+                onPartyCreated={(newParty) => {
+                  setParties(prev => [newParty, ...prev]);
+                }}
+                title="Select Customer / Partner Agency"
+                description="Choose whether this booking belongs to a B2B Partner Agency or a Direct Customer"
+              />
             </div>
           ) : (
             /* Form - Show after party selection */

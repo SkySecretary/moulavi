@@ -122,6 +122,7 @@ $SSH_CMD -o ControlMaster=auto -o ControlPath=/tmp/ssh-%r@%h:%p $SERVER_USER@$SE
         npx prisma@6 generate
         npx prisma@6 db push --accept-data-loss
     fi
+    node scripts/seed-indian-airports.js || true
 
     # Frontend Setup
     cd $RELEASE_PATH/frontend

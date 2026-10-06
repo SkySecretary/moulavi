@@ -39,7 +39,8 @@ import {
   Loader2,
   AlertTriangle,
   AlertCircle,
-  ShieldAlert
+  ShieldAlert,
+  Ticket
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -360,6 +361,13 @@ export default function PartyDashboardPage() {
             Manage your Umrah pilgrim groups and visa applications through our Nusuk-integrated platform.
           </p>
           <div className="flex flex-wrap gap-3">
+            <Button 
+              onClick={() => router.push('/party/quick-voucher')}
+              className="bg-amber-600 hover:bg-amber-700 text-white border-none shadow-lg hover:shadow-xl transition-all font-bold"
+            >
+              <Ticket className="mr-2 h-4 w-4" />
+              Quick Voucher
+            </Button>
             <Button 
               onClick={() => router.push('/party/umrah-visa')}
               className="bg-primary hover:bg-primary/90 text-white border-none shadow-lg hover:shadow-xl transition-all font-bold"

@@ -30,7 +30,9 @@ import {
   Building,
   ArrowUpRight,
   LifeBuoy,
-  Activity
+  Activity,
+  FolderX,
+  Receipt
 } from 'lucide-react';
 import NextLink from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -108,13 +110,16 @@ export default function Navbar() {
   ] : [
     { name: 'Dashboard', path: '/party/dashboard', icon: LayoutDashboard },
     { name: 'Tafweej', path: '/party/tafweej', icon: Clock },
-    { name: 'Vouchers', path: '/dashboard/services/voucher', icon: Ticket },
+    { name: 'Quick Vouchers', path: '/party/quick-voucher', icon: Ticket },
     { name: 'New Individual', path: '/party/umrah-visa', icon: User },
     { name: 'New Group', path: '/party/umrah-visa-group', icon: Users },
   ];
 
   const appItems = isAdminOrStaff ? [
+    { name: 'Quotations', path: '/dashboard/quotations', icon: Receipt },
     { name: 'Assign Group', path: '/dashboard/umrah-visa/assign-group', icon: Users },
+    { name: 'Unlinked Nusuk Groups', path: '/dashboard/umrah-visa/unlinked-groups', icon: FolderX },
+    { name: 'Overstay (85+ Days)', path: '/dashboard/umrah-visa/overstay-85-days', icon: AlertTriangle },
     { name: 'Missing BRN', path: '/dashboard/umrah-visa/missing-brn', icon: AlertCircle },
     { name: 'Missing Flight Transport', path: '/dashboard/umrah-visa/missing-return-ticket', icon: Plane },
     { name: 'Mismatched Travel', path: '/dashboard/umrah-visa/mismatched-travel', icon: AlertTriangle },
@@ -124,6 +129,7 @@ export default function Navbar() {
     { name: 'Invoices', path: '/dashboard/umrah-visa/invoice', icon: FileText },
     { name: 'Support Tickets', path: '/dashboard/support-tickets', icon: LifeBuoy },
   ] : [
+    { name: 'Quotations', path: '/dashboard/quotations', icon: Receipt },
     { name: '⚡ Quick Voucher Requests', path: '/party/quick-voucher', icon: Ticket },
     { name: 'Missing BRN', path: '/party/missing-brn', icon: AlertCircle },
     { name: 'Missing Flight Transport', path: '/party/missing-return-ticket', icon: Plane },
@@ -232,10 +238,10 @@ export default function Navbar() {
             <button
               onClick={() => setIsSearchOpen(true)}
               className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 hover:bg-indigo-50/80 border border-gray-200/80 hover:border-indigo-200 text-gray-700 hover:text-indigo-700 transition-all shadow-2xs group"
-              title="Global Passport & Passenger Search (⌘K)"
+              title="Global Search (⌘K)"
             >
               <Search className="h-4 w-4 text-gray-500 group-hover:text-indigo-600 transition-colors" />
-              <span className="hidden lg:inline text-xs font-bold">Search Passport</span>
+              <span className="hidden lg:inline text-xs font-bold">Search</span>
               <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono font-bold text-gray-500 bg-white border border-gray-200 rounded shadow-2xs">
                 ⌘K
               </kbd>
