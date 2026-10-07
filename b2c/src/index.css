@@ -1550,3 +1550,67 @@ footer {
     display: none; /* Hide helper label text on mobile to avoid overcrowding */
   }
 }
+
+/* ========================================================
+   Family Umrah Calculator Animations & Keyframes
+   ======================================================== */
+@keyframes tawafCounterClockwise {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes counterRotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(251, 191, 36, 0.3), 0 10px 20px rgba(0,0,0,0.6);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(251, 191, 36, 0.6), 0 10px 30px rgba(16, 185, 129, 0.4);
+  }
+}
+
+@keyframes sparkleBurst {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+

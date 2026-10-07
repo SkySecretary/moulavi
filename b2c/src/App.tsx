@@ -22,6 +22,8 @@ import {
   Zap,
   Mail
 } from 'lucide-react';
+import { FamilyUmrahCalculator, type CalculatorPackageParams } from './components/FamilyUmrahCalculator';
+
 
 // ==========================================
 // Fallback Mock Data if ERP APIs are Offline
@@ -373,7 +375,34 @@ function SearchableSelect({
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'packages' | 'builder'>('packages');
+  const [activeTab, setActiveTab] = useState<'packages' | 'builder' | 'calculator'>(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+      if (path.includes('calculator') || hash.includes('calculator')) {
+        return 'calculator';
+      }
+    }
+    return 'packages';
+  });
+
+  // Listen to popstate / hashchange for direct calculator linking
+  useEffect(() => {
+    const handleUrlCheck = () => {
+      const path = window.location.pathname.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+      if (path.includes('calculator') || hash.includes('calculator')) {
+        setActiveTab('calculator');
+      }
+    };
+    window.addEventListener('popstate', handleUrlCheck);
+    window.addEventListener('hashchange', handleUrlCheck);
+    return () => {
+      window.removeEventListener('popstate', handleUrlCheck);
+      window.removeEventListener('hashchange', handleUrlCheck);
+    };
+  }, []);
+
   const [packages, setPackages] = useState<any[]>([]);
   const [hotels, setHotels] = useState<any[]>([]);
   const [routes, setRoutes] = useState<any[]>([]);
@@ -445,6 +474,57 @@ export default function App() {
     setBookingFinished(false);
     setActiveTab('packages');
   };
+
+  // Calculator Booking Handler
+  const handleCalculatorBooking = (params: CalculatorPackageParams) => {
+    setIsQuickEVisa(false);
+    const checkInDateObj = new Date(dates.checkIn);
+    const totalNights = params.makkahNights + params.madinahNights;
+    const returnDateObj = new Date(checkInDateObj.getTime() + totalNights * 86400000);
+    
+    setDates(prev => ({
+      ...prev,
+      accommodationType: 'hotel',
+      makkahNights: params.makkahNights,
+      madinahNights: params.madinahNights,
+      travelers: params.persons
+    }));
+
+    setFlightInfo(prev => ({
+      ...prev,
+      onwardDate: dates.checkIn,
+      returnDate: returnDateObj.toISOString().split('T')[0]
+    }));
+
+    // Pre-populate passengers array with required count
+    const newPassengers = Array.from({ length: params.persons }).map((_, idx) => ({
+      fullName: idx === 0 && traveler.fullName ? traveler.fullName : '',
+      passportNumber: idx === 0 && traveler.passportNumber ? traveler.passportNumber : '',
+      nationality: idx === 0 && traveler.nationality ? traveler.nationality : 'United States',
+      gender: 'MALE'
+    }));
+    setPassengers(newPassengers);
+
+    // Select default hotel IDs based on tier
+    if (params.tier === 'luxury') {
+      setSelectedMakkahHotelId(hotels.find(h => h.name?.toLowerCase().includes('swiss') || h.city === 'Makkah')?.id || DEFAULT_HOTELS[0].id);
+      setSelectedMadinahHotelId(hotels.find(h => h.name?.toLowerCase().includes('oberoi') || h.city === 'Madinah')?.id || DEFAULT_HOTELS[3].id);
+    } else if (params.tier === 'comfort') {
+      setSelectedMakkahHotelId(hotels.find(h => h.name?.toLowerCase().includes('zamzam') || h.city === 'Makkah')?.id || DEFAULT_HOTELS[1].id);
+      setSelectedMadinahHotelId(hotels.find(h => h.name?.toLowerCase().includes('anwar') || h.city === 'Madinah')?.id || DEFAULT_HOTELS[4].id);
+    } else {
+      setSelectedMakkahHotelId(hotels.find(h => h.name?.toLowerCase().includes('kinda') || h.city === 'Makkah')?.id || DEFAULT_HOTELS[2].id);
+      setSelectedMadinahHotelId(hotels.find(h => h.name?.toLowerCase().includes('hilton') || h.city === 'Madinah')?.id || DEFAULT_HOTELS[5].id);
+    }
+
+    setSelectedRouteId(params.includeMadinah ? (routes[0]?.id || DEFAULT_ROUTES[0].id) : (routes[1]?.id || DEFAULT_ROUTES[1].id));
+    setSelectedPackage(null);
+    setActiveTab('builder');
+    setStep(1);
+    setBookingFinished(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   
   // Auth & Simulators
   const [otpSent, setOtpSent] = useState(false);
@@ -961,7 +1041,61 @@ export default function App() {
               <span>Verified B2C Consumer Channel</span>
             </div>
           </a>
-          <div className="nav-links" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div className="nav-links" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button 
+              type="button"
+              className="nav-btn" 
+              style={{ 
+                backgroundColor: activeTab === 'calculator' ? 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)' : 'rgba(19, 92, 70, 0.08)',
+                color: activeTab === 'calculator' ? '#02120b' : 'var(--primary)',
+                background: activeTab === 'calculator' ? 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)' : undefined,
+                fontWeight: 800, 
+                borderRadius: '8px', 
+                border: '1px solid var(--gold-border)', 
+                padding: '0.55rem 1rem', 
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                fontSize: '0.85rem',
+                boxShadow: activeTab === 'calculator' ? '0 4px 12px rgba(245, 158, 11, 0.35)' : 'none'
+              }}
+              onClick={() => {
+                setActiveTab('calculator');
+                setBookingFinished(false);
+                if (typeof window !== 'undefined' && window.history.pushState) {
+                  window.history.pushState({}, '', '/b2c/calculator');
+                }
+              }}
+            >
+              <Sparkles className="h-4 w-4" />
+              Family Calculator
+            </button>
+
+            <button 
+              type="button"
+              className="nav-btn" 
+              style={{ 
+                backgroundColor: activeTab === 'packages' ? 'var(--primary-light)' : 'transparent',
+                color: 'var(--primary)',
+                fontWeight: 700, 
+                borderRadius: '8px', 
+                border: '1px solid var(--border-color)', 
+                padding: '0.55rem 1rem', 
+                cursor: 'pointer',
+                fontSize: '0.85rem'
+              }}
+              onClick={() => {
+                setActiveTab('packages');
+                setBookingFinished(false);
+                if (typeof window !== 'undefined' && window.history.pushState) {
+                  window.history.pushState({}, '', '/b2c');
+                }
+              }}
+            >
+              Ready Packages
+            </button>
+
             <select
               style={{
                 padding: '0.5rem 0.75rem',
@@ -1175,34 +1309,95 @@ export default function App() {
               Verify Reserved Room allotments, select onward and return flight carriers, and issue direct electronic visas instantly.
             </p>
 
-            {activeTab === 'packages' && (
-              <div className="unified-pathway-bar" style={{ textAlign: 'left' }}>
+            {(activeTab === 'packages' || activeTab === 'calculator') && (
+              <div className="unified-pathway-bar" style={{ textAlign: 'left', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
                 
-                {/* Left Column: Quick eVisa */}
+                {/* Column 1: Family Calculator (Game Simulator) */}
+                <div 
+                  className="pathway-column-left" 
+                  style={{ 
+                    border: activeTab === 'calculator' ? '2px solid #f59e0b' : '1px solid var(--border-color)',
+                    background: 'linear-gradient(180deg, #ffffff 0%, rgba(245, 158, 11, 0.04) 100%)',
+                    boxShadow: activeTab === 'calculator' ? '0 8px 30px rgba(245, 158, 11, 0.2)' : undefined
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                      <div style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)', padding: '0.5rem', borderRadius: '8px', color: '#02120b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Sparkles className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#d97706', display: 'block' }}>Interactive Simulator</span>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Family Umrah Calculator</h3>
+                      </div>
+                    </div>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
+                      Interactive Tawaf visualizer, sliding persons & days, Madinah toggle and instant VIP package costing.
+                    </p>
+                  </div>
+                  <button 
+                    type="button"
+                    className="book-btn animate-pulse" 
+                    style={{ 
+                      width: '100%', 
+                      padding: '0.85rem', 
+                      justifyContent: 'center', 
+                      fontWeight: 800, 
+                      fontSize: '0.92rem',
+                      color: 'white',
+                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                      border: 'none',
+                      boxShadow: '0 4px 15px rgba(245, 158, 11, 0.4)',
+                      cursor: 'pointer',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}
+                    onClick={() => {
+                      setActiveTab('calculator');
+                      setBookingFinished(false);
+                      if (typeof window !== 'undefined' && window.history.pushState) {
+                        window.history.pushState({}, '', '/b2c/calculator');
+                      }
+                      window.scrollTo({ top: 400, behavior: 'smooth' });
+                    }}
+                  >
+                    Open Simulator <ChevronRight className="h-4 w-4" style={{ strokeWidth: 3 }} />
+                  </button>
+                </div>
+
+                {/* Column 2: Quick eVisa */}
                 <div className="pathway-column-left">
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
                       <div style={{ backgroundColor: 'var(--secondary-light)', padding: '0.5rem', borderRadius: '8px', color: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Zap className="h-5 w-5" />
                       </div>
-                      <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Quick eVisa (24hr Umra visa)</h3>
+                      <div>
+                        <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--secondary)', display: 'block' }}>24hr Direct Visa</span>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Quick eVisa (24hr Umra)</h3>
+                      </div>
                     </div>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
                       Fast 24-hour visa processing. Skips hotel stay selection and goes straight to checkout.
                     </p>
                   </div>
                   <button 
-                    className="book-btn animate-pulse" 
+                    type="button"
+                    className="book-btn" 
                     style={{ 
                       width: '100%', 
-                      padding: '0.9rem', 
+                      padding: '0.85rem', 
                       justifyContent: 'center', 
                       fontWeight: 800, 
-                      fontSize: '0.95rem',
+                      fontSize: '0.92rem',
                       color: 'white',
                       background: 'linear-gradient(135deg, var(--secondary) 0%, #e5a954 100%)',
                       border: 'none',
-                      boxShadow: '0 4px 20px rgba(212, 147, 44, 0.45)',
+                      boxShadow: '0 4px 15px rgba(212, 147, 44, 0.35)',
                       cursor: 'pointer',
                       borderRadius: '8px',
                       display: 'flex',
@@ -1221,7 +1416,7 @@ export default function App() {
                       }));
                       setSelectedPackage(null);
                       setActiveTab('builder');
-                      setStep(1); // Goes to step 1 (sponsor details and check-in date)
+                      setStep(1);
                       setBookingFinished(false);
                     }}
                   >
@@ -1229,22 +1424,26 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Right Column: Customised Umra Package */}
+                {/* Column 3: Customised Umra Package */}
                 <div className="pathway-column-right">
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
                       <div style={{ backgroundColor: 'var(--primary-light)', padding: '0.5rem', borderRadius: '8px', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Sparkles className="h-5 w-5" />
+                        <Compass className="h-5 w-5" />
                       </div>
-                      <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Customised Umra Package</h3>
+                      <div>
+                        <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--primary)', display: 'block' }}>Complete Customizer</span>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Customised Package</h3>
+                      </div>
                     </div>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
                       Full builder. Customise flights, hotel stays, and ground transport step-by-step.
                     </p>
                   </div>
                   <button 
+                    type="button"
                     className="book-btn" 
-                    style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', fontWeight: 700, backgroundColor: 'var(--primary)', cursor: 'pointer' }}
+                    style={{ width: '100%', padding: '0.85rem', justifyContent: 'center', fontWeight: 700, backgroundColor: 'var(--primary)', cursor: 'pointer', borderRadius: '8px' }}
                     onClick={() => {
                       setIsQuickEVisa(false);
                       setDates(prev => ({
@@ -1255,7 +1454,7 @@ export default function App() {
                       }));
                       setSelectedPackage(null);
                       setActiveTab('builder');
-                      setStep(1); // Starts at step 1
+                      setStep(1);
                       setBookingFinished(false);
                     }}
                   >
@@ -1269,13 +1468,47 @@ export default function App() {
 
           {/* Main Landing Content */}
           <main>
+            {/* Dedicated Calculator Tab View */}
+            {activeTab === 'calculator' && (
+              <div style={{ maxWidth: '1100px', margin: '9.5rem auto 4rem auto', padding: '0 1rem', boxSizing: 'border-box' }}>
+                <FamilyUmrahCalculator onProceedToBooking={handleCalculatorBooking} />
+
+                {/* Section Separator to Explore Ready Packages */}
+                <div style={{ textAlign: 'center', marginTop: '3.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '2.5rem' }}>
+                  <h3 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
+                    Or Choose From Pre-Configured Ready Packages
+                  </h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+                    Fixed duration packages with locked VIP rates and all-inclusive ground arrangements.
+                  </p>
+                  <button
+                    type="button"
+                    className="nav-btn"
+                    style={{ padding: '0.75rem 2rem', fontSize: '0.9rem', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer', fontWeight: 700 }}
+                    onClick={() => {
+                      setActiveTab('packages');
+                      window.scrollTo({ top: 800, behavior: 'smooth' });
+                    }}
+                  >
+                    View All Ready Packages ↓
+                  </button>
+                </div>
+              </div>
+            )}
+
             {activeTab === 'packages' && (
               <>
+                {/* Part 1: Interactive Family Umrah Calculator Hero Component */}
+                <div style={{ maxWidth: '1100px', margin: '9.5rem auto 3rem auto', padding: '0 1rem', boxSizing: 'border-box' }}>
+                  <FamilyUmrahCalculator onProceedToBooking={handleCalculatorBooking} />
+                </div>
+
                 {/* Part 2: Ready Packages Listing */}
-                <div style={{ maxWidth: '1000px', margin: '9.5rem auto 4rem auto', padding: '0 1.5rem', boxSizing: 'border-box' }}>
+                <div style={{ maxWidth: '1000px', margin: '3rem auto 4rem auto', padding: '0 1.5rem', boxSizing: 'border-box' }}>
                   <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-dark)', marginBottom: '1.5rem', borderBottom: '2px solid var(--border-color)', paddingBottom: '0.5rem', marginTop: '0' }}>
                     Select from Premium Ready Packages
                   </h2>
+
               <div className="cards-grid">
                 {packages.map((pkg) => (
                   <div key={pkg.id} className="package-card animate-in fade-in duration-300">
