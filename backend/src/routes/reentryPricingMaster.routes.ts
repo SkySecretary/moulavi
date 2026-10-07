@@ -309,20 +309,11 @@ router.post(
       console.error('[Cashfree] Order creation error:', cfErr?.response?.data || cfErr.message);
     }
 
-    // Generate Universal UPI URIs for 1-tap fallback
-    const upiId = config!.upiId || 'moulavi1414@fbl';
-    const merchant = encodeURIComponent(config!.upiMerchantName || 'Moulavi Travels');
-    const note = encodeURIComponent(`Umrah Reentry ${orderId}`);
-    const upiPayUrl = `upi://pay?pa=${upiId}&pn=${merchant}&am=${totalAmount}&cu=${currency}&tn=${note}`;
-    const phonepeUrl = `phonepe://pay?pa=${upiId}&pn=${merchant}&am=${totalAmount}&cu=${currency}&tn=${note}`;
-    const gpayUrl = `tez://upi/pay?pa=${upiId}&pn=${merchant}&am=${totalAmount}&cu=${currency}&tn=${note}`;
-    const paytmUrl = `paytmmp://pay?pa=${upiId}&pn=${merchant}&am=${totalAmount}&cu=${currency}&tn=${note}`;
-
     // Web payment gateway portal link with Cashfree payment session
     const webPayUrl = `https://umra.moulavi.in/pay/reentry?order_id=${encodeURIComponent(orderId)}&session_id=${encodeURIComponent(paymentSessionId)}&am=${totalAmount}&cu=${currency}&ref=${encodeURIComponent(ref)}&stay=${isIqama ? 'iqama' : 'hotel'}&phone=${encodeURIComponent(resolvedMobile)}&name=${encodeURIComponent(guestName)}`;
 
-    // Generate Dynamic QR Code
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(upiPayUrl)}`;
+    const bankDetails = config!.bankAccountDetails || 'Bank: Federal Bank\nAccount: 14140200001234\nIFSC: FDRL0001414\nHolder: Moulavi Travels & Logistics';
+    const paymentMessage = `📋 *Moulavi Travels — Payment & Bank Transfer* 🕋\n\n💰 *Total Amount:* ₹${totalAmount}\n\n👉 *Pay Online (Cashfree Gateway):*\n${webPayUrl}\n\n🏦 *Direct Bank Transfer Details:*\n${bankDetails}`;
 
     res.json({
       success: true,
@@ -340,15 +331,9 @@ router.post(
         orderId,
         paymentSessionId,
         cfOrderId,
-        upiId,
-        upiMerchantName: config!.upiMerchantName || 'Moulavi Travels',
-        upiPayUrl,
-        phonepeUrl,
-        gpayUrl,
-        paytmUrl,
         webPayUrl,
-        qrCodeUrl,
-        bankAccountDetails: config!.bankAccountDetails,
+        bankAccountDetails: bankDetails,
+        paymentMessage,
         breakdownText: isIqama
           ? `Fixed Iqama Re-entry Visa Fee: ₹${fixedFee} (Total: ₹${totalAmount})`
           : `Fixed Re-entry Visa Fee: ₹${fixedFee} + (₹${perDayRate}/day × ${days} Days = ₹${daysCost}) = Total: ₹${totalAmount}`,

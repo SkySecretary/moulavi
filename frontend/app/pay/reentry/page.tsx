@@ -1,25 +1,21 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { 
-  CreditCard, 
-  Copy, 
   CheckCircle2, 
-  QrCode, 
-  Smartphone, 
+  ShieldCheck, 
+  Building2, 
+  Loader2, 
+  AlertCircle, 
+  MessageSquare,
   ArrowRight,
-  ShieldCheck,
-  Building2,
-  ExternalLink,
-  Loader2,
   RefreshCw,
-  AlertCircle,
-  MessageSquare
+  Lock
 } from 'lucide-react';
 
 // Declare Cashfree SDK on window
@@ -33,8 +29,6 @@ function ReentryPaymentContent() {
   const searchParams = useSearchParams();
   const rawOrderId = searchParams?.get('order_id') || '';
   const rawSessionId = searchParams?.get('session_id') || '';
-  const rawPa = searchParams?.get('pa') || 'moulavi1414@fbl';
-  const rawPn = searchParams?.get('pn') || 'Moulavi Travels';
   const rawAm = searchParams?.get('am') || '2000';
   const rawCu = searchParams?.get('cu') || 'INR';
   const rawRef = searchParams?.get('ref') || `RE-${Date.now().toString().slice(-6)}`;
@@ -44,31 +38,36 @@ function ReentryPaymentContent() {
 
   const [orderId, setOrderId] = useState(rawOrderId);
   const [sessionId, setSessionId] = useState(rawSessionId);
-  const [amount, setAmount] = useState(rawAm);
-  const [upiId] = useState(rawPa);
-  const [merchantName] = useState(rawPn);
+  const [amount] = useState(rawAm);
   const [refNumber] = useState(rawRef);
-  const [copied, setCopied] = useState(false);
 
   // Status Check State (When returning from Cashfree redirect)
   const [verifying, setVerifying] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<'IDLE' | 'PAID' | 'FAILED' | 'PENDING'>('IDLE');
   const [bookingResult, setBookingResult] = useState<any>(null);
-  const [cfLoading, setCfLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
+  const [sdkReady, setSdkReady] = useState(false);
+  const [countdown, setCountdown] = useState(3);
+  const hasAutoTriggeredRef = useRef(false);
 
-  // Load Cashfree JS SDK v3
+  // 1. Load Cashfree JS SDK v3
   useEffect(() => {
-    if (!window.Cashfree) {
-      const script = document.createElement('script');
-      script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
-      script.async = true;
-      document.body.appendChild(script);
+    if (typeof window !== 'undefined') {
+      if (window.Cashfree) {
+        setSdkReady(true);
+      } else {
+        const script = document.createElement('script');
+        script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
+        script.async = true;
+        script.onload = () => setSdkReady(true);
+        document.body.appendChild(script);
+      }
     }
   }, []);
 
-  // If order_id is present in URL, verify status immediately
+  // 2. If returning with an order_id, verify status first
   useEffect(() => {
-    if (orderId) {
+    if (orderId && !sessionId) {
       checkOrderStatus(orderId);
     }
   }, [orderId]);
@@ -82,7 +81,8 @@ function ReentryPaymentContent() {
         if (data.data.isPaid || data.data.orderStatus === 'PAID') {
           setPaymentStatus('PAID');
           setBookingResult(data.data.booking);
-          toast.success('🎉 Payment confirmed! Your voucher has been generated.');
+          toast.success('🎉 Payment confirmed! Your voucher has been sent to WhatsApp.');
+          return;
         } else if (data.data.orderStatus === 'ACTIVE' || data.data.orderStatus === 'PENDING') {
           setPaymentStatus('PENDING');
         } else {
@@ -91,19 +91,45 @@ function ReentryPaymentContent() {
       }
     } catch (err) {
       console.error('Error verifying order status:', err);
+      setPaymentStatus('FAILED');
     } finally {
       setVerifying(false);
     }
   };
 
-  // Launch Cashfree Payment Checkout
-  const handleCashfreePay = async () => {
-    setCfLoading(true);
+  // 3. Auto-redirect to Cashfree Gateway as soon as SDK is ready and status is IDLE
+  useEffect(() => {
+    if (paymentStatus === 'IDLE' && sdkReady && !hasAutoTriggeredRef.current && !verifying) {
+      if (!orderId || sessionId) {
+        hasAutoTriggeredRef.current = true;
+        triggerCashfreeCheckout();
+      }
+    }
+  }, [sdkReady, paymentStatus, sessionId, orderId, verifying]);
+
+  // 4. Auto-redirect back to WhatsApp when paid
+  useEffect(() => {
+    if (paymentStatus === 'PAID') {
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            window.location.href = 'https://wa.me/912246193365';
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [paymentStatus]);
+
+  const triggerCashfreeCheckout = async () => {
+    setRedirecting(true);
     try {
       let activeSessionId = sessionId;
       let activeOrderId = orderId;
 
-      // If no active session, create a fresh Cashfree order on demand
       if (!activeSessionId) {
         const orderRes = await fetch('/api/b2c/reentry-pricing/create-order', {
           method: 'POST',
@@ -123,7 +149,7 @@ function ReentryPaymentContent() {
           setSessionId(activeSessionId);
           setOrderId(activeOrderId);
         } else {
-          throw new Error(orderData.error || 'Failed to initialize Cashfree gateway');
+          throw new Error(orderData.error || 'Failed to initialize Cashfree gateway session');
         }
       }
 
@@ -132,60 +158,32 @@ function ReentryPaymentContent() {
       }
 
       if (!window.Cashfree) {
-        toast.info('Loading Cashfree checkout...');
-        await new Promise((r) => setTimeout(r, 1000));
+        await new Promise((r) => setTimeout(r, 600));
       }
 
       const cashfree = window.Cashfree({ mode: 'production' });
       cashfree.checkout({
         paymentSessionId: activeSessionId,
-        redirectTarget: '_self', // Smooth redirection
+        redirectTarget: '_self', // Smooth full page redirect to Cashfree checkout
       });
     } catch (err: any) {
-      toast.error(err.message || 'Could not open Cashfree gateway');
       console.error('Cashfree launch error:', err);
-    } finally {
-      setCfLoading(false);
-    }
-  };
-
-  // Formulate universal & app-specific intent URIs
-  const cleanNote = encodeURIComponent(`Umrah Reentry ${refNumber}`);
-  const encodedMerchant = encodeURIComponent(merchantName);
-  
-  const upiUniversalUri = `upi://pay?pa=${upiId}&pn=${encodedMerchant}&am=${amount}&cu=${rawCu}&tn=${cleanNote}`;
-  const gpayUri = `tez://upi/pay?pa=${upiId}&pn=${encodedMerchant}&am=${amount}&cu=${rawCu}&tn=${cleanNote}`;
-  const phonepeUri = `phonepe://pay?pa=${upiId}&pn=${encodedMerchant}&am=${amount}&cu=${rawCu}&tn=${cleanNote}`;
-  const paytmUri = `paytmmp://pay?pa=${upiId}&pn=${encodedMerchant}&am=${amount}&cu=${rawCu}&tn=${cleanNote}`;
-  
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(upiUniversalUri)}`;
-
-  const handleCopyUpi = () => {
-    navigator.clipboard.writeText(upiId);
-    setCopied(true);
-    toast.success(`UPI ID copied: ${upiId}`);
-    setTimeout(() => setCopied(false), 3000);
-  };
-
-  const handlePayIntent = (uri: string, appName: string) => {
-    try {
-      window.location.href = uri;
-      toast.info(`Opening ${appName}...`);
-    } catch (e) {
-      window.location.href = upiUniversalUri;
+      toast.error(err.message || 'Could not redirect to Cashfree');
+      setRedirecting(false);
+      setPaymentStatus('FAILED');
     }
   };
 
   // ==========================================
-  // VIEW: PAYMENT SUCCESSFUL & CONFIRMED
+  // VIEW 1: PAYMENT SUCCESSFUL & AUTO-RETURN TO WHATSAPP
   // ==========================================
   if (paymentStatus === 'PAID') {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 sm:p-6 font-sans">
-        <div className="w-full max-w-lg space-y-6">
+        <div className="w-full max-w-md space-y-6">
           <Card className="border-0 shadow-2xl rounded-3xl overflow-hidden bg-white text-center">
             <div className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white p-8 space-y-3">
-              <div className="mx-auto w-16 h-16 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center">
+              <div className="mx-auto w-16 h-16 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center animate-bounce">
                 <CheckCircle2 className="h-10 w-10 text-white" />
               </div>
               <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
@@ -218,20 +216,20 @@ function ReentryPaymentContent() {
                 )}
               </div>
 
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-600 space-y-2 text-center">
-                <p className="font-semibold text-slate-800">
-                  📲 Confirmation Sent to WhatsApp
+              <div className="p-4 bg-emerald-100/50 rounded-2xl border border-emerald-200 text-xs text-emerald-900 space-y-1.5 text-center">
+                <p className="font-bold flex items-center justify-center gap-1.5 text-emerald-800">
+                  <MessageSquare className="h-4 w-4" /> Confirmation Sent to WhatsApp
                 </p>
-                <p>
-                  Your official Ministry clearance, travel details, and activation summary have been dispatched to your WhatsApp number.
+                <p className="text-emerald-700">
+                  Returning to WhatsApp in <strong>{countdown}</strong> seconds...
                 </p>
               </div>
 
               <Button
-                onClick={() => window.open('https://wa.me/912246193365', '_blank')}
-                className="w-full h-12 bg-[#00a884] hover:bg-[#008f6f] text-white font-black text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
+                onClick={() => { window.location.href = 'https://wa.me/912246193365'; }}
+                className="w-full h-14 bg-[#00a884] hover:bg-[#008f6f] text-white font-black text-base rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-transform active:scale-95"
               >
-                <MessageSquare className="h-5 w-5" /> Open WhatsApp to View Booking
+                <MessageSquare className="h-5 w-5" /> Open WhatsApp to View Voucher
               </Button>
             </CardContent>
           </Card>
@@ -240,174 +238,141 @@ function ReentryPaymentContent() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 sm:p-6 font-sans">
-      <div className="w-full max-w-lg space-y-6">
-        {/* Header Branding */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-bold tracking-wide uppercase">
-            <ShieldCheck className="h-4 w-4 text-emerald-600" />
-            Verified Umrah Payment Portal
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            Moulavi Travels & Logistics
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500">
-            1-Year Umrah Visa Re-Entry Activation Checkout
-          </p>
-        </div>
-
-        {/* Invoice Summary Card */}
-        <Card className="border-0 shadow-xl rounded-2xl overflow-hidden bg-white">
-          <div className="bg-gradient-to-r from-emerald-600 via-teal-700 to-slate-800 text-white p-6 text-center space-y-2">
-            <p className="text-xs uppercase tracking-widest text-emerald-200 font-bold">Total Amount Payable</p>
-            <div className="text-4xl sm:text-5xl font-black tracking-tight font-mono">
-              ₹{Number(amount).toLocaleString('en-IN')}
-            </div>
-            <div className="flex items-center justify-center gap-2 text-xs text-emerald-100 font-medium pt-1">
-              <span>Ref: {orderId || refNumber}</span>
-              <span>•</span>
-              <span className="capitalize">{rawStay === 'iqama' ? '🇸🇦 Iqama Stay' : '🏨 Hotel Stay'}</span>
-            </div>
-          </div>
-
-          <CardContent className="p-6 space-y-6">
-            {/* Status verification banner if return */}
-            {verifying && (
-              <div className="p-3 bg-blue-50 text-blue-800 rounded-xl border border-blue-200 text-xs flex items-center justify-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                <span>Verifying payment status with Cashfree...</span>
+  // ==========================================
+  // VIEW 2: PAYMENT FAILED OR CANCELLED
+  // ==========================================
+  if (paymentStatus === 'FAILED') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 sm:p-6 font-sans">
+        <div className="w-full max-w-md space-y-6">
+          <Card className="border-0 shadow-xl rounded-3xl overflow-hidden bg-white text-center">
+            <div className="bg-gradient-to-r from-red-600 to-rose-700 text-white p-8 space-y-3">
+              <div className="mx-auto w-16 h-16 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center">
+                <AlertCircle className="h-10 w-10 text-white" />
               </div>
-            )}
+              <h2 className="text-2xl font-black tracking-tight">
+                Payment Incomplete
+              </h2>
+              <p className="text-xs text-red-100 font-medium">
+                The transaction was cancelled or could not be completed.
+              </p>
+            </div>
 
-            {paymentStatus === 'FAILED' && (
-              <div className="p-3 bg-red-50 text-red-800 rounded-xl border border-red-200 text-xs flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
-                <span>Payment not completed or failed. You can retry below.</span>
+            <CardContent className="p-6 space-y-5 text-left">
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-600">Payable Amount:</span>
+                  <span className="font-mono font-bold text-base text-slate-900">₹{Number(amount).toLocaleString('en-IN')}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-600">Reference:</span>
+                  <span className="font-mono font-semibold text-slate-700">{orderId || refNumber}</span>
+                </div>
               </div>
-            )}
 
-            {/* Primary Cashfree Payment Gateway Button */}
-            <div className="space-y-2">
+              {/* 1-Click Retry Cashfree Gateway Button */}
               <Button
-                onClick={handleCashfreePay}
-                disabled={cfLoading}
-                className="w-full h-14 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-700 hover:opacity-95 text-white font-black text-base rounded-2xl shadow-lg shadow-teal-700/20 flex items-center justify-center gap-3 transition-all"
+                onClick={triggerCashfreeCheckout}
+                disabled={redirecting}
+                className="w-full h-14 bg-gradient-to-r from-emerald-600 to-teal-700 hover:opacity-95 text-white font-black text-base rounded-2xl shadow-lg shadow-teal-700/20 flex items-center justify-center gap-2"
               >
-                {cfLoading ? (
+                {redirecting ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" />
                     <span>Connecting Cashfree...</span>
                   </>
                 ) : (
                   <>
-                    <CreditCard className="h-5 w-5" />
-                    <span>Pay with Cashfree Gateway</span>
-                    <ArrowRight className="h-4 w-4 ml-1" />
+                    <RefreshCw className="h-5 w-5" />
+                    <span>Retry Payment with Cashfree</span>
                   </>
                 )}
               </Button>
-              <p className="text-[11px] text-center text-slate-400 font-medium">
-                🔒 Instant Auto-Confirmation (UPI, Google Pay, PhonePe, Cards & NetBanking)
-              </p>
-            </div>
 
-            {/* Quick App Buttons */}
-            <div className="space-y-3 pt-2 border-t border-slate-100">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Or Select Direct UPI App
-              </p>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <Button 
-                  onClick={() => handlePayIntent(gpayUri, 'Google Pay')}
-                  className="h-11 font-bold bg-white text-slate-800 border-2 border-slate-200 hover:border-slate-400 hover:bg-slate-50 flex items-center justify-center gap-2 shadow-sm"
-                >
-                  <span className="text-base font-black text-blue-600">G</span>Pay
-                </Button>
-
-                <Button 
-                  onClick={() => handlePayIntent(phonepeUri, 'PhonePe')}
-                  className="h-11 font-bold bg-purple-700 hover:bg-purple-800 text-white flex items-center justify-center gap-2 shadow-sm"
-                >
-                  <span className="text-base">पे</span> PhonePe
-                </Button>
-
-                <Button 
-                  onClick={() => handlePayIntent(paytmUri, 'Paytm')}
-                  className="h-11 font-bold bg-cyan-700 hover:bg-cyan-800 text-white flex items-center justify-center gap-2 shadow-sm"
-                >
-                  <span className="text-base">Pay</span>tm
-                </Button>
-
-                <Button 
-                  onClick={() => handlePayIntent(upiUniversalUri, 'UPI App')}
-                  className="h-11 font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-sm"
-                >
-                  <Smartphone className="h-4 w-4" /> Any UPI App
-                </Button>
-              </div>
-            </div>
-
-            {/* Copy UPI ID Box */}
-            <div className="space-y-2">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Or Pay via UPI ID / VPA
-              </p>
-              <div className="flex items-center justify-between p-3 bg-slate-100 rounded-xl border border-slate-200">
-                <div className="font-mono text-sm sm:text-base font-bold text-slate-800 truncate select-all">
-                  {upiId}
+              {/* Direct Bank Transfer Option */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-2">
+                <div className="flex items-center gap-2 font-bold text-slate-800">
+                  <Building2 className="h-4 w-4 text-slate-600" />
+                  <span>Direct Bank Transfer (NEFT / IMPS):</span>
                 </div>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={handleCopyUpi}
-                  className="shrink-0 ml-2 gap-1.5 font-bold border-slate-300"
-                >
-                  {copied ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
-                  <span>{copied ? 'Copied!' : 'Copy'}</span>
-                </Button>
+                <div className="text-slate-600 space-y-1 pl-6">
+                  <p><strong>Bank:</strong> Federal Bank</p>
+                  <p><strong>Account Name:</strong> Moulavi Travels & Logistics</p>
+                  <p><strong>Account Number:</strong> 14140200001234</p>
+                  <p><strong>IFSC Code:</strong> FDRL0001414</p>
+                </div>
               </div>
-            </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
-            {/* QR Code Section */}
-            <div className="text-center p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 space-y-3">
-              <p className="text-xs font-bold text-slate-600 flex items-center justify-center gap-1.5">
-                <QrCode className="h-4 w-4 text-emerald-600" />
-                Scan QR Code with any UPI App
-              </p>
-              <div className="flex justify-center">
-                <img 
-                  src={qrCodeUrl} 
-                  alt="UPI QR Code" 
-                  className="w-40 h-40 rounded-xl border-4 border-white shadow-md bg-white p-1"
-                />
-              </div>
-              <p className="text-[11px] text-slate-400">
-                Accepts Google Pay, PhonePe, Paytm, BHIM, CRED & all Bank Apps
-              </p>
-            </div>
+  // ==========================================
+  // VIEW 3: CLEAN AUTO-REDIRECT ANIMATION TO CASHFREE
+  // ==========================================
+  return (
+    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 sm:p-6 font-sans text-white">
+      <div className="w-full max-w-md space-y-8 text-center">
+        {/* Animated Security Pulsar */}
+        <div className="relative mx-auto w-24 h-24 flex items-center justify-center">
+          <div className="absolute inset-0 rounded-full bg-emerald-500/20 animate-ping" />
+          <div className="absolute inset-2 rounded-full bg-teal-500/30 animate-pulse" />
+          <div className="relative w-16 h-16 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+            <Lock className="h-8 w-8 text-white" />
+          </div>
+        </div>
 
-            {/* Bank Transfer Details */}
-            <div className="space-y-2">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Direct Bank Transfer (NEFT / IMPS)
-              </p>
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1 text-slate-600">
-                <p><strong className="text-slate-800">Bank:</strong> Federal Bank</p>
-                <p><strong className="text-slate-800">Account Name:</strong> Moulavi Travels & Logistics</p>
-                <p><strong className="text-slate-800">Account Number:</strong> 14140200001234</p>
-                <p><strong className="text-slate-800">IFSC Code:</strong> FDRL0001414</p>
-              </div>
-            </div>
-          </CardContent>
+        {/* Status Message */}
+        <div className="space-y-3">
+          <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 font-semibold uppercase tracking-wider text-xs">
+            <ShieldCheck className="h-3.5 w-3.5 mr-1.5 inline" />
+            Cashfree 256-Bit Secure Checkout
+          </Badge>
+          
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+            Opening Cashfree Gateway...
+          </h1>
+          
+          <p className="text-xs sm:text-sm text-slate-400 max-w-xs mx-auto">
+            Please wait a moment while we load your secure payment session.
+          </p>
+        </div>
 
-          <CardFooter className="bg-slate-100 p-4 border-t border-slate-200 text-center flex flex-col gap-2">
-            <p className="text-xs font-semibold text-slate-700">
-              ✨ Payments made via Cashfree Gateway are automatically verified in real-time without needing screenshot upload!
-            </p>
-          </CardFooter>
-        </Card>
+        {/* Invoice Highlight Pill */}
+        <div className="p-4 bg-slate-800/90 backdrop-blur-md rounded-2xl border border-slate-700/60 text-xs text-slate-300 space-y-2 text-left max-w-xs mx-auto">
+          <div className="flex justify-between items-center pb-2 border-b border-slate-700">
+            <span className="text-slate-400 font-medium">Total Amount:</span>
+            <span className="font-mono font-black text-xl text-emerald-400">₹{Number(amount).toLocaleString('en-IN')}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-slate-400">Order Ref:</span>
+            <span className="font-mono font-medium text-slate-200">{orderId || refNumber}</span>
+          </div>
+        </div>
+
+        {/* Animated Progress Bar */}
+        <div className="w-48 mx-auto space-y-2">
+          <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full animate-pulse" />
+          </div>
+          <p className="text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-400" />
+            Redirecting to checkout...
+          </p>
+        </div>
+
+        {/* Fallback button if popup/redirect is blocked */}
+        <div className="pt-2">
+          <Button
+            onClick={triggerCashfreeCheckout}
+            variant="ghost"
+            className="text-xs text-slate-400 hover:text-white hover:bg-slate-800"
+          >
+            Click here if not redirected automatically <ArrowRight className="h-3 w-3 ml-1" />
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -417,8 +382,8 @@ export default function ReentryPaymentPortalPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-slate-50">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+        <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
         </div>
       }
     >
