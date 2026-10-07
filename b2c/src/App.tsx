@@ -600,7 +600,7 @@ export default function App() {
     KWD: { symbol: 'KD', rate: 0.082 }
   };
 
-  const [selectedCurrency, setSelectedCurrency] = useState('SAR');
+  const [selectedCurrency, setSelectedCurrency] = useState('INR');
 
   const formatPrice = (sarValue: number | string) => {
     const amount = Number(sarValue) || 0;
@@ -1304,8 +1304,8 @@ export default function App() {
           </div>
         </main>
       ) : activeTab === 'calculator' ? (
-        /* Dedicated Full Standalone Calculator App View */
-        <main style={{ minHeight: '85vh', padding: '1.5rem 0.5rem 3rem 0.5rem', display: 'flex', justifyContent: 'center' }}>
+        /* Dedicated Full Standalone Calculator App View with Seamless Dark Theme */
+        <main style={{ minHeight: '100vh', width: '100%', backgroundColor: '#021a12', padding: '1rem 0.5rem 3rem 0.5rem', display: 'flex', justifyContent: 'center', boxSizing: 'border-box' }}>
           <FamilyUmrahCalculator 
             onProceedToBooking={handleCalculatorBooking} 
             onBackToPortal={() => {

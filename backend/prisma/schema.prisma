@@ -1366,3 +1366,41 @@ model ReentryPricingMaster {
 
   @@map("reentry_pricing_masters")
 }
+
+model UmrahCalculatorMaster {
+  id                      String   @id @default(uuid())
+  defaultPersons          Int      @default(1) @map("default_persons")
+  minPersons              Int      @default(1) @map("min_persons")
+  maxPersons              Int      @default(50) @map("max_persons")
+  defaultDays             Int      @default(1) @map("default_days")
+  minDays                 Int      @default(1) @map("min_days")
+  maxDays                 Int      @default(30) @map("max_days")
+  defaultRooms            Int      @default(1) @map("default_rooms")
+  minRooms                Int      @default(1) @map("min_rooms")
+  maxRooms                Int      @default(20) @map("max_rooms")
+  defaultCurrency         String   @default("INR") @map("default_currency")
+  defaultTier             String   @default("comfort") @map("default_tier")
+  visaFeeSAR              Decimal  @default(450) @map("visa_fee_sar")
+  economyMakkahRateSAR    Decimal  @default(220) @map("economy_makkah_rate_sar")
+  comfortMakkahRateSAR    Decimal  @default(360) @map("comfort_makkah_rate_sar")
+  luxuryMakkahRateSAR     Decimal  @default(550) @map("luxury_makkah_rate_sar")
+  economyMadinahRateSAR   Decimal  @default(200) @map("economy_madinah_rate_sar")
+  comfortMadinahRateSAR   Decimal  @default(330) @map("comfort_madinah_rate_sar")
+  luxuryMadinahRateSAR    Decimal  @default(520) @map("luxury_madinah_rate_sar")
+  transportBaseSAR        Decimal  @default(450) @map("transport_base_sar")
+  transportGroupSAR       Decimal  @default(650) @map("transport_group_sar")
+  madinahTransferSAR      Decimal  @default(250) @map("madinah_transfer_sar")
+  madinahTransferGroupSAR Decimal  @default(400) @map("madinah_transfer_group_sar")
+  discountPercentage      Decimal  @default(9)   @map("discount_percentage")
+  sarToInrRate            Decimal  @default(22.8) @map("sar_to_inr_rate")
+  sarToUsdRate            Decimal  @default(0.266) @map("sar_to_usd_rate")
+  sarToAedRate            Decimal  @default(0.98)  @map("sar_to_aed_rate")
+  sarToEurRate            Decimal  @default(0.245) @map("sar_to_eur_rate")
+  sarToGbpRate            Decimal  @default(0.21)  @map("sar_to_gbp_rate")
+  isActive                Boolean  @default(true) @map("is_active")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("umrah_calculator_masters")
+}
+

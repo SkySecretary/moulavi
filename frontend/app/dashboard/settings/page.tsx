@@ -24,7 +24,8 @@ import {
   LifeBuoy,
   Activity,
   ShieldCheck,
-  Code
+  Code,
+  Calculator
 } from 'lucide-react';
 
 const masterItems = [
@@ -51,6 +52,7 @@ const masterItems = [
   { name: 'B2C Tour Packages', icon: Compass, path: '/dashboard/masters/b2c-packages', category: 'Services', description: 'Manage tour packages and itineraries available for B2C consumer bookings' },
   { name: 'B2C Markup Rules', icon: TrendingUp, path: '/dashboard/masters/b2c-pricing', category: 'Services', description: 'Manage public markup, margins, seasonal and service-specific rates' },
   { name: 'Re-Entry Pricing Master', icon: DollarSign, path: '/dashboard/masters/reentry-pricing', category: 'Services', description: 'Configure re-entry visa fixed fees, per-day rates (Hotel & Iqama), and UPI payment settings' },
+  { name: 'Umrah Calculator Master', icon: Calculator, path: '/dashboard/masters/calculator-master', category: 'Services', description: 'Configure interactive Umrah calculator slider defaults, limits, hotel tier rates, and live exchange factors' },
 ];
 
 const categories = ['General', 'Region', 'Financial', 'Transport', 'External', 'Services'];

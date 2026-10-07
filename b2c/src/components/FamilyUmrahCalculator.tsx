@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Users,
   Calendar,
@@ -12,21 +12,14 @@ import {
   Volume2,
   VolumeX,
   ArrowLeft,
-  Coins
+  Coins,
+  BedDouble
 } from 'lucide-react';
-
-const CURRENCY_RATES: Record<string, { symbol: string; rate: number; label: string; flag: string }> = {
-  SAR: { symbol: 'SAR', rate: 1, label: '🇸🇦 SAR (Saudi Riyal)', flag: '🇸🇦' },
-  INR: { symbol: '₹', rate: 22.8, label: '🇮🇳 INR (Indian Rupee)', flag: '🇮🇳' },
-  USD: { symbol: '$', rate: 0.266, label: '🇺🇸 USD (US Dollar)', flag: '🇺🇸' },
-  AED: { symbol: 'AED', rate: 0.98, label: '🇦🇪 AED (UAE Dirham)', flag: '🇦🇪' },
-  EUR: { symbol: '€', rate: 0.245, label: '🇪🇺 EUR (Euro)', flag: '🇪🇺' },
-  GBP: { symbol: '£', rate: 0.21, label: '🇬🇧 GBP (British Pound)', flag: '🇬🇧' },
-};
 
 export interface CalculatorPackageParams {
   persons: number;
   days: number;
+  rooms: number;
   makkahNights: number;
   madinahNights: number;
   includeMadinah: boolean;
@@ -40,17 +33,148 @@ interface FamilyUmrahCalculatorProps {
   onBackToPortal?: () => void;
 }
 
+interface MasterConfig {
+  defaultPersons: number;
+  minPersons: number;
+  maxPersons: number;
+  defaultDays: number;
+  minDays: number;
+  maxDays: number;
+  defaultRooms: number;
+  minRooms: number;
+  maxRooms: number;
+  defaultCurrency: string;
+  defaultTier: string;
+  visaFeeSAR: number;
+  economyMakkahRateSAR: number;
+  comfortMakkahRateSAR: number;
+  luxuryMakkahRateSAR: number;
+  economyMadinahRateSAR: number;
+  comfortMadinahRateSAR: number;
+  luxuryMadinahRateSAR: number;
+  transportBaseSAR: number;
+  transportGroupSAR: number;
+  madinahTransferSAR: number;
+  madinahTransferGroupSAR: number;
+  discountPercentage: number;
+  sarToInrRate: number;
+  sarToUsdRate: number;
+  sarToAedRate: number;
+  sarToEurRate: number;
+  sarToGbpRate: number;
+}
+
+const DEFAULT_MASTER: MasterConfig = {
+  defaultPersons: 1,
+  minPersons: 1,
+  maxPersons: 50,
+  defaultDays: 1,
+  minDays: 1,
+  maxDays: 30,
+  defaultRooms: 1,
+  minRooms: 1,
+  maxRooms: 20,
+  defaultCurrency: 'INR',
+  defaultTier: 'comfort',
+  visaFeeSAR: 450,
+  economyMakkahRateSAR: 220,
+  comfortMakkahRateSAR: 360,
+  luxuryMakkahRateSAR: 550,
+  economyMadinahRateSAR: 200,
+  comfortMadinahRateSAR: 330,
+  luxuryMadinahRateSAR: 520,
+  transportBaseSAR: 450,
+  transportGroupSAR: 650,
+  madinahTransferSAR: 250,
+  madinahTransferGroupSAR: 400,
+  discountPercentage: 9,
+  sarToInrRate: 22.8,
+  sarToUsdRate: 0.266,
+  sarToAedRate: 0.98,
+  sarToEurRate: 0.245,
+  sarToGbpRate: 0.21,
+};
+
 export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: FamilyUmrahCalculatorProps) {
-  // Primary Sliders
-  const [persons, setPersons] = useState<number>(3); // Default 3
-  const [days, setDays] = useState<number>(5); // Default 5
-  const [includeMadinah, setIncludeMadinah] = useState<boolean>(false); // Default false
+  // Master Config from API
+  const [masterConfig, setMasterConfig] = useState<MasterConfig>(DEFAULT_MASTER);
+
+  // Primary Sliders - 1 Person, 1 Day, 1 Room as default
+  const [persons, setPersons] = useState<number>(1);
+  const [days, setDays] = useState<number>(1);
+  const [rooms, setRooms] = useState<number>(1);
+  const [includeMadinah, setIncludeMadinah] = useState<boolean>(false);
   const [madinahSparkleTrigger, setMadinahSparkleTrigger] = useState<boolean>(false);
 
-  // Accommodation Tier & Currency
+  // Accommodation Tier & Currency - Default INR
   const [tier, setTier] = useState<'economy' | 'comfort' | 'luxury'>('comfort');
-  const [currency, setCurrency] = useState<string>('SAR');
+  const [currency, setCurrency] = useState<string>('INR');
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+
+  // Guarantee seamless dark emerald background on full page
+  useEffect(() => {
+    const prevBg = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = '#021a12';
+    return () => {
+      document.body.style.backgroundColor = prevBg;
+    };
+  }, []);
+
+  // Fetch Master Settings from backend
+  useEffect(() => {
+    const fetchMaster = async () => {
+      try {
+        const res = await fetch('/api/calculator-master');
+        const json = await res.json();
+        if (json.success && json.data) {
+          const d = json.data;
+          setMasterConfig({
+            defaultPersons: Number(d.defaultPersons ?? 1),
+            minPersons: Number(d.minPersons ?? 1),
+            maxPersons: Number(d.maxPersons ?? 50),
+            defaultDays: Number(d.defaultDays ?? 1),
+            minDays: Number(d.minDays ?? 1),
+            maxDays: Number(d.maxDays ?? 30),
+            defaultRooms: Number(d.defaultRooms ?? 1),
+            minRooms: Number(d.minRooms ?? 1),
+            maxRooms: Number(d.maxRooms ?? 20),
+            defaultCurrency: d.defaultCurrency || 'INR',
+            defaultTier: d.defaultTier || 'comfort',
+            visaFeeSAR: Number(d.visaFeeSAR ?? 450),
+            economyMakkahRateSAR: Number(d.economyMakkahRateSAR ?? 220),
+            comfortMakkahRateSAR: Number(d.comfortMakkahRateSAR ?? 360),
+            luxuryMakkahRateSAR: Number(d.luxuryMakkahRateSAR ?? 550),
+            economyMadinahRateSAR: Number(d.economyMadinahRateSAR ?? 200),
+            comfortMadinahRateSAR: Number(d.comfortMadinahRateSAR ?? 330),
+            luxuryMadinahRateSAR: Number(d.luxuryMadinahRateSAR ?? 520),
+            transportBaseSAR: Number(d.transportBaseSAR ?? 450),
+            transportGroupSAR: Number(d.transportGroupSAR ?? 650),
+            madinahTransferSAR: Number(d.madinahTransferSAR ?? 250),
+            madinahTransferGroupSAR: Number(d.madinahTransferGroupSAR ?? 400),
+            discountPercentage: Number(d.discountPercentage ?? 9),
+            sarToInrRate: Number(d.sarToInrRate ?? 22.8),
+            sarToUsdRate: Number(d.sarToUsdRate ?? 0.266),
+            sarToAedRate: Number(d.sarToAedRate ?? 0.98),
+            sarToEurRate: Number(d.sarToEurRate ?? 0.245),
+            sarToGbpRate: Number(d.sarToGbpRate ?? 0.21),
+          });
+        }
+      } catch (e) {
+        // Fallback to default
+      }
+    };
+    fetchMaster();
+  }, []);
+
+  // Dynamic currency rates dictionary with master exchange factors
+  const currencyRates: Record<string, { symbol: string; rate: number; label: string }> = useMemo(() => ({
+    INR: { symbol: '₹', rate: masterConfig.sarToInrRate, label: '🇮🇳 INR (Indian Rupee)' },
+    SAR: { symbol: 'SAR', rate: 1, label: '🇸🇦 SAR (Saudi Riyal)' },
+    USD: { symbol: '$', rate: masterConfig.sarToUsdRate, label: '🇺🇸 USD (US Dollar)' },
+    AED: { symbol: 'AED', rate: masterConfig.sarToAedRate, label: '🇦🇪 AED (UAE Dirham)' },
+    EUR: { symbol: '€', rate: masterConfig.sarToEurRate, label: '🇪🇺 EUR (Euro)' },
+    GBP: { symbol: '£', rate: masterConfig.sarToGbpRate, label: '🇬🇧 GBP (British Pound)' },
+  }), [masterConfig]);
 
   // Audio synthesizer using Web Audio API
   const playChime = (freq: number = 540, type: OscillatorType = 'sine', duration: number = 0.2) => {
@@ -78,6 +202,9 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
   const { makkahNights, madinahNights } = useMemo(() => {
     if (!includeMadinah) {
       return { makkahNights: days, madinahNights: 0 };
+    }
+    if (days <= 2) {
+      return { makkahNights: 1, madinahNights: 1 };
     }
     if (days <= 4) {
       return { makkahNights: days - 1, madinahNights: 1 };
@@ -112,27 +239,38 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
 
   // Pricing Engine Calculation
   const { totalSAR, perPersonSAR, familySavingsSAR } = useMemo(() => {
-    const tierRatePerNight = tier === 'luxury' ? 550 : tier === 'comfort' ? 360 : 220;
-    const madinahTierRatePerNight = tier === 'luxury' ? 520 : tier === 'comfort' ? 330 : 200;
+    const tierRatePerNight =
+      tier === 'luxury'
+        ? masterConfig.luxuryMakkahRateSAR
+        : tier === 'comfort'
+        ? masterConfig.comfortMakkahRateSAR
+        : masterConfig.economyMakkahRateSAR;
 
-    const roomCount = Math.max(1, Math.ceil(persons / 4));
+    const madinahTierRatePerNight =
+      tier === 'luxury'
+        ? masterConfig.luxuryMadinahRateSAR
+        : tier === 'comfort'
+        ? masterConfig.comfortMadinahRateSAR
+        : masterConfig.economyMadinahRateSAR;
+
+    const roomCount = Math.max(1, rooms);
     const makkahStay = makkahNights * tierRatePerNight * roomCount;
     const madinahStay = includeMadinah ? madinahNights * madinahTierRatePerNight * roomCount : 0;
 
-    const visaCost = 450 * persons;
-    const transportBase = persons >= 4 ? 650 : 450;
-    const madinahTransfer = includeMadinah ? (persons >= 4 ? 400 : 250) : 0;
+    const visaCost = masterConfig.visaFeeSAR * persons;
+    const transportBase = persons >= 4 ? masterConfig.transportGroupSAR : masterConfig.transportBaseSAR;
+    const madinahTransfer = includeMadinah ? (persons >= 4 ? masterConfig.madinahTransferGroupSAR : masterConfig.madinahTransferSAR) : 0;
     const transportTotal = transportBase + madinahTransfer;
 
     let discount = 0;
     if (persons >= 3 && days >= 5) {
-      discount = Math.round((makkahStay + madinahStay) * 0.09 + persons * 60);
+      discount = Math.round((makkahStay + madinahStay) * (masterConfig.discountPercentage / 100) + persons * 60);
     } else {
       discount = Math.round(persons * 40);
     }
 
     const subtotal = makkahStay + madinahStay + visaCost + transportTotal - discount;
-    const total = Math.max(1000, subtotal);
+    const total = Math.max(250, subtotal);
     const perPerson = Math.round(total / persons);
 
     return {
@@ -140,16 +278,16 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
       perPersonSAR: perPerson,
       familySavingsSAR: discount > 0 ? discount : 250,
     };
-  }, [persons, days, includeMadinah, makkahNights, madinahNights, tier]);
+  }, [persons, days, rooms, includeMadinah, makkahNights, madinahNights, tier, masterConfig]);
 
   // Format currency
-  const curr = CURRENCY_RATES[currency] || CURRENCY_RATES['SAR'];
+  const curr = currencyRates[currency] || currencyRates['INR'];
   const formattedTotal = Math.round(totalSAR * curr.rate).toLocaleString();
   const formattedPerPerson = Math.round(perPersonSAR * curr.rate).toLocaleString();
   const formattedSavings = Math.round(familySavingsSAR * curr.rate).toLocaleString();
 
   // Dynamic Tawaf speed based on days
-  const tawafDuration = days <= 5 ? '8s' : days <= 10 ? '13s' : '18s';
+  const tawafDuration = days <= 3 ? '6s' : days <= 7 ? '10s' : days <= 14 ? '14s' : '18s';
   const pilgrimOrbitCount = Math.min(persons, 10);
 
   const handleBookNow = () => {
@@ -157,6 +295,7 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
       onProceedToBooking({
         persons,
         days,
+        rooms,
         makkahNights,
         madinahNights,
         includeMadinah,
@@ -173,9 +312,11 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
         width: '100%', 
         maxWidth: '760px', 
         margin: '0 auto', 
-        padding: '0.75rem 0.5rem 2rem 0.5rem', 
+        padding: '0.75rem 0.5rem 2.5rem 0.5rem', 
         boxSizing: 'border-box',
-        overflowX: 'hidden'
+        overflowX: 'hidden',
+        color: '#ffffff',
+        fontFamily: "'Plus Jakarta Sans', sans-serif"
       }}
     >
       {/* Sleek Minimalist Top Navigation */}
@@ -250,318 +391,287 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
         </button>
       </div>
 
-      {/* Main Glass Game Arena with Rich Islamic Watermark Pattern */}
+      {/* Main Interactive Arena Card */}
       <div 
         style={{
           position: 'relative',
-          borderRadius: '26px',
-          overflow: 'hidden',
-          boxShadow: '0 30px 80px -15px rgba(0, 0, 0, 0.7), 0 0 50px rgba(19, 92, 70, 0.35)',
-          border: '1px solid rgba(16, 185, 129, 0.4)',
-          backgroundColor: '#02160e',
-          backgroundImage: `
-            radial-gradient(circle at 50% 20%, rgba(16, 185, 129, 0.22) 0%, transparent 60%),
-            radial-gradient(circle at 10% 80%, rgba(245, 158, 11, 0.12) 0%, transparent 50%),
-            url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cg fill='none' stroke='%23065f46' stroke-width='0.4' opacity='0.25'%3E%3Crect x='8' y='8' width='44' height='44' transform='rotate(45 30 30)'/%3E%3Ccircle cx='30' cy='30' r='14'/%3E%3Cline x1='30' y1='0' x2='30' y2='60'/%3E%3Cline x1='0' y1='30' x2='60' y2='30'/%3E%3C/g%3E%3C/svg%3E")
-          `,
-          color: '#ffffff',
+          borderRadius: '24px',
+          border: '1.5px solid rgba(16, 185, 129, 0.35)',
+          background: 'linear-gradient(180deg, #032b1d 0%, #01170f 60%, #01120c 100%)',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7), inset 0 0 80px rgba(16, 185, 129, 0.08)',
           padding: '1.25rem 1rem',
           boxSizing: 'border-box'
         }}
       >
+        {/* Spiritual Islamic Star Watermark Geometry */}
+        <div 
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: `radial-gradient(rgba(16, 185, 129, 0.12) 1px, transparent 1px), radial-gradient(rgba(245, 158, 11, 0.08) 1px, transparent 1px)`,
+            backgroundSize: '24px 24px, 48px 48px',
+            backgroundPosition: '0 0, 12px 12px',
+            opacity: 0.85,
+            pointerEvents: 'none',
+            borderRadius: '24px'
+          }} 
+        />
+
         {/* ========================================================
-            SECTION 1: BIG CENTRAL KAABA & TAWAF ORBIT VISUALIZER
+            SECTION 1: THE INTERACTIVE KAABA TAWAF SANCTUARY
             ======================================================== */}
         <div 
           style={{
+            position: 'relative',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '0.25rem 0 1rem 0',
-            position: 'relative'
+            padding: '1.25rem 0.5rem 1.5rem 0.5rem',
+            marginBottom: '1rem',
+            background: 'radial-gradient(circle at center, rgba(6, 78, 59, 0.45) 0%, rgba(2, 20, 14, 0.95) 75%)',
+            borderRadius: '20px',
+            border: '1px solid rgba(250, 204, 21, 0.25)',
+            boxSizing: 'border-box'
           }}
         >
-          {/* Sparkle celebration on Madinah toggle */}
-          {madinahSparkleTrigger && (
-            <div 
-              style={{
-                position: 'absolute',
-                inset: 0,
-                pointerEvents: 'none',
-                zIndex: 40,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                animation: 'sparkleBurst 2.2s ease-out forwards'
-              }}
-            >
-              <div 
-                style={{
-                  backgroundColor: 'rgba(3, 18, 12, 0.95)',
-                  color: '#fef08a',
-                  fontWeight: 900,
-                  fontSize: '0.85rem',
-                  padding: '0.6rem 1.25rem',
-                  borderRadius: '50px',
-                  border: '2px solid #facc15',
-                  boxShadow: '0 0 30px rgba(250, 204, 21, 0.6)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  textAlign: 'center'
-                }}
-              >
-                <Sparkles className="h-4 w-4 text-amber-300 animate-spin" />
-                🕌 Madinah Added! (+{madinahNights} Nights) ✨
-              </div>
+          {/* Header Title */}
+          <div style={{ textAlign: 'center', marginBottom: '0.75rem', position: 'relative', zIndex: 10 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.35)', color: '#fef08a', padding: '0.2rem 0.65rem', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              <Sparkles className="h-3 w-3 text-amber-400" />
+              <span>Interactive Customizer</span>
             </div>
-          )}
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#ffffff', margin: '0.3rem 0 0 0', textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}>
+              Configure Pilgrims, Duration &amp; Rooms
+            </h2>
+          </div>
 
-          {/* Central Big Orbital Tawaf Arena */}
+          {/* Tawaf Arena Container */}
           <div 
             style={{
               position: 'relative',
-              width: 'min(265px, 74vw)',
-              height: 'min(265px, 74vw)',
+              width: 'min(270px, 76vw)',
+              height: 'min(270px, 76vw)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              userSelect: 'none',
-              margin: '0.25rem auto'
+              justifyContent: 'center'
             }}
           >
-            {/* Outer Celestial Orbit Ring */}
+            {/* Ambient Sanctuary Glow */}
             <div 
               style={{
                 position: 'absolute',
-                inset: 0,
+                width: '100%',
+                height: '100%',
                 borderRadius: '50%',
-                border: '1px dashed rgba(52, 211, 153, 0.4)',
-                boxShadow: 'inset 0 0 15px rgba(16, 185, 129, 0.1)'
-              }} 
-            />
-            
-            {/* Middle Orbit Ring */}
-            <div 
-              style={{
-                position: 'absolute',
-                width: '76%',
-                height: '76%',
-                borderRadius: '50%',
-                border: '2px solid rgba(16, 185, 129, 0.35)'
-              }} 
-            />
-            
-            {/* Inner Ring */}
-            <div 
-              style={{
-                position: 'absolute',
-                width: '54%',
-                height: '54%',
-                borderRadius: '50%',
-                border: '1px solid rgba(245, 158, 11, 0.4)',
-                backgroundColor: 'rgba(6, 78, 59, 0.2)'
-              }} 
+                background: includeMadinah
+                  ? 'radial-gradient(circle, rgba(16, 185, 129, 0.3) 0%, rgba(245, 158, 11, 0.2) 50%, transparent 70%)'
+                  : 'radial-gradient(circle, rgba(16, 185, 129, 0.22) 0%, transparent 65%)',
+                filter: 'blur(10px)',
+                transition: 'all 0.5s ease'
+              }}
             />
 
-            {/* BIG SACRED KAABA IN CENTER */}
+            {/* Concentric Mataf Circles */}
+            <div 
+              style={{
+                position: 'absolute',
+                width: '92%',
+                height: '92%',
+                borderRadius: '50%',
+                border: '1.5px dashed rgba(250, 204, 21, 0.35)',
+                animation: `spinCounterClockwise ${tawafDuration} linear infinite`
+              }}
+            />
+            <div 
+              style={{
+                position: 'absolute',
+                width: '74%',
+                height: '74%',
+                borderRadius: '50%',
+                border: '1px solid rgba(16, 185, 129, 0.4)',
+                animation: `spinCounterClockwise ${tawafDuration} linear infinite reverse`
+              }}
+            />
+
+            {/* Central Holy Kaaba Object */}
             <div 
               style={{
                 position: 'relative',
-                zIndex: 10,
-                width: 'min(90px, 25vw)',
-                height: 'min(90px, 25vw)',
-                background: 'linear-gradient(135deg, #09090b 0%, #1c1917 50%, #000000 100%)',
-                borderRadius: '18px',
-                border: '2.5px solid rgba(251, 191, 36, 0.95)',
-                boxShadow: '0 0 30px rgba(251, 191, 36, 0.45), 0 10px 25px rgba(0,0,0,0.85)',
+                zIndex: 20,
+                width: '68px',
+                height: '74px',
+                backgroundColor: '#0a0a0a',
+                borderRadius: '10px',
+                border: '2px solid #d4af37',
+                boxShadow: '0 8px 30px rgba(0, 0, 0, 0.9), 0 0 25px rgba(212, 175, 55, 0.45)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                textAlign: 'center',
-                animation: 'pulseGlow 3.5s ease-in-out infinite'
+                transform: 'rotate(0deg)',
+                transition: 'transform 0.3s ease'
               }}
             >
-              {/* Gold Kiswah Band */}
+              {/* Gold Kiswah Belt */}
               <div 
                 style={{
-                  width: '100%',
-                  height: '10px',
-                  background: 'linear-gradient(90deg, #fcd34d 0%, #fef08a 50%, #f59e0b 100%)',
                   position: 'absolute',
-                  top: '10px',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.6)'
-                }} 
+                  top: '12px',
+                  left: 0,
+                  right: 0,
+                  height: '8px',
+                  background: 'linear-gradient(90deg, #b45309 0%, #facc15 50%, #b45309 100%)',
+                  boxShadow: '0 0 6px rgba(250, 204, 21, 0.8)'
+                }}
               />
-              <span style={{ fontSize: '1.85rem', marginTop: '0.65rem' }}>🕋</span>
-              <span style={{ fontSize: '0.55rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', color: '#fcd34d', marginTop: '0.1rem' }}>
-                Holy Kaaba
+              <span style={{ fontSize: '0.52rem', fontWeight: 900, color: '#facc15', letterSpacing: '0.8px', marginTop: '16px', fontFamily: 'monospace' }}>
+                KAABA
+              </span>
+              <span style={{ fontSize: '0.48rem', color: '#6ee7b7', fontWeight: 700 }}>
+                MAKKAH
               </span>
             </div>
 
-            {/* Orbiting Pilgrims Container (Counter-Clockwise Tawaf) */}
-            <div 
-              style={{
-                position: 'absolute',
-                inset: 0,
-                animation: `tawafCounterClockwise ${tawafDuration} linear infinite`
-              }}
-            >
-              {Array.from({ length: pilgrimOrbitCount }).map((_, i) => {
-                const angle = (i * 360) / pilgrimOrbitCount;
-                return (
+            {/* Dynamic Orbiting Pilgrims */}
+            {Array.from({ length: pilgrimOrbitCount }).map((_, i) => {
+              const angle = (i / pilgrimOrbitCount) * 360;
+              const radius = 102;
+              return (
+                <div
+                  key={i}
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    width: '24px',
+                    height: '24px',
+                    marginLeft: '-12px',
+                    marginTop: '-12px',
+                    transform: `rotate(${angle}deg) translate(${radius}px) rotate(-${angle}deg)`,
+                    animation: `tawafOrbit ${tawafDuration} linear infinite`,
+                    transformOrigin: '0 0',
+                    zIndex: 25
+                  }}
+                >
                   <div
-                    key={i}
                     style={{
-                      position: 'absolute',
-                      width: '100%',
-                      height: '100%',
+                      width: '22px',
+                      height: '22px',
+                      borderRadius: '50%',
+                      backgroundColor: '#ffffff',
+                      border: '2px solid #10b981',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.5), 0 0 10px rgba(16, 185, 129, 0.7)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      transform: `rotate(${angle}deg)`
+                      fontSize: '11px',
+                      color: '#02120b',
+                      fontWeight: 900
                     }}
+                    title={`Pilgrim #${i + 1}`}
                   >
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '-12px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        animation: `counterRotate ${tawafDuration} linear infinite`
-                      }}
-                      title={`Pilgrim #${i + 1}`}
-                    >
-                      <div 
-                        style={{
-                          width: '24px',
-                          height: '24px',
-                          borderRadius: '50%',
-                          background: 'linear-gradient(135deg, #fef08a 0%, #f59e0b 100%)',
-                          color: '#02120b',
-                          fontWeight: 800,
-                          fontSize: '0.65rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          boxShadow: '0 3px 10px rgba(0,0,0,0.5)',
-                          border: '1.5px solid rgba(52, 211, 153, 0.9)'
-                        }}
-                      >
-                        👤
-                      </div>
-                    </div>
+                    👤
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
 
-            {/* Madinah Green Dome Badge (When toggled) */}
+            {/* Madinah Roza Mubarak Sparkle Orb (When Enabled) */}
             {includeMadinah && (
               <div 
                 style={{
                   position: 'absolute',
-                  bottom: '-6px',
-                  right: '-6px',
-                  zIndex: 20,
-                  background: 'linear-gradient(135deg, #065f46 0%, #115e59 100%)',
-                  color: '#e6fffa',
-                  padding: '0.35rem 0.75rem',
-                  borderRadius: '14px',
-                  border: '1.5px solid rgba(52, 211, 153, 0.7)',
-                  boxShadow: '0 4px 15px rgba(0,0,0,0.4)',
+                  top: '6px',
+                  right: '6px',
+                  zIndex: 30,
+                  background: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: '20px',
+                  border: '1.5px solid #facc15',
+                  boxShadow: '0 0 20px rgba(250, 204, 21, 0.6)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.35rem',
-                  animation: 'float 3s ease-in-out infinite'
+                  gap: '0.3rem',
+                  animation: madinahSparkleTrigger ? 'pulseHighlight 0.6s ease 3' : 'bounceSoft 3s ease-in-out infinite'
                 }}
               >
-                <span style={{ fontSize: '1.1rem' }}>🕌</span>
-                <div>
-                  <strong style={{ display: 'block', fontSize: '0.68rem', fontWeight: 800, color: '#fef08a', lineHeight: 1.1 }}>
-                    Madinah Added!
-                  </strong>
-                  <span style={{ fontSize: '0.62rem', color: '#a7f3d0' }}>{madinahNights} Blessed Nights</span>
-                </div>
+                <span style={{ fontSize: '0.9rem' }}>🕌</span>
+                <span style={{ fontSize: '0.62rem', fontWeight: 900, color: '#fef08a' }}>
+                  +{madinahNights}N Madinah
+                </span>
               </div>
             )}
           </div>
 
-          {/* Dynamic Live Floating Rate Pill */}
-          <div 
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              gap: '0.6rem', 
+          {/* Real-time Interactive Floating Live Rate Pill */}
+          <div
+            style={{
               marginTop: '0.85rem',
-              backgroundColor: 'rgba(2, 24, 16, 0.85)',
-              padding: '0.45rem 1rem',
+              background: 'linear-gradient(135deg, rgba(6, 78, 59, 0.9) 0%, rgba(2, 44, 34, 0.95) 100%)',
+              border: '1.5px solid #facc15',
+              padding: '0.35rem 0.95rem',
               borderRadius: '20px',
-              border: '1px solid rgba(245, 158, 11, 0.4)',
-              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.3)',
-              flexWrap: 'wrap'
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.5), 0 0 15px rgba(250, 204, 21, 0.25)',
+              zIndex: 30
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-              <span style={{ fontSize: '0.78rem', color: '#a7f3d0' }}>Live Rate:</span>
-              <strong style={{ fontSize: '0.95rem', color: '#fef08a', fontWeight: 900 }}>
-                {formattedTotal} {curr.symbol}
-              </strong>
-            </div>
-            <span style={{ color: 'rgba(52, 211, 153, 0.4)' }}>&bull;</span>
-            <span style={{ fontSize: '0.72rem', color: '#6ee7b7' }}>
-              {makkahNights}N Makkah {includeMadinah ? `+ ${madinahNights}N Madinah` : ''} ({persons} Pax)
+            <Sparkles className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
+            <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#ffffff' }}>
+              Live Rate: <span style={{ color: '#fef08a', fontWeight: 900, fontSize: '0.88rem' }}>{formattedTotal} {curr.symbol}</span>
+            </span>
+            <span style={{ fontSize: '0.68rem', color: '#a7f3d0', fontWeight: 700 }}>
+              ({persons} Pax • {days}D • {rooms} {rooms > 1 ? 'Rooms' : 'Room'})
             </span>
           </div>
+
         </div>
 
         {/* ========================================================
-            SECTION 2: BOTTOM SLIDERS & CONTROLS
+            SECTION 2: SLIDERS (PILGRIMS, DURATION & ROOMS)
             ======================================================== */}
         <div 
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+          style={{ 
+            display: 'grid', 
+            gridTemplateColumns: '1fr', 
             gap: '0.75rem',
             marginBottom: '0.85rem'
           }}
         >
-          {/* Slider 1: Pilgrims */}
+          {/* SLIDER 1: NUMBER OF PILGRIMS */}
           <div 
             style={{
-              padding: '0.9rem',
+              padding: '0.85rem',
               backgroundColor: 'rgba(2, 20, 14, 0.85)',
               borderRadius: '16px',
               border: '1px solid rgba(16, 185, 129, 0.3)',
               display: 'flex',
               flexDirection: 'column',
-              gap: '0.45rem'
+              gap: '0.5rem',
+              boxSizing: 'border-box'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                <div style={{ padding: '0.35rem', backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', borderRadius: '8px' }}>
-                  <Users className="h-4 w-4" />
+                <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', padding: '0.35rem', borderRadius: '8px', display: 'flex' }}>
+                  <Users className="h-4 w-4 text-emerald-400" />
                 </div>
                 <div>
                   <label style={{ fontSize: '0.82rem', fontWeight: 800, color: '#ffffff', display: 'block' }}>
                     Number of Pilgrims
                   </label>
                   <span style={{ fontSize: '0.68rem', color: 'rgba(167, 243, 208, 0.8)' }}>
-                    {persons === 1 ? 'Solo' : persons === 2 ? 'Couple' : `Family of ${persons}`}
+                    {persons === 1 ? 'Solo Pilgrim' : persons === 2 ? 'Couple' : persons <= 4 ? 'Family Group' : 'Large Group'}
                   </span>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', backgroundColor: 'rgba(245, 158, 11, 0.2)', padding: '0.2rem 0.6rem', borderRadius: '10px', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
-                <span style={{ fontSize: '1.15rem', fontWeight: 900, fontFamily: 'monospace', color: '#fde047' }}>{persons}</span>
-                <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#fef08a', textTransform: 'uppercase' }}>Pax</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', backgroundColor: 'rgba(16, 185, 129, 0.2)', padding: '0.2rem 0.6rem', borderRadius: '10px', border: '1px solid rgba(16, 185, 129, 0.4)' }}>
+                <span style={{ fontSize: '1.15rem', fontWeight: 900, fontFamily: 'monospace', color: '#6ee7b7' }}>{persons}</span>
+                <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#a7f3d0', textTransform: 'uppercase' }}>Pax</span>
               </div>
             </div>
 
@@ -569,47 +679,49 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
             <div>
               <input
                 type="range"
-                min="1"
-                max="15"
+                min={masterConfig.minPersons}
+                max={Math.min(20, masterConfig.maxPersons)}
                 step="1"
                 value={persons}
                 onChange={(e) => {
-                  setPersons(parseInt(e.target.value, 10));
-                  playChime(440 + parseInt(e.target.value, 10) * 18, 'sine', 0.1);
+                  const val = parseInt(e.target.value, 10);
+                  setPersons(val);
+                  playChime(320 + val * 25, 'sine', 0.1);
                 }}
                 style={{
                   width: '100%',
                   height: '8px',
                   borderRadius: '10px',
-                  accentColor: '#f59e0b',
+                  accentColor: '#10b981',
                   cursor: 'pointer'
                 }}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: 'rgba(110, 231, 183, 0.7)', fontFamily: 'monospace', marginTop: '0.15rem' }}>
-                <span>1</span>
-                <span>3 (Default)</span>
-                <span>6 Family</span>
-                <span>10+ Group</span>
-                <span>15</span>
+                <span>1 Solo</span>
+                <span>2 Couple</span>
+                <span>3 Family</span>
+                <span>5</span>
+                <span>10 Group</span>
+                <span>20</span>
               </div>
             </div>
 
             {/* Presets */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', paddingTop: '0.1rem' }}>
               {[
-                { label: 'Solo (1)', val: 1 },
-                { label: 'Couple (2)', val: 2 },
-                { label: 'Family (3)', val: 3 },
-                { label: 'Family (4)', val: 4 },
-                { label: 'Large (6)', val: 6 },
-                { label: 'Group (10)', val: 10 },
+                { label: '1 Solo (Default)', val: 1 },
+                { label: '2 Couple', val: 2 },
+                { label: '3 Family', val: 3 },
+                { label: '4 Family', val: 4 },
+                { label: '5 Group', val: 5 },
+                { label: '8 Group', val: 8 },
               ].map((chip) => (
                 <button
                   key={chip.val}
                   type="button"
                   onClick={() => {
                     setPersons(chip.val);
-                    playChime(500, 'sine', 0.12);
+                    playChime(440, 'sine', 0.12);
                   }}
                   style={{
                     padding: '0.2rem 0.5rem',
@@ -618,7 +730,7 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
                     fontWeight: 700,
                     cursor: 'pointer',
                     border: 'none',
-                    backgroundColor: persons === chip.val ? '#f59e0b' : 'rgba(6, 78, 59, 0.5)',
+                    backgroundColor: persons === chip.val ? '#10b981' : 'rgba(6, 78, 59, 0.5)',
                     color: persons === chip.val ? '#02120b' : '#a7f3d0'
                   }}
                 >
@@ -628,29 +740,30 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
             </div>
           </div>
 
-          {/* Slider 2: Duration / Days */}
+          {/* SLIDER 2: TRIP DURATION (DAYS / NIGHTS) */}
           <div 
             style={{
-              padding: '0.9rem',
+              padding: '0.85rem',
               backgroundColor: 'rgba(2, 20, 14, 0.85)',
               borderRadius: '16px',
               border: '1px solid rgba(16, 185, 129, 0.3)',
               display: 'flex',
               flexDirection: 'column',
-              gap: '0.45rem'
+              gap: '0.5rem',
+              boxSizing: 'border-box'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                <div style={{ padding: '0.35rem', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#34d399', borderRadius: '8px' }}>
-                  <Calendar className="h-4 w-4" />
+                <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', padding: '0.35rem', borderRadius: '8px', display: 'flex' }}>
+                  <Calendar className="h-4 w-4 text-emerald-400" />
                 </div>
                 <div>
                   <label style={{ fontSize: '0.82rem', fontWeight: 800, color: '#ffffff', display: 'block' }}>
                     Trip Duration
                   </label>
                   <span style={{ fontSize: '0.68rem', color: 'rgba(167, 243, 208, 0.8)' }}>
-                    {days} Days / {days - 1} Nights
+                    {days} {days === 1 ? 'Day' : 'Days'} ({makkahNights}N Makkah{includeMadinah ? ` + ${madinahNights}N Madinah` : ''})
                   </span>
                 </div>
               </div>
@@ -665,13 +778,14 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
             <div>
               <input
                 type="range"
-                min="3"
-                max="28"
+                min={masterConfig.minDays}
+                max={Math.min(28, masterConfig.maxDays)}
                 step="1"
                 value={days}
                 onChange={(e) => {
-                  setDays(parseInt(e.target.value, 10));
-                  playChime(380 + parseInt(e.target.value, 10) * 14, 'sine', 0.1);
+                  const val = parseInt(e.target.value, 10);
+                  setDays(val);
+                  playChime(380 + val * 14, 'sine', 0.1);
                 }}
                 style={{
                   width: '100%',
@@ -682,19 +796,21 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
                 }}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: 'rgba(110, 231, 183, 0.7)', fontFamily: 'monospace', marginTop: '0.15rem' }}>
+                <span>1 Day</span>
                 <span>3 Days</span>
-                <span>5 (Default)</span>
-                <span>7</span>
+                <span>5 Days</span>
+                <span>7 Days</span>
                 <span>14 Sunnah</span>
-                <span>28</span>
+                <span>28 Days</span>
               </div>
             </div>
 
             {/* Presets */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', paddingTop: '0.1rem' }}>
               {[
+                { label: '1 Day (Default)', val: 1 },
                 { label: '3 Days', val: 3 },
-                { label: '5 Days (Default)', val: 5 },
+                { label: '5 Days', val: 5 },
                 { label: '7 Days', val: 7 },
                 { label: '10 Days', val: 10 },
                 { label: '14 Days', val: 14 },
@@ -716,6 +832,103 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
                     border: 'none',
                     backgroundColor: days === chip.val ? '#10b981' : 'rgba(6, 78, 59, 0.5)',
                     color: days === chip.val ? '#02120b' : '#a7f3d0'
+                  }}
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* SLIDER 3: NUMBER OF ROOMS */}
+          <div 
+            style={{
+              padding: '0.85rem',
+              backgroundColor: 'rgba(2, 20, 14, 0.85)',
+              borderRadius: '16px',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.5rem',
+              boxSizing: 'border-box'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', padding: '0.35rem', borderRadius: '8px', display: 'flex' }}>
+                  <BedDouble className="h-4 w-4 text-emerald-400" />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 800, color: '#ffffff', display: 'block' }}>
+                    Number of Hotel Rooms
+                  </label>
+                  <span style={{ fontSize: '0.68rem', color: 'rgba(167, 243, 208, 0.8)' }}>
+                    {rooms === 1 ? '1 Room (Double/Triple)' : `${rooms} Rooms Allocated`}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', backgroundColor: 'rgba(16, 185, 129, 0.2)', padding: '0.2rem 0.6rem', borderRadius: '10px', border: '1px solid rgba(16, 185, 129, 0.4)' }}>
+                <span style={{ fontSize: '1.15rem', fontWeight: 900, fontFamily: 'monospace', color: '#6ee7b7' }}>{rooms}</span>
+                <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#a7f3d0', textTransform: 'uppercase' }}>Rooms</span>
+              </div>
+            </div>
+
+            {/* Range Slider */}
+            <div>
+              <input
+                type="range"
+                min={masterConfig.minRooms}
+                max={Math.min(10, masterConfig.maxRooms)}
+                step="1"
+                value={rooms}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  setRooms(val);
+                  playChime(350 + val * 35, 'sine', 0.1);
+                }}
+                style={{
+                  width: '100%',
+                  height: '8px',
+                  borderRadius: '10px',
+                  accentColor: '#10b981',
+                  cursor: 'pointer'
+                }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: 'rgba(110, 231, 183, 0.7)', fontFamily: 'monospace', marginTop: '0.15rem' }}>
+                <span>1 Room</span>
+                <span>2 Rooms</span>
+                <span>3 Rooms</span>
+                <span>5 Rooms</span>
+                <span>10 Rooms</span>
+              </div>
+            </div>
+
+            {/* Presets */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', paddingTop: '0.1rem' }}>
+              {[
+                { label: '1 Room (Default)', val: 1 },
+                { label: '2 Rooms', val: 2 },
+                { label: '3 Rooms', val: 3 },
+                { label: '4 Rooms', val: 4 },
+                { label: '5 Rooms', val: 5 },
+              ].map((chip) => (
+                <button
+                  key={chip.val}
+                  type="button"
+                  onClick={() => {
+                    setRooms(chip.val);
+                    playChime(480, 'sine', 0.12);
+                  }}
+                  style={{
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: '6px',
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    border: 'none',
+                    backgroundColor: rooms === chip.val ? '#10b981' : 'rgba(6, 78, 59, 0.5)',
+                    color: rooms === chip.val ? '#02120b' : '#a7f3d0'
                   }}
                 >
                   {chip.label}
@@ -793,8 +1006,8 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
                 </strong>
                 <span style={{ fontSize: '0.65rem', color: includeMadinah ? '#fef08a' : 'rgba(167, 243, 208, 0.8)' }}>
                   {includeMadinah 
-                    ? `✓ Added ${madinahNights}N Madinah + Ziyarat` 
-                    : '🎁 Click to add Madinah (Free Roza Mubarak)'}
+                    ? `✓ Added ${madinahNights}N Madinah + Transfers` 
+                    : '🎁 Click to add Madinah (Roza Mubarak)'}
                 </span>
               </div>
             </div>
@@ -879,7 +1092,7 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
         </div>
 
         {/* ========================================================
-            SECTION 4: GRAND PRIZE & REWARD SUMMARY CARD WITH CURRENCY PICKER
+            SECTION 4: GRAND PRIZE & REWARD SUMMARY CARD WITH INR DEFAULT CURRENCY PICKER
             ======================================================== */}
         <div 
           style={{
@@ -912,7 +1125,7 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
                   gap: '0.25rem'
                 }}
               >
-                <Award className="h-3 w-3" /> 🏆 GUARANTEED VIP RATE
+                <Award className="h-3 w-3" /> 🏆 GUARANTEED BEST RATE
               </span>
               <span 
                 style={{
@@ -929,7 +1142,7 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
               </span>
             </div>
 
-            {/* Currency Selector (Moved to Bottom Section as requested) */}
+            {/* Currency Selector (Default: INR) */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <Coins className="h-3.5 w-3.5 text-amber-300" />
               <select
@@ -950,9 +1163,9 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
                   outline: 'none'
                 }}
               >
-                {Object.keys(CURRENCY_RATES).map((cKey) => (
+                {Object.keys(currencyRates).map((cKey) => (
                   <option key={cKey} value={cKey} style={{ color: '#000000', background: '#ffffff' }}>
-                    {CURRENCY_RATES[cKey].label}
+                    {currencyRates[cKey].label}
                   </option>
                 ))}
               </select>
@@ -963,7 +1176,7 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div>
               <span style={{ fontSize: '0.68rem', color: '#a7f3d0', textTransform: 'uppercase', fontWeight: 700 }}>
-                Instant Total Cost
+                Instant Package Price
               </span>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.45rem' }}>
                 <span 
@@ -978,11 +1191,11 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
                   {formattedTotal} {curr.symbol}
                 </span>
                 <span style={{ fontSize: '0.82rem', color: '#6ee7b7', fontWeight: 700 }}>
-                  (~{formattedPerPerson} {curr.symbol} / pax)
+                  (~{formattedPerPerson} {curr.symbol} / pilgrim)
                 </span>
               </div>
               <p style={{ fontSize: '0.68rem', color: 'rgba(167, 243, 208, 0.85)', margin: '0.15rem 0 0 0' }}>
-                Includes {persons} Visas + {makkahNights}N Makkah {includeMadinah ? `+ ${madinahNights}N Madinah` : ''} + Transfers
+                Includes {persons} Visa{persons > 1 ? 's' : ''} + {rooms} {rooms > 1 ? 'Rooms' : 'Room'} ({makkahNights}N Makkah{includeMadinah ? ` + ${madinahNights}N Madinah` : ''}) + Transfers
               </p>
             </div>
 
@@ -1032,11 +1245,11 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <Building className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
-            <span>Reserved Rooms</span>
+            <span>{rooms} {rooms > 1 ? 'Rooms' : 'Room'} Reserved</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <Zap className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
-            <span>Instant Booking</span>
+            <span>Instant Confirmation</span>
           </div>
         </div>
 
