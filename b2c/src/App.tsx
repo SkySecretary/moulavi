@@ -1031,10 +1031,12 @@ export default function App() {
 
   return (
     <>
-      {/* Header and Branding */}
-      <header>
-        <div className="nav-container">
-          <a href="#" className="logo-block" onClick={(e) => { e.preventDefault(); resetToHome(); }}>
+      {/* Header and Branding (Hidden on dedicated Calculator game app) */}
+      {activeTab !== 'calculator' && (
+        <header>
+          <div className="nav-container">
+            <a href="#" className="logo-block" onClick={(e) => { e.preventDefault(); resetToHome(); }}>
+
             <div className="logo-icon">N</div>
             <div className="logo-text">
               <h1>NUSYNC DIRECT</h1>
@@ -1046,19 +1048,18 @@ export default function App() {
               type="button"
               className="nav-btn" 
               style={{ 
-                backgroundColor: activeTab === 'calculator' ? 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)' : 'rgba(19, 92, 70, 0.08)',
-                color: activeTab === 'calculator' ? '#02120b' : 'var(--primary)',
-                background: activeTab === 'calculator' ? 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)' : undefined,
+                background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)',
+                color: '#02120b',
                 fontWeight: 800, 
                 borderRadius: '8px', 
-                border: '1px solid var(--gold-border)', 
+                border: 'none', 
                 padding: '0.55rem 1rem', 
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.35rem',
                 fontSize: '0.85rem',
-                boxShadow: activeTab === 'calculator' ? '0 4px 12px rgba(245, 158, 11, 0.35)' : 'none'
+                boxShadow: '0 2px 8px rgba(245, 158, 11, 0.35)'
               }}
               onClick={() => {
                 setActiveTab('calculator');
@@ -1071,6 +1072,7 @@ export default function App() {
               <Sparkles className="h-4 w-4" />
               Family Calculator
             </button>
+
 
             <button 
               type="button"
@@ -1140,6 +1142,8 @@ export default function App() {
           </div>
         </div>
       </header>
+      )}
+
 
       {/* Main Landing Area */}
       {bookingFinished ? (
@@ -2996,43 +3000,46 @@ export default function App() {
         </>
       )}
 
-      {/* Premium Footer */}
-      <footer>
-        <div className="footer-container">
-          <div className="footer-column">
-            <h4>Nusync Direct</h4>
-            <p style={{ marginBottom: '1rem' }}>Moulavi Travels is a licensed and verified operator offering direct electronic visas and custom pilgrimage packages.</p>
-            <span className="footer-badge" style={{ display: 'inline-block', marginBottom: '0.5rem' }}>KSA License #9823-U</span>
-            <p style={{ fontSize: '0.8rem', color: '#a4beb4' }}>HQ: King Abdulaziz Road, Makkah, Saudi Arabia</p>
+      {/* Premium Footer (Hidden on dedicated Calculator game app) */}
+      {activeTab !== 'calculator' && (
+        <footer>
+          <div className="footer-container">
+            <div className="footer-column">
+              <h4>Nusync Direct</h4>
+              <p style={{ marginBottom: '1rem' }}>Moulavi Travels is a licensed and verified operator offering direct electronic visas and custom pilgrimage packages.</p>
+              <span className="footer-badge" style={{ display: 'inline-block', marginBottom: '0.5rem' }}>KSA License #9823-U</span>
+              <p style={{ fontSize: '0.8rem', color: '#a4beb4' }}>HQ: King Abdulaziz Road, Makkah, Saudi Arabia</p>
+            </div>
+            <div className="footer-column">
+              <h4>Quick Links</h4>
+              <ul className="footer-links">
+                <li><button style={{ background: 'none', border: 'none', color: '#a4beb4', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => resetToHome()}>Home Portal</button></li>
+                <li><button style={{ background: 'none', border: 'none', color: '#a4beb4', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => { setIsQuickEVisa(false); setActiveTab('builder'); setStep(1); setBookingFinished(false); }}>Customised Umra Package</button></li>
+                <li><a href="#">Visa Regulations</a></li>
+                <li><a href="#">Support Center</a></li>
+              </ul>
+            </div>
+            <div className="footer-column">
+              <h4>Mumbai Office</h4>
+              <p style={{ lineHeight: '1.4', fontSize: '0.8rem' }}>Crawford Market, Ashoka Shopping Centre, Lokmanya Tilak Rd, near G T Hospital, Dhobi Talao, Chhatrapati Shivaji Terminus Area, Fort, Mumbai, Maharashtra 400001, India</p>
+              <p style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>📞 +91 80027 70277</p>
+            </div>
+            <div className="footer-column">
+              <h4>Kerala Office</h4>
+              <p style={{ lineHeight: '1.4', fontSize: '0.8rem' }}>FXXP+VR4, Railway Station Road, Thayalangadi, Kasaragod, Kerala 671121, India</p>
+              <p style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>📞 +91 4994 230 216</p>
+            </div>
           </div>
-          <div className="footer-column">
-            <h4>Quick Links</h4>
-            <ul className="footer-links">
-              <li><button style={{ background: 'none', border: 'none', color: '#a4beb4', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => resetToHome()}>Home Portal</button></li>
-              <li><button style={{ background: 'none', border: 'none', color: '#a4beb4', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => { setIsQuickEVisa(false); setActiveTab('builder'); setStep(1); setBookingFinished(false); }}>Customised Umra Package</button></li>
-              <li><a href="#">Visa Regulations</a></li>
-              <li><a href="#">Support Center</a></li>
-            </ul>
+          <div className="footer-bottom">
+            <p>© {new Date().getFullYear()} Nusync Direct / Moulavi Travels. All rights reserved under Saudi Vision 2030.</p>
+            <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><ShieldCheck className="h-4 w-4 text-secondary" /> Secure Checkout</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Lock className="h-4 w-4 text-secondary" /> SSL Encrypted</span>
+            </div>
           </div>
-          <div className="footer-column">
-            <h4>Mumbai Office</h4>
-            <p style={{ lineHeight: '1.4', fontSize: '0.8rem' }}>Crawford Market, Ashoka Shopping Centre, Lokmanya Tilak Rd, near G T Hospital, Dhobi Talao, Chhatrapati Shivaji Terminus Area, Fort, Mumbai, Maharashtra 400001, India</p>
-            <p style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>📞 +91 80027 70277</p>
-          </div>
-          <div className="footer-column">
-            <h4>Kerala Office</h4>
-            <p style={{ lineHeight: '1.4', fontSize: '0.8rem' }}>FXXP+VR4, Railway Station Road, Thayalangadi, Kasaragod, Kerala 671121, India</p>
-            <p style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>📞 +91 4994 230 216</p>
-          </div>
-        </div>
-        <div className="footer-bottom">
-          <p>© {new Date().getFullYear()} Nusync Direct / Moulavi Travels. All rights reserved under Saudi Vision 2030.</p>
-          <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><ShieldCheck className="h-4 w-4 text-secondary" /> Secure Checkout</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Lock className="h-4 w-4 text-secondary" /> SSL Encrypted</span>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      )}
+
 
       {/* Floating WhatsApp Chat Widget */}
       <a 
