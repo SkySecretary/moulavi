@@ -1299,6 +1299,19 @@ export default function App() {
             </div>
           </div>
         </main>
+      ) : activeTab === 'calculator' ? (
+        /* Dedicated Full Standalone Calculator App View */
+        <main style={{ minHeight: '85vh', padding: '1.5rem 0.5rem 3rem 0.5rem', display: 'flex', justifyContent: 'center' }}>
+          <FamilyUmrahCalculator 
+            onProceedToBooking={handleCalculatorBooking} 
+            onBackToPortal={() => {
+              setActiveTab('packages');
+              if (typeof window !== 'undefined' && window.history.pushState) {
+                window.history.pushState({}, '', '/b2c');
+              }
+            }}
+          />
+        </main>
       ) : (
         <>
           {/* Saudi Twilight Hero Header Banner */}
@@ -1309,205 +1322,171 @@ export default function App() {
               Verify Reserved Room allotments, select onward and return flight carriers, and issue direct electronic visas instantly.
             </p>
 
-            {(activeTab === 'packages' || activeTab === 'calculator') && (
-              <div className="unified-pathway-bar" style={{ textAlign: 'left', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
-                
-                {/* Column 1: Family Calculator (Game Simulator) */}
-                <div 
-                  className="pathway-column-left" 
+            <div className="unified-pathway-bar" style={{ textAlign: 'left', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+              
+              {/* Column 1: Family Calculator (Game Simulator) */}
+              <div 
+                className="pathway-column-left" 
+                style={{ 
+                  border: '1px solid var(--gold-border)',
+                  background: 'linear-gradient(180deg, #ffffff 0%, rgba(245, 158, 11, 0.05) 100%)',
+                  boxShadow: '0 8px 25px rgba(245, 158, 11, 0.15)'
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                    <div style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)', padding: '0.5rem', borderRadius: '8px', color: '#02120b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Sparkles className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#d97706', display: 'block' }}>Interactive App</span>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Family Umrah Calculator</h3>
+                    </div>
+                  </div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
+                    Interactive 3D Tawaf visualizer, sliding persons & days, and instant live VIP family package costing.
+                  </p>
+                </div>
+                <button 
+                  type="button"
+                  className="book-btn animate-pulse" 
                   style={{ 
-                    border: activeTab === 'calculator' ? '2px solid #f59e0b' : '1px solid var(--border-color)',
-                    background: 'linear-gradient(180deg, #ffffff 0%, rgba(245, 158, 11, 0.04) 100%)',
-                    boxShadow: activeTab === 'calculator' ? '0 8px 30px rgba(245, 158, 11, 0.2)' : undefined
+                    width: '100%', 
+                    padding: '0.85rem', 
+                    justifyContent: 'center', 
+                    fontWeight: 800, 
+                    fontSize: '0.92rem',
+                    color: 'white',
+                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                    border: 'none',
+                    boxShadow: '0 4px 15px rgba(245, 158, 11, 0.4)',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}
+                  onClick={() => {
+                    setActiveTab('calculator');
+                    setBookingFinished(false);
+                    if (typeof window !== 'undefined' && window.history.pushState) {
+                      window.history.pushState({}, '', '/b2c/calculator');
+                    }
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
                 >
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                      <div style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)', padding: '0.5rem', borderRadius: '8px', color: '#02120b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Sparkles className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#d97706', display: 'block' }}>Interactive Simulator</span>
-                        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Family Umrah Calculator</h3>
-                      </div>
-                    </div>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
-                      Interactive Tawaf visualizer, sliding persons & days, Madinah toggle and instant VIP package costing.
-                    </p>
-                  </div>
-                  <button 
-                    type="button"
-                    className="book-btn animate-pulse" 
-                    style={{ 
-                      width: '100%', 
-                      padding: '0.85rem', 
-                      justifyContent: 'center', 
-                      fontWeight: 800, 
-                      fontSize: '0.92rem',
-                      color: 'white',
-                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                      border: 'none',
-                      boxShadow: '0 4px 15px rgba(245, 158, 11, 0.4)',
-                      cursor: 'pointer',
-                      borderRadius: '8px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}
-                    onClick={() => {
-                      setActiveTab('calculator');
-                      setBookingFinished(false);
-                      if (typeof window !== 'undefined' && window.history.pushState) {
-                        window.history.pushState({}, '', '/b2c/calculator');
-                      }
-                      window.scrollTo({ top: 400, behavior: 'smooth' });
-                    }}
-                  >
-                    Open Simulator <ChevronRight className="h-4 w-4" style={{ strokeWidth: 3 }} />
-                  </button>
-                </div>
-
-                {/* Column 2: Quick eVisa */}
-                <div className="pathway-column-left">
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                      <div style={{ backgroundColor: 'var(--secondary-light)', padding: '0.5rem', borderRadius: '8px', color: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Zap className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--secondary)', display: 'block' }}>24hr Direct Visa</span>
-                        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Quick eVisa (24hr Umra)</h3>
-                      </div>
-                    </div>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
-                      Fast 24-hour visa processing. Skips hotel stay selection and goes straight to checkout.
-                    </p>
-                  </div>
-                  <button 
-                    type="button"
-                    className="book-btn" 
-                    style={{ 
-                      width: '100%', 
-                      padding: '0.85rem', 
-                      justifyContent: 'center', 
-                      fontWeight: 800, 
-                      fontSize: '0.92rem',
-                      color: 'white',
-                      background: 'linear-gradient(135deg, var(--secondary) 0%, #e5a954 100%)',
-                      border: 'none',
-                      boxShadow: '0 4px 15px rgba(212, 147, 44, 0.35)',
-                      cursor: 'pointer',
-                      borderRadius: '8px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}
-                    onClick={() => {
-                      setIsQuickEVisa(true);
-                      setDates(prev => ({
-                        ...prev,
-                        accommodationType: 'iqama',
-                        makkahNights: 0,
-                        madinahNights: 0
-                      }));
-                      setSelectedPackage(null);
-                      setActiveTab('builder');
-                      setStep(1);
-                      setBookingFinished(false);
-                    }}
-                  >
-                    Apply Quick eVisa <ChevronRight className="h-4 w-4" style={{ strokeWidth: 3 }} />
-                  </button>
-                </div>
-
-                {/* Column 3: Customised Umra Package */}
-                <div className="pathway-column-right">
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                      <div style={{ backgroundColor: 'var(--primary-light)', padding: '0.5rem', borderRadius: '8px', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Compass className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--primary)', display: 'block' }}>Complete Customizer</span>
-                        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Customised Package</h3>
-                      </div>
-                    </div>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
-                      Full builder. Customise flights, hotel stays, and ground transport step-by-step.
-                    </p>
-                  </div>
-                  <button 
-                    type="button"
-                    className="book-btn" 
-                    style={{ width: '100%', padding: '0.85rem', justifyContent: 'center', fontWeight: 700, backgroundColor: 'var(--primary)', cursor: 'pointer', borderRadius: '8px' }}
-                    onClick={() => {
-                      setIsQuickEVisa(false);
-                      setDates(prev => ({
-                        ...prev,
-                        accommodationType: 'hotel',
-                        makkahNights: 4,
-                        madinahNights: 3
-                      }));
-                      setSelectedPackage(null);
-                      setActiveTab('builder');
-                      setStep(1);
-                      setBookingFinished(false);
-                    }}
-                  >
-                    Build Customised Package <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-
+                  Launch Calculator App <ChevronRight className="h-4 w-4" style={{ strokeWidth: 3 }} />
+                </button>
               </div>
-            )}
+
+              {/* Column 2: Quick eVisa */}
+              <div className="pathway-column-left">
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                    <div style={{ backgroundColor: 'var(--secondary-light)', padding: '0.5rem', borderRadius: '8px', color: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Zap className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--secondary)', display: 'block' }}>24hr Direct Visa</span>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Quick eVisa (24hr Umra)</h3>
+                    </div>
+                  </div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
+                    Fast 24-hour visa processing. Skips hotel stay selection and goes straight to checkout.
+                  </p>
+                </div>
+                <button 
+                  type="button"
+                  className="book-btn" 
+                  style={{ 
+                    width: '100%', 
+                    padding: '0.85rem', 
+                    justifyContent: 'center', 
+                    fontWeight: 800, 
+                    fontSize: '0.92rem',
+                    color: 'white',
+                    background: 'linear-gradient(135deg, var(--secondary) 0%, #e5a954 100%)',
+                    border: 'none',
+                    boxShadow: '0 4px 15px rgba(212, 147, 44, 0.35)',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}
+                  onClick={() => {
+                    setIsQuickEVisa(true);
+                    setDates(prev => ({
+                      ...prev,
+                      accommodationType: 'iqama',
+                      makkahNights: 0,
+                      madinahNights: 0
+                    }));
+                    setSelectedPackage(null);
+                    setActiveTab('builder');
+                    setStep(1);
+                    setBookingFinished(false);
+                  }}
+                >
+                  Apply Quick eVisa <ChevronRight className="h-4 w-4" style={{ strokeWidth: 3 }} />
+                </button>
+              </div>
+
+              {/* Column 3: Customised Umra Package */}
+              <div className="pathway-column-right">
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                    <div style={{ backgroundColor: 'var(--primary-light)', padding: '0.5rem', borderRadius: '8px', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Compass className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--primary)', display: 'block' }}>Complete Customizer</span>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>Customised Package</h3>
+                    </div>
+                  </div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
+                    Full builder. Customise flights, hotel stays, and ground transport step-by-step.
+                  </p>
+                </div>
+                <button 
+                  type="button"
+                  className="book-btn" 
+                  style={{ width: '100%', padding: '0.85rem', justifyContent: 'center', fontWeight: 700, backgroundColor: 'var(--primary)', cursor: 'pointer', borderRadius: '8px' }}
+                  onClick={() => {
+                    setIsQuickEVisa(false);
+                    setDates(prev => ({
+                      ...prev,
+                      accommodationType: 'hotel',
+                      makkahNights: 4,
+                      madinahNights: 3
+                    }));
+                    setSelectedPackage(null);
+                    setActiveTab('builder');
+                    setStep(1);
+                    setBookingFinished(false);
+                  }}
+                >
+                  Build Customised Package <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+
+            </div>
           </section>
 
           {/* Main Landing Content */}
           <main>
-            {/* Dedicated Calculator Tab View */}
-            {activeTab === 'calculator' && (
-              <div style={{ maxWidth: '1100px', margin: '9.5rem auto 4rem auto', padding: '0 1rem', boxSizing: 'border-box' }}>
-                <FamilyUmrahCalculator onProceedToBooking={handleCalculatorBooking} />
-
-                {/* Section Separator to Explore Ready Packages */}
-                <div style={{ textAlign: 'center', marginTop: '3.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '2.5rem' }}>
-                  <h3 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                    Or Choose From Pre-Configured Ready Packages
-                  </h3>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-                    Fixed duration packages with locked VIP rates and all-inclusive ground arrangements.
-                  </p>
-                  <button
-                    type="button"
-                    className="nav-btn"
-                    style={{ padding: '0.75rem 2rem', fontSize: '0.9rem', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer', fontWeight: 700 }}
-                    onClick={() => {
-                      setActiveTab('packages');
-                      window.scrollTo({ top: 800, behavior: 'smooth' });
-                    }}
-                  >
-                    View All Ready Packages ↓
-                  </button>
-                </div>
-              </div>
-            )}
-
             {activeTab === 'packages' && (
               <>
-                {/* Part 1: Interactive Family Umrah Calculator Hero Component */}
-                <div style={{ maxWidth: '1100px', margin: '9.5rem auto 3rem auto', padding: '0 1rem', boxSizing: 'border-box' }}>
-                  <FamilyUmrahCalculator onProceedToBooking={handleCalculatorBooking} />
-                </div>
-
-                {/* Part 2: Ready Packages Listing */}
-                <div style={{ maxWidth: '1000px', margin: '3rem auto 4rem auto', padding: '0 1.5rem', boxSizing: 'border-box' }}>
+                {/* Ready Packages Listing */}
+                <div style={{ maxWidth: '1000px', margin: '9.5rem auto 4rem auto', padding: '0 1.5rem', boxSizing: 'border-box' }}>
                   <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-dark)', marginBottom: '1.5rem', borderBottom: '2px solid var(--border-color)', paddingBottom: '0.5rem', marginTop: '0' }}>
                     Select from Premium Ready Packages
                   </h2>
+
 
               <div className="cards-grid">
                 {packages.map((pkg) => (

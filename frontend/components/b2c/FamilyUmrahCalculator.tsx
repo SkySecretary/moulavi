@@ -42,7 +42,7 @@ export function FamilyUmrahCalculator() {
   // Primary Sliders
   const [persons, setPersons] = useState<number>(3); // Default 3
   const [days, setDays] = useState<number>(5); // Default 5
-  const [includeMadinah, setIncludeMadinah] = useState<boolean>(true); // Default true
+  const [includeMadinah, setIncludeMadinah] = useState<boolean>(false); // Default false as requested
   const [madinahSparkleTrigger, setMadinahSparkleTrigger] = useState<boolean>(false);
 
   // Accommodation Tier
