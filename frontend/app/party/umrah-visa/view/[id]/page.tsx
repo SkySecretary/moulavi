@@ -196,10 +196,11 @@ export default function ViewUmrahVisaBookingPage() {
           contactNumber: fullVoucher.umrahCompany.contactNumber || '',
           whatsappNumber: fullVoucher.umrahCompany.whatsappNumber || '',
           email: fullVoucher.umrahCompany.email || '',
+          logoPath: fullVoucher.umrahCompany.logoPath || '',
         } : null,
         agentParty: fullVoucher.party ? {
           partyName: fullVoucher.party.partyName || '',
-        } : null,
+        } : (fullVoucher.agentParty ? { partyName: fullVoucher.agentParty.partyName || '' } : null),
         transportCompany: fullVoucher.transportCompany ? {
           partyName: fullVoucher.transportCompany.partyName || '',
         } : null,

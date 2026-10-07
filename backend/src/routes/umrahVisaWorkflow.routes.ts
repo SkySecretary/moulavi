@@ -1610,24 +1610,106 @@ router.post('/generate-pdf', authenticate, async (req, res) => {
   try {
     const voucherData: VoucherPdfData = req.body;
 
-    // ========== DEBUG LOGGING: PDF GENERATION ==========
-    console.log('========== PDF GENERATION DEBUG ==========');
-    console.log('📑 PDF GENERATION - Received Data:');
-    console.log('  - Voucher Number (Reservation Number):', voucherData.voucherNumber);
-    console.log('  - Reservation Number:', voucherData.reservationNumber || voucherData.voucherNumber || 'NULL');
-    const pdfRouteNumbers = voucherData.movementDetails
-      .map(m => m.route)
-      .filter((r): r is string => !!r && r !== '');
-    console.log('  - Route Numbers:', pdfRouteNumbers.length > 0 ? pdfRouteNumbers : 'NONE');
-    console.log('  - Movement Details Count:', voucherData.movementDetails.length);
-    voucherData.movementDetails.forEach((m, idx) => {
-      console.log(`    Movement ${idx + 1} (SR: ${m.sr}): Route="${m.route || 'NULL'}", From="${m.from}", To="${m.to}"`);
-    });
-    console.log('==========================================');
-
     // Validate required fields
-    if (!voucherData.voucherNumber || !voucherData.reservationDate || !voucherData.guestName) {
+    if (!voucherData.voucherNumber || !voucherData.reservationDate) {
       return res.status(400).json({ error: 'Missing required voucher data' });
+    }
+
+    // Auto-enrich missing header details (Agent Party, Umrah Company with Logo, Transport Company)
+    if (
+      !voucherData.agentParty?.partyName ||
+      !voucherData.umrahCompany?.partyName ||
+      !voucherData.umrahCompany?.logoPath ||
+      !voucherData.transportCompany?.partyName
+    ) {
+      try {
+        const voucherDb = await prisma.voucher.findFirst({
+          where: {
+            OR: [
+              { voucherNumber: String(voucherData.voucherNumber) },
+              ...(voucherData.groupCode ? [{ groupCode: { contains: String(voucherData.groupCode) } }] : []),
+              ...(voucherData.bookingReference ? [{ bookingReference: String(voucherData.bookingReference) }] : [])
+            ]
+          },
+          include: {
+            umrahCompany: true,
+            party: true,
+            transportCompany: true,
+            booking: {
+              include: {
+                umrahVisaProvider: true,
+                party: true,
+                transportCompany: true
+              }
+            }
+          }
+        });
+
+        if (voucherDb) {
+          if (!voucherData.agentParty?.partyName) {
+            const agent = voucherDb.party || voucherDb.booking?.party;
+            if (agent) {
+              voucherData.agentParty = { partyName: agent.partyName };
+            }
+          }
+
+          if (!voucherData.umrahCompany?.partyName || !voucherData.umrahCompany?.logoPath) {
+            const uComp = voucherDb.umrahCompany || voucherDb.booking?.umrahVisaProvider;
+            if (uComp) {
+              voucherData.umrahCompany = {
+                partyName: uComp.partyName,
+                address: uComp.address || undefined,
+                contactNumber: uComp.contactNumber || undefined,
+                whatsappNumber: uComp.whatsappNumber || undefined,
+                email: uComp.email || undefined,
+                logoPath: uComp.logoPath || voucherData.umrahCompany?.logoPath || undefined,
+              };
+            }
+          }
+
+          if (!voucherData.transportCompany?.partyName) {
+            const tComp = voucherDb.transportCompany || voucherDb.booking?.transportCompany;
+            if (tComp) {
+              voucherData.transportCompany = { partyName: tComp.partyName };
+            }
+          }
+        } else if (voucherData.bookingReference || voucherData.groupCode) {
+          const bookingDb = await prisma.umrahVisaBooking.findFirst({
+            where: {
+              OR: [
+                ...(voucherData.bookingReference ? [{ bookingReference: String(voucherData.bookingReference) }] : []),
+                ...(voucherData.groupCode ? [{ groupNumber: { contains: String(voucherData.groupCode) } }] : [])
+              ]
+            },
+            include: {
+              umrahVisaProvider: true,
+              party: true,
+              transportCompany: true
+            }
+          });
+
+          if (bookingDb) {
+            if (!voucherData.agentParty?.partyName && bookingDb.party) {
+              voucherData.agentParty = { partyName: bookingDb.party.partyName };
+            }
+            if (!voucherData.umrahCompany?.partyName && bookingDb.umrahVisaProvider) {
+              voucherData.umrahCompany = {
+                partyName: bookingDb.umrahVisaProvider.partyName,
+                address: bookingDb.umrahVisaProvider.address || undefined,
+                contactNumber: bookingDb.umrahVisaProvider.contactNumber || undefined,
+                whatsappNumber: bookingDb.umrahVisaProvider.whatsappNumber || undefined,
+                email: bookingDb.umrahVisaProvider.email || undefined,
+                logoPath: bookingDb.umrahVisaProvider.logoPath || undefined,
+              };
+            }
+            if (!voucherData.transportCompany?.partyName && bookingDb.transportCompany) {
+              voucherData.transportCompany = { partyName: bookingDb.transportCompany.partyName };
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[PDF-GENERATE] Could not auto-enrich voucher header data from DB:', err);
+      }
     }
 
     // Generate PDF
@@ -1660,6 +1742,7 @@ router.get('/:bookingId/generate-booking-pdf', authenticate, async (req, res) =>
       include: {
         party: true,
         umrahVisaProvider: true,
+        transportCompany: true,
         sponsorIqamaDetails: true,
         passengers: {
           where: { isLeadPassenger: true, isDeleted: false },
@@ -1705,13 +1788,50 @@ router.get('/:bookingId/generate-booking-pdf', authenticate, async (req, res) =>
     const travel = booking.travelDetails[0];
     const iqama = booking.sponsorIqamaDetails?.find((i: any) => !i.isAlternate);
 
+    // Check if there is an existing voucher record for this booking with transportCompany or other details
+    const existingVoucher = await prisma.voucher.findFirst({
+      where: {
+        OR: [
+          { bookingId: booking.id },
+          ...(booking.groupNumber ? [{ groupCode: { contains: booking.groupNumber } }] : [])
+        ]
+      },
+      include: {
+        transportCompany: true,
+        umrahCompany: true,
+        party: true,
+      }
+    });
+
+    const activeTransportCompany = booking.transportCompany
+      ? { partyName: booking.transportCompany.partyName }
+      : existingVoucher?.transportCompany
+      ? { partyName: existingVoucher.transportCompany.partyName }
+      : null;
+
+    const activeUmrahCompany = booking.umrahVisaProvider ? {
+      partyName: booking.umrahVisaProvider.partyName,
+      address: booking.umrahVisaProvider.address || undefined,
+      contactNumber: booking.umrahVisaProvider.contactNumber || undefined,
+      whatsappNumber: booking.umrahVisaProvider.whatsappNumber || undefined,
+      email: booking.umrahVisaProvider.email || undefined,
+      logoPath: booking.umrahVisaProvider.logoPath || undefined,
+    } : existingVoucher?.umrahCompany ? {
+      partyName: existingVoucher.umrahCompany.partyName,
+      address: existingVoucher.umrahCompany.address || undefined,
+      contactNumber: existingVoucher.umrahCompany.contactNumber || undefined,
+      whatsappNumber: existingVoucher.umrahCompany.whatsappNumber || undefined,
+      email: existingVoucher.umrahCompany.email || undefined,
+      logoPath: existingVoucher.umrahCompany.logoPath || undefined,
+    } : null;
+
     // Map to VoucherPdfData
     const pdfData: VoucherPdfData & { isBookingVoucher?: boolean } = {
-      isBookingVoucher: true,
+      isBookingVoucher: false,
       voucherNumber: booking.bookingReference || booking.id.slice(0, 8),
       reservationDate: booking.createdAt.toISOString(),
-      guestName: leadPassenger?.fullName || 'N/A',
-      guestMobile: leadPassenger?.phoneNumber || 'N/A',
+      guestName: leadPassenger?.fullName || booking.party?.partyName || 'N/A',
+      guestMobile: leadPassenger?.phoneNumber || booking.party?.whatsappNumber || booking.party?.contactNumber || 'N/A',
       groupCode: booking.groupNumber || 'N/A',
       groupName: booking.groupName || undefined,
       paxCount: booking.passengerCount,
@@ -1721,18 +1841,11 @@ router.get('/:bookingId/generate-booking-pdf', authenticate, async (req, res) =>
         address: iqama.sponserNationalShortAddress || 'N/A',
         dob: iqama.sponserDob ? iqama.sponserDob.toISOString() : ''
       } : null,
-      umrahCompany: booking.umrahVisaProvider ? {
-        partyName: booking.umrahVisaProvider.partyName,
-        address: booking.umrahVisaProvider.address || undefined,
-        contactNumber: booking.umrahVisaProvider.contactNumber || undefined,
-        whatsappNumber: booking.umrahVisaProvider.whatsappNumber || undefined,
-        email: booking.umrahVisaProvider.email || undefined,
-        logoPath: booking.umrahVisaProvider.logoPath || undefined,
-      } : null,
+      umrahCompany: activeUmrahCompany,
       agentParty: {
-        partyName: booking.party.partyName
+        partyName: booking.party?.partyName || existingVoucher?.party?.partyName || 'N/A'
       },
-      transportCompany: null,
+      transportCompany: activeTransportCompany,
       hotelSchedules: booking.hotelBookings.map((h, i) => ({
         number: i + 1,
         location: h.city.name,

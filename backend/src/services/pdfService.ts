@@ -112,12 +112,15 @@ function getImageAsBase64(filePath: string | undefined): string | null {
     if (filePath.startsWith('http')) return filePath;
     
     // List of possible base directories to search for the file
-    // 1. Current working directory (usually backend/)
-    // 2. One level up from cwd (root of project)
-    // 3. Absolute path if provided
     const searchBases = [
       process.cwd(),
       path.join(process.cwd(), '..'),
+      path.resolve(__dirname, '../../uploads'),
+      path.resolve(__dirname, '../../../uploads'),
+      path.resolve(__dirname, '../../../../uploads'),
+      '/var/www/umrasystem/shared',
+      '/var/www/umrasystem/current/backend',
+      '/var/www/umrasystem/backend',
       '' // For absolute paths
     ];
 
@@ -128,15 +131,30 @@ function getImageAsBase64(filePath: string | undefined): string | null {
     }
 
     for (const base of searchBases) {
-      const targetPath = base ? path.join(base, cleanPath) : cleanPath;
+      const targetPath = base ? (cleanPath.startsWith('/') ? path.join(base, cleanPath) : path.join(base, cleanPath)) : cleanPath;
       if (fs.existsSync(targetPath) && !fs.lstatSync(targetPath).isDirectory()) {
         const bitmap = fs.readFileSync(targetPath);
         const extension = path.extname(targetPath).slice(1) || 'png';
         return `data:image/${extension};base64,${bitmap.toString('base64')}`;
       }
+      
+      // Also try direct filePath without cleanPath
+      if (base && fs.existsSync(path.join(base, filePath)) && !fs.lstatSync(path.join(base, filePath)).isDirectory()) {
+        const directPath = path.join(base, filePath);
+        const bitmap = fs.readFileSync(directPath);
+        const extension = path.extname(directPath).slice(1) || 'png';
+        return `data:image/${extension};base64,${bitmap.toString('base64')}`;
+      }
     }
     
-    console.warn(`[PDF-VOUCHER] Image file not found: ${filePath}. Tried searching for: ${cleanPath} in ${searchBases.join(', ')}`);
+    // Direct check on original path
+    if (fs.existsSync(filePath) && !fs.lstatSync(filePath).isDirectory()) {
+      const bitmap = fs.readFileSync(filePath);
+      const extension = path.extname(filePath).slice(1) || 'png';
+      return `data:image/${extension};base64,${bitmap.toString('base64')}`;
+    }
+    
+    console.warn(`[PDF-VOUCHER] Image file not found: ${filePath}. Tried searching for: ${cleanPath}`);
     return null;
   } catch (error) {
     console.error('[PDF-VOUCHER] Error converting image to base64:', error);
@@ -148,7 +166,9 @@ function getImageAsBase64(filePath: string | undefined): string | null {
 function generateVoucherHTML(data: VoucherPdfData & { isBookingVoucher?: boolean }): string {
   const umrahCompanyName = data.umrahCompany?.partyName || 'UMRA SERVICES';
   const agentName = data.agentParty?.partyName || 'N/A';
-  const transportName = data.transportCompany?.partyName || 'N/A';
+  const transportName = data.transportCompany?.partyName && data.transportCompany.partyName !== 'N/A'
+    ? data.transportCompany.partyName
+    : '';
   const staticOpNumber = '+966 53 863 4100';
   const logoBase64 = getImageAsBase64(data.umrahCompany?.logoPath);
   const isBooking = !!data.isBookingVoucher;
@@ -585,12 +605,10 @@ function generateVoucherHTML(data: VoucherPdfData & { isBookingVoucher?: boolean
 
         <div class="center-title">
             <h1 class="main-title">${umrahCompanyName}</h1>
-            ${!isBooking ? `
             <div class="op-number-box">
                 ${icons.phone} &nbsp; OPERATION NUMBER: ${staticOpNumber}
             </div>
-            <div class="transportation-text">Transportation: ${transportName}</div>
-            ` : ''}
+            ${transportName ? `<div class="transportation-text">Transportation: ${transportName}</div>` : ''}
         </div>
 
         <div class="right-badges">

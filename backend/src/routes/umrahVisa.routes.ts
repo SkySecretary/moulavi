@@ -1496,12 +1496,37 @@ router.get('/:bookingId/voucher', authenticate, async (req, res) => {
 
     const voucher = await prisma.voucher.findFirst({
       where: {
-        groupCode: {
-          contains: booking.groupNumber,
-
-        },
+        OR: [
+          { bookingId: booking.id },
+          { groupCode: { contains: booking.groupNumber } }
+        ]
       },
       include: {
+        umrahCompany: {
+          select: { id: true, partyName: true, address: true, contactNumber: true, whatsappNumber: true, email: true, logoPath: true, partyCode: true }
+        },
+        party: {
+          select: { id: true, partyName: true, partyCode: true, whatsappNumber: true, contactNumber: true }
+        },
+        transportCompany: {
+          select: { id: true, partyName: true, partyCode: true }
+        },
+        booking: {
+          select: {
+            id: true,
+            umrahVisaProviderId: true,
+            transportCompanyId: true,
+            umrahVisaProvider: {
+              select: { id: true, partyName: true, address: true, contactNumber: true, whatsappNumber: true, email: true, logoPath: true, partyCode: true }
+            },
+            transportCompany: {
+              select: { id: true, partyName: true, partyCode: true }
+            },
+            party: {
+              select: { id: true, partyName: true, partyCode: true, whatsappNumber: true, contactNumber: true }
+            }
+          }
+        },
         movements: {
           orderBy: {
             sr: 'asc',
@@ -1527,6 +1552,9 @@ router.get('/:bookingId/voucher', authenticate, async (req, res) => {
     // Transform normalized data to match frontend expectations (same format as voucher routes)
     const transformedVoucher = {
       ...voucher,
+      umrahCompany: voucher.umrahCompany || voucher.booking?.umrahVisaProvider || null,
+      party: voucher.party || voucher.booking?.party || null,
+      transportCompany: voucher.transportCompany || voucher.booking?.transportCompany || null,
       hotelSchedules: voucher.hotels.map((h: any) => ({
         number: h.number,
         location: h.location,
@@ -1545,6 +1573,7 @@ router.get('/:bookingId/voucher', authenticate, async (req, res) => {
         fromLocation: m.fromLocation,
         to: m.to,
         toLocation: m.toLocation,
+        vehicleType: m.vehicleType || voucher.vehicleType || '',
       })),
       flightDetails: voucher.flights.map((f: any) => ({
         type: f.type,
