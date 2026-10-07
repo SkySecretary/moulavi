@@ -542,7 +542,8 @@ export async function generateBillPDF(data: BillPdfData): Promise<Buffer> {
     console.log(`${logPrefix} Setting page content and waiting for resources...`);
     const contentStartTime = Date.now();
     await page.setContent(html, {
-      waitUntil: 'load',
+      waitUntil: 'domcontentloaded',
+      timeout: 30000,
     });
     const contentDuration = Date.now() - contentStartTime;
     console.log(`${logPrefix} ✓ Page content loaded in ${contentDuration}ms`);
