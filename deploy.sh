@@ -42,6 +42,7 @@ fi
 
 # Step 1: Package everything locally
 echo "📦 Packaging built release into release.tgz..."
+export COPYFILE_DISABLE=1
 tar -czf release.tgz \
   --exclude="backend/node_modules" \
   --exclude="backend/dev.db*" \
@@ -85,6 +86,11 @@ $SSH_CMD -o ControlMaster=auto -o ControlPath=/tmp/ssh-%r@%h:%p $SERVER_USER@$SE
     tar -xzf release.tgz
     rm release.tgz
     rm -f $RELEASE_PATH/backend/prisma/dev.db*
+
+    if [ ! -d "$RELEASE_PATH/frontend/.next/static" ]; then
+        echo "❌ Error: frontend/.next/static was not found in release package!"
+        exit 1
+    fi
 
     # Shared Data Initialization
     mkdir -p $SHARED_PATH

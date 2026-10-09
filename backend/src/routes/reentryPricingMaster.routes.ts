@@ -389,7 +389,7 @@ async function confirmReentryBookingAndSendWhatsApp(orderId: string, orderData: 
     const bookingRef = `UMR-RE-${orderId.replace('RE_', '')}`;
     const voucherRef = `VOU-RE-${orderId.replace('RE_', '')}`;
 
-    // 2. Create / Update Booking in NuSync ERP
+    // 2. Create / Update Booking in NuSync ERP in pending status
     const booking = await prisma.umrahVisaBooking.create({
       data: {
         partyId: b2cParty.id,
@@ -399,7 +399,7 @@ async function confirmReentryBookingAndSendWhatsApp(orderId: string, orderData: 
         accommodationType: stayType === 'iqama' ? 'iqama' : 'hotel',
         guestName,
         guestMobile,
-        status: 'booking_success',
+        status: 'pending',
         passengers: {
           create: [
             {
@@ -429,9 +429,9 @@ async function confirmReentryBookingAndSendWhatsApp(orderId: string, orderData: 
       });
     }
 
-    // 4. Dispatch WhatsApp confirmation voucher message to customer via Channel +91 22 4619 3365
+    // 4. Dispatch WhatsApp confirmation message to customer via Channel +91 22 4619 3365
     const stayTypeLabel = stayType === 'iqama' ? 'Saudi Iqama Holder Hosting' : 'Hotel Reservation (Package included)';
-    const confirmationText = `🎉 *Moulavi Travels — Payment Confirmed & Re-Entry Activated!* 🕋\n\nDear *${guestName}*,\nWe have successfully received your payment of *₹${amount}* via Cashfree Gateway (Transaction Ref: *${cfPaymentId}*).\n\n📋 *Trip & Activation Summary:*\n• *Booking Reference:* ${bookingRef}\n• *Voucher Reference:* ${voucherRef}\n• *Passport / Iqama No:* ${passportNumber || 'Submitted'}\n• *Visa No:* ${visaNumber || 'Active'}\n• *Arrangement:* ${stayTypeLabel}\n• *Payment Status:* ✅ *PAID*\n\n✨ Your 1-Year Umrah Visa Re-entry package and Ministry clearances have been initiated. You are ready to travel with your valid visa!\n\nMay Allah accept your Umrah!\n\n_Moulavi Travels & Logistics — NuSync ERP Desk_`;
+    const confirmationText = `🎉 *Moulavi Travels — Payment Confirmed & Re-Entry Registered!* 🕋\n\nDear *${guestName}*,\nWe have successfully received your payment of *₹${amount}* via Cashfree Gateway (Transaction Ref: *${cfPaymentId}*).\n\n📋 *Trip & Booking Summary:*\n• *Booking Reference:* ${bookingRef}\n• *Passport / Iqama No:* ${passportNumber || 'Submitted'}\n• *Visa No:* ${visaNumber || 'Active'}\n• *Arrangement:* ${stayTypeLabel}\n• *Status:* ⏳ *Pending Verification*\n\n✨ Your 1-Year Umrah Visa Re-entry package details and payment have been received. Our operations desk is verifying your travel details and Ministry clearances.\n\nMay Allah accept your Umrah!\n\n_Moulavi Travels & Logistics — NuSync ERP Desk_`;
 
     if (guestMobile) {
       try {
@@ -442,7 +442,7 @@ async function confirmReentryBookingAndSendWhatsApp(orderId: string, orderData: 
           {
             guestName,
             bookingRef,
-            voucherRef,
+            voucherRef: '',
             amount,
           }
         );
@@ -452,7 +452,7 @@ async function confirmReentryBookingAndSendWhatsApp(orderId: string, orderData: 
       }
     }
 
-    return { alreadyProcessed: false, booking, voucherRef };
+    return { alreadyProcessed: false, booking };
   } catch (err) {
     console.error(`[ReentryPayment] Error confirming booking for ${orderId}:`, err);
     throw err;

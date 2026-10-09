@@ -946,7 +946,7 @@ router.post(
         isOneWay: !!isOneWay,
         guestName: guestName || 'B2C Pilgrim',
         guestMobile: guestMobile || '',
-        status: 'booking_success',
+        status: resolvedVisaType === 're_entry' ? 'pending' : 'booking_success',
         groupNumber: groupNumber || (resolvedVisaType === 'group_visa' ? `GRP-${randomSuffix}` : null),
         groupName: groupName || `B2C-${(guestName || 'Pilgrim').split(' ')[0]}`,
         hasTransportation: hasTransportation || (movements && movements.length > 0),
@@ -1073,6 +1073,24 @@ router.post(
         mimeType: 'image/png',
       });
     }
+    if (req.body.visaCopyUrl || req.body.visa_copy_url) {
+      docList.push({
+        documentType: 'visa_copy',
+        fileName: `visa-copy-${Date.now()}.pdf`,
+        filePath: req.body.visaCopyUrl || req.body.visa_copy_url,
+        fileSize: 1024,
+        mimeType: 'application/pdf',
+      });
+    }
+    if (req.body.nusukCopyUrl || req.body.nusuk_copy_url) {
+      docList.push({
+        documentType: 'nusuk_booking',
+        fileName: `nusuk-booking-${Date.now()}.pdf`,
+        filePath: req.body.nusukCopyUrl || req.body.nusuk_copy_url,
+        fileSize: 1024,
+        mimeType: 'application/pdf',
+      });
+    }
 
     if (docList.length > 0) {
       for (const doc of docList) {
@@ -1093,49 +1111,57 @@ router.post(
       }
     }
 
-    // Create Voucher
-    const voucherRef = await generateVoucherNumber(prisma);
-    await prisma.voucher.create({
-      data: {
-        bookingId: booking.id,
-        voucherNumber: voucherRef,
-        reservationDate: new Date(),
-        guestName: guestName || 'B2C Pilgrim',
-        guestMobile: guestMobile || '',
-        partyId: b2cParty.id,
-        paxCount: numPax,
-        generatedBy: adminUser.id,
-        hotels: {
-          create: [
-            ...(makkahHotel ? [{
-              number: 1,
-              location: 'Makkah',
-              hotelName: makkahHotel.name,
-              checkIn: resolvedCheckIn,
-              checkOut: new Date(resolvedCheckIn.getTime() + numMakkahNights * 86400000),
-              days: numMakkahNights,
-              brn: 'B2C_AUTO_BRN_1',
-            }] : []),
-            ...(madinahHotel ? [{
-              number: 2,
-              location: 'Madinah',
-              hotelName: madinahHotel.name,
-              checkIn: new Date(resolvedCheckIn.getTime() + numMakkahNights * 86400000),
-              checkOut: new Date(resolvedCheckIn.getTime() + (numMakkahNights + numMadinahNights) * 86400000),
-              days: numMadinahNights,
-              brn: 'B2C_AUTO_BRN_2',
-            }] : []),
-          ]
+    // Create Voucher (Skip for re_entry so it remains pending)
+    let voucherRef: string | null = null;
+    if (resolvedVisaType !== 're_entry') {
+      voucherRef = await generateVoucherNumber(prisma);
+      await prisma.voucher.create({
+        data: {
+          bookingId: booking.id,
+          voucherNumber: voucherRef,
+          reservationDate: new Date(),
+          guestName: guestName || 'B2C Pilgrim',
+          guestMobile: guestMobile || '',
+          partyId: b2cParty.id,
+          paxCount: numPax,
+          generatedBy: adminUser.id,
+          hotels: {
+            create: [
+              ...(makkahHotel ? [{
+                number: 1,
+                location: 'Makkah',
+                hotelName: makkahHotel.name,
+                checkIn: resolvedCheckIn,
+                checkOut: new Date(resolvedCheckIn.getTime() + numMakkahNights * 86400000),
+                days: numMakkahNights,
+                brn: 'B2C_AUTO_BRN_1',
+              }] : []),
+              ...(madinahHotel ? [{
+                number: 2,
+                location: 'Madinah',
+                hotelName: madinahHotel.name,
+                checkIn: new Date(resolvedCheckIn.getTime() + numMakkahNights * 86400000),
+                checkOut: new Date(resolvedCheckIn.getTime() + (numMakkahNights + numMadinahNights) * 86400000),
+                days: numMadinahNights,
+                brn: 'B2C_AUTO_BRN_2',
+              }] : []),
+            ]
+          }
         }
-      }
-    });
+      });
+    }
 
     // Send WhatsApp Confirmation if mobile is provided
     if (guestMobile) {
       try {
-        const typeLabel = resolvedVisaType === 're_entry' ? 'Re-Entry / Iqama Sponsor' : resolvedVisaType === 'group_visa' ? 'Group Umrah Package' : 'Individual Umrah Package';
-        const msg = `*🕋 Moulavi Travels — Booking Confirmation*\n\nDear *${guestName || 'Pilgrim'}*,\nYour booking has been received and confirmed!\n\n📋 *Booking Reference:* ${bookingRef}\n🎫 *Voucher Reference:* ${voucherRef}\n👥 *Pilgrims:* ${numPax} Pax\n🏷️ *Type:* ${typeLabel}\n\nOur team is finalizing your Ministry of Hajj approvals. Have a blessed journey!`;
-        await sendCustomWhatsApp(guestMobile, msg);
+        if (resolvedVisaType === 're_entry') {
+          const msg = `*🕋 Moulavi Travels — Re-Entry Booking Registered*\n\nDear *${guestName || 'Pilgrim'}*,\nYour 1-Year Umrah Re-Entry booking details and documents have been received in NuSync ERP!\n\n📋 *Booking Reference:* ${bookingRef}\n📋 *Status:* ⏳ *Pending Verification*\n👥 *Pilgrims:* ${numPax} Pax\n\nOur operations desk is verifying your travel details and Ministry clearances. Have a blessed journey!`;
+          await sendCustomWhatsApp(guestMobile, msg);
+        } else {
+          const typeLabel = resolvedVisaType === 'group_visa' ? 'Group Umrah Package' : 'Individual Umrah Package';
+          const msg = `*🕋 Moulavi Travels — Booking Confirmation*\n\nDear *${guestName || 'Pilgrim'}*,\nYour booking has been received and confirmed!\n\n📋 *Booking Reference:* ${bookingRef}\n🎫 *Voucher Reference:* ${voucherRef}\n👥 *Pilgrims:* ${numPax} Pax\n🏷️ *Type:* ${typeLabel}\n\nOur team is finalizing your Ministry of Hajj approvals. Have a blessed journey!`;
+          await sendCustomWhatsApp(guestMobile, msg);
+        }
       } catch (waErr: any) {
         console.error('[WHATSAPP BOOKING] Confirmation send failed:', waErr.message);
       }
@@ -1144,13 +1170,15 @@ router.post(
     return res.status(201).json({
       success: true,
       bookingReference: bookingRef,
-      voucherNumber: voucherRef,
+      voucherNumber: voucherRef || undefined,
       bookingId: booking.id,
       visaType: resolvedVisaType,
       accommodationType: booking.accommodationType,
       passengerCount: numPax,
-      status: 'confirmed',
-      message: 'Booking registered successfully in Moulavi ERP',
+      status: resolvedVisaType === 're_entry' ? 'pending' : 'confirmed',
+      message: resolvedVisaType === 're_entry'
+        ? 'Re-Entry booking registered successfully in pending status'
+        : 'Booking registered successfully in Moulavi ERP',
     });
   })
 );

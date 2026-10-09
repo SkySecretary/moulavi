@@ -65,12 +65,22 @@ function ReentryPaymentContent() {
     }
   }, []);
 
-  // 2. If returning with an order_id, verify status first
+  // 2. Auto-dispatch: verify if returning from gateway OR auto-redirect to Cashfree checkout
   useEffect(() => {
-    if (orderId && !sessionId) {
-      checkOrderStatus(orderId);
+    if (!sdkReady) return;
+    if (hasAutoTriggeredRef.current) return;
+
+    // CASE A: Returning from Cashfree (order_id in URL but no session_id)
+    if (rawOrderId && !rawSessionId) {
+      hasAutoTriggeredRef.current = true;
+      checkOrderStatus(rawOrderId);
+      return;
     }
-  }, [orderId]);
+
+    // CASE B: Initial payment page load -> automatically launch Cashfree checkout
+    hasAutoTriggeredRef.current = true;
+    triggerCashfreeCheckout();
+  }, [sdkReady, rawOrderId, rawSessionId]);
 
   const checkOrderStatus = async (oid: string) => {
     setVerifying(true);
@@ -81,14 +91,14 @@ function ReentryPaymentContent() {
         if (data.data.isPaid || data.data.orderStatus === 'PAID') {
           setPaymentStatus('PAID');
           setBookingResult(data.data.booking);
-          toast.success('🎉 Payment confirmed! Your voucher has been sent to WhatsApp.');
+          toast.success('🎉 Payment confirmed! Your booking has been registered in NuSync.');
           return;
-        } else if (data.data.orderStatus === 'ACTIVE' || data.data.orderStatus === 'PENDING') {
-          setPaymentStatus('PENDING');
         } else {
           setPaymentStatus('FAILED');
+          return;
         }
       }
+      setPaymentStatus('FAILED');
     } catch (err) {
       console.error('Error verifying order status:', err);
       setPaymentStatus('FAILED');
@@ -97,17 +107,7 @@ function ReentryPaymentContent() {
     }
   };
 
-  // 3. Auto-redirect to Cashfree Gateway as soon as SDK is ready and status is IDLE
-  useEffect(() => {
-    if (paymentStatus === 'IDLE' && sdkReady && !hasAutoTriggeredRef.current && !verifying) {
-      if (!orderId || sessionId) {
-        hasAutoTriggeredRef.current = true;
-        triggerCashfreeCheckout();
-      }
-    }
-  }, [sdkReady, paymentStatus, sessionId, orderId, verifying]);
-
-  // 4. Auto-redirect back to WhatsApp when paid
+  // 3. Auto-redirect back to WhatsApp when paid
   useEffect(() => {
     if (paymentStatus === 'PAID') {
       const timer = setInterval(() => {
@@ -127,8 +127,7 @@ function ReentryPaymentContent() {
   const triggerCashfreeCheckout = async () => {
     setRedirecting(true);
     try {
-      let activeSessionId = sessionId;
-      let activeOrderId = orderId;
+      let activeSessionId = sessionId || rawSessionId;
 
       if (!activeSessionId) {
         const orderRes = await fetch('/api/b2c/reentry-pricing/create-order', {
@@ -145,9 +144,8 @@ function ReentryPaymentContent() {
         const orderData = await orderRes.json();
         if (orderData.success && orderData.data) {
           activeSessionId = orderData.data.paymentSessionId;
-          activeOrderId = orderData.data.orderId;
           setSessionId(activeSessionId);
-          setOrderId(activeOrderId);
+          setOrderId(orderData.data.orderId);
         } else {
           throw new Error(orderData.error || 'Failed to initialize Cashfree gateway session');
         }
@@ -157,11 +155,20 @@ function ReentryPaymentContent() {
         throw new Error('Cashfree session ID missing');
       }
 
-      if (!window.Cashfree) {
+      let cashfree: any = null;
+      if (typeof window !== 'undefined' && window.Cashfree) {
+        cashfree = window.Cashfree({ mode: 'production' });
+      } else {
         await new Promise((r) => setTimeout(r, 600));
+        if (typeof window !== 'undefined' && window.Cashfree) {
+          cashfree = window.Cashfree({ mode: 'production' });
+        }
       }
 
-      const cashfree = window.Cashfree({ mode: 'production' });
+      if (!cashfree) {
+        throw new Error('Cashfree SDK is not available');
+      }
+
       cashfree.checkout({
         paymentSessionId: activeSessionId,
         redirectTarget: '_self', // Smooth full page redirect to Cashfree checkout
