@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build:landing": "tailwindcss -c ./tailwind.landing.config.js -o ./public/landing/landing.css --minify",
+    "build": "npm run build:landing && next build",
     "start": "next start",
     "lint": "next lint"
   },
