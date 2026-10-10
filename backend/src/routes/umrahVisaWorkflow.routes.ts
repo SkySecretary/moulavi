@@ -1575,28 +1575,31 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
     });
     console.log('==========================================');
 
-    // Generate PDF and dispatch notifications (Email + WhatsApp with PDF) to Agency and Transport Supplier
-    try {
-      const pdfBuffer = await generateVoucherPDF(voucherForPdf as any);
-      const { dispatchVoucherIssuedAlerts } = await import('../services/voucherNotificationService');
-      await dispatchVoucherIssuedAlerts({
-        voucherId: fullVoucher.id,
-        voucherNumber: fullVoucher.voucherNumber,
-        voucherDataForPdf: voucherForPdf,
-        pdfBuffer,
-        notifyAgency: true,
-        notifySupplier: true,
-      });
-      console.log('✅ Voucher alerts dispatched to Agency and Transport Supplier successfully');
-    } catch (notifyError) {
-      console.error('⚠️ Failed to dispatch voucher notifications:', notifyError);
-      // Don't fail the request if notifications fail
-    }
+    // Asynchronously dispatch notifications (PDF generation + Email + WhatsApp) in background
+    // This ensures the client request finishes immediately (<500ms) and never times out
+    (async () => {
+      try {
+        const { dispatchVoucherIssuedAlerts } = await import('../services/voucherNotificationService');
+        await dispatchVoucherIssuedAlerts({
+          voucherId: fullVoucher.id,
+          voucherNumber: fullVoucher.voucherNumber,
+          voucherDataForPdf: voucherForPdf,
+          notifyAgency: true,
+          notifySupplier: true,
+        });
+        console.log('✅ Voucher alerts dispatched to Agency and Transport Supplier in background');
+      } catch (notifyError) {
+        console.error('⚠️ Failed to dispatch voucher notifications in background:', notifyError);
+      }
+    })();
 
     res.json({
       message: 'Voucher generated successfully',
       data: {
-        voucher: voucherForPdf,
+        voucher: {
+          ...voucherForPdf,
+          pdfUrl: `/uploads/vouchers/Voucher_${fullVoucher.voucherNumber}.pdf`,
+        },
       },
     });
   } catch (error) {

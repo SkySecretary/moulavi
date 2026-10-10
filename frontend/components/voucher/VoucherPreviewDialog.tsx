@@ -827,12 +827,16 @@ export function VoucherPreviewDialog({
       
       toast.success('Voucher generated successfully!');
       
+      // Close dialog and trigger list refresh immediately so UI is responsive and never hangs
+      onOpenChange(false);
+      onSuccess();
+
       // Generate and download PDF using the voucher data returned from backend
       try {
         const pdfData = {
-          voucherNumber: generatedVoucher.voucherNumber,
+          voucherNumber: String(generatedVoucher.voucherNumber || ''),
           bookingReference: generatedVoucher.bookingReference || '',
-          reservationNumber: generatedVoucher.reservationNumber || '',
+          reservationNumber: String(generatedVoucher.reservationNumber || generatedVoucher.voucherNumber || ''),
           reservationDate: generatedVoucher.reservationDate,
           guestName: generatedVoucher.guestName,
           guestMobile: generatedVoucher.guestMobile || '',
@@ -847,6 +851,8 @@ export function VoucherPreviewDialog({
           flightDetails: generatedVoucher.flightDetails || [],
         };
 
+        const vNumStr = String(pdfData.voucherNumber || '').replace(/^UB-/, '');
+
         // Call backend to generate PDF
         const pdfResponse = await api.post('/umrah-visa/generate-pdf', pdfData, {
           responseType: 'blob',
@@ -857,18 +863,19 @@ export function VoucherPreviewDialog({
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `${pdfData.voucherNumber.replace(/^UB-/, '')}.pdf`;
+        link.download = `Voucher-${vNumStr || 'download'}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
       } catch (pdfError) {
         console.error('Error generating PDF:', pdfError);
-        toast.error('Voucher saved but PDF generation failed');
+        if (generatedVoucher.pdfUrl) {
+          window.open(generatedVoucher.pdfUrl, '_blank');
+        } else {
+          toast.info('Voucher generated! You can download the PDF from the voucher table.');
+        }
       }
-      
-      onOpenChange(false);
-      onSuccess();
     } catch (error: any) {
       toast.error(error.message || 'Failed to generate voucher');
     } finally {
