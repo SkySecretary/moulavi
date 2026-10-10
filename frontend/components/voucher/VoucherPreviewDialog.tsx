@@ -416,19 +416,21 @@ export function VoucherPreviewDialog({
       let finalPaxCount = data.paxCount || 0;
 
       if (otherBookings.length > 0) {
-        // Collect all group codes
+        // Collect all group codes cleanly
         const allGroupCodes = [
           finalGroupCode,
           ...otherBookings.map(b => b.groupNumber)
         ].filter((c): c is string => !!c && c.trim().length > 0);
-        finalGroupCode = Array.from(new Set(allGroupCodes)).join(', ');
+        const splitCodes = allGroupCodes.flatMap(c => c.split(',').map(s => s.trim())).filter(Boolean);
+        finalGroupCode = Array.from(new Set(splitCodes)).join(', ');
 
-        // Collect all group names
+        // Collect all group names cleanly
         const allGroupNames = [
           finalGroupName,
           ...otherBookings.map(b => b.groupName)
         ].filter((n): n is string => !!n && n.trim().length > 0);
-        finalGroupName = Array.from(new Set(allGroupNames)).join(', ');
+        const splitNames = allGroupNames.flatMap(n => n.split(',').map(s => s.trim())).filter(Boolean);
+        finalGroupName = Array.from(new Set(splitNames)).join(', ');
 
         // Total pax count sum
         const otherPax = otherBookings.reduce((acc, b) => acc + (b.passengerCount || 0), 0);

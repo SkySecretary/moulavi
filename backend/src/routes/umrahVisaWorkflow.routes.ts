@@ -1172,54 +1172,51 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
       passengerCount: b.passengerCount,
     }));
 
-    // Handle multiple groups - combine group numbers as comma-separated string
-    let groupCode = voucherData.groupCode || booking!.groupNumber || '';
-    let groupName = voucherData.groupName || booking!.groupName || '';
-    let paxCount = voucherData.paxCount || booking!.passengerCount;
-    
-      if (fullBooking.hasMultipleGroup && fullBooking.multipleGroupDetails) {
-        try {
-          if (Array.isArray(fullBooking.multipleGroupDetails)) {
-          const multipleGroupDetails = fullBooking.multipleGroupDetails as any[];
-          if (multipleGroupDetails.length > 0) {
-            // Combine all group numbers
-            const groupNumbers = multipleGroupDetails
-              .map((g: any) => g.groupNumber)
-              .filter((num: string) => num)
-              .join(', ');
-            if (groupNumbers) {
-              groupCode = groupNumbers;
-            }
-            // Combine all group names
-            const groupNames = multipleGroupDetails
-              .map((g: any) => g.groupName)
-              .filter((name: string) => name)
-              .join(', ');
-            if (groupNames) {
-              groupName = groupNames;
-            }
-            // Sum all passenger counts
-            const totalPassengers = multipleGroupDetails.reduce(
-              (sum: number, g: any) => sum + (g.passengerCount || 0),
-              0
-            );
-            if (totalPassengers > 0) {
-              paxCount = totalPassengers;
-            }
-          }
-          }
-        } catch (e) {
-          console.error('Error parsing multipleGroupDetails:', e);
-        }
+    // Combine group numbers, group names, and pax count across primary booking AND all appended secondary bookings
+    let groupCode = voucherData.groupCode;
+    let groupName = voucherData.groupName;
+    let paxCount = voucherData.paxCount ? parseInt(String(voucherData.paxCount), 10) : 0;
+
+    // If not provided in voucherData, calculate dynamically:
+    if (!groupCode || !paxCount) {
+      let primaryGroups: string[] = [];
+      let primaryNames: string[] = [];
+      let primaryPax = booking!.passengerCount || 0;
+
+      if (fullBooking.hasMultipleGroup && Array.isArray(fullBooking.multipleGroupDetails) && fullBooking.multipleGroupDetails.length > 0) {
+        const mgDetails = fullBooking.multipleGroupDetails as any[];
+        primaryGroups = mgDetails.map((g: any) => g.groupNumber).filter(Boolean);
+        primaryNames = mgDetails.map((g: any) => g.groupName).filter(Boolean);
+        const mgPax = mgDetails.reduce((sum: number, g: any) => sum + (g.passengerCount || 0), 0);
+        if (mgPax > 0) primaryPax = mgPax;
+      } else if (booking!.groupNumber) {
+        primaryGroups = [booking!.groupNumber];
+        if (booking!.groupName) primaryNames = [booking!.groupName];
+      }
+
+      // Collect all secondary groups & pax
+      const secGroups = appendedBookings.map((b) => b.groupNumber).filter(Boolean);
+      const secNames = appendedBookings.map((b) => b.groupName).filter(Boolean);
+      const secPax = appendedBookings.reduce((sum: number, b) => sum + (b.passengerCount || 0), 0);
+
+      const allGroups = [...primaryGroups, ...secGroups].flatMap((g) => g.split(',').map((s: string) => s.trim())).filter(Boolean);
+      const allNames = [...primaryNames, ...secNames].flatMap((n) => n.split(',').map((s: string) => s.trim())).filter(Boolean);
+
+      if (!groupCode) {
+        groupCode = Array.from(new Set(allGroups)).join(', ');
+      }
+      if (!groupName) {
+        groupName = Array.from(new Set(allNames)).join(', ');
+      }
+      if (!paxCount) {
+        paxCount = primaryPax + secPax;
+      }
     }
 
-    // Check if voucher already exists for this booking or groupCode
+    // Check if voucher already exists for this booking
     let existingVoucher = await prisma.voucher.findFirst({
       where: {
-        OR: [
-          { bookingId: booking.id },
-          ...(groupCode ? [{ groupCode: groupCode }] : []),
-        ],
+        bookingId: booking.id,
       },
       orderBy: {
         createdAt: 'desc',
@@ -1299,8 +1296,14 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
       // Create VoucherMovement records
       if (voucherData.movementDetails && Array.isArray(voucherData.movementDetails)) {
         await Promise.all(
-          voucherData.movementDetails.map((movement: any, index: number) =>
-            tx.voucherMovement.create({
+          voucherData.movementDetails.map((movement: any, index: number) => {
+            const movementPax = movement.paxCount !== undefined && movement.paxCount !== null && !isNaN(parseInt(String(movement.paxCount), 10))
+              ? parseInt(String(movement.paxCount), 10)
+              : null;
+            const movementPrice = movement.price !== undefined && movement.price !== null && !isNaN(parseFloat(String(movement.price)))
+              ? parseFloat(String(movement.price))
+              : null;
+            return tx.voucherMovement.create({
               data: {
                 voucherId: voucherRecord.id,
                 sr: movement.sr || index + 1,
@@ -1316,12 +1319,12 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
                 driverDetails1: movement.driverDetails1 || null,
                 driverDetails2: movement.driverDetails2 || null,
                 vehicleNumber: movement.vehicleNumber || null,
-                paxCount: movement.paxCount || null,
-                price: movement.price ? parseFloat(movement.price) : null,
+                paxCount: movementPax,
+                price: movementPrice,
                 vehicleType: movement.vehicleType || null,
               },
-            })
-          )
+            });
+          })
         );
       }
 
@@ -1339,6 +1342,10 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
               }
             }
             
+            const hotelDays = hotel.days !== undefined && hotel.days !== null && !isNaN(parseInt(String(hotel.days), 10))
+              ? parseInt(String(hotel.days), 10)
+              : 0;
+
             return tx.voucherHotel.create({
               data: {
                 voucherId: voucherRecord.id,
@@ -1347,7 +1354,7 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
                 hotelName: hotel.hotelName || '',
                 checkIn: hotel.checkIn ? (isNaN(new Date(hotel.checkIn).getTime()) ? new Date() : new Date(hotel.checkIn)) : new Date(),
                 checkOut: hotel.checkOut ? (isNaN(new Date(hotel.checkOut).getTime()) ? new Date() : new Date(hotel.checkOut)) : new Date(),
-                days: hotel.days || 0,
+                days: hotelDays,
                 brn: brnValue,
               },
             });
@@ -1511,6 +1518,40 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
       }) as any;
     }
 
+    // Agent Party fallback
+    let agentParty = fullVoucher.party;
+    if (!agentParty && (fullVoucher.partyId || booking.partyId)) {
+      const pid = fullVoucher.partyId || booking.partyId;
+      if (pid) {
+        agentParty = await prisma.party.findUnique({
+          where: { id: pid },
+          select: {
+            id: true,
+            partyName: true,
+            address: true,
+            contactNumber: true,
+            whatsappNumber: true,
+            email: true,
+          },
+        }) as any;
+      }
+    }
+
+    // Transport company fallback
+    let transportCompany = fullVoucher.transportCompany;
+    if (!transportCompany && (fullVoucher.transportCompanyId || voucherData.transportCompanyId)) {
+      const tid = fullVoucher.transportCompanyId || voucherData.transportCompanyId;
+      if (tid) {
+        transportCompany = await prisma.party.findUnique({
+          where: { id: tid },
+          select: {
+            id: true,
+            partyName: true,
+          },
+        }) as any;
+      }
+    }
+
     // Transform voucher data to match PDF format explicitly
     const voucherForPdf: any = {
       id: fullVoucher.id,
@@ -1525,8 +1566,9 @@ router.post('/:bookingId/generate-voucher', authenticate, async (req, res) => {
       paxCount: fullVoucher.paxCount,
       vehicleType: fullVoucher.vehicleType || '',
       umrahCompany: umrahVisaProvider,
-      agentParty: fullVoucher.party,
-      transportCompany: fullVoucher.transportCompany,
+      agentParty: agentParty || fullVoucher.party,
+      transportCompany: transportCompany || fullVoucher.transportCompany,
+      appendedBookings: fullVoucher.appendedBookings || [],
       movementDetails: fullVoucher.movements.map((m) => ({
         sr: m.sr,
         route: m.route || '',
