@@ -501,10 +501,10 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
             }
             @keyframes pulseGoldGlow {
               0%, 100% {
-                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.9), 0 0 25px rgba(212, 175, 55, 0.45);
+                filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 10px rgba(245, 158, 11, 0.35));
               }
               50% {
-                box-shadow: 0 12px 42px rgba(0, 0, 0, 0.95), 0 0 50px rgba(250, 204, 21, 0.8), 0 0 25px rgba(16, 185, 129, 0.5);
+                filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 20px rgba(250, 204, 21, 0.7));
               }
             }
             @keyframes bounceSoft {
@@ -576,56 +576,57 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
               }}
             />
 
-            {/* Central Holy Kaaba Object (Noble Isometric 3D Kaaba with Gold Aura & Sacred Kiswah Details) */}
+            {/* Central Holy Kaaba Object (Crisp, Elegant Isometric 3D Kaaba with 100% Transparent Background) */}
             <div 
               style={{
                 position: 'relative',
                 zIndex: 20,
-                width: '84px',
+                width: '76px',
                 height: '84px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                animation: 'pulseGoldGlow 3s ease-in-out infinite',
-                transition: 'transform 0.25s ease'
+                background: 'transparent',
+                transition: 'transform 0.2s ease'
               }}
               onClick={() => playChime(880, 'triangle', 0.4)}
               title="The Holy Kaaba, Makkah Al-Mukarramah (Click for Sacred Chime)"
             >
               <svg 
                 viewBox="0 0 100 100" 
-                width="84" 
+                width="76" 
                 height="84" 
                 style={{ 
-                  filter: 'drop-shadow(0 10px 20px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 15px rgba(245, 158, 11, 0.45))'
+                  overflow: 'visible',
+                  background: 'transparent'
                 }}
               >
                 <defs>
                   {/* Top Roof Gradient */}
                   <linearGradient id="kaabaRoof" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#2a2a2a" />
-                    <stop offset="100%" stopColor="#141414" />
+                    <stop offset="0%" stopColor="#222222" />
+                    <stop offset="100%" stopColor="#111111" />
                   </linearGradient>
 
                   {/* Left Facade Gradient */}
                   <linearGradient id="kaabaLeftFace" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#1e1e1e" />
+                    <stop offset="0%" stopColor="#1a1a1a" />
                     <stop offset="100%" stopColor="#0a0a0a" />
                   </linearGradient>
 
                   {/* Right Facade (Front) Gradient */}
                   <linearGradient id="kaabaRightFace" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#121212" />
-                    <stop offset="100%" stopColor="#050505" />
+                    <stop offset="0%" stopColor="#0f0f0f" />
+                    <stop offset="100%" stopColor="#040404" />
                   </linearGradient>
 
                   {/* Gold Kiswah Belt Gradient */}
                   <linearGradient id="goldHizam" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#b45309" />
+                    <stop offset="0%" stopColor="#d97706" />
                     <stop offset="35%" stopColor="#fef08a" />
-                    <stop offset="65%" stopColor="#f59e0b" />
-                    <stop offset="100%" stopColor="#b45309" />
+                    <stop offset="70%" stopColor="#fbbf24" />
+                    <stop offset="100%" stopColor="#d97706" />
                   </linearGradient>
 
                   {/* Gold Bab Al-Kaaba (Door) Gradient */}
@@ -634,57 +635,47 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
                     <stop offset="40%" stopColor="#fbbf24" />
                     <stop offset="100%" stopColor="#b45309" />
                   </linearGradient>
-
-                  {/* Marble Shadharwan Base */}
-                  <linearGradient id="marbleBase" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#cbd5e1" />
-                    <stop offset="50%" stopColor="#f8fafc" />
-                    <stop offset="100%" stopColor="#94a3b8" />
-                  </linearGradient>
                 </defs>
 
-                {/* Shadharwan Marble Base Platform */}
-                <polygon points="50,91 87,73 87,77 50,95" fill="#94a3b8" />
-                <polygon points="50,91 13,73 13,77 50,95" fill="#64748b" />
-                <polygon points="50,88 87,70 50,52 13,70" fill="url(#marbleBase)" />
+                {/* Ground Shadow - Clean soft ellipse directly underneath */}
+                <ellipse cx="50" cy="88" rx="36" ry="10" fill="rgba(0, 0, 0, 0.45)" />
 
                 {/* 3D Isometric Cube: Left Facade */}
-                <polygon points="15,40 50,57 50,88 15,71" fill="url(#kaabaLeftFace)" stroke="#1a1a1a" strokeWidth="0.5" />
+                <polygon points="16,36 50,54 50,86 16,68" fill="url(#kaabaLeftFace)" stroke="#111111" strokeWidth="0.5" />
 
                 {/* 3D Isometric Cube: Right (Front) Facade */}
-                <polygon points="50,57 85,40 85,71 50,88" fill="url(#kaabaRightFace)" stroke="#0d0d0d" strokeWidth="0.5" />
+                <polygon points="50,54 84,36 84,68 50,86" fill="url(#kaabaRightFace)" stroke="#050505" strokeWidth="0.5" />
 
                 {/* 3D Isometric Cube: Roof Top Face */}
-                <polygon points="50,23 85,40 50,57 15,40" fill="url(#kaabaRoof)" stroke="#333333" strokeWidth="0.5" />
+                <polygon points="50,18 84,36 50,54 16,36" fill="url(#kaabaRoof)" stroke="#262626" strokeWidth="0.5" />
 
                 {/* Gold Kiswah Belt (Hizam) - Left Facade */}
-                <polygon points="15,45 50,62 50,66 15,49" fill="url(#goldHizam)" />
-                <line x1="15" y1="45" x2="50" y2="62" stroke="#fef08a" strokeWidth="0.75" />
-                <line x1="15" y1="49" x2="50" y2="66" stroke="#b45309" strokeWidth="0.75" />
+                <polygon points="16,42 50,60 50,64.5 16,46.5" fill="url(#goldHizam)" />
+                <line x1="16" y1="42" x2="50" y2="60" stroke="#fef08a" strokeWidth="0.6" />
+                <line x1="16" y1="46.5" x2="50" y2="64.5" stroke="#b45309" strokeWidth="0.6" />
 
                 {/* Gold Kiswah Belt (Hizam) - Right Facade */}
-                <polygon points="50,62 85,45 85,49 50,66" fill="url(#goldHizam)" />
-                <line x1="50" y1="62" x2="85" y2="45" stroke="#fef08a" strokeWidth="0.75" />
-                <line x1="50" y1="66" x2="85" y2="49" stroke="#b45309" strokeWidth="0.75" />
+                <polygon points="50,60 84,42 84,46.5 50,64.5" fill="url(#goldHizam)" />
+                <line x1="50" y1="60" x2="84" y2="42" stroke="#fef08a" strokeWidth="0.6" />
+                <line x1="50" y1="64.5" x2="84" y2="46.5" stroke="#b45309" strokeWidth="0.6" />
 
-                {/* Gold Inscriptions / Motifs along Belt */}
-                <circle cx="32" cy="55.5" r="0.9" fill="#78350f" />
-                <circle cx="41" cy="60" r="0.9" fill="#78350f" />
-                <circle cx="59" cy="60" r="0.9" fill="#78350f" />
-                <circle cx="68" cy="55.5" r="0.9" fill="#78350f" />
+                {/* Traditional Calligraphy Inscription Dots */}
+                <circle cx="33" cy="53" r="0.8" fill="#78350f" />
+                <circle cx="41.5" cy="57.5" r="0.8" fill="#78350f" />
+                <circle cx="58.5" cy="57.5" r="0.8" fill="#78350f" />
+                <circle cx="67" cy="53" r="0.8" fill="#78350f" />
 
-                {/* Bab Al-Kaaba (The Sacred Gold Door on Right/Front Facade) */}
-                <polygon points="57,64 69,58 69,76 57,82" fill="url(#goldDoor)" stroke="#fef08a" strokeWidth="0.5" />
-                {/* Door Frame Inner Carving & Lock (Dabbah) */}
-                <line x1="63" y1="61" x2="63" y2="79" stroke="#92400e" strokeWidth="0.5" />
-                <circle cx="63" cy="71" r="0.8" fill="#fef08a" />
+                {/* Bab Al-Kaaba (Sacred Golden Door on Right Facade) */}
+                <polygon points="57,62 69,56 69,74 57,80" fill="url(#goldDoor)" stroke="#fef08a" strokeWidth="0.5" />
+                <line x1="63" y1="59" x2="63" y2="77" stroke="#78350f" strokeWidth="0.5" />
+                <circle cx="63" cy="69" r="0.75" fill="#fef08a" />
 
-                {/* Mizab Ar-Rahmah (Golden Rain Water Spout on Roof Top) */}
-                <line x1="42" y1="36" x2="38" y2="38" stroke="#facc15" strokeWidth="1.5" strokeLinecap="round" />
+                {/* Mizab Ar-Rahmah (Golden Rain Water Spout on Roof) */}
+                <line x1="42" y1="31" x2="38" y2="33" stroke="#facc15" strokeWidth="1.5" strokeLinecap="round" />
 
-                {/* Hajar Al-Aswad (Black Stone in Silver Casing) at Corner */}
-                <ellipse cx="50" cy="85.5" rx="1.8" ry="2.2" fill="#e2e8f0" stroke="#475569" strokeWidth="0.5" />
-                <circle cx="50" cy="85.5" r="1" fill="#09090b" />
+                {/* Hajar Al-Aswad (Sacred Black Stone in Silver Casing) at bottom corner */}
+                <ellipse cx="50" cy="83.5" rx="1.8" ry="2.2" fill="#e2e8f0" stroke="#64748b" strokeWidth="0.5" />
+                <circle cx="50" cy="83.5" r="1" fill="#09090b" />
               </svg>
             </div>
 

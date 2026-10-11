@@ -594,7 +594,7 @@ export default function App() {
     const newPassengers = Array.from({ length: params.persons }).map((_, idx) => ({
       fullName: idx === 0 && traveler.fullName ? traveler.fullName : '',
       passportNumber: idx === 0 && traveler.passportNumber ? traveler.passportNumber : '',
-      nationality: idx === 0 && traveler.nationality ? traveler.nationality : 'United States',
+      nationality: idx === 0 && traveler.nationality ? traveler.nationality : 'Indian',
       gender: 'MALE'
     }));
     setPassengers(newPassengers);
@@ -654,7 +654,7 @@ export default function App() {
   const [traveler, setTraveler] = useState({
     fullName: '',
     passportNumber: '',
-    nationality: 'United States',
+    nationality: 'Indian',
     mobile: '',
     email: ''
   });
@@ -665,7 +665,7 @@ export default function App() {
     nationality: string;
     gender: string;
   }>>([
-    { fullName: '', passportNumber: '', nationality: 'United States', gender: 'MALE' }
+    { fullName: '', passportNumber: '', nationality: 'Indian', gender: 'MALE' }
   ]);
 
   useEffect(() => {
@@ -674,7 +674,7 @@ export default function App() {
       const copy = [...prev];
       if (copy.length < count) {
         for (let i = copy.length; i < count; i++) {
-          copy.push({ fullName: '', passportNumber: '', nationality: 'United States', gender: 'MALE' });
+          copy.push({ fullName: '', passportNumber: '', nationality: 'Indian', gender: 'MALE' });
         }
       } else if (copy.length > count) {
         copy.splice(count);
@@ -1412,7 +1412,7 @@ export default function App() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
                       {passengers.map((p, idx) => (
                         <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
-                          <span><b>{idx + 1}. {p.fullName || 'Pilgrim'}</b> ({p.nationality || 'US'})</span>
+                          <span><b>{idx + 1}. {p.fullName || 'Pilgrim'}</b> ({p.nationality || 'Indian'})</span>
                           <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>Passport: {p.passportNumber || 'EP9832104'}</span>
                         </div>
                       ))}

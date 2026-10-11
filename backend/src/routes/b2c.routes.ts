@@ -243,25 +243,67 @@ router.post(
     // Fetch dynamic markup configs
     const markups = await prisma.b2CConfig.findMany({ where: { isActive: true } });
 
-    // Define base cost constants
-    const makkahPriceNight = makkahHotel ? (Number((makkahHotel as any).pricePerNight || (makkahHotel as any).price) || (makkahHotel.name.includes("Swiss") ? 580 : makkahHotel.name.includes("Zamzam") ? 450 : 280)) : 0;
-    const madinahPriceNight = madinahHotel ? (Number((madinahHotel as any).pricePerNight || (madinahHotel as any).price) || (madinahHotel.name.includes("Oberoi") ? 650 : madinahHotel.name.includes("Mövenpick") ? 390 : 240)) : 0;
+    // Fetch ERP Calculator Master rates for consistent category-level pricing
+    const calcMaster = await prisma.umrahCalculatorMaster.findFirst({ where: { isActive: true } });
+    const hotelCategory = (req.body.hotelCategory || 'comfort').toLowerCase();
+
+    let makkahPriceNight = 0;
+    let madinahPriceNight = 0;
+
+    if (calcMaster) {
+      if (hotelCategory === 'luxury') {
+        makkahPriceNight = Number(calcMaster.luxuryMakkahRateSAR) || 550;
+        madinahPriceNight = Number(calcMaster.luxuryMadinahRateSAR) || 520;
+      } else if (hotelCategory === 'economy') {
+        makkahPriceNight = Number(calcMaster.economyMakkahRateSAR) || 220;
+        madinahPriceNight = Number(calcMaster.economyMadinahRateSAR) || 200;
+      } else {
+        makkahPriceNight = Number(calcMaster.comfortMakkahRateSAR) || 360;
+        madinahPriceNight = Number(calcMaster.comfortMadinahRateSAR) || 330;
+      }
+    } else {
+      if (hotelCategory === 'luxury') {
+        makkahPriceNight = 550;
+        madinahPriceNight = 520;
+      } else if (hotelCategory === 'economy') {
+        makkahPriceNight = 220;
+        madinahPriceNight = 200;
+      } else {
+        makkahPriceNight = 360;
+        madinahPriceNight = 330;
+      }
+    }
     
     let routePrice = 0;
-    if (transportOptionId) {
+    const transportMasterId = req.body.transportMasterId;
+    if (transportMasterId) {
+      const tm = await prisma.transportMaster.findUnique({
+        where: { id: transportMasterId }
+      });
+      if (tm) {
+        routePrice = Number(tm.price) || 0;
+      }
+    } else if (transportOptionId) {
       if (transportOptionId === 'r-1' || transportOptionId === 'r-3') {
         routePrice = 600;
       } else if (transportOptionId === 'r-2') {
         routePrice = 400;
       } else {
-        const rt = await prisma.transportRouteMaster.findUnique({
-          where: { id: transportOptionId },
-          include: { transports: true }
+        const tm = await prisma.transportMaster.findFirst({
+          where: { id: transportOptionId }
         });
-        if (rt && rt.transports && rt.transports.length > 0) {
-          routePrice = Number(rt.transports[0].price) || 500;
+        if (tm) {
+          routePrice = Number(tm.price) || 0;
         } else {
-          routePrice = 500;
+          const rt = await prisma.transportRouteMaster.findUnique({
+            where: { id: transportOptionId },
+            include: { transports: true }
+          });
+          if (rt && rt.transports && rt.transports.length > 0) {
+            routePrice = Number(rt.transports[0].price) || 500;
+          } else {
+            routePrice = 500;
+          }
         }
       }
     }
@@ -294,14 +336,15 @@ router.post(
       }
     }
 
-    const vat = Math.round(totalSubtotal * 0.15);
-    const grandTotal = totalSubtotal + vat;
+    const processingFee = Math.round(totalSubtotal * 0.015);
+    const grandTotal = totalSubtotal + processingFee;
 
     res.json({
       success: true,
       data: {
         subtotal: Math.round(totalSubtotal),
-        vat,
+        processingFee,
+        vat: processingFee, // Backward compatible field
         total: Math.round(grandTotal),
       },
     });
@@ -410,20 +453,53 @@ router.post(
       where: { mobileNumber: cleanMobile },
     });
 
+    const fallbackEmail = email && email.trim() ? email.trim() : `${cleanMobile}@moulavi.in`;
+
     if (!consumer) {
-      consumer = await prisma.b2CConsumer.create({
-        data: {
-          mobileNumber: cleanMobile,
-          email: email || `${cleanMobile}@moulavi.in`,
-          fullName: fullName || 'Pilgrim',
-          otpToken: code,
-          otpExpiresAt: expiresAt,
-        },
+      // Check if another consumer with the exact same email already exists to prevent unique constraint failure
+      const existingEmailConsumer = await prisma.b2CConsumer.findUnique({
+        where: { email: fallbackEmail }
       });
+
+      if (existingEmailConsumer) {
+        // Associate this existing record with the current mobile and update OTP
+        consumer = await prisma.b2CConsumer.update({
+          where: { id: existingEmailConsumer.id },
+          data: {
+            mobileNumber: cleanMobile,
+            fullName: fullName || existingEmailConsumer.fullName,
+            otpToken: code,
+            otpExpiresAt: expiresAt,
+          }
+        });
+      } else {
+        consumer = await prisma.b2CConsumer.create({
+          data: {
+            mobileNumber: cleanMobile,
+            email: fallbackEmail,
+            fullName: fullName || 'Pilgrim',
+            otpToken: code,
+            otpExpiresAt: expiresAt,
+          },
+        });
+      }
     } else {
+      // If user provided a new email, verify it doesn't collide with another consumer before saving
+      let targetEmail = consumer.email;
+      if (email && email.trim() && email.trim() !== consumer.email) {
+        const emailCollision = await prisma.b2CConsumer.findUnique({
+          where: { email: email.trim() }
+        });
+        if (!emailCollision) {
+          targetEmail = email.trim();
+        }
+      }
+
       consumer = await prisma.b2CConsumer.update({
         where: { id: consumer.id },
         data: {
+          email: targetEmail,
+          fullName: fullName || consumer.fullName,
           otpToken: code,
           otpExpiresAt: expiresAt,
         },
@@ -845,14 +921,20 @@ router.post(
       paymentStatus,
       paymentReceiptUrl,
       // Travel & Flight Details
+      arrivalAirport,
+      departureAirport,
       arrivalAirportCode = 'JED',
       arrivalAirportName,
       arrivalFlightNumber,
       arrivalDateTime,
+      arrivalDate,
+      arrivalTime,
       departureAirportCode = 'MED',
       departureAirportName,
       departureFlightNumber,
       departureDateTime,
+      departureDate,
+      departureTime,
       isWithoutTicket = false,
       isOneWay = false,
       // Movements / Transports
@@ -895,11 +977,44 @@ router.post(
       });
     }
 
-    const defaultAirport = await prisma.locationMaster.findFirst({
-      where: { locationType: 'AIRPORT' }
-    }) || (await prisma.locationMaster.findFirst());
+    // Helper to resolve airport location by code, city or name
+    const resolveAirport = async (codeOrName?: string) => {
+      if (!codeOrName || !String(codeOrName).trim()) {
+        const jed = await prisma.locationMaster.findFirst({
+          where: { locationType: 'AIRPORT', code: 'JED' }
+        });
+        return jed || (await prisma.locationMaster.findFirst({ where: { locationType: 'AIRPORT' } }));
+      }
+      const clean = String(codeOrName).trim();
+      const upper = clean.toUpperCase();
+      let match = await prisma.locationMaster.findFirst({
+        where: { locationType: 'AIRPORT', code: upper }
+      });
+      if (match) return match;
+      match = await prisma.locationMaster.findFirst({
+        where: {
+          locationType: 'AIRPORT',
+          OR: [
+            { city: { contains: clean } },
+            { name: { contains: clean } }
+          ]
+        }
+      });
+      if (match) return match;
+      const jed = await prisma.locationMaster.findFirst({
+        where: { locationType: 'AIRPORT', code: 'JED' }
+      });
+      return jed || (await prisma.locationMaster.findFirst({ where: { locationType: 'AIRPORT' } }));
+    };
 
-    const defaultAirportId = defaultAirport?.id || '';
+    const targetArrCode = arrivalAirport || arrivalAirportCode || 'JED';
+    const targetDepCode = departureAirport || departureAirportCode || 'MED';
+
+    const arrAirportLoc = await resolveAirport(targetArrCode);
+    const depAirportLoc = await resolveAirport(targetDepCode);
+
+    const defaultAirportId = arrAirportLoc?.id || (await prisma.locationMaster.findFirst())?.id || '';
+    const departureAirportId = depAirportLoc?.id || defaultAirportId;
 
     // Resolve Makkah / Madinah Hotels
     let makkahHotel: any = null;
@@ -935,6 +1050,50 @@ router.post(
     const numMadinahNights = parseInt(String(madinahNights), 10) || 0;
     const totalNights = (numMakkahNights + numMadinahNights) || 7;
 
+    // Format flight numbers cleanly
+    const formatFlight = (raw?: string, fallback: string = 'SV-300') => {
+      if (!raw || !String(raw).trim()) return fallback;
+      const clean = String(raw).trim().toUpperCase();
+      const m = clean.match(/^([A-Z0-9]{2,3})(\d{1,5})$/);
+      return m ? `${m[1]}-${m[2]}` : clean;
+    };
+
+    const finalArrFlight = isWithoutTicket ? 'NT-0000' : formatFlight(arrivalFlightNumber, 'SV-300');
+    const finalDepFlight = isWithoutTicket ? 'NT-0000' : formatFlight(departureFlightNumber, 'SV-301');
+
+    // Parse arrival & departure datetimes
+    let arrDateTime = new Date();
+    if (arrivalDateTime) {
+      arrDateTime = new Date(arrivalDateTime);
+    } else if (arrivalDate) {
+      const timePart = arrivalTime ? (arrivalTime.includes(':') ? arrivalTime : `${arrivalTime}:00`) : '12:00';
+      const parsed = new Date(`${arrivalDate}T${timePart.length === 5 ? `${timePart}:00` : timePart}Z`);
+      if (!isNaN(parsed.getTime())) arrDateTime = parsed;
+    } else {
+      arrDateTime = resolvedCheckIn;
+    }
+
+    let depDateTime = new Date(arrDateTime.getTime() + totalNights * 86400000);
+    if (departureDateTime) {
+      depDateTime = new Date(departureDateTime);
+    } else if (departureDate) {
+      const timePart = departureTime ? (departureTime.includes(':') ? departureTime : `${departureTime}:00`) : '12:00';
+      const parsed = new Date(`${departureDate}T${timePart.length === 5 ? `${timePart}:00` : timePart}Z`);
+      if (!isNaN(parsed.getTime())) depDateTime = parsed;
+    }
+
+    // Payment info for B2C whatsapp channel
+    const paymentInfoJson = JSON.stringify({
+      channel: 'whatsapp_b2c',
+      orderId: `B2C-${bookingRef}`,
+      amount: totalAmount ? Number(totalAmount) : 0,
+      currency: 'INR',
+      paymentStatus: paymentReceiptUrl ? 'PAID ONLINE' : (paymentStatus || 'PENDING'),
+      paymentMethod: paymentReceiptUrl ? 'Receipt Uploaded / Verified' : 'B2C Channel',
+      stayType: accommodationType === 'iqama' ? 'iqama' : 'hotel',
+      paidAt: new Date().toISOString(),
+    });
+
     const booking = await prisma.umrahVisaBooking.create({
       data: {
         partyId: b2cParty.id,
@@ -947,6 +1106,7 @@ router.post(
         guestName: guestName || 'B2C Pilgrim',
         guestMobile: guestMobile || '',
         status: resolvedVisaType === 're_entry' ? 'pending' : 'booking_success',
+        requestNumber: resolvedVisaType === 're_entry' ? paymentInfoJson : null,
         groupNumber: groupNumber || (resolvedVisaType === 'group_visa' ? `GRP-${randomSuffix}` : null),
         groupName: groupName || `B2C-${(guestName || 'Pilgrim').split(' ')[0]}`,
         hasTransportation: hasTransportation || (movements && movements.length > 0),
@@ -973,17 +1133,22 @@ router.post(
         travelDetails: {
           create: [
             {
-              arrivalDateTime: arrivalDateTime ? new Date(arrivalDateTime) : resolvedCheckIn,
+              arrivalDateTime: arrDateTime,
               arrivalAirportId: defaultAirportId,
-              arrivalFlightNumber: isWithoutTicket ? 'NT-0000' : (arrivalFlightNumber || 'SV-300'),
-              departureDateTime: departureDateTime ? new Date(departureDateTime) : new Date(resolvedCheckIn.getTime() + totalNights * 86400000),
-              departureAirportId: defaultAirportId,
-              departureFlightNumber: isWithoutTicket ? 'NT-0000' : (departureFlightNumber || 'SV-301'),
+              arrivalFlightNumber: finalArrFlight,
+              departureDateTime: depDateTime,
+              departureAirportId: departureAirportId,
+              departureFlightNumber: finalDepFlight,
             }
           ]
         }
-      }
+      },
+      include: {
+        passengers: true,
+      },
     });
+
+    const leadPassenger = booking.passengers?.[0];
 
     // Handle Iqama Details for Re-Entry
     if (accommodationType === 'iqama' || bookingType === 're_entry') {
@@ -1075,20 +1240,20 @@ router.post(
     }
     if (req.body.visaCopyUrl || req.body.visa_copy_url) {
       docList.push({
-        documentType: 'visa_copy',
-        fileName: `visa-copy-${Date.now()}.pdf`,
+        documentType: 'umrah_visa_copy',
+        fileName: `${passportNumber || 'pilgrim'}_umrah_visa.jpg`,
         filePath: req.body.visaCopyUrl || req.body.visa_copy_url,
         fileSize: 1024,
-        mimeType: 'application/pdf',
+        mimeType: 'image/jpeg',
       });
     }
     if (req.body.nusukCopyUrl || req.body.nusuk_copy_url) {
       docList.push({
-        documentType: 'nusuk_booking',
-        fileName: `nusuk-booking-${Date.now()}.pdf`,
+        documentType: 'nusuk_booking_copy',
+        fileName: `${passportNumber || 'pilgrim'}_nusuk_booking.jpg`,
         filePath: req.body.nusukCopyUrl || req.body.nusuk_copy_url,
         fileSize: 1024,
-        mimeType: 'application/pdf',
+        mimeType: 'image/jpeg',
       });
     }
 
@@ -1098,6 +1263,7 @@ router.post(
           await prisma.document.create({
             data: {
               bookingId: booking.id,
+              passengerId: leadPassenger?.id || null,
               documentType: doc.documentType || 'passport_copy',
               fileName: doc.fileName || `doc-${Date.now()}.pdf`,
               filePath: doc.filePath || doc.url || '',
@@ -1253,28 +1419,53 @@ router.get(
 );
 
 // ==========================================
-// 9. B2C Master Catalogs (Hotels, Airports, Routes)
+// 9. B2C Master Catalogs (Hotels, Airports, Routes, Transports)
 // ==========================================
 router.get(
   '/masters',
   asyncHandler(async (_req: any, res: Response) => {
-    const [hotels, airports, transportRoutes] = await Promise.all([
+    const [hotels, airports, transportRoutes, transports] = await Promise.all([
       prisma.locationMaster.findMany({
         where: { locationType: 'HOTEL' },
         select: { id: true, name: true, cityId: true },
-        take: 30,
+        take: 50,
       }),
       prisma.locationMaster.findMany({
         where: { locationType: 'AIRPORT' },
         select: { id: true, name: true, code: true },
-        take: 30,
+        take: 50,
       }),
       prisma.transportRouteMaster.findMany({
+        where: { isActive: true },
         include: {
           city1: { select: { id: true, name: true } },
           city2: { select: { id: true, name: true } },
+          city3: { select: { id: true, name: true } },
+          city4: { select: { id: true, name: true } },
         },
-        take: 30,
+      }),
+      prisma.transportMaster.findMany({
+        where: { isActive: true },
+        include: {
+          route: {
+            include: {
+              city1: { select: { id: true, name: true } },
+              city2: { select: { id: true, name: true } },
+              city3: { select: { id: true, name: true } },
+              city4: { select: { id: true, name: true } },
+            }
+          },
+          vehicleType: {
+            select: {
+              id: true,
+              vehicleName: true,
+              paxCount: true,
+            }
+          }
+        },
+        orderBy: {
+          price: 'asc'
+        }
       })
     ]);
 
@@ -1284,8 +1475,196 @@ router.get(
         hotels,
         airports,
         transportRoutes,
+        transports,
       }
     });
+  })
+);
+
+router.get(
+  '/transports',
+  asyncHandler(async (req: any, res: Response) => {
+    const { routeId } = req.query;
+    const where: any = { isActive: true };
+    if (routeId) {
+      where.routeId = routeId;
+    }
+
+    const transports = await prisma.transportMaster.findMany({
+      where,
+      include: {
+        route: {
+          include: {
+            city1: { select: { id: true, name: true } },
+            city2: { select: { id: true, name: true } },
+            city3: { select: { id: true, name: true } },
+            city4: { select: { id: true, name: true } },
+          }
+        },
+        vehicleType: {
+          select: {
+            id: true,
+            vehicleName: true,
+            paxCount: true,
+          }
+        }
+      },
+      orderBy: {
+        price: 'asc'
+      }
+    });
+
+    res.json({
+      success: true,
+      data: transports
+    });
+  })
+);
+
+// ==========================================
+// 10. B2C Payment Integration (Cashfree & Bank Transfer)
+// ==========================================
+const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID || '1459803f4e11788fdb072979bed3089541';
+const CASHFREE_SECRET_KEY = process.env.CASHFREE_SECRET_KEY || 'cfsk_ma_prod_0748dc1ab618dafee874bffc1be58382_4a0b37e2';
+const CASHFREE_BASE_URL = process.env.CASHFREE_BASE_URL || 'https://api.cashfree.com/pg';
+const CASHFREE_API_VERSION = '2023-08-01';
+
+async function callB2cCashfreeApi(method: 'GET' | 'POST', endpoint: string, data?: any) {
+  const url = `${CASHFREE_BASE_URL}${endpoint}`;
+  const response = await axios({
+    method,
+    url,
+    headers: {
+      'x-client-id': CASHFREE_APP_ID,
+      'x-client-secret': CASHFREE_SECRET_KEY,
+      'x-api-version': CASHFREE_API_VERSION,
+      'Content-Type': 'application/json',
+    },
+    data,
+    timeout: 15000,
+  });
+  return response.data;
+}
+
+router.get(
+  '/payment/bank-details',
+  asyncHandler(async (_req: any, res: Response) => {
+    const reentryConfig = await prisma.reentryPricingMaster.findFirst({
+      where: { isActive: true },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        bankName: 'Federal Bank',
+        accountNumber: '14140200001234',
+        ifscCode: 'FDRL0001414',
+        accountHolder: 'Moulavi Travels & Logistics',
+        branch: 'Calicut Main Branch',
+        upiId: reentryConfig?.upiId || 'moulavi1414@fbl',
+        upiMerchantName: reentryConfig?.upiMerchantName || 'Moulavi Travels',
+        bankAccountDetails: reentryConfig?.bankAccountDetails || 'Bank: Federal Bank\nAccount: 14140200001234\nIFSC: FDRL0001414\nHolder: Moulavi Travels & Logistics',
+        instructions: 'Please transfer the booking amount via IMPS / NEFT / RTGS / UPI and enter your Transaction UTR / Reference ID.'
+      }
+    });
+  })
+);
+
+router.post(
+  '/payment/cashfree-order',
+  asyncHandler(async (req: any, res: Response) => {
+    const { 
+      amount, 
+      currency = 'INR', 
+      guestName, 
+      guestMobile, 
+      guestEmail,
+      bookingRef,
+      returnUrl 
+    } = req.body;
+
+    if (!amount || Number(amount) <= 0) {
+      return res.status(400).json({ success: false, error: 'Valid amount is required' });
+    }
+
+    const cleanPhone = (guestMobile || '9946044897').replace(/\D/g, '').slice(-10) || '9946044897';
+    const orderId = `B2C_${(bookingRef || 'ORD').replace(/[^a-zA-Z0-9_-]/g, '')}_${Date.now().toString().slice(-6)}`;
+    // Cashfree production API strictly requires https:// scheme for return_url
+    let targetReturnUrl = returnUrl || `https://umra.moulavi.in/b2c/book?order_id={order_id}&cf_return=1`;
+    if (!targetReturnUrl.startsWith('https://')) {
+      targetReturnUrl = `https://umra.moulavi.in/b2c/book?order_id={order_id}&cf_return=1&ref=${bookingRef || ''}`;
+    }
+
+    const payload = {
+      order_id: orderId,
+      order_amount: Number(Number(amount).toFixed(2)),
+      order_currency: currency,
+      customer_details: {
+        customer_id: `CUST_${cleanPhone}`,
+        customer_phone: cleanPhone,
+        customer_name: (guestName || 'Pilgrim').slice(0, 50),
+        customer_email: guestEmail || 'info@moulavi.com',
+      },
+      order_meta: {
+        return_url: targetReturnUrl,
+        notify_url: 'https://umra.moulavi.in/api/b2c/reentry-pricing/cashfree-webhook',
+      },
+      order_note: `Moulavi Travels Umrah Package Booking (${bookingRef || orderId})`,
+      order_tags: {
+        bookingRef: (bookingRef || '').slice(0, 50),
+        channel: 'b2c_portal'
+      }
+    };
+
+    try {
+      const cfOrder = await callB2cCashfreeApi('POST', '/orders', payload);
+      res.json({
+        success: true,
+        data: {
+          orderId: cfOrder.order_id,
+          paymentSessionId: cfOrder.payment_session_id,
+          orderAmount: cfOrder.order_amount,
+          orderCurrency: cfOrder.order_currency,
+          cfOrder
+        }
+      });
+    } catch (err: any) {
+      console.error('[CASHFREE] B2C Order generation error:', err?.response?.data || err?.message);
+      res.status(500).json({
+        success: false,
+        error: err?.response?.data?.message || 'Failed to initialize Cashfree payment session',
+        details: err?.response?.data
+      });
+    }
+  })
+);
+
+router.get(
+  '/payment/order-status/:orderId',
+  asyncHandler(async (req: any, res: Response) => {
+    const { orderId } = req.params;
+    try {
+      const cfOrder = await callB2cCashfreeApi('GET', `/orders/${orderId}`);
+      const isPaid = cfOrder.order_status === 'PAID';
+      
+      res.json({
+        success: true,
+        data: {
+          orderId: cfOrder.order_id,
+          orderStatus: cfOrder.order_status,
+          orderAmount: cfOrder.order_amount,
+          isPaid,
+          cfOrder
+        }
+      });
+    } catch (err: any) {
+      console.error('[CASHFREE] B2C Order status check error:', err?.response?.data || err?.message);
+      res.status(500).json({
+        success: false,
+        error: err?.response?.data?.message || 'Failed to verify Cashfree order status'
+      });
+    }
   })
 );
 
