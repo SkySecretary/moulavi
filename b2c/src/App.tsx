@@ -1305,7 +1305,7 @@ export default function App() {
             <div className="nav-links" style={{ display: 'flex', gap: '0.85rem', alignItems: 'center', flexWrap: 'wrap' }}>
               <button 
                 type="button"
-                className="nav-link"
+                className="nav-link nav-link-packages"
                 style={{ background: 'none', border: 'none', fontWeight: activeTab === 'packages' ? 800 : 600, color: activeTab === 'packages' ? 'var(--text-dark)' : 'var(--text-muted)' }}
                 onClick={() => {
                   resetToHome();
@@ -1993,26 +1993,26 @@ export default function App() {
                   <div className="progress-stepper" style={{ border: '1.5px solid rgba(19, 92, 70, 0.12)', boxShadow: '0 4px 15px rgba(0,0,0,0.02)' }}>
                     <div className="progress-step completed">
                       <div className="progress-circle" style={{ backgroundColor: 'var(--primary)', borderColor: 'var(--primary)', color: 'white' }}>✓</div>
-                      <span style={{ color: 'var(--primary)', fontWeight: 800 }}>Stays & Visas (Locked)</span>
+                      <span style={{ color: 'var(--primary)', fontWeight: 800 }}>Stays</span>
                     </div>
                     <div className="progress-divider" style={{ backgroundColor: 'var(--primary)' }} />
                     <div className={`progress-step ${step === 2 ? 'active' : step > 2 ? 'completed' : ''}`}>
                       <div className="progress-circle" style={step === 2 ? { backgroundColor: '#d97706', borderColor: '#d97706', color: 'white' } : {}}>
                         {step > 2 ? '✓' : '2'}
                       </div>
-                      <span style={step === 2 ? { color: '#d97706', fontWeight: 800 } : {}}>Flights (Action Required)</span>
+                      <span style={step === 2 ? { color: '#d97706', fontWeight: 800 } : {}}>Flights</span>
                     </div>
                     <div className="progress-divider" style={step > 2 ? { backgroundColor: 'var(--primary)' } : {}} />
                     <div className={`progress-step ${step === 6 ? 'active' : step > 6 ? 'completed' : ''}`}>
                       <div className="progress-circle">3</div>
-                      <span>Passports & Checkout</span>
+                      <span>Checkout</span>
                     </div>
                   </div>
                 ) : isQuickEVisa ? (
                   <div className="progress-stepper">
                     <div className={`progress-step ${step === 1 ? 'active' : step > 1 ? 'completed' : ''}`}>
                       <div className="progress-circle">1</div>
-                      <span>Sponsor Details</span>
+                      <span>Sponsor</span>
                     </div>
                     <div className="progress-divider" />
                     <div className={`progress-step ${step === 2 ? 'active' : step > 2 ? 'completed' : ''}`}>
@@ -2029,7 +2029,7 @@ export default function App() {
                   <div className="progress-stepper">
                     <div className={`progress-step ${step === 1 ? 'active' : step > 1 ? 'completed' : ''}`}>
                       <div className="progress-circle">1</div>
-                      <span>Accommodation Type</span>
+                      <span>Type</span>
                     </div>
                     <div className="progress-divider" />
                     <div className={`progress-step ${step === 2 ? 'active' : step > 2 ? 'completed' : ''}`}>
@@ -2044,7 +2044,7 @@ export default function App() {
                     <div className="progress-divider" />
                     <div className={`progress-step ${step === 4 ? 'active' : step > 4 ? 'completed' : ''}`}>
                       <div className="progress-circle">4</div>
-                      <span>Transports</span>
+                      <span>Transport</span>
                     </div>
                     <div className="progress-divider" />
                     <div className={`progress-step ${step === 5 ? 'active' : step > 5 ? 'completed' : ''}`}>
@@ -2063,12 +2063,12 @@ export default function App() {
                   <div className="builder-main">
                     <div className="stepper-header">
                       <h3 className="stepper-title">
-                        {step === 1 && (isQuickEVisa ? "Provide Sponsor Details" : "Select Accommodation Type")}
-                        {step === 2 && "Configure Flight Ticket Details"}
-                        {step === 3 && "Configure Hotel Stay (Min 3 Days)"}
-                        {step === 4 && "Configure Ground transfers"}
-                        {step === 5 && "Customize Itinerary Movements"}
-                        {step === 6 && "eVisa Registration & Checkout"}
+                        {step === 1 && (isQuickEVisa ? "Sponsor Details" : "Accommodation Type")}
+                        {step === 2 && "Flight Details"}
+                        {step === 3 && "Hotel Stays"}
+                        {step === 4 && "Ground Transport"}
+                        {step === 5 && "Itinerary Movements"}
+                        {step === 6 && "eVisa & Checkout"}
                       </h3>
                       <span className="step-indicator">Step {isQuickEVisa ? (step === 1 ? 1 : step === 2 ? 2 : 3) : step} of {isQuickEVisa ? 3 : 6}</span>
                     </div>

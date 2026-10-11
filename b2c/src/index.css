@@ -1677,8 +1677,24 @@ footer {
     gap: 0.5rem !important;
     align-items: center !important;
   }
+  .nav-links .nav-link-packages {
+    display: none !important; /* Hide redundant Ready Packages on phone to reduce clutter */
+  }
   .nav-links .nav-btn {
     display: none !important; /* Hide redundant CTA button in slim app-header */
+  }
+
+  /* Compact Stepper Header on Mobile */
+  .stepper-header {
+    margin-bottom: 1rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  .stepper-title {
+    font-size: 1.05rem !important;
+    line-height: 1.25 !important;
+  }
+  .step-indicator {
+    font-size: 0.72rem !important;
   }
 
   /* Compact Responsive Hero */
