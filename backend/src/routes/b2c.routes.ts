@@ -1061,25 +1061,58 @@ router.post(
     const finalArrFlight = isWithoutTicket ? 'NT-0000' : formatFlight(arrivalFlightNumber, 'SV-300');
     const finalDepFlight = isWithoutTicket ? 'NT-0000' : formatFlight(departureFlightNumber, 'SV-301');
 
+    const normalizeTime = (timeStr?: string, defaultTime: string = '12:00'): string => {
+      if (!timeStr || !String(timeStr).trim()) return defaultTime;
+      const str = String(timeStr).trim().toUpperCase();
+      const ampmMatch = str.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/);
+      if (ampmMatch) {
+        let hours = parseInt(ampmMatch[1], 10);
+        const mins = ampmMatch[2];
+        const modifier = ampmMatch[3];
+        if (modifier === 'PM' && hours < 12) hours += 12;
+        if (modifier === 'AM' && hours === 12) hours = 0;
+        return `${hours.toString().padStart(2, '0')}:${mins}`;
+      }
+      const hhmmMatch = str.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+      if (hhmmMatch) {
+        const hours = parseInt(hhmmMatch[1], 10);
+        const mins = hhmmMatch[2];
+        if (hours >= 0 && hours <= 23) return `${hours.toString().padStart(2, '0')}:${mins}`;
+      }
+      const digitsMatch = str.match(/^(\d{1,2})(\d{2})$/);
+      if (digitsMatch) {
+        const hours = parseInt(digitsMatch[1], 10);
+        const mins = digitsMatch[2];
+        if (hours >= 0 && hours <= 23) return `${hours.toString().padStart(2, '0')}:${mins}`;
+      }
+      return defaultTime;
+    };
+
+    const parseFlightDt = (dateStr?: string, timeStr?: string, fallbackDate?: Date): Date => {
+      if (!dateStr || !String(dateStr).trim()) return fallbackDate || new Date();
+      const cleanDate = String(dateStr).trim().split('T')[0];
+      const cleanTime = normalizeTime(timeStr, '12:00');
+      const isoStr = `${cleanDate}T${cleanTime}:00Z`;
+      const parsed = new Date(isoStr);
+      if (!isNaN(parsed.getTime())) return parsed;
+      const fallbackParsed = new Date(cleanDate);
+      if (!isNaN(fallbackParsed.getTime())) return fallbackParsed;
+      return fallbackDate || new Date();
+    };
+
     // Parse arrival & departure datetimes
-    let arrDateTime = new Date();
+    let arrDateTime = resolvedCheckIn;
     if (arrivalDateTime) {
       arrDateTime = new Date(arrivalDateTime);
     } else if (arrivalDate) {
-      const timePart = arrivalTime ? (arrivalTime.includes(':') ? arrivalTime : `${arrivalTime}:00`) : '12:00';
-      const parsed = new Date(`${arrivalDate}T${timePart.length === 5 ? `${timePart}:00` : timePart}Z`);
-      if (!isNaN(parsed.getTime())) arrDateTime = parsed;
-    } else {
-      arrDateTime = resolvedCheckIn;
+      arrDateTime = parseFlightDt(arrivalDate, arrivalTime, resolvedCheckIn);
     }
 
     let depDateTime = new Date(arrDateTime.getTime() + totalNights * 86400000);
     if (departureDateTime) {
       depDateTime = new Date(departureDateTime);
     } else if (departureDate) {
-      const timePart = departureTime ? (departureTime.includes(':') ? departureTime : `${departureTime}:00`) : '12:00';
-      const parsed = new Date(`${departureDate}T${timePart.length === 5 ? `${timePart}:00` : timePart}Z`);
-      if (!isNaN(parsed.getTime())) depDateTime = parsed;
+      depDateTime = parseFlightDt(departureDate, departureTime, depDateTime);
     }
 
     // Payment info for B2C whatsapp channel
@@ -1227,31 +1260,48 @@ router.post(
       }
     }
 
+    // Helper to sanitize media URL
+    const cleanMedia = (val: any): string => {
+      if (!val) return '';
+      if (typeof val === 'string') {
+        const trimmed = val.trim();
+        if (trimmed.startsWith('{{') || trimmed === '[object Object]') return '';
+        return trimmed;
+      }
+      if (typeof val === 'object') {
+        return val.url || val.mediaUrl || val.filePath || '';
+      }
+      return '';
+    };
+
     // Attach documents
     const docList = [...(Array.isArray(documents) ? documents : [])];
-    if (paymentReceiptUrl) {
+    const cleanReceipt = cleanMedia(paymentReceiptUrl);
+    if (cleanReceipt) {
       docList.push({
         documentType: 'payment_receipt',
         fileName: `payment-receipt-${Date.now()}.png`,
-        filePath: paymentReceiptUrl,
+        filePath: cleanReceipt,
         fileSize: 1024,
         mimeType: 'image/png',
       });
     }
-    if (req.body.visaCopyUrl || req.body.visa_copy_url) {
+    const cleanVisa = cleanMedia(req.body.visaCopyUrl || req.body.visa_copy_url);
+    if (cleanVisa) {
       docList.push({
         documentType: 'umrah_visa_copy',
         fileName: `${passportNumber || 'pilgrim'}_umrah_visa.jpg`,
-        filePath: req.body.visaCopyUrl || req.body.visa_copy_url,
+        filePath: cleanVisa,
         fileSize: 1024,
         mimeType: 'image/jpeg',
       });
     }
-    if (req.body.nusukCopyUrl || req.body.nusuk_copy_url) {
+    const cleanNusuk = cleanMedia(req.body.nusukCopyUrl || req.body.nusuk_copy_url);
+    if (cleanNusuk) {
       docList.push({
         documentType: 'nusuk_booking_copy',
         fileName: `${passportNumber || 'pilgrim'}_nusuk_booking.jpg`,
-        filePath: req.body.nusukCopyUrl || req.body.nusuk_copy_url,
+        filePath: cleanNusuk,
         fileSize: 1024,
         mimeType: 'image/jpeg',
       });
@@ -1260,19 +1310,21 @@ router.post(
     if (docList.length > 0) {
       for (const doc of docList) {
         try {
+          const docPath = cleanMedia(doc.filePath || doc.url);
+          if (!docPath) continue;
           await prisma.document.create({
             data: {
               bookingId: booking.id,
               passengerId: leadPassenger?.id || null,
               documentType: doc.documentType || 'passport_copy',
               fileName: doc.fileName || `doc-${Date.now()}.pdf`,
-              filePath: doc.filePath || doc.url || '',
+              filePath: docPath,
               fileSize: doc.fileSize || 0,
               mimeType: doc.mimeType || 'application/pdf',
             }
           });
-        } catch (docErr: any) {
-          console.warn('[WHATSAPP BOOKING] Document upload notice:', docErr.message);
+        } catch (dErr: any) {
+          console.error('[B2C WhatsApp Booking] Document creation error:', dErr.message);
         }
       }
     }

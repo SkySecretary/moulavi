@@ -4,7 +4,7 @@ import axios from 'axios';
 import { asyncHandler } from '../middleware/errorHandler';
 import { authenticate, authorize } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
-import { sendWhatsAppMessage } from '../services/whatsappService';
+import { sendWhatsAppMessage, getFallbackChannel } from '../services/whatsappService';
 
 const router = Router();
 
@@ -40,9 +40,9 @@ async function callCashfreeApi(method: 'GET' | 'POST', endpoint: string, data?: 
  * Default fallback values for Re-Entry Pricing
  */
 const DEFAULT_REENTRY_CONFIG = {
-  hotelFixedVisaFee: 2000,
-  hotelPerDayCost: 200,
-  iqamaFixedVisaFee: 2500,
+  hotelFixedVisaFee: 1,
+  hotelPerDayCost: 0,
+  iqamaFixedVisaFee: 1,
   iqamaPerDayCost: 0,
   currency: 'INR',
   upiId: 'moulavi1414@fbl',
@@ -176,7 +176,16 @@ async function createCashfreeOrder(params: {
 }) {
   const cleanPhone = (params.guestMobile || '9946044897').replace(/\D/g, '').slice(-10) || '9946044897';
   const cleanCustId = `CUST_${cleanPhone}`;
-  const returnUrl = params.returnUrl || `https://umra.moulavi.in/pay/reentry?order_id={order_id}`;
+  const returnUrl = params.returnUrl || `https://umra.moulavi.in/pay/reentry?order_id={order_id}&cf_return=1`;
+
+  const cleanTags: Record<string, string> = {};
+  if (params.tags) {
+    for (const [k, v] of Object.entries(params.tags)) {
+      if (v !== undefined && v !== null && String(v).trim() !== '') {
+        cleanTags[k] = String(v).trim().slice(0, 100);
+      }
+    }
+  }
 
   const payload = {
     order_id: params.orderId,
@@ -193,11 +202,119 @@ async function createCashfreeOrder(params: {
       notify_url: 'https://umra.moulavi.in/api/b2c/reentry-pricing/cashfree-webhook',
     },
     order_note: `Moulavi Travels 1-Year Umrah Re-Entry Fee (${params.orderId})`,
-    order_tags: params.tags || undefined,
+    order_tags: Object.keys(cleanTags).length > 0 ? cleanTags : undefined,
   };
 
   const cfOrder = await callCashfreeApi('POST', '/orders', payload);
   return cfOrder;
+}
+
+/**
+ * Helper to resolve airport location by code or city name with fallback to JED
+ */
+async function resolveAirportLocation(codeOrName?: string) {
+  if (!codeOrName || !String(codeOrName).trim()) {
+    const jed = await prisma.locationMaster.findFirst({
+      where: { locationType: 'AIRPORT', code: 'JED' },
+    });
+    if (jed) return jed;
+    return await prisma.locationMaster.findFirst({ where: { locationType: 'AIRPORT' } });
+  }
+
+  const clean = String(codeOrName).trim();
+  const upper = clean.toUpperCase();
+
+  // 1. Direct code match (e.g. "JED", "MED", "RUH", "DMM")
+  let airport = await prisma.locationMaster.findFirst({
+    where: {
+      locationType: 'AIRPORT',
+      code: upper,
+    },
+  });
+  if (airport) return airport;
+
+  // 2. City or Name match
+  airport = await prisma.locationMaster.findFirst({
+    where: {
+      locationType: 'AIRPORT',
+      OR: [
+        { city: { contains: clean } },
+        { name: { contains: clean } },
+      ],
+    },
+  });
+  if (airport) return airport;
+
+  // Fallback to JED or any airport
+  const jed = await prisma.locationMaster.findFirst({
+    where: { locationType: 'AIRPORT', code: 'JED' },
+  });
+  return jed || (await prisma.locationMaster.findFirst({ where: { locationType: 'AIRPORT' } }));
+}
+
+function normalizeTimeString(timeStr?: string, defaultTime: string = '12:00'): string {
+  if (!timeStr || !String(timeStr).trim()) return defaultTime;
+  const str = String(timeStr).trim().toUpperCase();
+
+  // 1. Check for 12-hour AM/PM format (e.g., "2:30 PM", "02:30PM", "11:45 AM")
+  const ampmMatch = str.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/);
+  if (ampmMatch) {
+    let hours = parseInt(ampmMatch[1], 10);
+    const mins = ampmMatch[2];
+    const modifier = ampmMatch[3];
+    if (modifier === 'PM' && hours < 12) hours += 12;
+    if (modifier === 'AM' && hours === 12) hours = 0;
+    return `${hours.toString().padStart(2, '0')}:${mins}`;
+  }
+
+  // 2. Check for 24-hour HH:mm:ss or HH:mm (e.g., "14:30", "9:05", "14:30:00")
+  const hhmmMatch = str.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (hhmmMatch) {
+    const hours = parseInt(hhmmMatch[1], 10);
+    const mins = hhmmMatch[2];
+    if (hours >= 0 && hours <= 23) {
+      return `${hours.toString().padStart(2, '0')}:${mins}`;
+    }
+  }
+
+  // 3. Raw 3-4 digit time (e.g. "1430" -> "14:30", "930" -> "09:30")
+  const digitsMatch = str.match(/^(\d{1,2})(\d{2})$/);
+  if (digitsMatch) {
+    const hours = parseInt(digitsMatch[1], 10);
+    const mins = digitsMatch[2];
+    if (hours >= 0 && hours <= 23) {
+      return `${hours.toString().padStart(2, '0')}:${mins}`;
+    }
+  }
+
+  return defaultTime;
+}
+
+function parseFlightDateTime(dateStr?: string, timeStr?: string, fallbackDate?: Date): Date {
+  if (!dateStr || !String(dateStr).trim()) return fallbackDate || new Date();
+  const cleanDate = String(dateStr).trim().split('T')[0];
+  const cleanTime = normalizeTimeString(timeStr, '12:00');
+  const isoStr = `${cleanDate}T${cleanTime}:00Z`;
+  const parsed = new Date(isoStr);
+  if (!isNaN(parsed.getTime())) return parsed;
+
+  const fallbackParsed = new Date(cleanDate);
+  if (!isNaN(fallbackParsed.getTime())) return fallbackParsed;
+  return fallbackDate || new Date();
+}
+
+/**
+ * Format flight code to standard uppercase with hyphen if missing (e.g. "SV300" -> "SV-300", "ai965" -> "AI-965")
+ */
+function formatFlightCode(raw?: string, defaultCode: string = 'SV-300'): string {
+  if (!raw || !String(raw).trim()) return defaultCode;
+  let clean = String(raw).trim().toUpperCase();
+
+  const match = clean.match(/^([A-Z0-9]{2,3})(\d{1,5})$/);
+  if (match) {
+    return `${match[1]}-${match[2]}`;
+  }
+  return clean;
 }
 
 /**
@@ -210,8 +327,14 @@ router.post(
     const {
       stayType = 'hotel', // 'hotel' | 'iqama'
       accommodationType,
+      arrivalAirport,
+      departureAirport,
+      arrivalAirportCode,
+      departureAirportCode,
       arrivalDate,
       departureDate,
+      arrivalTime,
+      departureTime,
       numberOfDays: rawDays,
       passengerCount = 1,
       guestName = 'Pilgrim',
@@ -223,8 +346,29 @@ router.post(
       pilgrimDob = '',
       arrivalFlight = '',
       departureFlight = '',
+      visaCopyUrl: rawVisaCopyUrl = '',
+      nusukCopyUrl: rawNusukCopyUrl = '',
+      visa_copy_url: altVisaCopyUrl = '',
+      nusuk_copy_url: altNusukCopyUrl = '',
       bookingReference,
     } = req.body;
+
+    // Helper to sanitize media URL from either string or object payload
+    const extractMediaUrl = (val: any): string => {
+      if (!val) return '';
+      if (typeof val === 'string') {
+        const trimmed = val.trim();
+        if (trimmed === '{{visa_copy_url}}' || trimmed === '{{nusuk_copy_url}}' || trimmed === '[object Object]') return '';
+        return trimmed;
+      }
+      if (typeof val === 'object') {
+        return val.url || val.mediaUrl || val.filePath || '';
+      }
+      return '';
+    };
+
+    const visaCopyUrl = extractMediaUrl(rawVisaCopyUrl) || extractMediaUrl(altVisaCopyUrl);
+    const nusukCopyUrl = extractMediaUrl(rawNusukCopyUrl) || extractMediaUrl(altNusukCopyUrl);
 
     const resolvedStayType = (stayType || accommodationType || 'hotel').toLowerCase();
     const isIqama = resolvedStayType.includes('iqama');
@@ -281,6 +425,149 @@ router.post(
     const ref = bookingReference || `RE-${Date.now().toString().slice(-6)}`;
     const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
     const orderId = `RE_${Date.now().toString().slice(-6)}_${randomSuffix}`;
+    const bookingRef = `UMR-RE-${orderId.replace('RE_', '')}`;
+
+    // 1. Pre-create Draft UmrahVisaBooking with full Travel Details & Documents
+    try {
+      const adminUser = await prisma.user.findFirst({ where: { role: 'admin' } });
+      let b2cParty = await prisma.party.findUnique({ where: { email: 'b2c-direct@moulavi.in' } });
+      if (!b2cParty) {
+        const curr = await prisma.currencyMaster.findFirst();
+        b2cParty = await prisma.party.create({
+          data: {
+            partyCode: 'B2C_DIRECT',
+            partyName: 'B2C Consumer Channel',
+            email: 'b2c-direct@moulavi.in',
+            customerType: 'direct',
+            isCustomer: true,
+            isSupplier: false,
+            createdBy: adminUser?.id || '',
+            accountCurrencyId: curr?.id || '',
+          },
+        });
+      }
+
+      // Resolve airports for travel details
+      const reqArrAirport = arrivalAirport || arrivalAirportCode || 'JED';
+      const reqDepAirport = departureAirport || departureAirportCode || (isIqama ? 'JED' : 'MED');
+
+      const arrAirportLoc = await resolveAirportLocation(reqArrAirport);
+      const depAirportLoc = await resolveAirportLocation(reqDepAirport);
+
+      const resolvedArrAirportId = arrAirportLoc?.id || (await prisma.locationMaster.findFirst())?.id || '';
+      const resolvedDepAirportId = depAirportLoc?.id || resolvedArrAirportId;
+
+      const formattedArrFlight = formatFlightCode(arrivalFlight, 'SV-300');
+      const formattedDepFlight = formatFlightCode(departureFlight, 'SV-301');
+
+      // Parse arrival & departure datetimes with resilient normalizeTimeString
+      const arrDateTime = parseFlightDateTime(arrivalDate, arrivalTime, new Date());
+      const defaultDepDate = new Date(arrDateTime.getTime() + days * 24 * 60 * 60 * 1000);
+      const depDateTime = parseFlightDateTime(departureDate, departureTime, defaultDepDate);
+
+      const initialRequestNumber = JSON.stringify({
+        channel: 'whatsapp_b2c',
+        orderId,
+        amount: totalAmount,
+        currency,
+        paymentStatus: 'PENDING',
+        stayType: isIqama ? 'iqama' : 'hotel',
+      });
+
+      const draftBooking = await prisma.umrahVisaBooking.create({
+        data: {
+          partyId: b2cParty.id,
+          bookingReference: bookingRef,
+          passengerCount: 1,
+          visaType: 're_entry',
+          accommodationType: isIqama ? 'iqama' : 'hotel',
+          guestName,
+          guestMobile: resolvedMobile,
+          status: 'pending',
+          umrahVisaNumber: visaNumber || null,
+          requestNumber: initialRequestNumber,
+          passengers: {
+            create: [
+              {
+                fullName: guestName,
+                passportNumber: passportNumber || null,
+                visaNumber: visaNumber || null,
+                nationality: 'Saudi / Expat',
+                gender: 'male',
+                phoneNumber: resolvedMobile,
+              },
+            ],
+          },
+        },
+        include: {
+          passengers: true,
+        },
+      });
+
+      const leadPassenger = draftBooking.passengers?.[0];
+
+      // Travel details with resolved airport locations and formatted flight numbers
+      if (resolvedArrAirportId) {
+        await prisma.umrahTravelDetails.create({
+          data: {
+            bookingId: draftBooking.id,
+            isAlternate: false,
+            arrivalAirportId: resolvedArrAirportId,
+            arrivalFlightNumber: formattedArrFlight,
+            arrivalDateTime: arrDateTime,
+            departureAirportId: resolvedDepAirportId,
+            departureFlightNumber: formattedDepFlight,
+            departureDateTime: depDateTime,
+          },
+        });
+      }
+
+      // Attach Documents (linked to both bookingId and passengerId like ERP form)
+      if (visaCopyUrl) {
+        await prisma.document.create({
+          data: {
+            bookingId: draftBooking.id,
+            passengerId: leadPassenger?.id || null,
+            documentType: 'umrah_visa_copy',
+            fileName: `${passportNumber || guestName.replace(/[^a-zA-Z0-9]/g, '_')}_umrah_visa.jpg`,
+            filePath: visaCopyUrl,
+            mimeType: 'image/jpeg',
+          },
+        });
+      }
+
+      if (nusukCopyUrl) {
+        await prisma.document.create({
+          data: {
+            bookingId: draftBooking.id,
+            passengerId: leadPassenger?.id || null,
+            documentType: 'nusuk_booking_copy',
+            fileName: `${passportNumber || guestName.replace(/[^a-zA-Z0-9]/g, '_')}_nusuk_booking.jpg`,
+            filePath: nusukCopyUrl,
+            mimeType: 'image/jpeg',
+          },
+        });
+      }
+
+      // Sponsor Iqama
+      if (isIqama) {
+        await prisma.umrahSponserIqamaDetails.create({
+          data: {
+            bookingId: draftBooking.id,
+            iqamaSponserName: guestName,
+            iqamaNumber: sponsorIqama || '1000000000',
+            sponserDob: new Date('1990-01-01'),
+            sponserMobileNumber: resolvedMobile,
+            sponserNationalShortAddress: 'KSA National Address',
+            isAlternate: false,
+          },
+        });
+      }
+
+      console.log(`[ReentryPricing] 📋 Pre-created Draft Booking ${draftBooking.id} (${bookingRef}) with travel details & documents`);
+    } catch (draftErr: any) {
+      console.error(`[ReentryPricing] ⚠️ Error pre-creating draft booking:`, draftErr?.message);
+    }
 
     // Create Cashfree Order
     let paymentSessionId = '';
@@ -292,6 +579,7 @@ router.post(
         orderId,
         guestName,
         guestMobile: resolvedMobile,
+        returnUrl: `https://umra.moulavi.in/pay/reentry?order_id={order_id}&cf_return=1&am=${totalAmount}&ref=${encodeURIComponent(ref)}&stay=${isIqama ? 'iqama' : 'hotel'}&phone=${encodeURIComponent(resolvedMobile)}&name=${encodeURIComponent(guestName)}`,
         tags: {
           stay_type: isIqama ? 'iqama' : 'hotel',
           guest_name: String(guestName).slice(0, 100),
@@ -328,11 +616,14 @@ router.post(
         pricePerPax,
         totalAmount,
         currency,
+        bookingReference: ref,
+        ref,
         orderId,
         paymentSessionId,
         cfOrderId,
         webPayUrl,
         bankAccountDetails: bankDetails,
+        upiId: config!.upiId || 'moulavi1414@fbl',
         paymentMessage,
         breakdownText: isIqama
           ? `Fixed Iqama Re-entry Visa Fee: ₹${fixedFee} (Total: ₹${totalAmount})`
@@ -347,14 +638,7 @@ router.post(
  */
 async function confirmReentryBookingAndSendWhatsApp(orderId: string, orderData: any, paymentData?: any) {
   try {
-    const existing = await prisma.umrahVisaBooking.findFirst({
-      where: { bookingReference: { contains: orderId } },
-    });
-
-    if (existing && existing.status === 'booking_success') {
-      return { alreadyProcessed: true, booking: existing };
-    }
-
+    const bookingRef = `UMR-RE-${orderId.replace('RE_', '')}`;
     const tags = orderData?.order_tags || {};
     const guestName = orderData?.customer_details?.customer_name || tags?.guest_name || 'Pilgrim';
     const guestMobile = orderData?.customer_details?.customer_phone || tags?.guest_mobile || '';
@@ -366,74 +650,168 @@ async function confirmReentryBookingAndSendWhatsApp(orderId: string, orderData: 
     const departureFlight = tags?.departure_flight || '';
     const amount = orderData?.order_amount || 2000;
     const cfPaymentId = paymentData?.cf_payment_id || orderData?.cf_order_id || `CF-${Date.now()}`;
+    const paymentMethod = paymentData?.payment_group || paymentData?.payment_method || 'Cashfree Gateway';
 
-    // 1. Find Admin and B2C Party
-    const adminUser = await prisma.user.findFirst({ where: { role: 'admin' } });
-    let b2cParty = await prisma.party.findUnique({ where: { email: 'b2c-direct@moulavi.in' } });
-    if (!b2cParty) {
-      const currency = await prisma.currencyMaster.findFirst();
-      b2cParty = await prisma.party.create({
-        data: {
-          partyCode: 'B2C_DIRECT',
-          partyName: 'B2C Consumer Channel',
-          email: 'b2c-direct@moulavi.in',
-          customerType: 'direct',
-          isCustomer: true,
-          isSupplier: false,
-          createdBy: adminUser?.id || '',
-          accountCurrencyId: currency?.id || '',
-        },
-      });
-    }
+    const paymentInfoJson = JSON.stringify({
+      channel: 'whatsapp_b2c',
+      orderId,
+      cfPaymentId,
+      amount,
+      currency: orderData?.order_currency || 'INR',
+      paymentStatus: 'PAID',
+      paymentMethod,
+      stayType: stayType === 'iqama' ? 'iqama' : 'hotel',
+      paidAt: new Date().toISOString(),
+    });
 
-    const bookingRef = `UMR-RE-${orderId.replace('RE_', '')}`;
-    const voucherRef = `VOU-RE-${orderId.replace('RE_', '')}`;
-
-    // 2. Create / Update Booking in NuSync ERP in pending status
-    const booking = await prisma.umrahVisaBooking.create({
-      data: {
-        partyId: b2cParty.id,
-        bookingReference: bookingRef,
-        passengerCount: 1,
-        visaType: 're_entry',
-        accommodationType: stayType === 'iqama' ? 'iqama' : 'hotel',
-        guestName,
-        guestMobile,
-        status: 'pending',
-        passengers: {
-          create: [
-            {
-              fullName: guestName,
-              passportNumber,
-              nationality: 'Saudi / Expat',
-              gender: 'male',
-              phoneNumber: guestMobile,
-            },
-          ],
-        },
+    const existing = await prisma.umrahVisaBooking.findFirst({
+      where: {
+        OR: [
+          { bookingReference: bookingRef },
+          { bookingReference: { contains: orderId } },
+        ],
       },
     });
 
-    // 3. Create Iqama details if stayType is iqama
-    if (stayType === 'iqama') {
-      await prisma.umrahSponserIqamaDetails.create({
+    let booking = existing;
+
+    if (existing) {
+      // Update existing draft booking with payment status and info
+      booking = await prisma.umrahVisaBooking.update({
+        where: { id: existing.id },
         data: {
-          bookingId: booking.id,
-          iqamaSponserName: guestName,
-          iqamaNumber: sponsorIqama || '1000000000',
-          sponserDob: new Date('1990-01-01'),
-          sponserMobileNumber: guestMobile,
-          sponserNationalShortAddress: 'KSA National Address',
-          isAlternate: false,
+          requestNumber: paymentInfoJson,
+          status: 'pending', // or 'booking_success' if paid
+          guestName: existing.guestName || guestName,
+          guestMobile: existing.guestMobile || guestMobile,
         },
       });
+      console.log(`[ReentryPayment] ✅ Updated existing Draft Booking ${booking.id} with PAID status & txn ${cfPaymentId}`);
+    } else {
+      // 1. Find Admin and B2C Party
+      const adminUser = await prisma.user.findFirst({ where: { role: 'admin' } });
+      let b2cParty = await prisma.party.findUnique({ where: { email: 'b2c-direct@moulavi.in' } });
+      if (!b2cParty) {
+        const currency = await prisma.currencyMaster.findFirst();
+        b2cParty = await prisma.party.create({
+          data: {
+            partyCode: 'B2C_DIRECT',
+            partyName: 'B2C Consumer Channel',
+            email: 'b2c-direct@moulavi.in',
+            customerType: 'direct',
+            isCustomer: true,
+            isSupplier: false,
+            createdBy: adminUser?.id || '',
+            accountCurrencyId: currency?.id || '',
+          },
+        });
+      }
+
+      booking = await prisma.umrahVisaBooking.create({
+        data: {
+          partyId: b2cParty.id,
+          bookingReference: bookingRef,
+          passengerCount: 1,
+          visaType: 're_entry',
+          accommodationType: stayType === 'iqama' ? 'iqama' : 'hotel',
+          guestName,
+          guestMobile,
+          status: 'pending',
+          requestNumber: paymentInfoJson,
+          umrahVisaNumber: visaNumber || null,
+          passengers: {
+            create: [
+              {
+                fullName: guestName,
+                passportNumber: passportNumber || null,
+                visaNumber: visaNumber || null,
+                nationality: 'Saudi / Expat',
+                gender: 'male',
+                phoneNumber: guestMobile,
+              },
+            ],
+          },
+        },
+      });
+
+      // Airport & travel details
+      const airport = await prisma.locationMaster.findFirst({ where: { locationType: 'AIRPORT' } });
+      const defaultAirportId = airport?.id || (await prisma.locationMaster.findFirst())?.id;
+      if (defaultAirportId) {
+        await prisma.umrahTravelDetails.create({
+          data: {
+            bookingId: booking.id,
+            isAlternate: false,
+            arrivalAirportId: defaultAirportId,
+            arrivalFlightNumber: arrivalFlight || 'ARR-FLIGHT',
+            arrivalDateTime: new Date(),
+            departureAirportId: defaultAirportId,
+            departureFlightNumber: departureFlight || 'DEP-FLIGHT',
+            departureDateTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          },
+        });
+      }
+
+      if (stayType === 'iqama') {
+        await prisma.umrahSponserIqamaDetails.create({
+          data: {
+            bookingId: booking.id,
+            iqamaSponserName: guestName,
+            iqamaNumber: sponsorIqama || '1000000000',
+            sponserDob: new Date('1990-01-01'),
+            sponserMobileNumber: guestMobile,
+            sponserNationalShortAddress: 'KSA National Address',
+            isAlternate: false,
+          },
+        });
+      }
     }
 
     // 4. Dispatch WhatsApp confirmation message to customer via Channel +91 22 4619 3365
-    const stayTypeLabel = stayType === 'iqama' ? 'Saudi Iqama Holder Hosting' : 'Hotel Reservation (Package included)';
-    const confirmationText = `🎉 *Moulavi Travels — Payment Confirmed & Re-Entry Registered!* 🕋\n\nDear *${guestName}*,\nWe have successfully received your payment of *₹${amount}* via Cashfree Gateway (Transaction Ref: *${cfPaymentId}*).\n\n📋 *Trip & Booking Summary:*\n• *Booking Reference:* ${bookingRef}\n• *Passport / Iqama No:* ${passportNumber || 'Submitted'}\n• *Visa No:* ${visaNumber || 'Active'}\n• *Arrangement:* ${stayTypeLabel}\n• *Status:* ⏳ *Pending Verification*\n\n✨ Your 1-Year Umrah Visa Re-entry package details and payment have been received. Our operations desk is verifying your travel details and Ministry clearances.\n\nMay Allah accept your Umrah!\n\n_Moulavi Travels & Logistics — NuSync ERP Desk_`;
-
+    // First, check if the customer has an active waiting automation flow in Linalapro and resume it
+    let flowResumed = false;
     if (guestMobile) {
+      try {
+        const channel = await getFallbackChannel();
+        if (channel && channel.baseUrl && channel.apiKey) {
+          const apiBaseUrl = channel.baseUrl.trim().replace(/\/messages\/?$/, '').replace(/\/$/, '');
+          const paymentCompletedUrl = `${apiBaseUrl}/automations/payment-completed`;
+          console.log(`[ReentryPayment] Notifying Linala flow engine at ${paymentCompletedUrl} for ${guestMobile}`);
+          
+          const flowRes = await axios.post(
+            paymentCompletedUrl,
+            {
+              phone: guestMobile,
+              orderId,
+              bookingReference: bookingRef,
+              bookingId: booking.id,
+              amount,
+              status: 'PAID',
+            },
+            {
+              headers: {
+                'x-api-key': channel.apiKey.trim(),
+                'x-channel-id': channel.channelId.trim(),
+                'Content-Type': 'application/json',
+              },
+              timeout: 10000,
+            }
+          );
+
+          if (flowRes.data && flowRes.data.resumed) {
+            flowResumed = true;
+            console.log(`[ReentryPayment] 🎯 Successfully resumed active flow on canvas for ${guestMobile}! Skipping standalone message.`);
+          }
+        }
+      } catch (flowErr: any) {
+        console.warn(`[ReentryPayment] Flow resume notification skipped or returned error (${flowErr.message}). Falling back to direct WhatsApp message.`);
+      }
+    }
+
+    if (guestMobile && !flowResumed) {
+      const stayTypeLabel = stayType === 'iqama' ? 'Saudi Iqama Holder Hosting' : 'Hotel Reservation (Package included)';
+      const confirmationText = `🎉 *Moulavi Travels — Payment Confirmed & Re-Entry Registered!* 🕋\n\nDear *${guestName}*,\nWe have successfully received your payment of *₹${amount}* via Cashfree Gateway (Transaction Ref: *${cfPaymentId}*).\n\n📋 *Trip & Booking Summary:*\n• *Booking ID:* ${booking.id}\n• *Booking Reference:* ${bookingRef}\n• *Passport / Iqama No:* ${passportNumber || 'Submitted'}\n• *Visa No:* ${visaNumber || 'Active'}\n• *Arrangement:* ${stayTypeLabel}\n• *Status:* ⏳ *Pending Verification*\n\n✨ Your 1-Year Umrah Visa Re-entry package details and payment have been received. Our operations desk is verifying your travel details and Ministry clearances. You will receive your confirmed Ministry travel voucher shortly!\n\nMay Allah accept your Umrah!\n\n_Moulavi Travels & Logistics — NuSync ERP Desk_`;
+
       try {
         await sendWhatsAppMessage(
           guestMobile,
@@ -446,7 +824,7 @@ async function confirmReentryBookingAndSendWhatsApp(orderId: string, orderData: 
             amount,
           }
         );
-        console.log(`[ReentryPayment] ✅ Sent WhatsApp confirmation to ${guestMobile} for order ${orderId}`);
+        console.log(`[ReentryPayment] ✅ Sent fallback WhatsApp confirmation to ${guestMobile} for order ${orderId}`);
       } catch (waErr) {
         console.error(`[ReentryPayment] WhatsApp message dispatch error:`, waErr);
       }
@@ -524,14 +902,14 @@ router.get(
 router.post(
   '/create-order',
   asyncHandler(async (req: Request, res: Response) => {
-    const { amount, guestName, guestMobile, stayType, passportNumber, visaNumber, returnUrl } = req.body;
+    const { amount, guestName, guestMobile, stayType, passportNumber, visaNumber, returnUrl, orderId: reqOrderId } = req.body;
 
     if (!amount || isNaN(Number(amount))) {
       return res.status(400).json({ success: false, error: 'Valid amount is required' });
     }
 
     const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const orderId = `RE_${Date.now().toString().slice(-6)}_${randomSuffix}`;
+    const orderId = reqOrderId || `RE_${Date.now().toString().slice(-6)}_${randomSuffix}`;
 
     try {
       const cfOrder = await createCashfreeOrder({

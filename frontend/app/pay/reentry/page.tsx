@@ -38,7 +38,7 @@ function ReentryPaymentContent() {
 
   const [orderId, setOrderId] = useState(rawOrderId);
   const [sessionId, setSessionId] = useState(rawSessionId);
-  const [amount] = useState(rawAm);
+  const [amount, setAmount] = useState(rawAm);
   const [refNumber] = useState(rawRef);
 
   // Status Check State (When returning from Cashfree redirect)
@@ -70,17 +70,19 @@ function ReentryPaymentContent() {
     if (!sdkReady) return;
     if (hasAutoTriggeredRef.current) return;
 
-    // CASE A: Returning from Cashfree (order_id in URL but no session_id)
-    if (rawOrderId && !rawSessionId) {
+    const isReturningFromGateway = searchParams?.get('cf_return') === '1' || searchParams?.get('return_status') === 'check';
+
+    // CASE A: Returning from Cashfree gateway after payment attempt
+    if (isReturningFromGateway && rawOrderId) {
       hasAutoTriggeredRef.current = true;
       checkOrderStatus(rawOrderId);
       return;
     }
 
-    // CASE B: Initial payment page load -> automatically launch Cashfree checkout
+    // CASE B: Initial payment page load -> automatically launch Cashfree checkout immediately upon page loading
     hasAutoTriggeredRef.current = true;
     triggerCashfreeCheckout();
-  }, [sdkReady, rawOrderId, rawSessionId]);
+  }, [sdkReady, rawOrderId, rawSessionId, searchParams]);
 
   const checkOrderStatus = async (oid: string) => {
     setVerifying(true);
@@ -88,6 +90,9 @@ function ReentryPaymentContent() {
       const res = await fetch(`/api/b2c/reentry-pricing/order-status/${oid}`);
       const data = await res.json();
       if (data.success && data.data) {
+        if (data.data.amount) {
+          setAmount(String(data.data.amount));
+        }
         if (data.data.isPaid || data.data.orderStatus === 'PAID') {
           setPaymentStatus('PAID');
           setBookingResult(data.data.booking);
@@ -138,7 +143,8 @@ function ReentryPaymentContent() {
             guestName: rawName,
             guestMobile: rawPhone,
             stayType: rawStay,
-            returnUrl: `https://umra.moulavi.in/pay/reentry?order_id={order_id}&ref=${refNumber}&stay=${rawStay}`,
+            orderId: rawOrderId || undefined,
+            returnUrl: `https://umra.moulavi.in/pay/reentry?order_id={order_id}&cf_return=1&am=${amount}&ref=${refNumber}&stay=${rawStay}`,
           }),
         });
         const orderData = await orderRes.json();
