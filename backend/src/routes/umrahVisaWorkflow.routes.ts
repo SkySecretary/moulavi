@@ -1,5 +1,6 @@
 
 import { Router } from 'express';
+import axios from 'axios';
 import { authenticate } from '../middleware/auth';
 import { prisma } from './umrahVisa/shared';
 import { syncBookingStatus, syncBookingStatusInTx } from '../services/statusSyncService';
@@ -128,7 +129,35 @@ router.get('/:bookingId/download-all-documents', authenticate, async (req, res) 
 
       const isS3File = doc.filePath.startsWith('http://') || doc.filePath.startsWith('https://');
 
-      if (fs.existsSync(doc.filePath) && !isS3File) {
+      if (isS3File) {
+        // Direct HTTP/HTTPS Cloud URL (DigitalOcean Spaces, CDN, or S3 public URL)
+        try {
+          const remoteStream = await axios.get(doc.filePath, {
+            responseType: 'stream',
+            timeout: 20000,
+          });
+          archive.append(remoteStream.data as Readable, { name: zipFilePath });
+        } catch (httpError: any) {
+          console.warn(`[DownloadAll] Direct HTTP stream failed for ${doc.filePath} (${httpError?.message}), attempting S3 client fallback...`);
+          if (isS3Configured() && s3Client) {
+            try {
+              const s3Key = extractS3KeyFromUrl(doc.filePath) || doc.filePath;
+              const command = new GetObjectCommand({
+                Bucket: S3_CONFIG.BUCKET_NAME,
+                Key: s3Key,
+              });
+              const response = await s3Client.send(command);
+              if (response.Body) {
+                archive.append(response.Body as Readable, { name: zipFilePath });
+              }
+            } catch (s3Error) {
+              console.error(`Error fetching file from S3: ${doc.filePath}`, s3Error);
+            }
+          } else {
+            console.error(`File could not be downloaded via HTTP or S3: ${doc.filePath}`);
+          }
+        }
+      } else if (fs.existsSync(doc.filePath)) {
         // Local file storage
         archive.file(doc.filePath, { name: zipFilePath });
       } else if (isS3Configured() && s3Client) {
@@ -380,7 +409,35 @@ router.get('/:bookingId/download-zip', authenticate, async (req, res) => {
 
       const isS3File = doc.filePath.startsWith('http://') || doc.filePath.startsWith('https://');
 
-      if (fs.existsSync(doc.filePath) && !isS3File) {
+      if (isS3File) {
+        // Direct HTTP/HTTPS Cloud URL (DigitalOcean Spaces, CDN, or S3 public URL)
+        try {
+          const remoteStream = await axios.get(doc.filePath, {
+            responseType: 'stream',
+            timeout: 20000,
+          });
+          archive.append(remoteStream.data as Readable, { name: zipFilePath });
+        } catch (httpError: any) {
+          console.warn(`[DownloadZip] Direct HTTP stream failed for ${doc.filePath} (${httpError?.message}), attempting S3 client fallback...`);
+          if (isS3Configured() && s3Client) {
+            try {
+              const s3Key = extractS3KeyFromUrl(doc.filePath) || doc.filePath;
+              const command = new GetObjectCommand({
+                Bucket: S3_CONFIG.BUCKET_NAME,
+                Key: s3Key,
+              });
+              const response = await s3Client.send(command);
+              if (response.Body) {
+                archive.append(response.Body as Readable, { name: zipFilePath });
+              }
+            } catch (s3Error) {
+              console.error(`Error fetching file from S3: ${doc.filePath}`, s3Error);
+            }
+          } else {
+            console.error(`File could not be downloaded via HTTP or S3: ${doc.filePath}`);
+          }
+        }
+      } else if (fs.existsSync(doc.filePath)) {
         // Local file storage
         archive.file(doc.filePath, { name: zipFilePath });
       } else if (isS3Configured() && s3Client) {

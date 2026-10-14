@@ -28,45 +28,61 @@ router.get(
   authenticate,
   authorize('admin', 'staff', 'party'),
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { page = '1', limit = '10', search = '', voucherNumber = '', dateFrom, dateTo } = req.query;
+    const { page = '1', limit = '10', search = '', voucherNumber = '', dateFrom, dateTo, status = 'all' } = req.query;
     const user = req.user!;
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
     const skip = (pageNum - 1) * limitNum;
 
-    const where: any = {};
+    const conditions: any[] = [];
 
     // If user is a party, only show their own vouchers
     if (user.role === 'party') {
-      where.partyId = user.partyId;
+      conditions.push({ partyId: user.partyId });
     }
 
     if (voucherNumber && (voucherNumber as string).trim()) {
-      where.voucherNumber = { contains: (voucherNumber as string).trim() };
+      conditions.push({ voucherNumber: { contains: (voucherNumber as string).trim() } });
     }
 
     if (search && (search as string).trim()) {
       const searchStr = (search as string).trim();
-      where.OR = [
-        { voucherNumber: { contains: searchStr } },
-        { guestName: { contains: searchStr } },
-        { guestMobile: { contains: searchStr } },
-        { groupCode: { contains: searchStr } },
-        { bookingReference: { contains: searchStr } },
-        { umrahCompany: { partyName: { contains: searchStr } } },
-        { transportCompany: { partyName: { contains: searchStr } } },
-        { party: { partyName: { contains: searchStr } } },
-        { booking: { umrahVisaProvider: { partyName: { contains: searchStr } } } },
-        { booking: { transportCompany: { partyName: { contains: searchStr } } } },
-      ];
+      conditions.push({
+        OR: [
+          { voucherNumber: { contains: searchStr } },
+          { guestName: { contains: searchStr } },
+          { guestMobile: { contains: searchStr } },
+          { groupCode: { contains: searchStr } },
+          { bookingReference: { contains: searchStr } },
+          { umrahCompany: { partyName: { contains: searchStr } } },
+          { transportCompany: { partyName: { contains: searchStr } } },
+          { party: { partyName: { contains: searchStr } } },
+          { booking: { umrahVisaProvider: { partyName: { contains: searchStr } } } },
+          { booking: { transportCompany: { partyName: { contains: searchStr } } } },
+        ],
+      });
     }
 
     if (dateFrom || dateTo) {
-      where.reservationDate = {
-        ...(dateFrom ? { gte: new Date(dateFrom as string) } : {}),
-        ...(dateTo ? { lte: new Date(dateTo as string) } : {}),
-      };
+      conditions.push({
+        reservationDate: {
+          ...(dateFrom ? { gte: new Date(dateFrom as string) } : {}),
+          ...(dateTo ? { lte: new Date(dateTo as string) } : {}),
+        },
+      });
     }
+
+    if (status && status !== 'all') {
+      if (status === 'active') {
+        conditions.push({
+          OR: [{ status: 'active' }, { status: null }],
+        });
+      } else {
+        conditions.push({ status: status as string });
+      }
+    }
+
+    const where = conditions.length > 0 ? { AND: conditions } : {};
 
     const [vouchers, total] = await Promise.all([
       prisma.voucher.findMany({
@@ -76,6 +92,13 @@ router.get(
         orderBy: { createdAt: 'desc' },
         include: {
           generatedByUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          cancelledByUser: {
             select: {
               id: true,
               name: true,
@@ -129,6 +152,7 @@ router.get(
       const transportCompany = v.transportCompany || v.booking?.transportCompany || null;
       return {
         ...v,
+        status: v.status || 'active',
         umrahCompany,
         transportCompany,
       };
@@ -167,8 +191,41 @@ router.get(
       whereMovement.voucher = { partyId: user.partyId };
     }
 
-    const [totalVouchers, todayMovements, tomorrowMovements, dayAfterTomorrowMovements] = await Promise.all([
+    const [
+      totalVouchers,
+      activeVouchers,
+      cancelledCompleteVouchers,
+      cancelledArrivalVouchers,
+      cancelledDepartureVouchers,
+      todayMovements,
+      tomorrowMovements,
+      dayAfterTomorrowMovements,
+    ] = await Promise.all([
       prisma.voucher.count({ where: whereVoucher }),
+      prisma.voucher.count({
+        where: {
+          ...whereVoucher,
+          OR: [{ status: 'active' }, { status: null }],
+        },
+      }),
+      prisma.voucher.count({
+        where: {
+          ...whereVoucher,
+          status: 'cancelled_complete',
+        },
+      }),
+      prisma.voucher.count({
+        where: {
+          ...whereVoucher,
+          status: 'cancelled_arrival',
+        },
+      }),
+      prisma.voucher.count({
+        where: {
+          ...whereVoucher,
+          status: 'cancelled_departure',
+        },
+      }),
       prisma.voucherMovement.count({
         where: {
           ...whereMovement,
@@ -200,6 +257,10 @@ router.get(
 
     res.json({
       totalVouchers,
+      activeVouchers,
+      cancelledCompleteVouchers,
+      cancelledArrivalVouchers,
+      cancelledDepartureVouchers,
       todayMovements,
       tomorrowMovements,
       dayAfterTomorrowMovements,
@@ -1763,6 +1824,13 @@ router.get(
             email: true,
           },
         },
+        cancelledByUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
         umrahCompany: {
           select: { id: true, partyName: true, address: true, contactNumber: true, whatsappNumber: true, email: true, logoPath: true, partyCode: true }
         },
@@ -2484,6 +2552,198 @@ router.post(
       success: true,
       message: 'All notifications dispatched successfully to Agency & Transport Supplier',
       data: result,
+    });
+  })
+);
+
+// Cancel or update cancellation status of a voucher
+router.post(
+  '/:id/cancel',
+  authenticate,
+  authorize('admin', 'staff'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const { cancelType, reason } = req.body;
+    const user = req.user!;
+
+    const validTypes = ['complete', 'arrival', 'departure', 'reactivate'];
+    if (!cancelType || !validTypes.includes(cancelType)) {
+      return res.status(400).json({
+        error: `Invalid cancelType. Must be one of: ${validTypes.join(', ')}`,
+      });
+    }
+
+    const existingVoucher = await prisma.voucher.findUnique({
+      where: { id },
+      include: {
+        booking: true,
+      },
+    });
+
+    if (!existingVoucher) {
+      return res.status(404).json({ error: 'Voucher not found' });
+    }
+
+    const isReactivate = cancelType === 'reactivate';
+    let newStatus = 'active';
+    if (cancelType === 'complete') newStatus = 'cancelled_complete';
+    else if (cancelType === 'arrival') newStatus = 'cancelled_arrival';
+    else if (cancelType === 'departure') newStatus = 'cancelled_departure';
+
+    const previousStatus = existingVoucher.status || 'active';
+    const previousCancelType = existingVoucher.cancelType || null;
+
+    const [updatedVoucher] = await prisma.$transaction([
+      prisma.voucher.update({
+        where: { id },
+        data: {
+          status: newStatus,
+          cancelType: isReactivate ? null : cancelType,
+          cancellationReason: isReactivate ? null : (reason?.trim() || null),
+          cancelledAt: isReactivate ? null : new Date(),
+          cancelledBy: isReactivate ? null : user.id,
+        },
+        include: {
+          generatedByUser: {
+            select: { id: true, name: true, email: true },
+          },
+          cancelledByUser: {
+            select: { id: true, name: true, email: true },
+          },
+          umrahCompany: true,
+          transportCompany: true,
+          party: true,
+        },
+      }),
+      prisma.auditLog.create({
+        data: {
+          entityType: 'voucher',
+          entityId: existingVoucher.id,
+          action: isReactivate ? 'reactivate' : 'cancel',
+          oldValues: {
+            status: previousStatus,
+            cancelType: previousCancelType,
+            cancellationReason: existingVoucher.cancellationReason || null,
+          },
+          newValues: {
+            status: newStatus,
+            cancelType: isReactivate ? null : cancelType,
+            cancellationReason: reason?.trim() || null,
+            voucherNumber: existingVoucher.voucherNumber,
+            guestName: existingVoucher.guestName,
+            groupCode: existingVoucher.groupCode,
+            paxCount: existingVoucher.paxCount,
+          },
+          changedBy: user.id,
+          changedAt: new Date(),
+          ipAddress: (req.ip || req.socket.remoteAddress || '') as string,
+          userAgent: req.get('User-Agent') || '',
+        },
+      }),
+    ]);
+
+    // If linked to booking, log status history as well
+    if (existingVoucher.bookingId) {
+      try {
+        const actionLabel = isReactivate
+          ? `Voucher #${existingVoucher.voucherNumber} Reactivated`
+          : `Voucher #${existingVoucher.voucherNumber} ${
+              cancelType === 'complete'
+                ? 'Completely Cancelled'
+                : cancelType === 'arrival'
+                ? 'Arrival Cancelled'
+                : 'Departure Cancelled'
+            }`;
+
+        await prisma.bookingStatusHistory.create({
+          data: {
+            bookingId: existingVoucher.bookingId,
+            oldStatus: previousStatus,
+            newStatus: newStatus,
+            changedBy: user.id,
+            reason: `${actionLabel}${reason?.trim() ? `: ${reason.trim()}` : ''}`,
+          },
+        });
+      } catch (histErr) {
+        console.warn('[VOUCHER-CANCEL] Error creating booking status history:', histErr);
+      }
+    }
+
+    const typeLabels: { [key: string]: string } = {
+      complete: 'Completely Cancelled',
+      arrival: 'Arrival Cancelled',
+      departure: 'Departure Cancelled',
+      reactivate: 'Active',
+    };
+
+    res.json({
+      success: true,
+      message: `Voucher #${existingVoucher.voucherNumber} marked as ${typeLabels[cancelType] || newStatus}`,
+      voucher: updatedVoucher,
+    });
+  })
+);
+
+// Get activity log / audit history for a voucher
+router.get(
+  '/:id/activity-log',
+  authenticate,
+  authorize('admin', 'staff', 'party'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const user = req.user!;
+
+    const voucher = await prisma.voucher.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        voucherNumber: true,
+        partyId: true,
+        guestName: true,
+        groupCode: true,
+        status: true,
+        createdAt: true,
+        generatedByUser: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    if (!voucher) {
+      return res.status(404).json({ error: 'Voucher not found' });
+    }
+
+    if (user.role === 'party' && voucher.partyId !== user.partyId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const logs = await prisma.auditLog.findMany({
+      where: {
+        entityType: 'voucher',
+        entityId: id,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+      orderBy: {
+        changedAt: 'desc',
+      },
+    });
+
+    res.json({
+      success: true,
+      voucher: {
+        ...voucher,
+        status: voucher.status || 'active',
+      },
+      logs,
     });
   })
 );

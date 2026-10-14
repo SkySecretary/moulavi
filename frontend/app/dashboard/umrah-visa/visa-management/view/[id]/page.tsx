@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Plane, Users, Building, MapPin, Mail, CheckCircle, ArrowLeft, Clock, DollarSign, Route, Truck, ArrowRight, Download, Info, FileText } from 'lucide-react';
+import { Calendar, Plane, Users, Building, MapPin, Mail, CheckCircle, ArrowLeft, Clock, DollarSign, Route, Truck, ArrowRight, Download, Info, FileText, CreditCard, ShieldCheck } from 'lucide-react';
 import { ManageAlternateInfoDialog } from '@/components/umrah-booking/components/ManageAlternateInfoDialog';
 import { RecreateBookingDialog } from '@/components/umrah-booking/components/RecreateBookingDialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -782,6 +782,91 @@ export default function ViewUmrahVisaBookingPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* B2C WhatsApp Channel & Payment Transaction Card */}
+            {(() => {
+              let paymentMeta: any = null;
+              if (booking.requestNumber && typeof booking.requestNumber === 'string' && booking.requestNumber.startsWith('{')) {
+                try {
+                  paymentMeta = JSON.parse(booking.requestNumber);
+                } catch {}
+              }
+
+              if (!paymentMeta && booking.visaType !== 're_entry') return null;
+
+              const isPaid = paymentMeta?.paymentStatus === 'PAID';
+              const isPending = !isPaid;
+
+              return (
+                <Card className="border-emerald-200 bg-emerald-50/20">
+                  <CardHeader className="pb-3 border-b border-emerald-100/70">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg flex items-center gap-2 text-emerald-900">
+                        <CreditCard className="h-5 w-5 text-emerald-600" />
+                        <span>B2C WhatsApp Booking & Payment Info</span>
+                      </CardTitle>
+                      <Badge className={isPaid ? "bg-emerald-600 hover:bg-emerald-700 text-white font-bold" : "bg-amber-100 text-amber-800 border-amber-200 font-bold"}>
+                        {isPaid ? "PAID ONLINE" : "PAYMENT PENDING"}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Channel / Source</p>
+                        <p className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                          WhatsApp Automation (+91 22 4619 3365)
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Payment Status</p>
+                        <p className="text-sm font-bold">
+                          {isPaid ? (
+                            <span className="text-emerald-700 flex items-center gap-1">
+                              <CheckCircle className="h-4 w-4" /> Received & Confirmed
+                            </span>
+                          ) : (
+                            <span className="text-amber-700 flex items-center gap-1">
+                              <Clock className="h-4 w-4" /> Awaiting Payment
+                            </span>
+                          )}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Amount Paid / Total</p>
+                        <p className="text-base font-extrabold text-emerald-800">
+                          ₹{paymentMeta?.amount ?? '1'} {paymentMeta?.currency || 'INR'}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Gateway / Transaction ID</p>
+                        <p className="text-sm font-mono font-bold text-gray-900 break-all">
+                          {paymentMeta?.cfPaymentId || paymentMeta?.orderId || '—'}
+                        </p>
+                      </div>
+
+                      {paymentMeta?.paymentMethod && (
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Payment Method</p>
+                          <p className="text-sm font-medium text-gray-800">{paymentMeta.paymentMethod}</p>
+                        </div>
+                      )}
+
+                      {paymentMeta?.paidAt && (
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Paid Timestamp</p>
+                          <p className="text-sm font-medium text-gray-800">{new Date(paymentMeta.paidAt).toLocaleString()}</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
 
             <Card>
               <CardHeader>

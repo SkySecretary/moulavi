@@ -8,7 +8,9 @@ import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, Plane, Users, Building, MapPin, Mail, ArrowLeft, Clock, Route, Ticket, Truck } from 'lucide-react';
+import { Calendar, Plane, Users, Building, MapPin, Mail, ArrowLeft, Clock, Route, Ticket, Truck, Ban, History, AlertTriangle } from 'lucide-react';
+import { CancelVoucherDialog } from '@/components/voucher/CancelVoucherDialog';
+import { VoucherActivityLogDialog } from '@/components/voucher/VoucherActivityLogDialog';
 
 export default function ViewVoucherPage() {
   const router = useRouter();
@@ -20,6 +22,8 @@ export default function ViewVoucherPage() {
   const [voucher, setVoucher] = useState<any>(null);
   const [notifyingAgency, setNotifyingAgency] = useState(false);
   const [notifyingSupplier, setNotifyingSupplier] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [activityLogDialogOpen, setActivityLogDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!user || !hasRole(['admin', 'staff', 'party'])) {
@@ -95,8 +99,19 @@ export default function ViewVoucherPage() {
           <div className="px-4 lg:px-8 py-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="leading-tight">
-                <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Voucher {voucher?.voucherNumber || 'Details'}</h1>
-                <p className="text-sm text-gray-500">Reservation Number: {voucher?.voucherNumber || 'N/A'}</p>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Voucher {voucher?.voucherNumber || 'Details'}</h1>
+                  {voucher?.status === 'cancelled_complete' ? (
+                    <Badge className="bg-rose-100 text-rose-700 border-rose-200 font-bold text-xs py-0.5">Completely Cancelled</Badge>
+                  ) : voucher?.status === 'cancelled_arrival' ? (
+                    <Badge className="bg-amber-100 text-amber-700 border-amber-200 font-bold text-xs py-0.5">Arrival Cancelled</Badge>
+                  ) : voucher?.status === 'cancelled_departure' ? (
+                    <Badge className="bg-purple-100 text-purple-700 border-purple-200 font-bold text-xs py-0.5">Departure Cancelled</Badge>
+                  ) : voucher?.status === 'active' || voucher ? (
+                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 font-bold text-xs py-0.5">Active</Badge>
+                  ) : null}
+                </div>
+                <p className="text-sm text-gray-500 mt-1">Reservation Number: {voucher?.voucherNumber || 'N/A'}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {hasRole(['admin', 'staff']) && (
@@ -130,8 +145,30 @@ export default function ViewVoucherPage() {
                     >
                       Edit
                     </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setCancelDialogOpen(true)}
+                      className={`text-xs font-semibold ${
+                        voucher?.status?.startsWith('cancelled') 
+                          ? 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100' 
+                          : 'border-rose-200 text-rose-600 hover:bg-rose-50'
+                      }`}
+                    >
+                      <Ban className="h-3.5 w-3.5 mr-1" />
+                      {voucher?.status?.startsWith('cancelled') ? 'Manage Cancellation' : 'Cancel Voucher'}
+                    </Button>
                   </>
                 )}
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setActivityLogDialogOpen(true)}
+                  className="border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs font-semibold"
+                >
+                  <History className="h-3.5 w-3.5 mr-1" />
+                  Activity Log
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => router.back()}>
                   <ArrowLeft className="h-4 w-4 mr-1" /> Back
                 </Button>
@@ -147,6 +184,34 @@ export default function ViewVoucherPage() {
             <div className="py-12 text-center text-gray-500">No voucher details available</div>
           ) : (
             <div className="space-y-4 lg:space-y-6">
+              {/* Cancellation Alert Banner */}
+              {voucher?.status?.startsWith('cancelled') && (
+                <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-start gap-3 text-rose-900 shadow-sm">
+                  <div className="p-2 bg-rose-100 text-rose-600 rounded-xl mt-0.5">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 text-xs">
+                    <p className="font-bold text-sm text-rose-950">
+                      This voucher is {
+                        voucher.status === 'cancelled_complete' ? 'Completely Cancelled' :
+                        voucher.status === 'cancelled_arrival' ? 'Arrival Cancelled' :
+                        'Departure Cancelled'
+                      }
+                    </p>
+                    {voucher.cancellationReason && (
+                      <p className="mt-1 text-rose-800">
+                        <span className="font-semibold">Reason:</span> {voucher.cancellationReason}
+                      </p>
+                    )}
+                    {voucher.cancelledByUser && (
+                      <p className="mt-1 text-rose-700 text-[11px]">
+                        Cancelled by {voucher.cancelledByUser.name} on {formatDate(voucher.cancelledAt)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Summary Card - Key Info */}
               <Card>
                 <CardHeader>
@@ -509,6 +574,23 @@ export default function ViewVoucherPage() {
           )}
         </div>
       </div>
+
+      {/* Cancellation Dialog */}
+      <CancelVoucherDialog
+        open={cancelDialogOpen}
+        onOpenChange={setCancelDialogOpen}
+        voucher={voucher}
+        onSuccess={load}
+      />
+
+      {/* Activity Log Dialog */}
+      <VoucherActivityLogDialog
+        open={activityLogDialogOpen}
+        onOpenChange={setActivityLogDialogOpen}
+        voucherId={voucher?.id}
+        voucherNumber={voucher?.voucherNumber}
+        guestName={voucher?.guestName}
+      />
     </div>
   );
 }

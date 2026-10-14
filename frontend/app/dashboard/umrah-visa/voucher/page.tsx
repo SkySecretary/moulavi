@@ -239,6 +239,7 @@ export default function VoucherPage() {
         guestMobile: voucher.guestMobile || '',
         groupCode: voucher.groupCode || '',
         paxCount: voucher.paxCount || 0,
+        status: voucher.status || 'active',
         umrahCompany: voucher.umrahCompany || null,
         agentParty: voucher.party || null,
         transportCompany: voucher.transportCompany || null,

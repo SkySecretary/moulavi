@@ -32,14 +32,19 @@ export default function B2CPackageCalculatorPage() {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 font-bold text-lg shadow-md">
-                🕋
-              </div>
+              <img 
+                src="/moulavi-logo.png" 
+                alt="Moulavi Travels" 
+                className="h-9 w-auto object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
               <div>
                 <span className="font-display text-lg sm:text-xl font-bold tracking-tight text-white block leading-tight">
                   MOULAVI TRAVELS
                 </span>
-                <span className="text-[10px] text-emerald-400 font-semibold uppercase tracking-widest block">
+                <span className="text-[10px] text-red-500 font-semibold uppercase tracking-widest block">
                   B2C Direct Umrah Portal
                 </span>
               </div>

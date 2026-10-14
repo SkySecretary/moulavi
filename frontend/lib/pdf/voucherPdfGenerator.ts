@@ -20,6 +20,7 @@ interface VoucherPdfData {
   groupCode: string;
   groupName?: string; // Added for group name
   paxCount: number;
+  status?: string;
   umrahVisaProvider?: { // Added for Umrah Visa Provider details
     partyName: string;
     address?: string;
@@ -201,6 +202,25 @@ export function generateVoucherPDF(data: VoucherPdfData): void {
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
   doc.text('📋 RESERVATION DETAILS', margin + 10, yPos);
+
+  if (data.status && data.status !== 'active') {
+    let statusText = 'CANCELLED';
+    let badgeColor = [220, 38, 38]; // Red
+    if (data.status === 'cancelled_arrival') {
+      statusText = 'ARRIVAL CANCELLED';
+      badgeColor = [217, 119, 6]; // Amber
+    } else if (data.status === 'cancelled_departure') {
+      statusText = 'DEPARTURE CANCELLED';
+      badgeColor = [124, 58, 237]; // Purple
+    }
+    
+    doc.setFillColor(badgeColor[0], badgeColor[1], badgeColor[2]);
+    doc.roundedRect(pageWidth - margin - 55, yPos - 5, 45, 7, 2, 2, 'F');
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text(statusText, pageWidth - margin - 32.5, yPos - 0.5, { align: 'center' });
+  }
 
   // Divider line under title
   doc.setDrawColor(borderColor[0], borderColor[1], borderColor[2]);

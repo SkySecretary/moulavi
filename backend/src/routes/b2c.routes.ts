@@ -276,33 +276,34 @@ router.post(
     
     let routePrice = 0;
     const transportMasterId = req.body.transportMasterId;
+    const vehicleQuantity = Math.max(1, Number(req.body.vehicleQuantity || req.body.quantity) || 1);
     if (transportMasterId) {
       const tm = await prisma.transportMaster.findUnique({
         where: { id: transportMasterId }
       });
       if (tm) {
-        routePrice = Number(tm.price) || 0;
+        routePrice = (Number(tm.price) || 0) * vehicleQuantity;
       }
     } else if (transportOptionId) {
       if (transportOptionId === 'r-1' || transportOptionId === 'r-3') {
-        routePrice = 600;
+        routePrice = 600 * vehicleQuantity;
       } else if (transportOptionId === 'r-2') {
-        routePrice = 400;
+        routePrice = 400 * vehicleQuantity;
       } else {
         const tm = await prisma.transportMaster.findFirst({
           where: { id: transportOptionId }
         });
         if (tm) {
-          routePrice = Number(tm.price) || 0;
+          routePrice = (Number(tm.price) || 0) * vehicleQuantity;
         } else {
           const rt = await prisma.transportRouteMaster.findUnique({
             where: { id: transportOptionId },
             include: { transports: true }
           });
           if (rt && rt.transports && rt.transports.length > 0) {
-            routePrice = Number(rt.transports[0].price) || 500;
+            routePrice = (Number(rt.transports[0].price) || 500) * vehicleQuantity;
           } else {
-            routePrice = 500;
+            routePrice = 500 * vehicleQuantity;
           }
         }
       }
@@ -346,6 +347,8 @@ router.post(
         processingFee,
         vat: processingFee, // Backward compatible field
         total: Math.round(grandTotal),
+        routePrice,
+        vehicleQuantity,
       },
     });
   })
@@ -808,6 +811,32 @@ router.post(
             isAlternate: false,
           }
         });
+      }
+    }
+
+    // Create UmrahTransportBooking if transport is selected
+    const b2cTransportMasterId = req.body.transportMasterId || (req.body.transportOptionId ? req.body.transportOptionId : null);
+    const b2cVehicleQty = Math.max(1, Number(req.body.vehicleQuantity || req.body.quantity) || 1);
+    if (b2cTransportMasterId) {
+      let resolvedTm = await prisma.transportMaster.findUnique({
+        where: { id: b2cTransportMasterId }
+      });
+      if (!resolvedTm) {
+        resolvedTm = await prisma.transportMaster.findFirst({
+          where: { routeId: b2cTransportMasterId, isActive: true }
+        });
+      }
+      if (resolvedTm) {
+        for (let i = 0; i < b2cVehicleQty; i++) {
+          await prisma.umrahTransportBooking.create({
+            data: {
+              bookingId: booking.id,
+              transportMasterId: resolvedTm.id,
+              travelDateTime: arrivalDateTime ? new Date(arrivalDateTime) : new Date(checkInDate),
+              isAlternate: false,
+            }
+          });
+        }
       }
     }
 
@@ -1598,6 +1627,51 @@ async function callB2cCashfreeApi(method: 'GET' | 'POST', endpoint: string, data
   return response.data;
 }
 
+export function parseBankDetails(detailsText?: string | null) {
+  const result: {
+    bankName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+    accountHolder?: string;
+    branch?: string;
+    upiId?: string;
+  } = {};
+
+  if (!detailsText) return result;
+
+  const lines = detailsText.split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const colonIdx = trimmed.indexOf(':');
+    if (colonIdx !== -1) {
+      const key = trimmed.slice(0, colonIdx).trim().toLowerCase();
+      const val = trimmed.slice(colonIdx + 1).trim();
+
+      if ((key.includes('bank') && !key.includes('holder')) || key === 'bank name') {
+        result.bankName = val;
+      } else if (key.includes('account') || key === 'a/c' || key.includes('acct') || key.includes('acc no')) {
+        if (key.includes('holder') || key.includes('name')) {
+          result.accountHolder = val;
+        } else {
+          result.accountNumber = val;
+        }
+      } else if (key.includes('ifsc') || key.includes('iban') || key.includes('swift')) {
+        result.ifscCode = val;
+      } else if (key.includes('holder') || key.includes('beneficiary') || key === 'name') {
+        result.accountHolder = val;
+      } else if (key.includes('branch')) {
+        result.branch = val;
+      } else if (key.includes('upi')) {
+        result.upiId = val;
+      }
+    }
+  }
+
+  return result;
+}
+
 router.get(
   '/payment/bank-details',
   asyncHandler(async (_req: any, res: Response) => {
@@ -1606,17 +1680,20 @@ router.get(
       orderBy: { updatedAt: 'desc' }
     });
 
+    const rawBankDetails = reentryConfig?.bankAccountDetails || '';
+    const parsed = parseBankDetails(rawBankDetails);
+
     res.json({
       success: true,
       data: {
-        bankName: 'Federal Bank',
-        accountNumber: '14140200001234',
-        ifscCode: 'FDRL0001414',
-        accountHolder: 'Moulavi Travels & Logistics',
-        branch: 'Calicut Main Branch',
-        upiId: reentryConfig?.upiId || 'moulavi1414@fbl',
+        bankName: parsed.bankName || 'Federal Bank',
+        accountNumber: parsed.accountNumber || '14140200001234',
+        ifscCode: parsed.ifscCode || 'FDRL0001414',
+        accountHolder: parsed.accountHolder || reentryConfig?.upiMerchantName || 'Moulavi Travels & Logistics',
+        branch: parsed.branch || 'Calicut Main Branch',
+        upiId: reentryConfig?.upiId || parsed.upiId || 'moulavi1414@fbl',
         upiMerchantName: reentryConfig?.upiMerchantName || 'Moulavi Travels',
-        bankAccountDetails: reentryConfig?.bankAccountDetails || 'Bank: Federal Bank\nAccount: 14140200001234\nIFSC: FDRL0001414\nHolder: Moulavi Travels & Logistics',
+        bankAccountDetails: rawBankDetails || 'Bank: Federal Bank\nAccount: 14140200001234\nIFSC: FDRL0001414\nHolder: Moulavi Travels & Logistics',
         instructions: 'Please transfer the booking amount via IMPS / NEFT / RTGS / UPI and enter your Transaction UTR / Reference ID.'
       }
     });

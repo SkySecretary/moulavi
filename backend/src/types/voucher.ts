@@ -9,6 +9,7 @@ export interface VoucherPdfData {
   groupCode: string;
   groupName?: string;
   paxCount: number;
+  status?: string;
   vehicleType?: string; // Type of vehicle for the trip
   iqamaDetails?: {
     name: string;

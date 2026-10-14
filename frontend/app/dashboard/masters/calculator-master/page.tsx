@@ -37,7 +37,16 @@ interface CalculatorMasterConfig {
   maxRooms: number;
   defaultCurrency: string;
   defaultTier: string;
+  defaultRoomType: string;
+  doubleRoomRateSAR: number;
+  tripleRoomRateSAR: number;
+  quadRoomRateSAR: number;
+  sharingRoomRateSAR: number;
+  singleRoomRateSAR: number;
   visaFeeSAR: number;
+  insuranceFeeSAR: number;
+  ziyaratCostSAR: number;
+  foodPerDaySAR: number;
   economyMakkahRateSAR: number;
   comfortMakkahRateSAR: number;
   luxuryMakkahRateSAR: number;
@@ -69,7 +78,16 @@ const DEFAULT_CONFIG: CalculatorMasterConfig = {
   maxRooms: 20,
   defaultCurrency: 'INR',
   defaultTier: 'comfort',
+  defaultRoomType: 'double',
+  doubleRoomRateSAR: 220,
+  tripleRoomRateSAR: 280,
+  quadRoomRateSAR: 340,
+  sharingRoomRateSAR: 180,
+  singleRoomRateSAR: 380,
   visaFeeSAR: 450,
+  insuranceFeeSAR: 50,
+  ziyaratCostSAR: 150,
+  foodPerDaySAR: 60,
   economyMakkahRateSAR: 220,
   comfortMakkahRateSAR: 360,
   luxuryMakkahRateSAR: 550,
@@ -99,6 +117,7 @@ export default function CalculatorMasterPage() {
   const [simPax, setSimPax] = useState(1);
   const [simDays, setSimDays] = useState(1);
   const [simRooms, setSimRooms] = useState(1);
+  const [simRoomType, setSimRoomType] = useState('double');
   const [simMadinah, setSimMadinah] = useState(false);
   const [simTier, setSimTier] = useState<'economy' | 'comfort' | 'luxury'>('comfort');
   const [simCurrency, setSimCurrency] = useState('INR');
@@ -122,7 +141,16 @@ export default function CalculatorMasterPage() {
           maxRooms: Number(d.maxRooms ?? 20),
           defaultCurrency: d.defaultCurrency || 'INR',
           defaultTier: d.defaultTier || 'comfort',
+          defaultRoomType: d.defaultRoomType || 'double',
+          doubleRoomRateSAR: Number(d.doubleRoomRateSAR ?? 220),
+          tripleRoomRateSAR: Number(d.tripleRoomRateSAR ?? 280),
+          quadRoomRateSAR: Number(d.quadRoomRateSAR ?? 340),
+          sharingRoomRateSAR: Number(d.sharingRoomRateSAR ?? 180),
+          singleRoomRateSAR: Number(d.singleRoomRateSAR ?? 380),
           visaFeeSAR: Number(d.visaFeeSAR ?? 450),
+          insuranceFeeSAR: Number(d.insuranceFeeSAR ?? 50),
+          ziyaratCostSAR: Number(d.ziyaratCostSAR ?? 150),
+          foodPerDaySAR: Number(d.foodPerDaySAR ?? 60),
           economyMakkahRateSAR: Number(d.economyMakkahRateSAR ?? 220),
           comfortMakkahRateSAR: Number(d.comfortMakkahRateSAR ?? 360),
           luxuryMakkahRateSAR: Number(d.luxuryMakkahRateSAR ?? 550),
@@ -144,6 +172,7 @@ export default function CalculatorMasterPage() {
         setSimPax(Number(d.defaultPersons ?? 1));
         setSimDays(Number(d.defaultDays ?? 1));
         setSimRooms(Number(d.defaultRooms ?? 1));
+        setSimRoomType(d.defaultRoomType || 'double');
         setSimCurrency(d.defaultCurrency || 'INR');
         setSimTier((d.defaultTier as any) || 'comfort');
       }
@@ -210,9 +239,17 @@ export default function CalculatorMasterPage() {
   const makkahRate = simTier === 'luxury' ? config.luxuryMakkahRateSAR : simTier === 'comfort' ? config.comfortMakkahRateSAR : config.economyMakkahRateSAR;
   const madinahRate = simTier === 'luxury' ? config.luxuryMadinahRateSAR : simTier === 'comfort' ? config.comfortMadinahRateSAR : config.economyMadinahRateSAR;
 
-  const makkahHotelCost = makkahNights * makkahRate * simRooms;
-  const madinahHotelCost = madinahNights * madinahRate * simRooms;
-  const visaCost = config.visaFeeSAR * simPax;
+  const roomTypeDailyRate = 
+    simRoomType === 'triple' ? config.tripleRoomRateSAR :
+    simRoomType === 'quad' ? config.quadRoomRateSAR :
+    simRoomType === 'sharing' ? config.sharingRoomRateSAR :
+    simRoomType === 'single' ? config.singleRoomRateSAR :
+    config.doubleRoomRateSAR;
+
+  const roomTypeFactor = (roomTypeDailyRate || 220) / (config.doubleRoomRateSAR || 220);
+  const makkahHotelCost = Math.round(makkahNights * makkahRate * roomTypeFactor * simRooms);
+  const madinahHotelCost = Math.round(madinahNights * madinahRate * roomTypeFactor * simRooms);
+  const visaCost = (config.visaFeeSAR + config.insuranceFeeSAR) * simPax;
   const transportCost = (simPax >= 4 ? config.transportGroupSAR : config.transportBaseSAR) + (simMadinah ? (simPax >= 4 ? config.madinahTransferGroupSAR : config.madinahTransferSAR) : 0);
 
   let discount = 0;
@@ -559,10 +596,82 @@ export default function CalculatorMasterPage() {
                 </div>
               </div>
 
-              {/* Visa & Transfers */}
-              <div className="grid grid-cols-2 gap-3 pt-1">
+              {/* Room Type Nightly Rates */}
+              <div className="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                <div className="flex justify-between items-center">
+                  <p className="font-bold text-slate-800 flex items-center gap-1.5">
+                    <BedDouble className="h-3.5 w-3.5 text-emerald-600" />
+                    Room Type Daily Rates (SAR / Night)
+                  </p>
+                  <div className="flex items-center gap-1 text-[11px]">
+                    <span className="text-slate-500 font-semibold">Default Type:</span>
+                    <select
+                      value={config.defaultRoomType}
+                      onChange={(e) => setConfig({ ...config, defaultRoomType: e.target.value })}
+                      className="h-6 text-[11px] font-bold bg-white border border-slate-200 rounded px-1.5 text-emerald-800"
+                    >
+                      <option value="double">Double (2 Bed)</option>
+                      <option value="triple">Triple (3 Bed)</option>
+                      <option value="quad">Quad (4 Bed)</option>
+                      <option value="sharing">Sharing (5 Bed)</option>
+                      <option value="single">Single (1 Bed VIP)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
+                  <div>
+                    <span className="text-[10px] text-slate-500">Double (2 Bed)</span>
+                    <Input 
+                      type="number" 
+                      value={config.doubleRoomRateSAR}
+                      onChange={(e) => setConfig({ ...config, doubleRoomRateSAR: parseFloat(e.target.value) || 0 })}
+                      className="h-8 text-xs font-mono font-bold text-emerald-700"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500">Triple (3 Bed)</span>
+                    <Input 
+                      type="number" 
+                      value={config.tripleRoomRateSAR}
+                      onChange={(e) => setConfig({ ...config, tripleRoomRateSAR: parseFloat(e.target.value) || 0 })}
+                      className="h-8 text-xs font-mono"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500">Quad (4 Bed)</span>
+                    <Input 
+                      type="number" 
+                      value={config.quadRoomRateSAR}
+                      onChange={(e) => setConfig({ ...config, quadRoomRateSAR: parseFloat(e.target.value) || 0 })}
+                      className="h-8 text-xs font-mono"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500">Sharing (5 Bed)</span>
+                    <Input 
+                      type="number" 
+                      value={config.sharingRoomRateSAR}
+                      onChange={(e) => setConfig({ ...config, sharingRoomRateSAR: parseFloat(e.target.value) || 0 })}
+                      className="h-8 text-xs font-mono"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500">Single (1 Bed)</span>
+                    <Input 
+                      type="number" 
+                      value={config.singleRoomRateSAR}
+                      onChange={(e) => setConfig({ ...config, singleRoomRateSAR: parseFloat(e.target.value) || 0 })}
+                      className="h-8 text-xs font-mono font-bold text-amber-700"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Visa & Additional Inclusions */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
                 <div className="space-y-1">
-                  <Label className="font-semibold text-slate-700">Visa Fee / Pax (SAR)</Label>
+                  <Label className="font-semibold text-slate-700 text-[11px]">Visa Fee / Pax</Label>
                   <Input 
                     type="number" 
                     value={config.visaFeeSAR}
@@ -571,14 +680,42 @@ export default function CalculatorMasterPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="font-semibold text-slate-700">Family Discount (%)</Label>
+                  <Label className="font-semibold text-slate-700 text-[11px]">Medical Ins / Pax</Label>
                   <Input 
                     type="number" 
-                    value={config.discountPercentage}
-                    onChange={(e) => setConfig({ ...config, discountPercentage: parseFloat(e.target.value) || 0 })}
+                    value={config.insuranceFeeSAR}
+                    onChange={(e) => setConfig({ ...config, insuranceFeeSAR: parseFloat(e.target.value) || 0 })}
                     className="h-8 text-xs font-mono"
                   />
                 </div>
+                <div className="space-y-1">
+                  <Label className="font-semibold text-slate-700 text-[11px]">Ziyarat Tour / Pax</Label>
+                  <Input 
+                    type="number" 
+                    value={config.ziyaratCostSAR}
+                    onChange={(e) => setConfig({ ...config, ziyaratCostSAR: parseFloat(e.target.value) || 0 })}
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="font-semibold text-slate-700 text-[11px]">Buffet / Day / Pax</Label>
+                  <Input 
+                    type="number" 
+                    value={config.foodPerDaySAR}
+                    onChange={(e) => setConfig({ ...config, foodPerDaySAR: parseFloat(e.target.value) || 0 })}
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1 pt-1">
+                <Label className="font-semibold text-slate-700 text-[11px]">Family Package Reward Discount (%)</Label>
+                <Input 
+                  type="number" 
+                  value={config.discountPercentage}
+                  onChange={(e) => setConfig({ ...config, discountPercentage: parseFloat(e.target.value) || 0 })}
+                  className="h-8 text-xs font-mono"
+                />
               </div>
 
               {/* Transport Costs */}
@@ -598,6 +735,24 @@ export default function CalculatorMasterPage() {
                     type="number" 
                     value={config.transportGroupSAR}
                     onChange={(e) => setConfig({ ...config, transportGroupSAR: parseFloat(e.target.value) || 0 })}
+                    className="w-20 h-6 text-xs font-mono text-right"
+                  />
+                </div>
+                <div className="flex justify-between items-center py-0.5">
+                  <span>Madinah Transfer Base:</span>
+                  <Input 
+                    type="number" 
+                    value={config.madinahTransferSAR}
+                    onChange={(e) => setConfig({ ...config, madinahTransferSAR: parseFloat(e.target.value) || 0 })}
+                    className="w-20 h-6 text-xs font-mono text-right"
+                  />
+                </div>
+                <div className="flex justify-between items-center py-0.5">
+                  <span>Madinah Transfer Group:</span>
+                  <Input 
+                    type="number" 
+                    value={config.madinahTransferGroupSAR}
+                    onChange={(e) => setConfig({ ...config, madinahTransferGroupSAR: parseFloat(e.target.value) || 0 })}
                     className="w-20 h-6 text-xs font-mono text-right"
                   />
                 </div>
@@ -712,6 +867,41 @@ export default function CalculatorMasterPage() {
                       onChange={(e) => setSimRooms(parseInt(e.target.value))}
                       className="w-full accent-amber-400"
                     />
+                  </div>
+                </div>
+
+                <div className="space-y-1 pt-1 border-t border-slate-700/60">
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-emerald-300 font-semibold">Simulated Room Type:</span>
+                    <button
+                      type="button"
+                      onClick={() => setSimMadinah(!simMadinah)}
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${simMadinah ? 'bg-amber-400 text-slate-900' : 'bg-slate-800 text-slate-300'}`}
+                    >
+                      {simMadinah ? '✓ With Madinah' : '+ Add Madinah'}
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {[
+                      { key: 'double', label: 'Double (2)' },
+                      { key: 'triple', label: 'Triple (3)' },
+                      { key: 'quad', label: 'Quad (4)' },
+                      { key: 'sharing', label: 'Sharing (5)' },
+                      { key: 'single', label: 'Single (VIP)' },
+                    ].map((rt) => (
+                      <button
+                        key={rt.key}
+                        type="button"
+                        onClick={() => setSimRoomType(rt.key)}
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-all ${
+                          simRoomType === rt.key 
+                            ? 'bg-emerald-500 text-white font-bold' 
+                            : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'
+                        }`}
+                      >
+                        {rt.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 

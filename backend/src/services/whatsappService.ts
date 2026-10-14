@@ -183,7 +183,7 @@ const getChannelForUseCase = async (useCase: string) => {
 };
 
 // Find any active fallback channel
-const getFallbackChannel = async () => {
+export const getFallbackChannel = async () => {
   try {
     const channel = await prisma.whatsappChannel.findFirst({
       where: { isActive: true }

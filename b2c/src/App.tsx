@@ -24,9 +24,15 @@ import {
   Search,
   MapPin,
   Truck,
-  Users
+  Users,
+  Star
 } from 'lucide-react';
 import { FamilyUmrahCalculator, type CalculatorPackageParams } from './components/FamilyUmrahCalculator';
+import { InteractiveHeroWidget } from './components/InteractiveHeroWidget';
+import { JourneyRoutePlanner } from './components/JourneyRoutePlanner';
+import { ThingsToDoUmrah } from './components/ThingsToDoUmrah';
+import { DidYouKnowUmrah } from './components/DidYouKnowUmrah';
+import { OfficialPortalsGuide } from './components/OfficialPortalsGuide';
 import moulaviLogo from './assets/moulavi-logo.png';
 
 declare global {
@@ -34,6 +40,117 @@ declare global {
     Cashfree?: any;
   }
 }
+
+// ==========================================
+// Curated Destination Experiences (Visit Abu Dhabi Style)
+// ==========================================
+const DESTINATION_EXPERIENCES = [
+  {
+    id: 'makkah',
+    tag: 'Sacred Sanctuary',
+    title: 'Makkah Al-Mukarramah',
+    subtitle: 'Al-Masjid Al-Haram & The Holy Kaaba',
+    desc: 'Footsteps from the Grand Mosque. Hand-picked 5-star suites with direct Kaaba views and private Tawaf assistance.',
+    image: 'https://images.unsplash.com/photo-1565552645632-d725f8bfc19a?auto=format&fit=crop&w=1200&q=80',
+    actionText: 'View Makkah Packages'
+  },
+  {
+    id: 'madinah',
+    tag: 'City of the Prophet ﷺ',
+    title: 'Madinah Al-Munawwarah',
+    subtitle: 'Al-Masjid An-Nabawi & Rawdah',
+    desc: 'Bask in serene spirituality facing the Prophet’s Mosque with arranged Rawdah Ash-Sharifah prayer permits.',
+    image: 'https://images.unsplash.com/photo-1564769625905-50e93615e769?auto=format&fit=crop&w=1200&q=80',
+    actionText: 'View Madinah Packages'
+  },
+  {
+    id: 'transport',
+    tag: 'Royal Chauffeur Fleet',
+    title: 'VIP Ground Chauffeur',
+    subtitle: 'Private GMC & High-Speed Haramain',
+    desc: 'Private executive GMC Yukon and Mercedes fleet transfers between Jeddah Airport, Makkah, and Madinah.',
+    image: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80',
+    actionText: 'Explore VIP Fleet'
+  },
+  {
+    id: 'ziyarat',
+    tag: 'Sacred Heritage',
+    title: 'Historic Sacred Ziyarat',
+    subtitle: 'Cave of Hira & Mount Uhud',
+    desc: 'Enriching guided expeditions to Jabal Al-Noor, Cave of Hira, Mount Uhud, and the historic Masjid Quba.',
+    image: 'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=1200&q=80',
+    actionText: 'Discover Ziyarat'
+  }
+];
+
+// Helper to assign high-res imagery, rating, and luxury badge to packages
+export const getPackageVisuals = (pkg: any) => {
+  const title = (pkg.title || '').toLowerCase();
+  const nights = (pkg.makkahNights || 0) + (pkg.madinahNights || 0);
+
+  if (title.includes('swift') || (nights <= 3 && title.includes('express'))) {
+    return {
+      image: 'https://images.unsplash.com/photo-1565552645632-d725f8bfc19a?auto=format&fit=crop&w=1200&q=80',
+      badge: 'Swift Pilgrimage',
+      badgeColor: '#FFD700',
+      rating: '4.92',
+      reviews: '340+'
+    };
+  }
+  if (title.includes('budget') || title.includes('economy')) {
+    return {
+      image: 'https://images.unsplash.com/photo-1542810634-71277d95dcbb?auto=format&fit=crop&w=1200&q=80',
+      badge: 'Essential Value',
+      badgeColor: '#F59E0B',
+      rating: '4.88',
+      reviews: '520+'
+    };
+  }
+  if (title.includes('premium') || nights === 5) {
+    return {
+      image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80',
+      badge: '5★ Luxury Stay',
+      badgeColor: '#FFD700',
+      rating: '4.96',
+      reviews: '610+'
+    };
+  }
+  if (title.includes('executive') || nights === 8) {
+    return {
+      image: 'https://images.unsplash.com/photo-1564769625905-50e93615e769?auto=format&fit=crop&w=1200&q=80',
+      badge: 'Executive VIP',
+      badgeColor: '#F5C542',
+      rating: '4.98',
+      reviews: '480+'
+    };
+  }
+  if (title.includes('deluxe') || (nights >= 14 && title.includes('grand'))) {
+    return {
+      image: 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?auto=format&fit=crop&w=1200&q=80',
+      badge: 'Royal Grand Umrah',
+      badgeColor: '#FFD700',
+      rating: '4.99',
+      reviews: '890+'
+    };
+  }
+  if (title.includes('spiritual') || nights >= 10) {
+    return {
+      image: 'https://images.unsplash.com/photo-1580418827493-f2b22c0a76cb?auto=format&fit=crop&w=1200&q=80',
+      badge: 'Spiritual Odyssey',
+      badgeColor: '#10B981',
+      rating: '4.95',
+      reviews: '740+'
+    };
+  }
+  // Default fallback
+  return {
+    image: 'https://images.unsplash.com/photo-1519817650390-64a93db51149?auto=format&fit=crop&w=1200&q=80',
+    badge: 'Curated Umrah',
+    badgeColor: '#C59A4E',
+    rating: '4.90',
+    reviews: '290+'
+  };
+};
 
 export const formatRouteName = (r: any): string => {
   if (!r) return 'Official Corridor Route';
@@ -518,6 +635,7 @@ export default function App() {
   const [selectedVehicleType, setSelectedVehicleType] = useState('SUV');
   const [erpTransports, setErpTransports] = useState<any[]>([]);
   const [selectedTransportMasterId, setSelectedTransportMasterId] = useState<string>('');
+  const [selectedVehicleQuantity, setSelectedVehicleQuantity] = useState<number>(1);
 
   // Custom Interactive Itinerary Builder (Movements)
   const [movements, setMovements] = useState<any[]>([
@@ -698,7 +816,7 @@ export default function App() {
     const amount = Number(sarValue) || 0;
     const curr = CURRENCIES[selectedCurrency as keyof typeof CURRENCIES] || CURRENCIES.SAR;
     const converted = Math.round(amount * curr.rate);
-    return `${converted.toLocaleString()} ${curr.symbol}`;
+    return `${curr.symbol} ${converted.toLocaleString()}`;
   };
 
   // Payment Gateway & Bank Transfer States
@@ -874,6 +992,7 @@ export default function App() {
             hotelCategory: selectedHotelCategory,
             transportOptionId: selectedRouteId,
             transportMasterId: selectedTransportMasterId || undefined,
+            vehicleQuantity: selectedVehicleQuantity,
             flightOptionId: flightBookingMode === 'own' ? 'none' : 'flight-live',
             flightPrice: totalFlightCost,
             accommodationType: dates.accommodationType
@@ -918,7 +1037,7 @@ export default function App() {
       const dPrice = (selectedHotelCategory === 'luxury' ? 520 : selectedHotelCategory === 'comfort' ? 330 : 200) * dates.madinahNights;
       const fPrice = flightBookingMode === 'own' ? 0 : ((selectedArrivalFlight?.price || 0) + (selectedDepartureFlight?.price || 0)) * dates.travelers;
       const vPrice = dates.accommodationType === 'iqama' ? 0 : 450 * dates.travelers;
-      const rPrice = tm ? Number(tm.price) || 0 : (Number(rt?.price) || 500);
+      const rPrice = (tm ? Number(tm.price) || 0 : (Number(rt?.price) || 500)) * selectedVehicleQuantity;
 
       const subtotal = mPrice + dPrice + fPrice + vPrice + rPrice;
       const processingFee = Math.round(subtotal * 0.015);
@@ -941,6 +1060,7 @@ export default function App() {
     selectedMadinahHotelId, 
     selectedRouteId, 
     selectedTransportMasterId,
+    selectedVehicleQuantity,
     flightBookingMode,
     selectedArrivalFlight,
     selectedDepartureFlight,
@@ -1080,6 +1200,8 @@ export default function App() {
         makkahHotelId: selectedMakkahHotelId,
         madinahHotelId: selectedMadinahHotelId,
         transportOptionId: selectedRouteId,
+        transportMasterId: selectedTransportMasterId || undefined,
+        vehicleQuantity: selectedVehicleQuantity,
         accommodationType: dates.accommodationType,
         isWithoutTicket: isWithoutTkt,
         arrivalFlightNumber: isWithoutTkt ? 'NT-0000' : (flightBookingMode === 'own' ? flightInfo.onwardFlightNumber : (selectedArrivalFlight?.flightNumber || 'SV-300')),
@@ -1576,64 +1698,224 @@ export default function App() {
         </main>
       ) : activeTab === 'packages' ? (
         <>
-          {/* Atlys-Grade Clean White Minimalist Hero */}
-          <section className="atlys-hero">
-            <div className="hero-mesh-grid" />
-            <div className="atlys-badge">
-              <span className="atlys-badge-pulse" />
-              <span>Direct Ministry of Hajj &amp; Umrah Integration • 99.7% Instant Clearance</span>
-            </div>
+          {/* Visit Abu Dhabi Style Grand Cinematic Hero */}
+          <section className="visit-hero">
+            <div className="visit-hero-bg" />
+            <div className="visit-hero-overlay" />
             
-            <h2 className="atlys-hero-title">
-              Pilgrimage &amp; Visas on Time. <span>Guaranteed.</span>
-            </h2>
-            
-            <p className="atlys-hero-subtitle">
-              Issue verified Saudi electronic visas in 24 hours, reserve contracted Makkah &amp; Madinah hotels, and customize flights seamlessly.
-            </p>
+            <div className="visit-hero-container">
+              {/* Left Column: Headline, Description, Quick Search, Trust Metrics */}
+              <div className="visit-hero-left">
+                <div className="visit-hero-badge">
+                  <span className="visit-hero-badge-dot" />
+                  <span>Official Ministry of Hajj &amp; Umrah Gateway • 24hr Instant Clearance</span>
+                </div>
+                
+                <h1 className="visit-hero-title">
+                  Sacred Journeys, Crafted with <span className="gold-shimmer-text">Royalty &amp; Elegance</span>
+                </h1>
+                
+                <p className="visit-hero-subtitle">
+                  Reserve direct contract-backed 5★ suites in Makkah &amp; Madinah, issue instant official e-Visas in 24 hours, and travel with private VIP chauffeur ground logistics.
+                </p>
 
-            {/* Atlys Ultra-Clean Floating Search Bar */}
-            <div className="atlys-search-bar">
-              <div className="atlys-search-input-group">
-                <Search className="h-5 w-5 atlys-search-icon" />
-                <input 
-                  type="text" 
-                  className="atlys-search-input"
-                  placeholder="Search package, hotel in Makkah/Madinah, or apply for direct 24hr eVisa..."
-                  readOnly
-                  onClick={() => {
+                {/* Glassmorphic Luxury Floating Search Bar */}
+                <div className="visit-search-card">
+                  <div className="visit-search-input-group">
+                    <Search className="h-5 w-5 visit-search-icon" />
+                    <input 
+                      type="text" 
+                      className="visit-search-input"
+                      placeholder="Search curated packages, 5★ suites, or 24h eVisa..."
+                      readOnly
+                      onClick={() => {
+                        const el = document.getElementById('ready-packages');
+                        if (el) el.scrollIntoView({ behavior: 'smooth' });
+                        else navigateToBuilder(1);
+                      }}
+                    />
+                  </div>
+                  <button 
+                    type="button" 
+                    className="visit-search-btn"
+                    onClick={() => {
+                      const el = document.getElementById('ready-packages');
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                      else navigateToBuilder(1);
+                    }}
+                  >
+                    <span>Explore</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Quick Filter Pills Under Search */}
+                <div className="visit-quick-pills">
+                  <button 
+                    type="button" 
+                    className="visit-pill active"
+                    onClick={() => {
+                      const el = document.getElementById('ready-packages');
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                    <span>Curated Packages</span>
+                  </button>
+                  <button 
+                    type="button" 
+                    className="visit-pill"
+                    onClick={() => {
+                      setActiveTab('calculator');
+                      setBookingFinished(false);
+                      if (typeof window !== 'undefined' && window.history.pushState) {
+                        window.history.pushState({}, '', '/b2c/calculator');
+                      }
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                  >
+                    <span>🕋 Family Calculator (3D)</span>
+                  </button>
+                  <button 
+                    type="button" 
+                    className="visit-pill"
+                    onClick={() => {
+                      setIsQuickEVisa(true);
+                      setDates(prev => ({
+                        ...prev,
+                        accommodationType: 'iqama',
+                        makkahNights: 0,
+                        madinahNights: 0
+                      }));
+                      setSelectedPackage(null);
+                      navigateToBuilder(1);
+                    }}
+                  >
+                    <Zap className="h-3.5 w-3.5 text-amber-300" />
+                    <span>24hr Quick eVisa</span>
+                  </button>
+                  <button 
+                    type="button" 
+                    className="visit-pill"
+                    onClick={() => {
+                      setIsQuickEVisa(false);
+                      setDates(prev => ({
+                        ...prev,
+                        accommodationType: 'hotel',
+                        makkahNights: 4,
+                        madinahNights: 3
+                      }));
+                      setSelectedPackage(null);
+                      navigateToBuilder(1);
+                    }}
+                  >
+                    <Compass className="h-3.5 w-3.5 text-amber-300" />
+                    <span>Custom Itinerary</span>
+                  </button>
+                </div>
+
+                {/* Trust Metrics Bar */}
+                <div className="visit-trust-bar">
+                  <div className="visit-trust-item">
+                    <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                    <span><strong>99.8%</strong> On-Time eVisa</span>
+                  </div>
+                  <div className="visit-trust-item">
+                    <CheckCircle className="h-4 w-4 text-emerald-400" />
+                    <span><strong>100%</strong> Contracted BRNs</span>
+                  </div>
+                  <div className="visit-trust-item">
+                    <Car className="h-4 w-4 text-amber-400" />
+                    <span><strong>VIP Fleet</strong> Transfers</span>
+                  </div>
+                  <div className="visit-trust-item">
+                    <Users className="h-4 w-4 text-amber-400" />
+                    <span><strong>24/7</strong> Ground Concierge</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Interactive Hero Section Widget */}
+              <div className="visit-hero-right">
+                <InteractiveHeroWidget 
+                  onSelectEstimate={(_city, pax, nights) => {
+                    setDates(prev => ({
+                      ...prev,
+                      travelers: pax,
+                      makkahNights: nights === 7 ? 4 : nights === 10 ? 6 : 8,
+                      madinahNights: nights === 7 ? 3 : nights === 10 ? 4 : 6
+                    }));
+                    const el = document.getElementById('ready-packages');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    else navigateToBuilder(1);
+                  }}
+                  onQuickEVisa={() => {
+                    setIsQuickEVisa(true);
+                    setDates(prev => ({
+                      ...prev,
+                      accommodationType: 'iqama',
+                      makkahNights: 0,
+                      madinahNights: 0
+                    }));
+                    setSelectedPackage(null);
                     navigateToBuilder(1);
                   }}
+                  formatPrice={formatPrice}
                 />
               </div>
-              <button 
-                type="button" 
-                className="atlys-search-btn"
-                onClick={() => {
-                  navigateToBuilder(1);
-                }}
-              >
-                <span>Get Started</span>
-                <ChevronRight className="h-4 w-4" />
-              </button>
+            </div>
+          </section>
+
+          {/* Curated Sacred Destinations & Experiences (Visit Abu Dhabi Style) */}
+          <section className="destinations-section">
+            <div className="destinations-header">
+              <span className="destinations-badge">
+                <Sparkles className="h-3.5 w-3.5" style={{ color: '#C59A4E' }} /> Curated Sanctuaries &amp; Experiences
+              </span>
+              <h2 className="destinations-title">
+                Sanctuaries of Divine Peace &amp; Heritage
+              </h2>
+              <p className="destinations-subtitle">
+                From the reverent circumambulation in Makkah to the peaceful courtyards of the Prophet’s Mosque ﷺ in Madinah, experience unmatched spiritual hospitality.
+              </p>
             </div>
 
-            {/* High-Trust Metrics Strip */}
-            <div className="atlys-metrics-strip">
-              <div className="atlys-metric-item">
-                <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                <span><strong>99.7%</strong> on-time visa delivery</span>
-              </div>
-              <div className="atlys-metric-item">
-                <CheckCircle className="h-4 w-4 text-emerald-600" />
-                <span><strong>100%</strong> contract-backed hotel BRNs</span>
-              </div>
-              <div className="atlys-metric-item">
-                <Zap className="h-4 w-4 text-amber-500" />
-                <span><strong>Zero-paperwork</strong> automated OCR</span>
-              </div>
+            <div className="destinations-grid">
+              {DESTINATION_EXPERIENCES.map((exp) => (
+                <div 
+                  key={exp.id} 
+                  className="destination-card"
+                  onClick={() => {
+                    if (exp.id === 'makkah' || exp.id === 'madinah' || exp.id === 'ziyarat') {
+                      const el = document.getElementById('ready-packages');
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    } else if (exp.id === 'transport') {
+                      setIsQuickEVisa(false);
+                      setDates(prev => ({ ...prev, accommodationType: 'hotel', makkahNights: 4, madinahNights: 3 }));
+                      navigateToBuilder(3);
+                    }
+                  }}
+                >
+                  <div 
+                    className="destination-card-bg"
+                    style={{ backgroundImage: `url(${exp.image})` }}
+                  />
+                  <div className="destination-card-overlay" />
+                  <div className="destination-card-content">
+                    <span className="destination-tag">{exp.tag}</span>
+                    <h3 className="destination-card-title">{exp.title}</h3>
+                    <p className="destination-desc">{exp.desc}</p>
+                    <span className="destination-action">
+                      {exp.actionText} <ChevronRight className="h-4 w-4" />
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
+          </section>
 
+          {/* Main Landing Content */}
+          <main>
             {/* Unified 3-Card Pathways */}
             <div className="unified-pathway-bar" style={{ textAlign: 'left', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
               
@@ -1641,16 +1923,16 @@ export default function App() {
               <div className="pathway-card featured">
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                    <div className="pathway-card-icon" style={{ backgroundColor: '#fff0b3', color: '#ff8b00' }}>
+                    <div className="pathway-card-icon" style={{ backgroundColor: '#FFF8E7', color: '#D4AF37' }}>
                       <Sparkles className="h-5 w-5" />
                     </div>
                     <div>
-                      <span className="pathway-tag" style={{ color: '#ff8b00' }}>Interactive Simulator</span>
+                      <span className="pathway-tag" style={{ color: '#C59A4E' }}>Interactive Simulator</span>
                       <h3 className="pathway-title">Family Umrah Calculator</h3>
                     </div>
                   </div>
                   <p className="pathway-desc">
-                    Interactive 3D Tawaf visualizer, sliding persons & days, and instant live VIP family package costing with live currency conversions.
+                    Interactive 3D Tawaf visualizer, sliding persons &amp; days, and instant live VIP family package costing with live currency conversions.
                   </p>
                 </div>
                 <button 
@@ -1708,16 +1990,16 @@ export default function App() {
               <div className="pathway-card">
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                    <div className="pathway-card-icon" style={{ backgroundColor: '#f4f5f7', color: '#42526e' }}>
+                    <div className="pathway-card-icon" style={{ backgroundColor: '#F4F1EA', color: '#64748B' }}>
                       <Compass className="h-5 w-5" />
                     </div>
                     <div>
-                      <span className="pathway-tag" style={{ color: '#626f86' }}>Custom Itinerary</span>
+                      <span className="pathway-tag" style={{ color: '#64748B' }}>Custom Itinerary</span>
                       <h3 className="pathway-title">Customised Package</h3>
                     </div>
                   </div>
                   <p className="pathway-desc">
-                    End-to-end package builder. Customise flight tickets, 4★ & 5★ hotel stays, and private VIP ground transport step-by-step.
+                    End-to-end package builder. Customise flight tickets, 4★ &amp; 5★ hotel stays, and private VIP ground transport step-by-step.
                   </p>
                 </div>
                 <button 
@@ -1740,12 +2022,26 @@ export default function App() {
               </div>
 
             </div>
-          </section>
 
-          {/* Main Landing Content */}
-          <main>
+            {/* Sacred Journey Route Planner (India to Makkah & Madinah Corridor) */}
+            <JourneyRoutePlanner 
+              onSelectRoute={(routeType) => {
+                if (routeType === 'madinah_first') {
+                  setDates(prev => ({ ...prev, accommodationType: 'hotel', makkahNights: 4, madinahNights: 4 }));
+                } else {
+                  setDates(prev => ({ ...prev, accommodationType: 'hotel', makkahNights: 5, madinahNights: 3 }));
+                }
+                const el = document.getElementById('ready-packages');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+                else navigateToBuilder(1);
+              }}
+            />
+
+            {/* Sacred Experiences & Things To Do in Makkah & Madinah */}
+            <ThingsToDoUmrah />
+
             {/* Ready Packages Listing */}
-            <div style={{ maxWidth: '1140px', margin: '2rem auto 4rem auto', padding: '0', boxSizing: 'border-box' }}>
+            <div id="ready-packages" style={{ maxWidth: '1140px', margin: '2rem auto 4rem auto', padding: '0', boxSizing: 'border-box' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1.75rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
                 <div>
                   <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--primary)', letterSpacing: '0.05em', display: 'block', marginBottom: '0.25rem' }}>
@@ -1761,77 +2057,104 @@ export default function App() {
               </div>
 
               <div className="cards-grid">
-                {packages.map((pkg) => (
-                  <div key={pkg.id} className="package-card animate-in fade-in duration-300">
-                    <div className="package-card-header">
-                      <span className="package-badge">
-                        <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Verified Package
-                      </span>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-                        {pkg.makkahNights + pkg.madinahNights} Nights Total
-                      </span>
-                    </div>
-                    <div className="package-content" style={{ paddingTop: '0.5rem' }}>
-                      <h3 className="package-title">{pkg.title}</h3>
-                      <div className="package-meta">
-                        <span>{pkg.makkahNights}N Makkah</span>
-                        <span>•</span>
-                        <span>{pkg.madinahNights}N Madinah</span>
-                        <span>•</span>
-                        <span style={{ color: 'var(--primary)', fontWeight: 800 }}>Direct e-Visa</span>
-                      </div>
-                      <p className="package-desc">{pkg.description}</p>
-                      
-                      <div className="package-hotel-spec">
-                        <div className="package-hotel-item">
-                          <span className="package-hotel-label">Makkah Hotel</span>
-                          <span className="package-hotel-name">{pkg.makkahHotel?.name || 'Swissôtel Makkah (5★)'}</span>
-                        </div>
-                        <div className="package-hotel-item">
-                          <span className="package-hotel-label">Madinah Hotel</span>
-                          <span className="package-hotel-name">{pkg.madinahHotel?.name || 'Anwar Al Madinah (5★)'}</span>
-                        </div>
-                        <div className="package-hotel-item">
-                          <span className="package-hotel-label">Route</span>
-                          <span className="package-hotel-name">{pkg.transportRoute?.routeType || 'Jeddah - Makkah - Madinah'}</span>
-                        </div>
-                        <div className="package-hotel-item" style={{ borderBottom: 'none' }}>
-                          <span className="package-hotel-label" style={{ color: '#d97706' }}>Flights Action</span>
-                          <span className="package-hotel-name" style={{ color: '#d97706' }}>Pending Selection</span>
+                {packages.map((pkg) => {
+                  const visuals = getPackageVisuals(pkg);
+                  return (
+                    <div key={pkg.id} className="package-card animate-in fade-in duration-300">
+                      {/* High-Resolution Umrah Photo Header */}
+                      <div className="package-card-media">
+                        <img 
+                          src={visuals.image} 
+                          alt={pkg.title} 
+                          className="package-img"
+                          loading="lazy"
+                        />
+                        <div className="package-media-overlay" />
+                        <span className="package-media-badge-top">
+                          <Sparkles className="h-3 w-3 text-amber-300" /> {visuals.badge}
+                        </span>
+                        <span className="package-media-verified">
+                          <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Verified
+                        </span>
+                        <div className="package-media-bottom">
+                          <span className="package-media-duration">
+                            <MapPin className="h-3.5 w-3.5 text-amber-300" /> {pkg.makkahNights + pkg.madinahNights} Nights Total
+                          </span>
+                          <span className="package-media-rating">
+                            <Star className="h-3 w-3" style={{ fill: '#FFD700', color: '#FFD700' }} /> {visuals.rating}
+                          </span>
                         </div>
                       </div>
 
-                      <div className="package-footer">
-                        <div className="price-block">
-                          <span className="price-label">Price per pilgrim</span>
-                          <span className="price-val">{formatPrice(pkg.price || 2400)}</span>
+                      <div className="package-content" style={{ paddingTop: '1.25rem' }}>
+                        <h3 className="package-title">{pkg.title}</h3>
+                        <div className="package-meta">
+                          <span>{pkg.makkahNights}N Makkah</span>
+                          <span>•</span>
+                          <span>{pkg.madinahNights}N Madinah</span>
+                          <span>•</span>
+                          <span style={{ color: 'var(--primary)', fontWeight: 800 }}>Direct e-Visa</span>
                         </div>
-                        <button 
-                          className="book-btn"
-                          onClick={() => {
-                            setSelectedPackage(pkg);
-                            setSelectedMakkahHotelId(pkg.makkahHotelId || DEFAULT_HOTELS[0].id);
-                            setSelectedMadinahHotelId(pkg.madinahHotelId || DEFAULT_HOTELS[3].id);
-                            setSelectedRouteId(pkg.transportRouteId || DEFAULT_ROUTES[0].id);
-                            const checkInDateObj = new Date(dates.checkIn);
-                            const returnDateObj = new Date(checkInDateObj.getTime() + (pkg.makkahNights + pkg.madinahNights) * 86400000);
-                            setDates(prev => ({ ...prev, makkahNights: pkg.makkahNights, madinahNights: pkg.madinahNights }));
-                            setFlightInfo(prev => ({
-                              ...prev,
-                              onwardDate: dates.checkIn,
-                              returnDate: returnDateObj.toISOString().split('T')[0]
-                            }));
-                            navigateToBuilder(2); // Go to Flights step
-                          }}
-                        >
-                          Select Package <ChevronRight className="h-4 w-4" />
-                        </button>
+                        <p className="package-desc">{pkg.description}</p>
+                        
+                        <div className="package-hotel-spec">
+                          <div className="package-hotel-item">
+                            <span className="package-hotel-label">Makkah Hotel</span>
+                            <span className="package-hotel-name">{pkg.makkahHotel?.name || 'Swissôtel Makkah (5★)'}</span>
+                          </div>
+                          <div className="package-hotel-item">
+                            <span className="package-hotel-label">Madinah Hotel</span>
+                            <span className="package-hotel-name">{pkg.madinahHotel?.name || 'Anwar Al Madinah (5★)'}</span>
+                          </div>
+                          <div className="package-hotel-item">
+                            <span className="package-hotel-label">Route</span>
+                            <span className="package-hotel-name">{pkg.transportRoute?.routeType || 'Jeddah - Makkah - Madinah'}</span>
+                          </div>
+                          <div className="package-hotel-item" style={{ borderBottom: 'none' }}>
+                            <span className="package-hotel-label" style={{ color: '#d97706' }}>Flights Action</span>
+                            <span className="package-hotel-name" style={{ color: '#d97706' }}>Customizable in Step 2</span>
+                          </div>
+                        </div>
+
+                        <div className="package-footer">
+                          <div className="price-block">
+                            <span className="price-label">Price per pilgrim</span>
+                            <span className="price-val">{formatPrice(pkg.price || 2400)}</span>
+                          </div>
+                          <button 
+                            className="book-btn"
+                            onClick={() => {
+                              setSelectedPackage(pkg);
+                              setSelectedMakkahHotelId(pkg.makkahHotelId || DEFAULT_HOTELS[0].id);
+                              setSelectedMadinahHotelId(pkg.madinahHotelId || DEFAULT_HOTELS[3].id);
+                              setSelectedRouteId(pkg.transportRouteId || DEFAULT_ROUTES[0].id);
+                              const checkInDateObj = new Date(dates.checkIn);
+                              const returnDateObj = new Date(checkInDateObj.getTime() + (pkg.makkahNights + pkg.madinahNights) * 86400000);
+                              setDates(prev => ({ ...prev, makkahNights: pkg.makkahNights, madinahNights: pkg.madinahNights }));
+                              setFlightInfo(prev => ({
+                                ...prev,
+                                onwardDate: dates.checkIn,
+                                returnDate: returnDateObj.toISOString().split('T')[0]
+                              }));
+                              navigateToBuilder(2); // Go to Flights step
+                            }}
+                          >
+                            <span>Select Package</span>
+                            <ChevronRight className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
+
+            {/* Sacred Wonders of the Two Holy Mosques: Did You Know? */}
+            <DidYouKnowUmrah />
+
+            {/* Official Saudi Pilgrimage Ecosystem: Nusuk, Tawakkalna & Guides */}
+            <OfficialPortalsGuide />
 
             {/* Atlys How It Works Section (Only on Landing Page) */}
             <section className="atlys-how-it-works">
@@ -1898,10 +2221,10 @@ export default function App() {
                 style={{ 
                   backgroundColor: '#ffffff',
                   borderRadius: '20px',
-                  border: '1.5px solid rgba(220, 5, 15, 0.15)',
+                  border: '1.5px solid rgba(197, 154, 78, 0.25)',
                   padding: '1.5rem 1.75rem',
                   marginBottom: '1.75rem',
-                  boxShadow: '0 8px 30px -10px rgba(220, 5, 15, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02)',
+                  boxShadow: '0 8px 30px -10px rgba(197, 154, 78, 0.12), 0 1px 3px rgba(0, 0, 0, 0.02)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '1rem'
@@ -2746,7 +3069,7 @@ export default function App() {
 
                         {/* Stays limit check */}
                         {dates.makkahNights + dates.madinahNights < 3 && (
-                          <div style={{ color: 'var(--primary)', fontSize: '0.82rem', fontWeight: 800, padding: '0.5rem 0.75rem', backgroundColor: 'rgba(220, 5, 15, 0.08)', borderRadius: '8px' }}>
+                          <div style={{ color: 'var(--primary)', fontSize: '0.82rem', fontWeight: 800, padding: '0.5rem 0.75rem', backgroundColor: 'rgba(197, 154, 78, 0.12)', borderRadius: '8px' }}>
                             ⚠️ Total nights (Makkah + Madinah) must be at least 3 nights!
                           </div>
                         )}
@@ -2791,8 +3114,8 @@ export default function App() {
                                     border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-color)',
                                     borderRadius: '16px',
                                     padding: '1.25rem',
-                                    backgroundColor: isSelected ? '#fff9f9' : '#ffffff',
-                                    boxShadow: isSelected ? '0 8px 24px rgba(220, 5, 15, 0.12)' : '0 2px 8px rgba(0,0,0,0.03)',
+                                    backgroundColor: isSelected ? 'var(--primary-light)' : '#ffffff',
+                                    boxShadow: isSelected ? '0 8px 24px rgba(197, 154, 78, 0.18)' : '0 2px 8px rgba(0,0,0,0.03)',
                                     cursor: 'pointer',
                                     transition: 'all 0.2s ease',
                                     display: 'flex',
@@ -3043,10 +3366,17 @@ export default function App() {
                               );
                             }
 
+                            const passengerCount = dates.travelers || 1;
+                            const suitable = displayList
+                              .filter((t: any) => t.vehicleType && t.vehicleType.paxCount >= passengerCount)
+                              .sort((a: any, b: any) => (a.vehicleType?.paxCount || 0) - (b.vehicleType?.paxCount || 0));
+                            const recommendedId = suitable.length > 0 ? suitable[0].id : (displayList[0]?.id || null);
+
                             return (
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
                                 {displayList.map((tm: any) => {
                                   const isSelected = selectedTransportMasterId === tm.id;
+                                  const isRecommended = recommendedId === tm.id;
                                   const vehicleName = tm.vehicleType?.vehicleName || 'Standard Vehicle';
                                   const paxCount = tm.vehicleType?.paxCount || 4;
                                   const priceSAR = Number(tm.price) || 0;
@@ -3060,13 +3390,15 @@ export default function App() {
                                         if (tm.routeId && tm.routeId !== selectedRouteId) {
                                           setSelectedRouteId(tm.routeId);
                                         }
+                                        const needed = Math.max(1, Math.ceil(passengerCount / paxCount));
+                                        setSelectedVehicleQuantity(needed);
                                       }}
                                       style={{
                                         border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-color)',
                                         borderRadius: '16px',
                                         padding: '1.15rem',
-                                        backgroundColor: isSelected ? '#fff9f9' : '#ffffff',
-                                        boxShadow: isSelected ? '0 6px 20px rgba(220, 5, 15, 0.12)' : '0 2px 6px rgba(0,0,0,0.02)',
+                                        backgroundColor: isSelected ? 'var(--primary-light)' : '#ffffff',
+                                        boxShadow: isSelected ? '0 6px 20px rgba(197, 154, 78, 0.18)' : '0 2px 6px rgba(0,0,0,0.02)',
                                         cursor: 'pointer',
                                         transition: 'all 0.2s ease',
                                         display: 'flex',
@@ -3089,6 +3421,22 @@ export default function App() {
                                           textTransform: 'uppercase'
                                         }}>
                                           Selected
+                                        </div>
+                                      )}
+                                      {!isSelected && isRecommended && (
+                                        <div style={{
+                                          position: 'absolute',
+                                          top: '-9px',
+                                          right: '12px',
+                                          backgroundColor: '#059669',
+                                          color: 'white',
+                                          fontSize: '0.60rem',
+                                          fontWeight: 800,
+                                          padding: '0.15rem 0.5rem',
+                                          borderRadius: '9999px',
+                                          textTransform: 'uppercase'
+                                        }}>
+                                          Recommended for {passengerCount} Pax
                                         </div>
                                       )}
 
@@ -3121,18 +3469,55 @@ export default function App() {
                                         borderTop: '1px solid var(--border-color)',
                                         paddingTop: '0.75rem',
                                         display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'baseline'
+                                        flexDirection: 'column',
+                                        gap: '0.5rem'
                                       }}>
-                                        <div>
-                                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>Rate Per Vehicle (Entire Group)</span>
-                                          <span style={{ fontSize: '1.25rem', fontWeight: 900, color: isSelected ? 'var(--primary)' : 'var(--text-dark)' }}>
-                                            {formatPrice(priceSAR)}
-                                            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)' }}> / vehicle</span>
-                                          </span>
-                                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginTop: '1px' }}>
-                                            Fixed price per vehicle (up to {paxCount} pax • Not charged per person)
-                                          </span>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                          <div>
+                                            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>Rate Per Vehicle (Entire Group)</span>
+                                            <span style={{ fontSize: '1.25rem', fontWeight: 900, color: isSelected ? 'var(--primary)' : 'var(--text-dark)' }}>
+                                              {formatPrice(priceSAR)}
+                                              <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)' }}> / vehicle</span>
+                                            </span>
+                                          </div>
+                                          {isSelected && (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: '#f1f5f9', borderRadius: '8px', padding: '3px 8px' }}>
+                                              <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setSelectedVehicleQuantity(Math.max(1, selectedVehicleQuantity - 1));
+                                                }}
+                                                disabled={selectedVehicleQuantity <= 1}
+                                                style={{ border: 'none', background: 'transparent', cursor: selectedVehicleQuantity <= 1 ? 'not-allowed' : 'pointer', fontWeight: 900, fontSize: '0.9rem', padding: '0 4px', opacity: selectedVehicleQuantity <= 1 ? 0.3 : 1 }}
+                                                title="Decrease vehicle count"
+                                              >
+                                                -
+                                              </button>
+                                              <span style={{ fontSize: '0.82rem', fontWeight: 800, minWidth: '16px', textAlign: 'center' }}>
+                                                {selectedVehicleQuantity}
+                                              </span>
+                                              <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setSelectedVehicleQuantity(selectedVehicleQuantity + 1);
+                                                }}
+                                                style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontWeight: 900, fontSize: '0.9rem', padding: '0 4px' }}
+                                                title="Increase vehicle count"
+                                              >
+                                                +
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.25rem' }}>
+                                          <span>Fixed rate per vehicle (not charged per person)</span>
+                                          {isSelected && selectedVehicleQuantity > 1 && (
+                                            <span style={{ fontWeight: 800, color: 'var(--primary)' }}>
+                                              Total: {formatPrice(priceSAR * selectedVehicleQuantity)}
+                                            </span>
+                                          )}
                                         </div>
                                       </div>
                                     </div>
@@ -3463,13 +3848,15 @@ export default function App() {
                             >
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-dark)' }}>Direct Bank Transfer / UPI</span>
-                                <span style={{ fontSize: '0.65rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: '9999px', backgroundColor: '#fef3c7', color: '#92400e' }}>FEDERAL BANK</span>
+                                <span style={{ fontSize: '0.65rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: '9999px', backgroundColor: '#fef3c7', color: '#92400e', textTransform: 'uppercase' }}>
+                                  {bankDetails?.bankName || 'BANK TRANSFER'}
+                                </span>
                               </div>
                               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
-                                Transfer via IMPS / NEFT / RTGS to our official corporate Federal Bank account or Moulavi UPI handle.
+                                Transfer via IMPS / NEFT / RTGS to our official corporate {bankDetails?.bankName || 'bank'} account or Moulavi UPI handle.
                               </p>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--secondary)' }}>
-                                <Building className="h-4 w-4" /> Official Moulavi Travels & Logistics A/C
+                                <Building className="h-4 w-4" /> Official {bankDetails?.accountHolder || 'Moulavi Travels & Logistics'} A/C
                               </div>
                             </div>
                           </div>
@@ -3483,15 +3870,15 @@ export default function App() {
                               <div className="search-grid grid-2-col" style={{ gap: '0.75rem', fontSize: '0.82rem' }}>
                                 <div>
                                   <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.72rem' }}>Bank Name</span>
-                                  <span style={{ fontWeight: 700, color: 'var(--text-dark)' }}>{bankDetails?.bankName || 'Federal Bank'}</span>
+                                  <span style={{ fontWeight: 700, color: 'var(--text-dark)' }}>{bankDetails?.bankName || 'Moulavi Partner Bank'}</span>
                                 </div>
                                 <div>
                                   <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.72rem' }}>Account Number</span>
-                                  <span style={{ fontWeight: 800, color: 'var(--primary)', fontFamily: 'monospace', fontSize: '0.95rem' }}>{bankDetails?.accountNumber || '14140200001234'}</span>
+                                  <span style={{ fontWeight: 800, color: 'var(--primary)', fontFamily: 'monospace', fontSize: '0.95rem' }}>{bankDetails?.accountNumber || '—'}</span>
                                 </div>
                                 <div>
                                   <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.72rem' }}>IFSC Code</span>
-                                  <span style={{ fontWeight: 800, color: 'var(--text-dark)', fontFamily: 'monospace' }}>{bankDetails?.ifscCode || 'FDRL0001414'}</span>
+                                  <span style={{ fontWeight: 800, color: 'var(--text-dark)', fontFamily: 'monospace' }}>{bankDetails?.ifscCode || '—'}</span>
                                 </div>
                                 <div>
                                   <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.72rem' }}>Account Holder</span>
@@ -3503,9 +3890,16 @@ export default function App() {
                                 </div>
                                 <div>
                                   <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.72rem' }}>Branch</span>
-                                  <span style={{ fontWeight: 700, color: 'var(--text-dark)' }}>{bankDetails?.branch || 'Calicut Main Branch'}</span>
+                                  <span style={{ fontWeight: 700, color: 'var(--text-dark)' }}>{bankDetails?.branch || 'Main Branch'}</span>
                                 </div>
                               </div>
+
+                              {bankDetails?.bankAccountDetails && (
+                                <div style={{ marginTop: '0.75rem', padding: '0.65rem 0.85rem', backgroundColor: '#ffffff', borderRadius: '8px', border: '1px dashed #cbd5e1', fontSize: '0.76rem', color: '#334155', whiteSpace: 'pre-line', lineHeight: 1.5, fontFamily: 'monospace' }}>
+                                  <strong style={{ display: 'block', color: 'var(--text-dark)', marginBottom: '0.2rem', fontFamily: 'inherit' }}>Official Account Summary / Memo:</strong>
+                                  {bankDetails.bankAccountDetails}
+                                </div>
+                              )}
 
                               <div style={{ marginTop: '1rem', borderTop: '1px dashed #cbd5e1', paddingTop: '0.75rem' }}>
                                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
@@ -3638,7 +4032,7 @@ export default function App() {
                             </div>
                             <div className="summary-row">
                               <span className="summary-label">Visa Fee per passenger</span>
-                              <span className="summary-value">{dates.accommodationType === 'iqama' ? 'Waived (0 SAR)' : formatPrice(450)}</span>
+                              <span className="summary-value">{dates.accommodationType === 'iqama' ? 'Waived (SAR 0)' : formatPrice(450)}</span>
                             </div>
 
                             {/* Flight Details (only if they choose to book with us or provided flight details) */}
@@ -3817,11 +4211,22 @@ export default function App() {
                           {/* Transport */}
                           {!isQuickEVisa && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.35rem' }}>
-                              <span style={{ color: 'var(--text-muted)' }}>Private Ground Transfer ({selectedVehicleType})</span>
+                              <div>
+                                <span style={{ color: 'var(--text-muted)' }}>Private Ground Transfer ({selectedVehicleType})</span>
+                                {selectedVehicleQuantity > 1 && (
+                                  <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block' }}>
+                                    {selectedVehicleQuantity} vehicles reserved
+                                  </span>
+                                )}
+                              </div>
                               <div style={{ textAlign: 'right' }}>
-                                <span style={{ fontWeight: 800, color: 'var(--text-dark)' }}>{formatPrice(routePrice)} <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>/ vehicle</span></span>
+                                <span style={{ fontWeight: 800, color: 'var(--text-dark)' }}>
+                                  {formatPrice(routePrice * selectedVehicleQuantity)}
+                                </span>
                                 <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block' }}>
-                                  Per vehicle (flat rate for entire party)
+                                  {selectedVehicleQuantity > 1 
+                                    ? `${selectedVehicleQuantity} × ${formatPrice(routePrice)} (flat per vehicle)`
+                                    : 'Per vehicle flat rate (Not charged per passenger)'}
                                 </span>
                               </div>
                             </div>

@@ -26,6 +26,7 @@ model User {
   bookingsLastUpdated         UmrahVisaBooking[]     @relation("BookingLastUpdatedBy")
   bookingsDocumentsDownloaded UmrahVisaBooking[]     @relation("BookingDocumentsDownloadedBy")
   vouchersGenerated           Voucher[]              @relation("VoucherGeneratedBy")
+  vouchersCancelled           Voucher[]              @relation("VoucherCancelledBy")
   quickVouchersRequested      QuickVoucherRequest[]  @relation("QuickVoucherRequestedBy")
   quickVouchersReviewed       QuickVoucherRequest[]  @relation("QuickVoucherReviewedBy")
   brnUpdates                  BrnUpdateHistory[]
@@ -644,6 +645,11 @@ model Voucher {
   invoiceGenerated    Boolean           @default(false) @map("invoice_generated")
   isQuickVoucher      Boolean           @default(false) @map("is_quick_voucher")
   quickVoucherRequestId String?         @map("quick_voucher_request_id")
+  status              String            @default("active") @map("status")
+  cancelType          String?           @map("cancel_type")
+  cancellationReason  String?           @map("cancellation_reason")
+  cancelledAt         DateTime?         @map("cancelled_at")
+  cancelledBy         String?           @map("cancelled_by")
   flights             VoucherFlight[]
   hotels              VoucherHotel[]
   movements           VoucherMovement[]
@@ -651,12 +657,14 @@ model Voucher {
   umrahCompany        Party?            @relation("UmrahCompany", fields: [umrahCompanyId], references: [id])
   party               Party?            @relation("VoucherParty", fields: [partyId], references: [id])
   generatedByUser     User              @relation("VoucherGeneratedBy", fields: [generatedBy], references: [id])
+  cancelledByUser     User?             @relation("VoucherCancelledBy", fields: [cancelledBy], references: [id])
   booking             UmrahVisaBooking? @relation(fields: [bookingId], references: [id])
 
   @@index([voucherNumber])
   @@index([generatedAt])
   @@index([generatedBy])
   @@index([isQuickVoucher])
+  @@index([status])
   @@map("vouchers")
 }
 
@@ -1380,7 +1388,16 @@ model UmrahCalculatorMaster {
   maxRooms                Int      @default(20) @map("max_rooms")
   defaultCurrency         String   @default("INR") @map("default_currency")
   defaultTier             String   @default("comfort") @map("default_tier")
+  defaultRoomType         String   @default("double") @map("default_room_type")
+  doubleRoomRateSAR       Decimal  @default(220) @map("double_room_rate_sar")
+  tripleRoomRateSAR       Decimal  @default(280) @map("triple_room_rate_sar")
+  quadRoomRateSAR         Decimal  @default(340) @map("quad_room_rate_sar")
+  sharingRoomRateSAR      Decimal  @default(180) @map("sharing_room_rate_sar")
+  singleRoomRateSAR       Decimal  @default(380) @map("single_room_rate_sar")
   visaFeeSAR              Decimal  @default(450) @map("visa_fee_sar")
+  insuranceFeeSAR         Decimal  @default(50)  @map("insurance_fee_sar")
+  ziyaratCostSAR          Decimal  @default(150) @map("ziyarat_cost_sar")
+  foodPerDaySAR           Decimal  @default(60)  @map("food_per_day_sar")
   economyMakkahRateSAR    Decimal  @default(220) @map("economy_makkah_rate_sar")
   comfortMakkahRateSAR    Decimal  @default(360) @map("comfort_makkah_rate_sar")
   luxuryMakkahRateSAR     Decimal  @default(550) @map("luxury_makkah_rate_sar")

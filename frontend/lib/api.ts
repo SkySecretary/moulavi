@@ -530,6 +530,12 @@ export const voucherAPI = {
   deleteQuickRequest: (id: string) =>
     api.delete(`/vouchers/quick-requests/${id}`),
 
+  // Cancellation and Activity Log
+  cancelVoucher: (id: string, data: { cancelType: 'complete' | 'arrival' | 'departure' | 'reactivate'; reason?: string }) =>
+    api.post(`/vouchers/${id}/cancel`, data),
+  getActivityLog: (id: string) =>
+    api.get(`/vouchers/${id}/activity-log`),
+
   // Notification triggers
   notifyAgency: (id: string) => api.post(`/vouchers/${id}/notify-agency`),
   notifySupplier: (id: string) => api.post(`/vouchers/${id}/notify-supplier`),

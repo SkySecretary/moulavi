@@ -41,6 +41,9 @@ import {
   MessageSquare,
   Sparkles,
   Zap,
+  Ban,
+  History,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   Dialog,
@@ -55,6 +58,8 @@ import { getUser, hasRole } from '@/lib/auth';
 import api, { voucherAPI } from '@/lib/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import QuickVoucherForm from '@/components/voucher/QuickVoucherForm';
+import { CancelVoucherDialog } from '@/components/voucher/CancelVoucherDialog';
+import { VoucherActivityLogDialog } from '@/components/voucher/VoucherActivityLogDialog';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toBlob } from 'html-to-image';
@@ -128,6 +133,23 @@ function VoucherServiceContent() {
   const [savingMovementId, setSavingMovementId] = useState<string | null>(null);
   const [sendingNotificationId, setSendingNotificationId] = useState<string | null>(null);
   const [downloadingVoucherId, setDownloadingVoucherId] = useState<string | null>(null);
+
+  // Cancellation & Activity Log states
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [selectedVoucherForCancel, setSelectedVoucherForCancel] = useState<any | null>(null);
+  const [activityLogDialogOpen, setActivityLogDialogOpen] = useState(false);
+  const [selectedVoucherForLog, setSelectedVoucherForLog] = useState<any | null>(null);
+
+  const handleOpenCancelModal = (voucher: any) => {
+    setSelectedVoucherForCancel(voucher);
+    setCancelDialogOpen(true);
+  };
+
+  const handleOpenActivityLog = (voucher: any) => {
+    setSelectedVoucherForLog(voucher);
+    setActivityLogDialogOpen(true);
+  };
 
   // Invoice integration states
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
@@ -249,6 +271,7 @@ function VoucherServiceContent() {
         voucherNumber: voucherNumberSearch,
         dateFrom,
         dateTo,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
       });
       setVouchers(response.data.vouchers);
       setPagination(response.data.pagination);
@@ -368,7 +391,7 @@ function VoucherServiceContent() {
       else loadSpecificDateMovements();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeMainTab, activeVoucherSubTab, activeMovementSubTab, searchTerm, voucherNumberSearch, dateFrom, dateTo, pagination.page, pagination.limit, movementPagination.page, movementPagination.limit, movementSearch, selectedFrom, selectedTo, selectedMovementDate]);
+  }, [activeMainTab, activeVoucherSubTab, activeMovementSubTab, searchTerm, voucherNumberSearch, dateFrom, dateTo, statusFilter, pagination.page, pagination.limit, movementPagination.page, movementPagination.limit, movementSearch, selectedFrom, selectedTo, selectedMovementDate]);
 
   const loadStats = async () => {
     try {
@@ -603,6 +626,7 @@ function VoucherServiceContent() {
         guestMobile: voucher.guestMobile || '',
         groupCode: voucher.groupCode || '',
         paxCount: voucher.paxCount || 0,
+        status: voucher.status || 'active',
         umrahCompany: voucher.umrahCompany || null,
         agentParty: voucher.party || null,
         transportCompany: voucher.transportCompany || null,
@@ -809,6 +833,27 @@ function VoucherServiceContent() {
                       </div>
                       <div className="flex flex-wrap items-center gap-3">
                         <div className="flex items-center gap-2">
+                          <Label className="text-xs font-bold text-gray-500 whitespace-nowrap">Status:</Label>
+                          <Select
+                            value={statusFilter}
+                            onValueChange={(val) => {
+                              setStatusFilter(val);
+                              setPagination(prev => ({ ...prev, page: 1 }));
+                            }}
+                          >
+                            <SelectTrigger className="h-8 text-xs font-bold w-44">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Statuses</SelectItem>
+                              <SelectItem value="active">Active Only</SelectItem>
+                              <SelectItem value="cancelled_complete">Completely Cancelled</SelectItem>
+                              <SelectItem value="cancelled_arrival">Arrival Cancelled</SelectItem>
+                              <SelectItem value="cancelled_departure">Departure Cancelled</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex items-center gap-2">
                           <Label className="text-xs font-bold text-gray-500 whitespace-nowrap">From:</Label>
                           <DatePicker value={dateFrom} onChange={(val) => { setDateFrom(fromDisplayDate(val)); setPagination(prev => ({ ...prev, page: 1 })); }} className="h-8" />
                         </div>
@@ -816,7 +861,7 @@ function VoucherServiceContent() {
                           <Label className="text-xs font-bold text-gray-500 whitespace-nowrap">To:</Label>
                           <DatePicker value={dateTo} onChange={(val) => { setDateTo(fromDisplayDate(val)); setPagination(prev => ({ ...prev, page: 1 })); }} className="h-8" />
                         </div>
-                        {(searchTerm || voucherNumberSearch || dateFrom || dateTo) && (
+                        {(searchTerm || voucherNumberSearch || dateFrom || dateTo || statusFilter !== 'all') && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -825,6 +870,7 @@ function VoucherServiceContent() {
                               setVoucherNumberSearch('');
                               setDateFrom('');
                               setDateTo('');
+                              setStatusFilter('all');
                               setPagination(prev => ({ ...prev, page: 1 }));
                             }}
                             className="h-8 text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50"
@@ -841,6 +887,7 @@ function VoucherServiceContent() {
                         <TableHeader className="bg-gray-50/50">
                           <TableRow className="border-b border-gray-100 hover:bg-transparent">
                             <TableHead className="px-6 h-12 text-[10px] font-black text-gray-400 uppercase tracking-widest">Voucher ID</TableHead>
+                            <TableHead className="h-12 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</TableHead>
                             <TableHead className="h-12 text-[10px] font-black text-gray-400 uppercase tracking-widest">Group Code</TableHead>
                             <TableHead className="h-12 text-[10px] font-black text-gray-400 uppercase tracking-widest">Guest Contact</TableHead>
                             <TableHead className="h-12 text-[10px] font-black text-gray-400 uppercase tracking-widest">Capacity</TableHead>
@@ -852,8 +899,8 @@ function VoucherServiceContent() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {loadingVouchers ? [...Array(5)].map((_, i) => <TableRow key={i}><TableCell colSpan={9} className="px-6"><Skeleton className="h-10 w-full" /></TableCell></TableRow>) : 
-                           vouchers.length === 0 ? <TableRow><TableCell colSpan={9} className="text-center py-16 text-gray-400 font-medium tracking-tight">No voucher records matching your query</TableCell></TableRow> :
+                          {loadingVouchers ? [...Array(5)].map((_, i) => <TableRow key={i}><TableCell colSpan={10} className="px-6"><Skeleton className="h-10 w-full" /></TableCell></TableRow>) : 
+                           vouchers.length === 0 ? <TableRow><TableCell colSpan={10} className="text-center py-16 text-gray-400 font-medium tracking-tight">No voucher records matching your query</TableCell></TableRow> :
                            vouchers.map(v => (
                             <TableRow key={v.id} className="hover:bg-gray-50/50 transition-colors border-gray-50">
                               <TableCell className="px-6 font-black text-primary text-sm">
@@ -867,6 +914,41 @@ function VoucherServiceContent() {
                                   )}
                                 </div>
                               </TableCell>
+                              <TableCell>
+                                {v.status === 'cancelled_complete' ? (
+                                  <Badge 
+                                    className="bg-rose-100 text-rose-700 border-rose-200 text-[10px] font-bold py-0.5 px-2 cursor-pointer hover:bg-rose-200 transition-colors shadow-none whitespace-nowrap"
+                                    onClick={() => handleOpenActivityLog(v)}
+                                    title="Click to view activity log"
+                                  >
+                                    Completely Cancelled
+                                  </Badge>
+                                ) : v.status === 'cancelled_arrival' ? (
+                                  <Badge 
+                                    className="bg-amber-100 text-amber-700 border-amber-200 text-[10px] font-bold py-0.5 px-2 cursor-pointer hover:bg-amber-200 transition-colors shadow-none whitespace-nowrap"
+                                    onClick={() => handleOpenActivityLog(v)}
+                                    title="Click to view activity log"
+                                  >
+                                    Arrival Cancelled
+                                  </Badge>
+                                ) : v.status === 'cancelled_departure' ? (
+                                  <Badge 
+                                    className="bg-purple-100 text-purple-700 border-purple-200 text-[10px] font-bold py-0.5 px-2 cursor-pointer hover:bg-purple-200 transition-colors shadow-none whitespace-nowrap"
+                                    onClick={() => handleOpenActivityLog(v)}
+                                    title="Click to view activity log"
+                                  >
+                                    Departure Cancelled
+                                  </Badge>
+                                ) : (
+                                  <Badge 
+                                    className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-bold py-0.5 px-2 cursor-pointer hover:bg-emerald-100 transition-colors shadow-none"
+                                    onClick={() => handleOpenActivityLog(v)}
+                                    title="Click to view activity log"
+                                  >
+                                    Active
+                                  </Badge>
+                                )}
+                              </TableCell>
                               <TableCell className="text-xs font-bold text-secondary uppercase max-w-[150px] break-all whitespace-normal">{v.groupCode || '—'}</TableCell>
                               <TableCell><div><p className="font-bold text-sm text-gray-900">{v.guestName}</p><p className="text-[10px] text-gray-400 font-medium">{v.guestMobile}</p></div></TableCell>
                               <TableCell><Badge variant="outline" className="font-black bg-blue-50/50 border-blue-100 text-blue-700">{v.paxCount} PAX</Badge></TableCell>
@@ -876,17 +958,41 @@ function VoucherServiceContent() {
                               <TableCell className="text-xs text-gray-400 font-medium">{new Date(v.createdAt).toLocaleDateString('en-US', { timeZone: 'UTC' })}</TableCell>
                               <TableCell className="text-right px-6">
                                 <div className="flex items-center justify-end gap-1">
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 rounded-lg" onClick={() => router.push(`/dashboard/services/voucher/view/${v.id}`)} title="View Voucher">
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 rounded-lg hover:bg-blue-50" onClick={() => router.push(`/dashboard/services/voucher/view/${v.id}`)} title="View Voucher">
                                     <Eye className="h-4 w-4" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600 rounded-lg" onClick={() => router.push(`/dashboard/services/voucher/edit/${v.id}`)} title="Edit Voucher">
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600 rounded-lg hover:bg-amber-50" onClick={() => router.push(`/dashboard/services/voucher/edit/${v.id}`)} title="Edit Voucher">
                                     <Edit2 className="h-4 w-4" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600 rounded-lg" onClick={() => downloadVoucherPDF(v.id)} disabled={downloadingVoucherId === v.id} title="Download PDF">
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600 rounded-lg hover:bg-emerald-50" onClick={() => downloadVoucherPDF(v.id)} disabled={downloadingVoucherId === v.id} title="Download PDF">
                                     {downloadingVoucherId === v.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                                   </Button>
+                                  {hasRole(['admin', 'staff']) && (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className={`h-8 w-8 rounded-lg ${
+                                        v.status?.startsWith('cancelled') 
+                                          ? 'text-rose-600 bg-rose-50 hover:bg-rose-100' 
+                                          : 'text-gray-400 hover:text-rose-600 hover:bg-rose-50'
+                                      }`}
+                                      onClick={() => handleOpenCancelModal(v)} 
+                                      title={v.status?.startsWith('cancelled') ? 'Manage Cancellation Status' : 'Cancel Voucher'}
+                                    >
+                                      <Ban className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8 text-slate-500 rounded-lg hover:text-indigo-600 hover:bg-indigo-50" 
+                                    onClick={() => handleOpenActivityLog(v)} 
+                                    title="View Activity Log"
+                                  >
+                                    <History className="h-4 w-4" />
+                                  </Button>
                                   {hasRole(['admin', 'staff']) && !v.invoiceGenerated && (
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600 rounded-lg" onClick={() => handleOpenInvoiceModal(v)} title="Upload Invoice to UmraBus">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600 rounded-lg hover:bg-indigo-50" onClick={() => handleOpenInvoiceModal(v)} title="Upload Invoice to UmraBus">
                                       <Receipt className="h-4 w-4" />
                                     </Button>
                                   )}
@@ -1478,6 +1584,26 @@ function VoucherServiceContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Cancellation Dialog */}
+      <CancelVoucherDialog
+        open={cancelDialogOpen}
+        onOpenChange={setCancelDialogOpen}
+        voucher={selectedVoucherForCancel}
+        onSuccess={() => {
+          loadVouchers();
+          loadStats();
+        }}
+      />
+
+      {/* Activity Log Dialog */}
+      <VoucherActivityLogDialog
+        open={activityLogDialogOpen}
+        onOpenChange={setActivityLogDialogOpen}
+        voucherId={selectedVoucherForLog?.id}
+        voucherNumber={selectedVoucherForLog?.voucherNumber}
+        guestName={selectedVoucherForLog?.guestName}
+      />
     </div>
   );
 }

@@ -777,7 +777,7 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
           >
             <Sparkles className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
             <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#ffffff' }}>
-              Live Rate: <span style={{ color: '#fef08a', fontWeight: 900, fontSize: '0.88rem' }}>{formattedTotal} {curr.symbol}</span>
+              Live Rate: <span style={{ color: '#fef08a', fontWeight: 900, fontSize: '0.88rem' }}>{curr.symbol} {formattedTotal}</span>
             </span>
             <span style={{ fontSize: '0.68rem', color: '#a7f3d0', fontWeight: 700 }}>
               ({persons} Pax • {days}D • {rooms} {rooms > 1 ? 'Rooms' : 'Room'})
@@ -1365,7 +1365,7 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
                   borderRadius: '16px'
                 }}
               >
-                Save {formattedSavings} {curr.symbol}
+                Save {curr.symbol} {formattedSavings}
               </span>
             </div>
 
@@ -1415,14 +1415,14 @@ export function FamilyUmrahCalculator({ onProceedToBooking, onBackToPortal }: Fa
                     textShadow: '0 2px 10px rgba(0,0,0,0.6)' 
                   }}
                 >
-                  {formattedTotal} {curr.symbol}
+                  {curr.symbol} {formattedTotal}
                 </span>
                 <span style={{ fontSize: '0.82rem', color: '#6ee7b7', fontWeight: 700 }}>
-                  (~{formattedPerPerson} {curr.symbol} / pilgrim)
+                  (~{curr.symbol} {formattedPerPerson} / pilgrim)
                 </span>
               </div>
               <p style={{ fontSize: '0.68rem', color: 'rgba(167, 243, 208, 0.85)', margin: '0.15rem 0 0 0' }}>
-                Includes {persons} Visa{persons > 1 ? 's' : ''} + {rooms} {rooms > 1 ? 'Rooms' : 'Room'} ({roomType.toUpperCase()} Bedding • {makkahNights}N Makkah{includeMadinah ? ` + ${madinahNights}N Madinah` : ''}) + Ground Transfers
+                Includes {persons} Visa{persons > 1 ? 's' : ''} + {rooms} {rooms > 1 ? 'Rooms' : 'Room'} ({roomType.toUpperCase()} Bedding • {makkahNights}N Makkah{includeMadinah ? ` + ${madinahNights}N Madinah` : ''}) + Ground Transfers (Per Vehicle)
               </p>
             </div>
 
