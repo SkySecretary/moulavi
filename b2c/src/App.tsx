@@ -1839,25 +1839,30 @@ export default function App() {
               {/* Right Column: Interactive Hero Section Widget */}
               <div className="visit-hero-right">
                 <InteractiveHeroWidget 
-                  onSelectEstimate={(_city, pax, nights) => {
+                  onPlanTrip={({ pilgrims, durationNights, travelDate, departureCity }) => {
+                    setIsQuickEVisa(false);
+                    const makkahNights = durationNights === 7 ? 4 : durationNights === 10 ? 6 : durationNights === 14 ? 8 : Math.round(durationNights * 0.55);
+                    const madinahNights = durationNights - makkahNights;
+                    const checkInDate = travelDate || dates.checkIn;
+                    const checkInDateObj = new Date(checkInDate);
+                    const returnDateObj = new Date(checkInDateObj.getTime() + durationNights * 86400000);
+
                     setDates(prev => ({
                       ...prev,
-                      travelers: pax,
-                      makkahNights: nights === 7 ? 4 : nights === 10 ? 6 : 8,
-                      madinahNights: nights === 7 ? 3 : nights === 10 ? 4 : 6
+                      travelers: pilgrims,
+                      checkIn: checkInDate,
+                      accommodationType: 'hotel',
+                      makkahNights,
+                      madinahNights
                     }));
-                    const el = document.getElementById('ready-packages');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    else navigateToBuilder(1);
-                  }}
-                  onQuickEVisa={() => {
-                    setIsQuickEVisa(true);
-                    setDates(prev => ({
+
+                    setFlightInfo(prev => ({
                       ...prev,
-                      accommodationType: 'iqama',
-                      makkahNights: 0,
-                      madinahNights: 0
+                      fromCity: departureCity || 'DEL',
+                      onwardDate: checkInDate,
+                      returnDate: returnDateObj.toISOString().split('T')[0]
                     }));
+
                     setSelectedPackage(null);
                     navigateToBuilder(1);
                   }}

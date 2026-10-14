@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { 
   Sparkles, 
   HelpCircle, 
-  Info,
-  ArrowRight
+  ArrowLeft,
+  ArrowRight,
+  ShieldCheck
 } from 'lucide-react';
 
 interface SacredFact {
@@ -28,8 +29,8 @@ const SACRED_FACTS: SacredFact[] = [
     highlightMetric: '120 kg Pure 24K Gold & Silver',
     title: 'The Annual Draping of the Sacred Kiswah',
     fact: 'Over 200 specialized Saudi master-craftsmen weave 670 kg of raw Italian silk with 120 kg of pure 24-karat gold and silver threads to embroider the majestic Qur’anic verses covering the Holy Kaaba.',
-    historicalContext: 'Hand-sewn continuously at the King Abdulaziz Complex for Holy Kaaba Kiswah in Umm Al-Joud, Makkah.',
-    sourceReference: 'Official General Authority for the Care of the Two Holy Mosques',
+    historicalContext: 'Hand-sewn continuously at the King Abdulaziz Complex for Holy Kaaba Kiswah in Umm Al-Joud, Makkah, preserving centuries-old Islamic textile heritage.',
+    sourceReference: 'General Authority for the Care of the Two Holy Mosques',
     image: 'https://images.unsplash.com/photo-1565552645632-d725f8bfc19a?auto=format&fit=crop&w=1200&q=80'
   },
   {
@@ -60,7 +61,7 @@ const SACRED_FACTS: SacredFact[] = [
     id: 'fact-train',
     number: '04',
     city: 'makkah',
-    cityLabel: 'Makkah ⇄ Madinah',
+    cityLabel: 'Makkah ⇄ Madinah Corridor',
     highlightMetric: '300 km/h Bullet Train Corridor',
     title: 'High-Speed Electrified Desert Transit',
     fact: 'The Haramain High-Speed Railway is one of the fastest passenger train systems in the Middle East, gliding 450 km across the Hijaz desert at 300 km/h and cutting travel between Makkah and Madinah from 6 hours to just 120 minutes.',
@@ -95,90 +96,148 @@ const SACRED_FACTS: SacredFact[] = [
 ];
 
 export const DidYouKnowUmrah: React.FC = () => {
-  const [activeFactId, setActiveFactId] = useState<string>(SACRED_FACTS[0].id);
-  const activeFact = SACRED_FACTS.find(f => f.id === activeFactId) || SACRED_FACTS[0];
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const activeFact = SACRED_FACTS[currentIndex];
+
+  const handlePrev = () => {
+    setCurrentIndex((prev) => (prev === 0 ? SACRED_FACTS.length - 1 : prev - 1));
+  };
+
+  const handleNext = () => {
+    setCurrentIndex((prev) => (prev === SACRED_FACTS.length - 1 ? 0 : prev + 1));
+  };
 
   return (
-    <section className="did-you-know-section">
-      <div className="did-you-know-container">
+    <section className="vad-dyk-section">
+      <div className="vad-dyk-container">
+        
         {/* Section Header */}
-        <div className="did-you-know-header">
-          <span className="dyk-badge">
-            <HelpCircle className="h-3.5 w-3.5 text-amber-500" /> Amazing Facts
-          </span>
-          <h2 className="dyk-title">
-            Did You Know? <span className="gold-shimmer-text">Wonders of Makkah &amp; Madinah</span>
+        <div className="vad-dyk-header">
+          <div className="vad-dyk-badge">
+            <HelpCircle className="h-3.5 w-3.5 text-amber-600" />
+            <span>Did You Know?</span>
+          </div>
+
+          <h2 className="vad-dyk-title">
+            Wonders &amp; Sacred Heritage of <span className="gold-shimmer-text">Makkah &amp; Madinah</span>
           </h2>
-          <p className="dyk-subtitle">
-            Fascinating facts and historical blessings of the Two Holy Mosques that every pilgrim should know before embarking on their journey.
+
+          <p className="vad-dyk-subtitle">
+            Remarkable architectural achievements, miraculous natural springs, and divine blessings of the Two Holy Mosques.
           </p>
         </div>
 
-        {/* 6-Card Interactive Grid */}
-        <div className="dyk-cards-grid">
-          {SACRED_FACTS.map((fact) => {
-            const isSelected = fact.id === activeFact.id;
-            return (
-              <div 
-                key={fact.id}
-                className={`dyk-fact-card ${isSelected ? 'active' : ''}`}
-                onClick={() => setActiveFactId(fact.id)}
-              >
-                <div className="dyk-card-header">
-                  <span className="dyk-number">#{fact.number}</span>
-                  <span className={`dyk-city-tag ${fact.city}`}>{fact.cityLabel}</span>
-                </div>
+        {/* Editorial Spotlight Card (Visit Abu Dhabi Magazine Style) */}
+        <div className="vad-dyk-showcase-card">
+          
+          {/* Left Column: Visual with Badges */}
+          <div className="vad-dyk-visual-col">
+            <img 
+              src={activeFact.image} 
+              alt={activeFact.title} 
+              className="vad-dyk-hero-img"
+              key={activeFact.id}
+            />
+            <div className="vad-dyk-img-gradient" />
 
-                <div className="dyk-metric-strip">
-                  <Sparkles className="h-4 w-4 text-amber-400 flex-shrink-0" />
-                  <strong>{fact.highlightMetric}</strong>
-                </div>
+            <div className="vad-dyk-top-chips">
+              <span className="vad-dyk-index-chip">
+                Fact {activeFact.number} of 0{SACRED_FACTS.length}
+              </span>
+              <span className={`vad-dyk-city-chip ${activeFact.city}`}>
+                {activeFact.cityLabel}
+              </span>
+            </div>
 
-                <h3 className="dyk-card-title">{fact.title}</h3>
-                <p className="dyk-card-text">{fact.fact}</p>
+            <div className="vad-dyk-stat-callout">
+              <Sparkles className="h-4 w-4 text-amber-300" />
+              <span>{activeFact.highlightMetric}</span>
+            </div>
+          </div>
 
-                <div className="dyk-card-footer">
-                  <span className="dyk-context-text">
-                    <Info className="h-3 w-3 inline mr-1 text-amber-500" />
-                    {fact.historicalContext}
-                  </span>
-                </div>
+          {/* Right Column: Editorial Quote & Context */}
+          <div className="vad-dyk-content-col">
+            <div className="vad-dyk-quote-mark">“</div>
+
+            <span className="vad-dyk-section-tag">Historical &amp; Spiritual Blessing</span>
+
+            <h3 className="vad-dyk-fact-heading">
+              {activeFact.title}
+            </h3>
+
+            <blockquote className="vad-dyk-fact-quote">
+              {activeFact.fact}
+            </blockquote>
+
+            <div className="vad-dyk-context-box">
+              <span className="context-label">Context &amp; Provenance:</span>
+              <p className="context-text">{activeFact.historicalContext}</p>
+            </div>
+
+            <div className="vad-dyk-source-row">
+              <ShieldCheck className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+              <span className="source-text">Verified Reference: {activeFact.sourceReference}</span>
+            </div>
+
+            {/* Navigation Controls Bar */}
+            <div className="vad-dyk-controls-bar">
+              <div className="vad-dyk-progress-indicators">
+                {SACRED_FACTS.map((f, idx) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    className={`dyk-dot ${idx === currentIndex ? 'active' : ''}`}
+                    onClick={() => setCurrentIndex(idx)}
+                    aria-label={`Jump to fact ${f.number}`}
+                  />
+                ))}
               </div>
+
+              <div className="vad-dyk-nav-btns">
+                <button 
+                  type="button" 
+                  className="dyk-arrow-btn"
+                  onClick={handlePrev}
+                  aria-label="Previous fact"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+                <span className="dyk-page-count">
+                  {activeFact.number} / 0{SACRED_FACTS.length}
+                </span>
+                <button 
+                  type="button" 
+                  className="dyk-arrow-btn"
+                  onClick={handleNext}
+                  aria-label="Next fact"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        {/* Fact Selector Pills Bar */}
+        <div className="vad-dyk-pills-bar">
+          {SACRED_FACTS.map((f, idx) => {
+            const isActive = idx === currentIndex;
+            return (
+              <button
+                key={f.id}
+                type="button"
+                className={`vad-dyk-selector-pill ${isActive ? 'active' : ''}`}
+                onClick={() => setCurrentIndex(idx)}
+              >
+                <span className="selector-num">{f.number}</span>
+                <span className="selector-label">{f.title.split(':')[0]}</span>
+              </button>
             );
           })}
         </div>
 
-        {/* Dynamic Highlight Banner */}
-        <div className="dyk-spotlight-banner">
-          <div className="dyk-spotlight-img-box">
-            <img src={activeFact.image} alt={activeFact.title} />
-            <div className="dyk-spotlight-overlay" />
-            <span className="dyk-spotlight-tag">Sacred Wonder #{activeFact.number}</span>
-          </div>
-
-          <div className="dyk-spotlight-content">
-            <div className="dyk-spotlight-meta">
-              <span className="dyk-spotlight-metric">{activeFact.highlightMetric}</span>
-              <span className="dyk-spotlight-source">{activeFact.sourceReference}</span>
-            </div>
-
-            <h3 className="dyk-spotlight-heading">{activeFact.title}</h3>
-            <p className="dyk-spotlight-p">{activeFact.fact}</p>
-            <p className="dyk-spotlight-context">"{activeFact.historicalContext}"</p>
-
-            <button
-              type="button"
-              className="dyk-spotlight-btn"
-              onClick={() => {
-                const el = document.getElementById('ready-packages');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
-            >
-              <span>Experience This on Your Pilgrimage</span>
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
       </div>
     </section>
   );
