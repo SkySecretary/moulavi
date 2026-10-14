@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { FamilyUmrahCalculator, type CalculatorPackageParams } from './components/FamilyUmrahCalculator';
 import { InteractiveHeroWidget } from './components/InteractiveHeroWidget';
-import { JourneyRoutePlanner } from './components/JourneyRoutePlanner';
+import { IndiaToHaramRouteMap } from './components/IndiaToHaramRouteMap';
 import { ThingsToDoUmrah } from './components/ThingsToDoUmrah';
 import { DidYouKnowUmrah } from './components/DidYouKnowUmrah';
 import { OfficialPortalsGuide } from './components/OfficialPortalsGuide';
@@ -1439,7 +1439,7 @@ export default function App() {
               <button 
                 type="button"
                 className="nav-link"
-                style={{ background: 'none', border: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#ff8b00' }}
+                style={{ background: 'none', border: 'none', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#FFD700' }}
                 onClick={() => {
                   setActiveTab('calculator');
                   setBookingFinished(false);
@@ -1448,7 +1448,7 @@ export default function App() {
                   }
                 }}
               >
-                <Sparkles className="h-4 w-4" />
+                <Sparkles className="h-4 w-4 text-amber-400" />
                 Calculator
               </button>
 
@@ -1457,9 +1457,9 @@ export default function App() {
                   padding: '0.45rem 0.75rem',
                   fontSize: '0.82rem',
                   fontWeight: 700,
-                  color: 'var(--text-dark)',
-                  backgroundColor: '#ffffff',
-                  border: '1px solid var(--border-color)',
+                  color: '#FFD700',
+                  backgroundColor: 'rgba(13, 24, 37, 0.85)',
+                  border: '1px solid rgba(212, 175, 55, 0.35)',
                   borderRadius: 'var(--radius-full)',
                   cursor: 'pointer',
                   outline: 'none'
@@ -1467,12 +1467,12 @@ export default function App() {
                 value={selectedCurrency}
                 onChange={(e) => setSelectedCurrency(e.target.value)}
               >
-                <option value="SAR">🇸🇦 SAR</option>
-                <option value="INR">🇮🇳 INR</option>
-                <option value="AED">🇦🇪 AED</option>
-                <option value="QAR">🇶🇦 QAR</option>
-                <option value="BDT">🇧🇩 BDT</option>
-                <option value="KWD">🇰🇼 KWD</option>
+                <option value="SAR" style={{ background: '#0D1825', color: '#ffffff' }}>🇸🇦 SAR</option>
+                <option value="INR" style={{ background: '#0D1825', color: '#ffffff' }}>🇮🇳 INR</option>
+                <option value="AED" style={{ background: '#0D1825', color: '#ffffff' }}>🇦🇪 AED</option>
+                <option value="QAR" style={{ background: '#0D1825', color: '#ffffff' }}>🇶🇦 QAR</option>
+                <option value="BDT" style={{ background: '#0D1825', color: '#ffffff' }}>🇧🇩 BDT</option>
+                <option value="KWD" style={{ background: '#0D1825', color: '#ffffff' }}>🇰🇼 KWD</option>
               </select>
 
               <button 
@@ -1868,287 +1868,290 @@ export default function App() {
 
           {/* Curated Sacred Destinations & Experiences (Visit Abu Dhabi Style) */}
           <section className="destinations-section">
-            <div className="destinations-header">
-              <span className="destinations-badge">
-                <Sparkles className="h-3.5 w-3.5" style={{ color: '#C59A4E' }} /> Curated Sanctuaries &amp; Experiences
-              </span>
-              <h2 className="destinations-title">
-                Sanctuaries of Divine Peace &amp; Heritage
-              </h2>
-              <p className="destinations-subtitle">
-                From the reverent circumambulation in Makkah to the peaceful courtyards of the Prophet’s Mosque ﷺ in Madinah, experience unmatched spiritual hospitality.
-              </p>
-            </div>
+            <div className="destinations-container">
+              <div className="destinations-header">
+                <span className="destinations-badge">
+                  <Sparkles className="h-3.5 w-3.5" style={{ color: '#FFD700' }} /> Sacred Destinations &amp; Stays
+                </span>
+                <h2 className="destinations-title">
+                  Sanctuaries of Divine Peace &amp; Comfort
+                </h2>
+                <p className="destinations-subtitle">
+                  From reverent Tawaf facing the Holy Kaaba to peaceful visits in the Prophet’s Mosque ﷺ in Madinah, experience unmatched spiritual hospitality with 5★ Haram-view suites.
+                </p>
+              </div>
 
-            <div className="destinations-grid">
-              {DESTINATION_EXPERIENCES.map((exp) => (
-                <div 
-                  key={exp.id} 
-                  className="destination-card"
-                  onClick={() => {
-                    if (exp.id === 'makkah' || exp.id === 'madinah' || exp.id === 'ziyarat') {
-                      const el = document.getElementById('ready-packages');
-                      if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    } else if (exp.id === 'transport') {
-                      setIsQuickEVisa(false);
-                      setDates(prev => ({ ...prev, accommodationType: 'hotel', makkahNights: 4, madinahNights: 3 }));
-                      navigateToBuilder(3);
-                    }
-                  }}
-                >
+              <div className="destinations-grid">
+                {DESTINATION_EXPERIENCES.map((exp) => (
                   <div 
-                    className="destination-card-bg"
-                    style={{ backgroundImage: `url(${exp.image})` }}
-                  />
-                  <div className="destination-card-overlay" />
-                  <div className="destination-card-content">
-                    <span className="destination-tag">{exp.tag}</span>
-                    <h3 className="destination-card-title">{exp.title}</h3>
-                    <p className="destination-desc">{exp.desc}</p>
-                    <span className="destination-action">
-                      {exp.actionText} <ChevronRight className="h-4 w-4" />
-                    </span>
+                    key={exp.id} 
+                    className="destination-card"
+                    onClick={() => {
+                      if (exp.id === 'makkah' || exp.id === 'madinah' || exp.id === 'ziyarat') {
+                        const el = document.getElementById('ready-packages');
+                        if (el) el.scrollIntoView({ behavior: 'smooth' });
+                      } else if (exp.id === 'transport') {
+                        setIsQuickEVisa(false);
+                        setDates(prev => ({ ...prev, accommodationType: 'hotel', makkahNights: 4, madinahNights: 3 }));
+                        navigateToBuilder(3);
+                      }
+                    }}
+                  >
+                    <div 
+                      className="destination-card-bg"
+                      style={{ backgroundImage: `url(${exp.image})` }}
+                    />
+                    <div className="destination-card-overlay" />
+                    <div className="destination-card-content">
+                      <span className="destination-tag">{exp.tag}</span>
+                      <h3 className="destination-card-title">{exp.title}</h3>
+                      <p className="destination-desc">{exp.desc}</p>
+                      <span className="destination-action">
+                        {exp.actionText} <ChevronRight className="h-4 w-4" />
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </section>
 
           {/* Main Landing Content */}
-          <main>
+          <div className="landing-page-root">
             {/* Unified 3-Card Pathways */}
-            <div className="unified-pathway-bar" style={{ textAlign: 'left', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
-              
-              {/* Card 1: Family Calculator (Featured) */}
-              <div className="pathway-card featured">
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                    <div className="pathway-card-icon" style={{ backgroundColor: '#FFF8E7', color: '#D4AF37' }}>
-                      <Sparkles className="h-5 w-5" />
-                    </div>
+            <section className="pathways-section">
+              <div className="section-container">
+                <div className="unified-pathway-bar" style={{ textAlign: 'left', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
+                  
+                  {/* Card 1: Family Calculator (Featured) */}
+                  <div className="pathway-card featured">
                     <div>
-                      <span className="pathway-tag" style={{ color: '#C59A4E' }}>Interactive Simulator</span>
-                      <h3 className="pathway-title">Family Umrah Calculator</h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                        <div className="pathway-card-icon" style={{ backgroundColor: '#FFF8E7', color: '#D4AF37' }}>
+                          <Sparkles className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <span className="pathway-tag" style={{ color: '#C59A4E' }}>Interactive Simulator</span>
+                          <h3 className="pathway-title">Family Umrah Calculator</h3>
+                        </div>
+                      </div>
+                      <p className="pathway-desc">
+                        Interactive 3D Tawaf visualizer, sliding persons &amp; days, and instant live VIP family package costing with live currency conversions.
+                      </p>
                     </div>
+                    <button 
+                      type="button"
+                      className="pathway-btn pathway-btn-amber"
+                      onClick={() => {
+                        setActiveTab('calculator');
+                        setBookingFinished(false);
+                        if (typeof window !== 'undefined' && window.history.pushState) {
+                          window.history.pushState({}, '', '/b2c/calculator');
+                        }
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                    >
+                      Launch Family Calculator <ChevronRight className="h-4 w-4" style={{ strokeWidth: 3 }} />
+                    </button>
                   </div>
-                  <p className="pathway-desc">
-                    Interactive 3D Tawaf visualizer, sliding persons &amp; days, and instant live VIP family package costing with live currency conversions.
-                  </p>
-                </div>
-                <button 
-                  type="button"
-                  className="pathway-btn pathway-btn-amber"
-                  onClick={() => {
-                    setActiveTab('calculator');
-                    setBookingFinished(false);
-                    if (typeof window !== 'undefined' && window.history.pushState) {
-                      window.history.pushState({}, '', '/b2c/calculator');
-                    }
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                >
-                  Launch Family Calculator <ChevronRight className="h-4 w-4" style={{ strokeWidth: 3 }} />
-                </button>
-              </div>
 
-              {/* Card 2: Quick eVisa */}
-              <div className="pathway-card">
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                    <div className="pathway-card-icon" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)' }}>
-                      <Zap className="h-5 w-5" />
-                    </div>
+                  {/* Card 2: Quick eVisa */}
+                  <div className="pathway-card">
                     <div>
-                      <span className="pathway-tag" style={{ color: 'var(--primary)' }}>24-Hour Direct Processing</span>
-                      <h3 className="pathway-title">Quick eVisa (24hr Umra)</h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                        <div className="pathway-card-icon" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)' }}>
+                          <Zap className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <span className="pathway-tag" style={{ color: 'var(--primary)' }}>24-Hour Direct Processing</span>
+                          <h3 className="pathway-title">Quick eVisa (24hr Umra)</h3>
+                        </div>
+                      </div>
+                      <p className="pathway-desc">
+                        Fast 24-hour electronic visa issuance. Skips hotel stay selection and goes straight to passenger details and checkout.
+                      </p>
                     </div>
+                    <button 
+                      type="button"
+                      className="pathway-btn pathway-btn-primary" 
+                      onClick={() => {
+                        setIsQuickEVisa(true);
+                        setDates(prev => ({
+                          ...prev,
+                          accommodationType: 'iqama',
+                          makkahNights: 0,
+                          madinahNights: 0
+                        }));
+                        setSelectedPackage(null);
+                        navigateToBuilder(1);
+                      }}
+                    >
+                      Apply Quick eVisa <ChevronRight className="h-4 w-4" style={{ strokeWidth: 2.5 }} />
+                    </button>
                   </div>
-                  <p className="pathway-desc">
-                    Fast 24-hour electronic visa issuance. Skips hotel stay selection and goes straight to passenger details and checkout.
-                  </p>
-                </div>
-                <button 
-                  type="button"
-                  className="pathway-btn pathway-btn-primary" 
-                  onClick={() => {
-                    setIsQuickEVisa(true);
-                    setDates(prev => ({
-                      ...prev,
-                      accommodationType: 'iqama',
-                      makkahNights: 0,
-                      madinahNights: 0
-                    }));
-                    setSelectedPackage(null);
-                    navigateToBuilder(1);
-                  }}
-                >
-                  Apply Quick eVisa <ChevronRight className="h-4 w-4" style={{ strokeWidth: 2.5 }} />
-                </button>
-              </div>
 
-              {/* Card 3: Customised Umra Package */}
-              <div className="pathway-card">
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                    <div className="pathway-card-icon" style={{ backgroundColor: '#F4F1EA', color: '#64748B' }}>
-                      <Compass className="h-5 w-5" />
-                    </div>
+                  {/* Card 3: Customised Umra Package */}
+                  <div className="pathway-card">
                     <div>
-                      <span className="pathway-tag" style={{ color: '#64748B' }}>Custom Itinerary</span>
-                      <h3 className="pathway-title">Customised Package</h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                        <div className="pathway-card-icon" style={{ backgroundColor: '#F4F1EA', color: '#64748B' }}>
+                          <Compass className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <span className="pathway-tag" style={{ color: '#64748B' }}>Custom Itinerary</span>
+                          <h3 className="pathway-title">Customised Package</h3>
+                        </div>
+                      </div>
+                      <p className="pathway-desc">
+                        End-to-end package builder. Customise flight tickets, 4★ &amp; 5★ hotel stays, and private VIP ground transport step-by-step.
+                      </p>
                     </div>
+                    <button 
+                      type="button"
+                      className="pathway-btn pathway-btn-outline" 
+                      onClick={() => {
+                        setIsQuickEVisa(false);
+                        setDates(prev => ({
+                          ...prev,
+                          accommodationType: 'hotel',
+                          makkahNights: 4,
+                          madinahNights: 3
+                        }));
+                        setSelectedPackage(null);
+                        navigateToBuilder(1);
+                      }}
+                    >
+                      Build Custom Package <ChevronRight className="h-4 w-4" style={{ strokeWidth: 2.5 }} />
+                    </button>
                   </div>
-                  <p className="pathway-desc">
-                    End-to-end package builder. Customise flight tickets, 4★ &amp; 5★ hotel stays, and private VIP ground transport step-by-step.
-                  </p>
+
                 </div>
-                <button 
-                  type="button"
-                  className="pathway-btn pathway-btn-outline" 
-                  onClick={() => {
-                    setIsQuickEVisa(false);
-                    setDates(prev => ({
-                      ...prev,
-                      accommodationType: 'hotel',
-                      makkahNights: 4,
-                      madinahNights: 3
-                    }));
-                    setSelectedPackage(null);
-                    navigateToBuilder(1);
-                  }}
-                >
-                  Build Custom Package <ChevronRight className="h-4 w-4" style={{ strokeWidth: 2.5 }} />
-                </button>
               </div>
+            </section>
 
-            </div>
-
-            {/* Sacred Journey Route Planner (India to Makkah & Madinah Corridor) */}
-            <JourneyRoutePlanner 
-              onSelectRoute={(routeType) => {
-                if (routeType === 'madinah_first') {
-                  setDates(prev => ({ ...prev, accommodationType: 'hotel', makkahNights: 4, madinahNights: 4 }));
-                } else {
-                  setDates(prev => ({ ...prev, accommodationType: 'hotel', makkahNights: 5, madinahNights: 3 }));
-                }
+            {/* 2D Animated Travel Route Representation: India to Makkah then Madinah */}
+            <IndiaToHaramRouteMap 
+              onPlanTrip={() => {
                 const el = document.getElementById('ready-packages');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
                 else navigateToBuilder(1);
               }}
             />
 
-            {/* Sacred Experiences & Things To Do in Makkah & Madinah */}
+            {/* Sacred Places & Ziyarat in Makkah & Madinah */}
             <ThingsToDoUmrah />
 
             {/* Ready Packages Listing */}
-            <div id="ready-packages" style={{ maxWidth: '1140px', margin: '2rem auto 4rem auto', padding: '0', boxSizing: 'border-box' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1.75rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-                <div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--primary)', letterSpacing: '0.05em', display: 'block', marginBottom: '0.25rem' }}>
-                    Curated All-Inclusive Itineraries
+            <section id="ready-packages" className="ready-packages-section">
+              <div className="section-container">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2rem', borderBottom: '1px solid rgba(212, 175, 55, 0.25)', paddingBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--primary-gold)', letterSpacing: '0.08em', display: 'block', marginBottom: '0.35rem' }}>
+                      Curated All-Inclusive Itineraries
+                    </span>
+                    <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#ffffff', margin: 0, letterSpacing: '-0.02em', fontFamily: 'var(--font-display)' }}>
+                      Explore Ready Pilgrimage Packages
+                    </h2>
+                  </div>
+                  <span style={{ fontSize: '0.85rem', color: '#94A3B8', fontWeight: 600 }}>
+                    Showing {packages.length} confirmed departure allotments
                   </span>
-                  <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--text-dark)', margin: 0, letterSpacing: '-0.02em' }}>
-                    Explore Ready Pilgrimage Packages
-                  </h2>
                 </div>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                  Showing {packages.length} confirmed departure allotments
-                </span>
-              </div>
 
-              <div className="cards-grid">
-                {packages.map((pkg) => {
-                  const visuals = getPackageVisuals(pkg);
-                  return (
-                    <div key={pkg.id} className="package-card animate-in fade-in duration-300">
-                      {/* High-Resolution Umrah Photo Header */}
-                      <div className="package-card-media">
-                        <img 
-                          src={visuals.image} 
-                          alt={pkg.title} 
-                          className="package-img"
-                          loading="lazy"
-                        />
-                        <div className="package-media-overlay" />
-                        <span className="package-media-badge-top">
-                          <Sparkles className="h-3 w-3 text-amber-300" /> {visuals.badge}
-                        </span>
-                        <span className="package-media-verified">
-                          <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Verified
-                        </span>
-                        <div className="package-media-bottom">
-                          <span className="package-media-duration">
-                            <MapPin className="h-3.5 w-3.5 text-amber-300" /> {pkg.makkahNights + pkg.madinahNights} Nights Total
+                <div className="cards-grid">
+                  {packages.map((pkg) => {
+                    const visuals = getPackageVisuals(pkg);
+                    return (
+                      <div key={pkg.id} className="package-card animate-in fade-in duration-300">
+                        {/* High-Resolution Umrah Photo Header */}
+                        <div className="package-card-media">
+                          <img 
+                            src={visuals.image} 
+                            alt={pkg.title} 
+                            className="package-img"
+                            loading="lazy"
+                          />
+                          <div className="package-media-overlay" />
+                          <span className="package-media-badge-top">
+                            <Sparkles className="h-3 w-3 text-amber-300" /> {visuals.badge}
                           </span>
-                          <span className="package-media-rating">
-                            <Star className="h-3 w-3" style={{ fill: '#FFD700', color: '#FFD700' }} /> {visuals.rating}
+                          <span className="package-media-verified">
+                            <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Verified
                           </span>
+                          <div className="package-media-bottom">
+                            <span className="package-media-duration">
+                              <MapPin className="h-3.5 w-3.5 text-amber-300" /> {pkg.makkahNights + pkg.madinahNights} Nights Total
+                            </span>
+                            <span className="package-media-rating">
+                              <Star className="h-3 w-3" style={{ fill: '#FFD700', color: '#FFD700' }} /> {visuals.rating}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="package-content" style={{ paddingTop: '1.25rem' }}>
+                          <h3 className="package-title">{pkg.title}</h3>
+                          <div className="package-meta">
+                            <span>{pkg.makkahNights}N Makkah</span>
+                            <span>•</span>
+                            <span>{pkg.madinahNights}N Madinah</span>
+                            <span>•</span>
+                            <span style={{ color: 'var(--primary)', fontWeight: 800 }}>Direct e-Visa</span>
+                          </div>
+                          <p className="package-desc">{pkg.description}</p>
+                          
+                          <div className="package-hotel-spec">
+                            <div className="package-hotel-item">
+                              <span className="package-hotel-label">Makkah Hotel</span>
+                              <span className="package-hotel-name">{pkg.makkahHotel?.name || 'Swissôtel Makkah (5★)'}</span>
+                            </div>
+                            <div className="package-hotel-item">
+                              <span className="package-hotel-label">Madinah Hotel</span>
+                              <span className="package-hotel-name">{pkg.madinahHotel?.name || 'Anwar Al Madinah (5★)'}</span>
+                            </div>
+                            <div className="package-hotel-item">
+                              <span className="package-hotel-label">Route</span>
+                              <span className="package-hotel-name">{pkg.transportRoute?.routeType || 'Jeddah - Makkah - Madinah'}</span>
+                            </div>
+                            <div className="package-hotel-item" style={{ borderBottom: 'none' }}>
+                              <span className="package-hotel-label" style={{ color: '#d97706' }}>Flights Action</span>
+                              <span className="package-hotel-name" style={{ color: '#d97706' }}>Customizable in Step 2</span>
+                            </div>
+                          </div>
+
+                          <div className="package-footer">
+                            <div className="price-block">
+                              <span className="price-label">Price per pilgrim</span>
+                              <span className="price-val">{formatPrice(pkg.price || 2400)}</span>
+                            </div>
+                            <button 
+                              className="book-btn"
+                              onClick={() => {
+                                setSelectedPackage(pkg);
+                                setSelectedMakkahHotelId(pkg.makkahHotelId || DEFAULT_HOTELS[0].id);
+                                setSelectedMadinahHotelId(pkg.madinahHotelId || DEFAULT_HOTELS[3].id);
+                                setSelectedRouteId(pkg.transportRouteId || DEFAULT_ROUTES[0].id);
+                                const checkInDateObj = new Date(dates.checkIn);
+                                const returnDateObj = new Date(checkInDateObj.getTime() + (pkg.makkahNights + pkg.madinahNights) * 86400000);
+                                setDates(prev => ({ ...prev, makkahNights: pkg.makkahNights, madinahNights: pkg.madinahNights }));
+                                setFlightInfo(prev => ({
+                                  ...prev,
+                                  onwardDate: dates.checkIn,
+                                  returnDate: returnDateObj.toISOString().split('T')[0]
+                                }));
+                                navigateToBuilder(2); // Go to Flights step
+                              }}
+                            >
+                              <span>Select Package</span>
+                              <ChevronRight className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
-
-                      <div className="package-content" style={{ paddingTop: '1.25rem' }}>
-                        <h3 className="package-title">{pkg.title}</h3>
-                        <div className="package-meta">
-                          <span>{pkg.makkahNights}N Makkah</span>
-                          <span>•</span>
-                          <span>{pkg.madinahNights}N Madinah</span>
-                          <span>•</span>
-                          <span style={{ color: 'var(--primary)', fontWeight: 800 }}>Direct e-Visa</span>
-                        </div>
-                        <p className="package-desc">{pkg.description}</p>
-                        
-                        <div className="package-hotel-spec">
-                          <div className="package-hotel-item">
-                            <span className="package-hotel-label">Makkah Hotel</span>
-                            <span className="package-hotel-name">{pkg.makkahHotel?.name || 'Swissôtel Makkah (5★)'}</span>
-                          </div>
-                          <div className="package-hotel-item">
-                            <span className="package-hotel-label">Madinah Hotel</span>
-                            <span className="package-hotel-name">{pkg.madinahHotel?.name || 'Anwar Al Madinah (5★)'}</span>
-                          </div>
-                          <div className="package-hotel-item">
-                            <span className="package-hotel-label">Route</span>
-                            <span className="package-hotel-name">{pkg.transportRoute?.routeType || 'Jeddah - Makkah - Madinah'}</span>
-                          </div>
-                          <div className="package-hotel-item" style={{ borderBottom: 'none' }}>
-                            <span className="package-hotel-label" style={{ color: '#d97706' }}>Flights Action</span>
-                            <span className="package-hotel-name" style={{ color: '#d97706' }}>Customizable in Step 2</span>
-                          </div>
-                        </div>
-
-                        <div className="package-footer">
-                          <div className="price-block">
-                            <span className="price-label">Price per pilgrim</span>
-                            <span className="price-val">{formatPrice(pkg.price || 2400)}</span>
-                          </div>
-                          <button 
-                            className="book-btn"
-                            onClick={() => {
-                              setSelectedPackage(pkg);
-                              setSelectedMakkahHotelId(pkg.makkahHotelId || DEFAULT_HOTELS[0].id);
-                              setSelectedMadinahHotelId(pkg.madinahHotelId || DEFAULT_HOTELS[3].id);
-                              setSelectedRouteId(pkg.transportRouteId || DEFAULT_ROUTES[0].id);
-                              const checkInDateObj = new Date(dates.checkIn);
-                              const returnDateObj = new Date(checkInDateObj.getTime() + (pkg.makkahNights + pkg.madinahNights) * 86400000);
-                              setDates(prev => ({ ...prev, makkahNights: pkg.makkahNights, madinahNights: pkg.madinahNights }));
-                              setFlightInfo(prev => ({
-                                ...prev,
-                                onwardDate: dates.checkIn,
-                                returnDate: returnDateObj.toISOString().split('T')[0]
-                              }));
-                              navigateToBuilder(2); // Go to Flights step
-                            }}
-                          >
-                            <span>Select Package</span>
-                            <ChevronRight className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            </section>
 
             {/* Sacred Wonders of the Two Holy Mosques: Did You Know? */}
             <DidYouKnowUmrah />
@@ -2158,62 +2161,68 @@ export default function App() {
 
             {/* Atlys How It Works Section (Only on Landing Page) */}
             <section className="atlys-how-it-works">
-              <div className="atlys-section-header">
-                <span className="atlys-section-badge">Fast &amp; Transparent</span>
-                <h3 className="atlys-section-title">How Moulavi Direct Works</h3>
-                <p className="atlys-section-subtitle">
-                  We eliminated complex paperwork and waiting queues. Your pilgrimage visa and stay are secured in three automated steps.
-                </p>
-              </div>
+              <div className="section-container">
+                <div className="atlys-section-header">
+                  <span className="atlys-section-badge">Fast &amp; Transparent</span>
+                  <h3 className="atlys-section-title">How Moulavi Direct Works</h3>
+                  <p className="atlys-section-subtitle">
+                    We eliminated complex paperwork and waiting queues. Your pilgrimage visa and stay are secured in three automated steps.
+                  </p>
+                </div>
 
-              <div className="atlys-steps-grid">
-                <div className="atlys-step-card">
-                  <div className="atlys-step-num">1</div>
-                  <h5>AI Passport Scan</h5>
-                  <p>Upload a photo of your passport. Our automated OCR accurately extracts MRZ details with zero spelling errors.</p>
-                </div>
-                <div className="atlys-step-card">
-                  <div className="atlys-step-num">2</div>
-                  <h5>Select Contracted Stays</h5>
-                  <p>Choose real inventory in Makkah &amp; Madinah. Direct contracts mean instant BRN voucher numbers locked to your name.</p>
-                </div>
-                <div className="atlys-step-card">
-                  <div className="atlys-step-num">3</div>
-                  <h5>Instant e-Visa Manifest</h5>
-                  <p>Receive your digital Ministry of Hajj &amp; Umrah visa manifest directly on WhatsApp and email in under 24 hours.</p>
+                <div className="atlys-steps-grid">
+                  <div className="atlys-step-card">
+                    <div className="atlys-step-num">1</div>
+                    <h5>AI Passport Scan</h5>
+                    <p>Upload a photo of your passport. Our automated OCR accurately extracts MRZ details with zero spelling errors.</p>
+                  </div>
+                  <div className="atlys-step-card">
+                    <div className="atlys-step-num">2</div>
+                    <h5>Select Contracted Stays</h5>
+                    <p>Choose real inventory in Makkah &amp; Madinah. Direct contracts mean instant BRN voucher numbers locked to your name.</p>
+                  </div>
+                  <div className="atlys-step-card">
+                    <div className="atlys-step-num">3</div>
+                    <h5>Instant e-Visa Manifest</h5>
+                    <p>Receive your digital Ministry of Hajj &amp; Umrah visa manifest directly on WhatsApp and email in under 24 hours.</p>
+                  </div>
                 </div>
               </div>
             </section>
 
             {/* Atlys Trust & Guarantee Strip (Only on Landing Page) */}
             <section className="atlys-trust-strip">
-              <div className="atlys-trust-card">
-                <div className="atlys-trust-icon-box" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)' }}>
-                  <ShieldCheck className="h-6 w-6" />
+              <div className="section-container">
+                <div className="atlys-trust-grid">
+                  <div className="atlys-trust-card">
+                    <div className="atlys-trust-icon-box" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)' }}>
+                      <ShieldCheck className="h-6 w-6" />
+                    </div>
+                    <h4>Official Direct Integration</h4>
+                    <p>Direct electronic integration with the Saudi Ministry of Foreign Affairs ensures immediate border validity and clearance.</p>
+                  </div>
+                  <div className="atlys-trust-card">
+                    <div className="atlys-trust-icon-box" style={{ backgroundColor: '#deebff', color: '#0052cc' }}>
+                      <FileCheck className="h-6 w-6" />
+                    </div>
+                    <h4>100% Confirmed BRNs</h4>
+                    <p>We do not display hypothetical rooms. Every allotment is contracted inventory with confirmed booking reference numbers.</p>
+                  </div>
+                  <div className="atlys-trust-card">
+                    <div className="atlys-trust-icon-box" style={{ backgroundColor: '#fff0b3', color: '#ff8b00' }}>
+                      <HeartHandshake className="h-6 w-6" />
+                    </div>
+                    <h4>24/7 Pilgrimage Concierge</h4>
+                    <p>Our dedicated Saudi field operations team assists you upon arrival at Jeddah/Madinah airport and hotel check-in desks.</p>
+                  </div>
                 </div>
-                <h4>Official Direct Integration</h4>
-                <p>Direct electronic integration with the Saudi Ministry of Foreign Affairs ensures immediate border validity and clearance.</p>
-              </div>
-              <div className="atlys-trust-card">
-                <div className="atlys-trust-icon-box" style={{ backgroundColor: '#deebff', color: '#0052cc' }}>
-                  <FileCheck className="h-6 w-6" />
-                </div>
-                <h4>100% Confirmed BRNs</h4>
-                <p>We do not display hypothetical rooms. Every allotment is contracted inventory with confirmed booking reference numbers.</p>
-              </div>
-              <div className="atlys-trust-card">
-                <div className="atlys-trust-icon-box" style={{ backgroundColor: '#fff0b3', color: '#ff8b00' }}>
-                  <HeartHandshake className="h-6 w-6" />
-                </div>
-                <h4>24/7 Pilgrimage Concierge</h4>
-                <p>Our dedicated Saudi field operations team assists you upon arrival at Jeddah/Madinah airport and hotel check-in desks.</p>
               </div>
             </section>
-          </main>
+          </div>
         </>
       ) : (
         /* Standalone Isolated Multi-Step Booking Flow (No landing/marketing sections above or below) */
-        <main style={{ maxWidth: '1240px', margin: '2rem auto 4rem auto', padding: '0 1.5rem', boxSizing: 'border-box', minHeight: '80vh' }}>
+        <main className="booking-builder-main" style={{ maxWidth: '1240px', margin: '2rem auto 4rem auto', padding: '0 1.5rem', boxSizing: 'border-box', minHeight: '80vh' }}>
           <div>
             {/* Atlys-Grade Pre-configured Land Package Verified Banner */}
             {configuredPackage && (

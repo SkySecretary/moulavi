@@ -148,13 +148,13 @@ export const ThingsToDoUmrah: React.FC = () => {
         {/* Section Header */}
         <div className="things-todo-header">
           <span className="todo-badge">
-            <Compass className="h-3.5 w-3.5 text-amber-500" /> Sacred Experiences &amp; Activities
+            <Compass className="h-3.5 w-3.5 text-amber-500" /> Sacred Places &amp; Ziyarat
           </span>
           <h2 className="todo-title">
-            Things to Experience in Makkah &amp; Madinah
+            Best Places to Visit in <span className="gold-shimmer-text">Makkah &amp; Madinah</span>
           </h2>
           <p className="todo-subtitle">
-            Enrich your holy pilgrimage with curated spiritual milestones, historic Ziyarat trails, high-speed rail journeys, and authentic Arabian heritage.
+            Essential spiritual milestones and historical Ziyarat places for Indian pilgrims, from the Holy Kaaba to Cave of Hira, Taif mountains, and the Prophet's Mosque ﷺ.
           </p>
 
           {/* Filter Tabs */}

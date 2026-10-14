@@ -104,13 +104,13 @@ export const DidYouKnowUmrah: React.FC = () => {
         {/* Section Header */}
         <div className="did-you-know-header">
           <span className="dyk-badge">
-            <HelpCircle className="h-3.5 w-3.5 text-amber-500" /> Sacred Heritage &amp; Wonders
+            <HelpCircle className="h-3.5 w-3.5 text-amber-500" /> Amazing Facts
           </span>
           <h2 className="dyk-title">
-            Wonders of the Two Holy Mosques: Did You Know?
+            Did You Know? <span className="gold-shimmer-text">Wonders of Makkah &amp; Madinah</span>
           </h2>
           <p className="dyk-subtitle">
-            Explore authentic historical marvels, spiritual multiplications, and engineering wonders that make Makkah Al-Mukarramah and Madinah Al-Munawwarah unlike any other place on Earth.
+            Fascinating facts and historical blessings of the Two Holy Mosques that every pilgrim should know before embarking on their journey.
           </p>
         </div>
 

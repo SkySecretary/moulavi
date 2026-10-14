@@ -162,13 +162,13 @@ export const OfficialPortalsGuide: React.FC = () => {
         {/* Section Header */}
         <div className="portals-header">
           <span className="portals-badge">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" /> Official Saudi Pilgrimage Ecosystem
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" /> Official Saudi Portals &amp; Apps
           </span>
           <h2 className="portals-title">
-            Essential Government Portals &amp; Pilgrim Guides
+            Official Saudi Government Websites &amp; Pilgrim Guides
           </h2>
           <p className="portals-subtitle">
-            Direct verified links, official regulatory apps, and step-by-step registration instructions for your smooth journey through the Kingdom of Saudi Arabia.
+            Direct verified links and registration instructions for Nusuk Rawdah permits, Tawakkalna identity, MOFA Umrah eVisa, and Haramain High-Speed Train.
           </p>
         </div>
 
