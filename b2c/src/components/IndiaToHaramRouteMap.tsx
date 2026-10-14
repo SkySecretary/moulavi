@@ -30,7 +30,6 @@ interface RouteStage {
   summary: string;
   practicalTipForIndians: string;
   spiritualEtiquette: string;
-  mapCoords: { x: number; y: number }; // Percentage on SVG canvas
   accentColor: string;
 }
 
@@ -42,34 +41,32 @@ const ROUTE_STAGES: RouteStage[] = [
     modeLabel: 'Air Flight',
     vehicleType: 'Direct / 1-Stop Commercial Flight (Saudia, Air India, IndiGo, Emirates, Flynas)',
     title: 'Flight from India to Jeddah Airport',
-    fromLocation: 'India (Mumbai, Delhi, Calicut, Hyderabad, Bangalore, Cochin)',
+    fromLocation: 'India (Mumbai, Delhi, Calicut, Cochin, Hyderabad, Bangalore)',
     toLocation: 'Jeddah — King Abdulaziz International Airport (JED)',
     distance: '3,450 km across Arabian Sea',
     duration: '4.5 to 5.5 Hours Flight',
     tag: 'Flight from India',
-    summary: 'Board your international flight in India. As your aircraft flies across the Arabian Sea, the flight captain will announce the Miqat boundary (Qarn al-Manazil / Yalamlam) approximately 30 minutes before landing.',
-    practicalTipForIndians: 'Put on your two-piece white Ihram sheets at your home airport before boarding or in the airplane lavatory 1 hour prior to reaching Miqat. Declare your Umrah Niyyah (intention) as instructed by the captain.',
+    summary: 'Board your flight in India. As your aircraft flies across the Arabian Sea, the flight captain announces the Miqat boundary (Qarn al-Manazil / Yalamlam) approximately 30 minutes before descent into Jeddah.',
+    practicalTipForIndians: 'Put on your two-piece white Ihram sheets at your home airport before boarding or 1 hour prior to reaching Miqat on the flight. Declare your Umrah Niyyah (intention) as announced by the captain.',
     spiritualEtiquette: 'Recite the Talbiyah loudly and continuously once entering Ihram: "Labbayka Allahumma Labbayk, Labbayka Laa Shareeka Laka Labbayk..."',
-    mapCoords: { x: 78, y: 55 },
-    accentColor: '#FFD700'
+    accentColor: '#B88933'
   },
   {
     id: 'stage-2',
     stepNum: 2,
     mode: 'van',
     modeLabel: 'Private AC Van',
-    vehicleType: 'Air-Conditioned Private Van / Toyota HiAce / Hyundai Staria / VIP GMC Yukon',
+    vehicleType: 'Air-Conditioned Private Van (Toyota HiAce / Hyundai Staria / VIP GMC Yukon)',
     title: 'AC Van Transfer: Jeddah Airport to Makkah Hotel',
-    fromLocation: 'Jeddah Airport Hajj/Umrah Terminal',
+    fromLocation: 'Jeddah Airport Hajj & Umrah Terminal',
     toLocation: 'Makkah Al-Mukarramah (Haram Hotel)',
     distance: '75 km via Jeddah-Makkah Expressway',
     duration: '60 to 75 Minutes Drive',
     tag: 'Jeddah to Makkah Van',
-    summary: 'Upon landing at Jeddah, clear the dedicated electronic Umrah immigration counters. Your private Moulavi chauffeur receives your family right at the arrival terminal with chilled Zamzam and helps load luggage into your private AC van.',
-    practicalTipForIndians: 'Drive through the iconic Quran Gate (Bawwabat Makkah) marking the sacred boundary. Check into your hotel, freshen up with wudu, and leave luggage securely before proceeding to the Haram.',
+    summary: 'Clear dedicated electronic Umrah immigration counters at Jeddah. Your private Moulavi chauffeur receives your family right at arrival with chilled Zamzam and loads luggage into your private AC van.',
+    practicalTipForIndians: 'Drive through the monumental Quran Gate (Bawwabat Makkah) marking the holy boundary. Check into your hotel, freshen up with wudu, and leave luggage before proceeding to the Haram.',
     spiritualEtiquette: 'Maintain your state of Ihram strictly during the drive. Keep reciting Talbiyah together as a family until you gaze upon the Holy Kaaba.',
-    mapCoords: { x: 30, y: 58 },
-    accentColor: '#F59E0B'
+    accentColor: '#D97706'
   },
   {
     id: 'stage-3',
@@ -80,14 +77,13 @@ const ROUTE_STAGES: RouteStage[] = [
     title: 'Holy Umrah Rites: Tawaf, Zamzam & Sa\'i',
     fromLocation: 'Makkah Hotel Courtyard',
     toLocation: 'Masjid Al-Haram (The Holy Kaaba)',
-    distance: 'Walking distance (100m - 400m from 5★ hotel)',
+    distance: 'Walkable distance (100m - 400m from 5★ hotel)',
     duration: '2.5 to 3.5 Hours for Complete Umrah',
     tag: 'Holy Umrah Walking',
-    summary: 'Enter Masjid Al-Haram with your right foot making the supplication of entering the mosque. Walk into the Mataf for 7 rounds of Tawaf around the Kaaba, pray 2 rakats behind Maqam Ibrahim, drink cool Zamzam water, complete 7 laps of Sa\'i between Safa and Marwah, and perform Halq/Taqseer (hair trimming).',
-    practicalTipForIndians: 'Wheelchairs with official pushers are available on the upper mezzanine floor for elderly parents. Carry a light drawstring bag for your sandals and a small water bottle.',
-    spiritualEtiquette: 'Upon first seeing the Holy Kaaba, stop and make heartfelt Dua—prayers are readily answered at this blessed moment. Umrah is now fulfilled with immense rewards!',
-    mapCoords: { x: 32, y: 64 },
-    accentColor: '#10B981'
+    summary: 'Enter Masjid Al-Haram with supplications. Walk into the Mataf for 7 rounds of Tawaf around the Holy Kaaba, pray 2 rakats behind Maqam Ibrahim, drink cool Zamzam water, complete 7 laps of Sa\'i between Safa and Marwah, and perform Halq/Taqseer.',
+    practicalTipForIndians: 'Wheelchairs with official pushers are available on the upper mezzanine floor for elderly parents. Carry a light shoe bag and a small water bottle.',
+    spiritualEtiquette: 'Upon first seeing the Holy Kaaba, stop and make heartfelt Dua—supplications are readily accepted at this blessed moment. Your Umrah is now complete!',
+    accentColor: '#059669'
   },
   {
     id: 'stage-4',
@@ -101,18 +97,17 @@ const ROUTE_STAGES: RouteStage[] = [
     distance: '85 km scenic highway to Taif + Local Makkah Ziyarat',
     duration: 'Full Day Excursion (8 AM to 6 PM)',
     tag: 'Taif & Ziyarat Van',
-    summary: 'A private full-day tour in a spacious AC Van. Visit Cave of Hira at Jabal Al-Noor, Cave of Thawr, Mina, Arafat, and Muzdalifah. Then take the picturesque Al-Hada mountain road up to the cool highlands of Taif.',
-    practicalTipForIndians: 'Visit the historic Masjid Abdullah Ibn Abbas in Taif, fragrant Taif rose water distilleries, and the famous mountain fruit markets. If intending a 2nd Umrah, enter Ihram at Miqat Qarn al-Manazil on the return descent.',
+    summary: 'A private full-day tour in a spacious AC Van. Visit Cave of Hira at Jabal Al-Noor, Cave of Thawr, Mina, Arafat, and Muzdalifah. Then ascend the picturesque Al-Hada mountain road up to the cool highlands of Taif.',
+    practicalTipForIndians: 'Visit the historic Masjid Abdullah Ibn Abbas in Taif, fragrant Taif rose water distilleries, and the mountain fruit markets. If intending a 2nd Umrah, enter Ihram at Miqat Qarn al-Manazil on the return descent.',
     spiritualEtiquette: 'Reflect upon the Prophet’s ﷺ profound patience and mercy during his historic visit to Taif, sending continuous blessings (Salawat).',
-    mapCoords: { x: 42, y: 72 },
-    accentColor: '#8B5CF6'
+    accentColor: '#7C3AED'
   },
   {
     id: 'stage-5',
     stepNum: 5,
     mode: 'van_train',
     modeLabel: 'AC Van / High-Speed Train',
-    vehicleType: 'Private AC Van / 300 km/h Haramain Bullet Train',
+    vehicleType: 'Private AC Van / 300 km/h Haramain High-Speed Bullet Train',
     title: 'Journey to Madinah Al-Munawwarah',
     fromLocation: 'Makkah Al-Mukarramah',
     toLocation: 'Madinah — Al-Masjid An-Nabawi (City of the Prophet ﷺ)',
@@ -122,8 +117,7 @@ const ROUTE_STAGES: RouteStage[] = [
     summary: 'Travel in relaxed comfort from Makkah to the illuminated city of Madinah. Arrive at your hotel facing the Prophet’s Mosque. Greet the Messenger of Allah ﷺ at the Golden Grill and pray in the Garden of Paradise (Rawdah Ash-Sharifah).',
     practicalTipForIndians: 'Our team assists you with pre-booking your Rawdah Ash-Sharifah permit slots on the official Nusuk app. In Madinah, enjoy local ziyarat to Masjid Quba (reward of full Umrah) and Mount Uhud.',
     spiritualEtiquette: 'Send peace and blessings upon Prophet Muhammad ﷺ and his companions Abu Bakr and Umar (RA) with deep love, modesty, and reverence.',
-    mapCoords: { x: 30, y: 28 },
-    accentColor: '#D4AF37'
+    accentColor: '#C59A4E'
   }
 ];
 
@@ -141,7 +135,7 @@ export const IndiaToHaramRouteMap: React.FC<IndiaToHaramRouteMapProps> = ({ onPl
     if (!isPlaying) return;
     const interval = setInterval(() => {
       setActiveStepIndex((prev) => (prev + 1) % ROUTE_STAGES.length);
-    }, 5000);
+    }, 5500);
     return () => clearInterval(interval);
   }, [isPlaying]);
 
@@ -152,7 +146,7 @@ export const IndiaToHaramRouteMap: React.FC<IndiaToHaramRouteMapProps> = ({ onPl
         {/* Section Header */}
         <div className="india-map-header">
           <div className="india-map-badge">
-            <Compass className="h-3.5 w-3.5 text-amber-300" />
+            <Compass className="h-3.5 w-3.5 text-amber-700" />
             <span>Interactive Pilgrim Route Map</span>
           </div>
 
@@ -161,11 +155,11 @@ export const IndiaToHaramRouteMap: React.FC<IndiaToHaramRouteMapProps> = ({ onPl
           </h2>
 
           <p className="india-map-subtitle">
-            Follow the visual travel route: Flights from Indian cities, private AC van transfers, walking for Umrah at the Holy Kaaba, Taif mountain ziyarat, and travel to Madinah.
+            Experience your full pilgrimage itinerary: Direct flights from Indian embarkation airports, private AC van transfers via the Quran Gate, walking for Umrah at the Holy Kaaba, Taif mountain ziyarat, and journey to the Prophet&apos;s Mosque ﷺ in Madinah.
           </p>
         </div>
 
-        {/* Interactive Step Navigation Bar */}
+        {/* Interactive Step Navigation Bar (5 Steps) */}
         <div className="india-step-pills-bar">
           {ROUTE_STAGES.map((stage, idx) => {
             const isActive = idx === activeStepIndex;
@@ -181,19 +175,23 @@ export const IndiaToHaramRouteMap: React.FC<IndiaToHaramRouteMapProps> = ({ onPl
               >
                 <span className="step-pill-num">{stage.stepNum}</span>
                 <span className="step-pill-icon">
-                  {stage.mode === 'flight' && <Plane className="h-3.5 w-3.5" />}
-                  {stage.mode === 'van' && <Car className="h-3.5 w-3.5" />}
-                  {stage.mode === 'walk' && <Footprints className="h-3.5 w-3.5" />}
-                  {stage.mode === 'van_mountain' && <Car className="h-3.5 w-3.5" />}
-                  {stage.mode === 'van_train' && <Navigation className="h-3.5 w-3.5" />}
+                  {stage.mode === 'flight' && <Plane className="h-4 w-4" />}
+                  {stage.mode === 'van' && <Car className="h-4 w-4" />}
+                  {stage.mode === 'walk' && <Footprints className="h-4 w-4" />}
+                  {stage.mode === 'van_mountain' && <Car className="h-4 w-4" />}
+                  {stage.mode === 'van_train' && <Navigation className="h-4 w-4" />}
                 </span>
-                <span className="step-pill-label">{stage.tag}</span>
+                <div className="step-pill-text">
+                  <span className="step-pill-title">{stage.tag}</span>
+                  <span className="step-pill-sub">{stage.modeLabel}</span>
+                </div>
+                {isActive && <span className="active-stage-indicator" />}
               </button>
             );
           })}
         </div>
 
-        {/* 2D Graphical Vector Map Arena */}
+        {/* 2D Graphical Vector Map Arena (Zoomed In Light Cartographic Canvas) */}
         <div className="india-map-canvas-container">
           
           {/* Top Controls: Play/Pause/Reset */}
@@ -206,12 +204,12 @@ export const IndiaToHaramRouteMap: React.FC<IndiaToHaramRouteMapProps> = ({ onPl
             >
               {isPlaying ? (
                 <>
-                  <Pause className="h-3.5 w-3.5 text-amber-400" />
+                  <Pause className="h-3.5 w-3.5 text-amber-700" />
                   <span>Pause Route</span>
                 </>
               ) : (
                 <>
-                  <Play className="h-3.5 w-3.5 text-amber-400" />
+                  <Play className="h-3.5 w-3.5 text-amber-700" />
                   <span>Animate Route</span>
                 </>
               )}
@@ -226,12 +224,12 @@ export const IndiaToHaramRouteMap: React.FC<IndiaToHaramRouteMapProps> = ({ onPl
               }}
               title="Restart from India"
             >
-              <RotateCcw className="h-3.5 w-3.5 text-slate-300" />
+              <RotateCcw className="h-3.5 w-3.5 text-slate-600" />
               <span>Restart</span>
             </button>
           </div>
 
-          {/* SVG Stylized 2D Map Canvas */}
+          {/* SVG Stylized 2D Zoomed-in Map Canvas */}
           <svg 
             className="india-route-svg"
             viewBox="0 0 1000 520" 
@@ -239,260 +237,307 @@ export const IndiaToHaramRouteMap: React.FC<IndiaToHaramRouteMapProps> = ({ onPl
           >
             <defs>
               {/* Gradients */}
-              <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#FFD700" />
-                <stop offset="50%" stopColor="#C59A4E" />
-                <stop offset="100%" stopColor="#AA771C" />
+              <linearGradient id="oceanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#F1F6FA" />
+                <stop offset="50%" stopColor="#EBF2F8" />
+                <stop offset="100%" stopColor="#DFEAF3" />
               </linearGradient>
 
-              <linearGradient id="flightCurveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#10B981" />
-                <stop offset="50%" stopColor="#FFD700" />
-                <stop offset="100%" stopColor="#C59A4E" />
+              <linearGradient id="ksaLandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#FDFBF7" />
+                <stop offset="100%" stopColor="#F5EFE3" />
               </linearGradient>
 
-              <linearGradient id="ksaGlow" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#0B231A" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#05140F" stopOpacity="0.6" />
+              <linearGradient id="indiaLandGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#FCFBF7" />
+                <stop offset="100%" stopColor="#F3EDE0" />
               </linearGradient>
 
-              <linearGradient id="indiaGlow" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#1E293B" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#0F172A" stopOpacity="0.6" />
+              <linearGradient id="flightGoldGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#C59A4E" />
+                <stop offset="50%" stopColor="#D97706" />
+                <stop offset="100%" stopColor="#B45309" />
               </linearGradient>
 
-              {/* Vehicle Glow filter */}
-              <filter id="glowFilter" x="-30%" y="-30%" width="160%" height="160%">
-                <feGaussianBlur stdDeviation="6" result="blur" />
+              <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
                 <feComposite in="SourceGraphic" in2="blur" operator="over" />
               </filter>
             </defs>
 
-            {/* Background Sea & Waves Grid */}
-            <rect width="1000" height="520" fill="#060F18" rx="16" />
-            <path d="M 0,130 Q 250,110 500,140 T 1000,120" stroke="rgba(255,255,255,0.03)" strokeWidth="1" fill="none" />
-            <path d="M 0,260 Q 250,240 500,270 T 1000,250" stroke="rgba(255,255,255,0.03)" strokeWidth="1" fill="none" />
-            <path d="M 0,390 Q 250,370 500,400 T 1000,380" stroke="rgba(255,255,255,0.03)" strokeWidth="1" fill="none" />
+            {/* Background Ocean: Serene Cartographic Blue */}
+            <rect width="1000" height="520" fill="url(#oceanGrad)" rx="20" />
 
-            {/* Arabian Sea Label */}
-            <text x="560" y="320" fill="rgba(255,215,0,0.12)" fontSize="18" fontWeight="800" letterSpacing="6" fontFamily="sans-serif">
-              ARABIAN SEA
+            {/* Subtle Nautical Wave Pattern Lines */}
+            <path d="M 50,140 Q 300,120 550,150 T 950,130" stroke="rgba(186, 210, 230, 0.45)" strokeWidth="1.2" fill="none" />
+            <path d="M 50,260 Q 320,240 580,270 T 950,250" stroke="rgba(186, 210, 230, 0.45)" strokeWidth="1.2" fill="none" />
+            <path d="M 50,380 Q 340,360 620,390 T 950,370" stroke="rgba(186, 210, 230, 0.45)" strokeWidth="1.2" fill="none" />
+
+            {/* Central Water Label: Arabian Sea Corridor */}
+            <g transform="translate(540, 290)">
+              <text x="0" y="0" textAnchor="middle" fill="#64748B" fontSize="13" fontWeight="800" letterSpacing="4" opacity="0.65">
+                ARABIAN SEA CORRIDOR
+              </text>
+              <text x="0" y="16" textAnchor="middle" fill="#94A3B8" fontSize="9" fontWeight="600" letterSpacing="1.5">
+                Direct Pilgrim Air Route (3,450 km)
+              </text>
+            </g>
+
+            {/* Miqat Boundary Announcement Line */}
+            <g id="miqat-line">
+              <line 
+                x1="365" y1="160" x2="335" y2="440" 
+                stroke="#10B981" 
+                strokeWidth="2" 
+                strokeDasharray="6,4" 
+                opacity="0.8"
+              />
+              <rect x="290" y="275" width="130" height="22" rx="11" fill="#ECFDF5" stroke="#10B981" strokeWidth="1" />
+              <text x="355" y="290" textAnchor="middle" fill="#047857" fontSize="9" fontWeight="800">
+                MIQAT BOUNDARY
+              </text>
+            </g>
+
+            {/* ========================================================
+               LEFT REGION: ZOOMED-IN WESTERN SAUDI ARABIA (HIJAZ)
+               ======================================================== */}
+            {/* Red Sea waters label on far left */}
+            <text x="45" y="280" fill="#94A3B8" fontSize="10" fontWeight="700" letterSpacing="2" transform="rotate(-90 45 280)">
+              RED SEA
             </text>
 
-            {/* Left Landmass: Arabian Peninsula (2D Stylized Solid Silhouette) */}
+            {/* Western Saudi Arabia (Hijaz landmass - Zoomed In) */}
             <path 
-              d="M 120,40 
-                 C 180,60 260,80 320,120 
-                 C 360,150 400,210 390,280 
-                 C 380,340 340,410 260,470 
-                 C 190,490 140,460 110,410 
-                 C 80,360 70,290 85,210 
-                 C 95,140 100,70 120,40 Z"
-              fill="url(#ksaGlow)"
-              stroke="rgba(197, 154, 78, 0.3)"
-              strokeWidth="1.5"
+              d="M 120,20 
+                 C 160,35 240,40 320,60 
+                 C 380,85 410,130 400,200 
+                 C 395,270 410,340 390,410 
+                 C 370,470 300,500 240,510 
+                 C 180,510 145,460 135,420 
+                 C 115,360 100,290 110,210 
+                 C 120,150 105,70 120,20 Z"
+              fill="url(#ksaLandGrad)"
+              stroke="#C59A4E"
+              strokeWidth="2.2"
+              filter="drop-shadow(0 4px 12px rgba(197, 154, 78, 0.15))"
             />
-            <text x="170" y="100" fill="rgba(212, 175, 55, 0.4)" fontSize="12" fontWeight="700" letterSpacing="3">
+
+            {/* Land Region Title */}
+            <text x="210" y="65" fill="#8C6B28" fontSize="13" fontWeight="900" letterSpacing="2">
               SAUDI ARABIA (HIJAZ)
             </text>
 
-            {/* Right Landmass: Indian Subcontinent (2D Stylized Solid Silhouette) */}
+            {/* ========================================================
+               RIGHT REGION: ZOOMED-IN PENINSULAR INDIA (WEST COAST)
+               ======================================================== */}
             <path 
-              d="M 780,50 
-                 C 850,55 930,80 970,120 
-                 C 980,180 960,250 940,310 
-                 C 910,380 870,450 830,490 
-                 C 810,480 790,430 780,380 
-                 C 760,330 730,280 735,220 
-                 C 740,160 750,90 780,50 Z"
-              fill="url(#indiaGlow)"
-              stroke="rgba(148, 163, 184, 0.35)"
-              strokeWidth="1.5"
+              d="M 750,30 
+                 C 820,35 910,45 960,80 
+                 C 980,130 965,200 950,270 
+                 C 930,340 890,420 840,490 
+                 C 815,485 795,430 780,380 
+                 C 760,320 735,270 740,210 
+                 C 745,150 720,80 750,30 Z"
+              fill="url(#indiaLandGrad)"
+              stroke="#C59A4E"
+              strokeWidth="2.2"
+              filter="drop-shadow(0 4px 12px rgba(197, 154, 78, 0.15))"
             />
-            <text x="820" y="100" fill="rgba(255, 255, 255, 0.45)" fontSize="13" fontWeight="800" letterSpacing="3">
+
+            <text x="830" y="65" fill="#8C6B28" fontSize="14" fontWeight="900" letterSpacing="3">
               INDIA
             </text>
 
-            {/* Indian Departure Hub City Dots */}
-            <g id="indian-cities">
-              {/* Delhi */}
-              <circle cx="820" cy="130" r="4" fill="#94A3B8" />
-              <text x="830" y="134" fill="#CBD5E1" fontSize="10" fontWeight="600">Delhi (DEL)</text>
+            {/* Indian Embarkation Hubs & City Nodes */}
+            <g id="indian-departure-nodes">
+              {/* Delhi [DEL] */}
+              <circle cx="835" cy="110" r="4.5" fill="#0F172A" />
+              <text x="846" y="114" fill="#1E293B" fontSize="10.5" fontWeight="700">Delhi (DEL)</text>
 
-              {/* Mumbai */}
-              <circle cx="770" cy="240" r="5" fill="#FFD700" />
-              <circle cx="770" cy="240" r="10" fill="none" stroke="rgba(255,215,0,0.4)" strokeWidth="1" />
-              <text x="705" y="244" fill="#FFD700" fontSize="11" fontWeight="700">Mumbai (BOM)</text>
+              {/* Mumbai [BOM] (Primary Western Embarkation Hub) */}
+              <circle cx="765" cy="225" r="7" fill="#D97706" />
+              <circle cx="765" cy="225" r="13" fill="none" stroke="rgba(217, 119, 6, 0.45)" strokeWidth="1.5" />
+              <text x="690" y="230" fill="#92400E" fontSize="12" fontWeight="900">Mumbai (BOM)</text>
 
-              {/* Hyderabad */}
-              <circle cx="820" cy="280" r="4" fill="#94A3B8" />
-              <text x="830" y="284" fill="#CBD5E1" fontSize="10" fontWeight="600">Hyderabad (HYD)</text>
+              {/* Hyderabad [HYD] */}
+              <circle cx="830" cy="265" r="4.5" fill="#0F172A" />
+              <text x="842" y="270" fill="#1E293B" fontSize="10.5" fontWeight="700">Hyderabad (HYD)</text>
 
-              {/* Bangalore */}
-              <circle cx="810" cy="340" r="4" fill="#94A3B8" />
-              <text x="820" y="344" fill="#CBD5E1" fontSize="10" fontWeight="600">Bangalore (BLR)</text>
+              {/* Bangalore [BLR] */}
+              <circle cx="820" cy="330" r="4.5" fill="#0F172A" />
+              <text x="832" y="335" fill="#1E293B" fontSize="10.5" fontWeight="700">Bangalore (BLR)</text>
 
-              {/* Calicut / Cochin (Kerala Hub) */}
-              <circle cx="790" cy="380" r="5" fill="#10B981" />
-              <text x="710" y="385" fill="#34D399" fontSize="11" fontWeight="700">Calicut / Cochin</text>
+              {/* Calicut / Cochin [Kerala Hub] */}
+              <circle cx="795" cy="390" r="6" fill="#059669" />
+              <circle cx="795" cy="390" r="11" fill="none" stroke="rgba(5, 150, 105, 0.45)" strokeWidth="1.5" />
+              <text x="700" y="395" fill="#065F46" fontSize="11" fontWeight="800">Calicut / Cochin</text>
             </g>
 
-            {/* Key Routes in Saudi Arabia */}
+            {/* ========================================================
+               TRANSIT HIGHWAYS & RAILWAYS IN KSA
+               ======================================================== */}
 
-            {/* Route A: Flight Arc from India (Mumbai x:770, y:240) to Jeddah (x:170, y:300) */}
+            {/* Highway Route 1: Jeddah Airport to Makkah (160,310 -> 215,340 -> 255,365) */}
+            <path 
+              id="hwyJeddahMakkah"
+              d="M 160,310 Q 200,325 255,365"
+              fill="none"
+              stroke={activeStepIndex === 1 ? "#D97706" : "rgba(217, 119, 6, 0.35)"}
+              strokeWidth={activeStepIndex === 1 ? "4.5" : "2.5"}
+            />
+
+            {/* Quran Gate Marker (Bawwabat Makkah on the highway) */}
+            <g id="node-quran-gate" transform="translate(205, 335)">
+              <rect x="-6" y="-4" width="12" height="8" rx="2" fill="#D4AF37" stroke="#78350F" strokeWidth="1" />
+              <text x="-4" y="16" fill="#78350F" fontSize="8" fontWeight="800">Quran Gate</text>
+            </g>
+
+            {/* Highway Route 2: Makkah to Taif Mountain Route (255,365 to 330,425) */}
+            <path 
+              id="hwyMakkahTaif"
+              d="M 255,365 Q 290,410 330,425"
+              fill="none"
+              stroke={activeStepIndex === 3 ? "#7C3AED" : "rgba(124, 58, 237, 0.3)"}
+              strokeWidth={activeStepIndex === 3 ? "4.5" : "2.2"}
+              strokeDasharray="6,3"
+            />
+
+            {/* Highway & Railway Route 3: Makkah to Madinah (255,365 north to 200,120) */}
+            <path 
+              id="hwyMakkahMadinah"
+              d="M 255,365 Q 185,240 200,120"
+              fill="none"
+              stroke={activeStepIndex === 4 ? "#C59A4E" : "rgba(197, 154, 78, 0.35)"}
+              strokeWidth={activeStepIndex === 4 ? "4.5" : "2.5"}
+            />
+
+            {/* ========================================================
+               KEY CITIES & HOLY SANCTUARIES IN KSA
+               ======================================================== */}
+
+            {/* 1. Jeddah (JED) */}
+            <g id="node-jeddah" transform="translate(160, 310)">
+              <circle cx="0" cy="0" r="8" fill="#D97706" />
+              <circle cx="0" cy="0" r="14" fill="none" stroke="rgba(217, 119, 6, 0.4)" strokeWidth="1.5" />
+              <text x="-20" y="-12" fill="#92400E" fontSize="12" fontWeight="900">JEDDAH</text>
+              <text x="-35" y="24" fill="#64748B" fontSize="9" fontWeight="700">King Abdulaziz Airport (JED)</text>
+            </g>
+
+            {/* 2. Makkah Al-Mukarramah (Holy Kaaba 🕋) */}
+            <g id="node-makkah" transform="translate(255, 365)">
+              <circle cx="0" cy="0" r={activeStepIndex === 2 ? "14" : "10"} fill="#059669" />
+              <circle cx="0" cy="0" r={activeStepIndex === 2 ? "24" : "17"} fill="none" stroke="rgba(5, 150, 105, 0.45)" strokeWidth="2" />
+              {/* Kaaba Symbol Cube */}
+              <rect x="-5" y="-5" width="10" height="10" fill="#000000" stroke="#FFD700" strokeWidth="1.2" rx="1" />
+              <text x="20" y="3" fill="#065F46" fontSize="13" fontWeight="900">MAKKAH</text>
+              <text x="20" y="16" fill="#1E293B" fontSize="9.5" fontWeight="700">Al-Masjid Al-Haram 🕋</text>
+            </g>
+
+            {/* 3. Taif Mountains (Al-Hada & Ziyarat 🏔️) */}
+            <g id="node-taif" transform="translate(330, 425)">
+              <circle cx="0" cy="0" r="7.5" fill="#7C3AED" />
+              <circle cx="0" cy="0" r="13" fill="none" stroke="rgba(124, 58, 237, 0.4)" strokeWidth="1.2" />
+              <text x="16" y="3" fill="#5B21B6" fontSize="11.5" fontWeight="900">TAIF</text>
+              <text x="16" y="15" fill="#475569" fontSize="9" fontWeight="700">Mountains &amp; Ziyarat 🏔️</text>
+            </g>
+
+            {/* 4. Madinah Al-Munawwarah (Prophet's Mosque ﷺ 🕌) */}
+            <g id="node-madinah" transform="translate(200, 120)">
+              <circle cx="0" cy="0" r={activeStepIndex === 4 ? "14" : "10"} fill="#C59A4E" />
+              <circle cx="0" cy="0" r={activeStepIndex === 4 ? "24" : "17"} fill="none" stroke="rgba(197, 154, 78, 0.45)" strokeWidth="2" />
+              {/* Green Dome representation */}
+              <circle cx="0" cy="-2" r="5" fill="#047857" stroke="#FFD700" strokeWidth="1" />
+              <text x="-70" y="-14" fill="#854D0E" fontSize="13" fontWeight="900">MADINAH</text>
+              <text x="-95" y="3" fill="#1E293B" fontSize="9.5" fontWeight="700">Al-Masjid An-Nabawi 🕌</text>
+            </g>
+
+            {/* ========================================================
+               FLIGHT PATH ARC: FROM MUMBAI (765, 225) TO JEDDAH (160, 310)
+               ======================================================== */}
             <path 
               id="flightPathArc"
-              d="M 770,240 Q 470,120 170,300"
+              d="M 765,225 Q 460,100 160,310"
               fill="none"
-              stroke={activeStepIndex === 0 ? "url(#goldGradient)" : "rgba(255, 215, 0, 0.25)"}
-              strokeWidth={activeStepIndex === 0 ? "3.5" : "1.8"}
-              strokeDasharray={activeStepIndex === 0 ? "8,4" : "4,4"}
+              stroke={activeStepIndex === 0 ? "url(#flightGoldGrad)" : "rgba(217, 119, 6, 0.3)"}
+              strokeWidth={activeStepIndex === 0 ? "4" : "2"}
+              strokeDasharray={activeStepIndex === 0 ? "9,4" : "4,4"}
             />
 
-            {/* Route B: Jeddah to Makkah Highway (170,300 to 220,340) */}
-            <path 
-              id="jeddahMakkahHwy"
-              d="M 170,300 Q 195,315 220,340"
-              fill="none"
-              stroke={activeStepIndex === 1 ? "#F59E0B" : "rgba(245, 158, 11, 0.35)"}
-              strokeWidth={activeStepIndex === 1 ? "4" : "2"}
-            />
+            {/* ========================================================
+               ACTIVE ANIMATED 2D SOLID VEHICLE & MOVEMENT OVERLAYS
+               ======================================================== */}
 
-            {/* Route C: Walking Umrah inside Haram (Makkah Kaaba focal aura) */}
-            <circle 
-              cx="220" 
-              cy="340" 
-              r={activeStepIndex === 2 ? "18" : "12"} 
-              fill={activeStepIndex === 2 ? "rgba(16, 185, 129, 0.25)" : "none"}
-              stroke="#10B981"
-              strokeWidth={activeStepIndex === 2 ? "2.5" : "1.2"}
-              strokeDasharray="4,3"
-            />
-
-            {/* Route D: Makkah to Taif Mountain Route (220,340 to 280,390) */}
-            <path 
-              id="makkahTaifHwy"
-              d="M 220,340 Q 245,385 280,390"
-              fill="none"
-              stroke={activeStepIndex === 3 ? "#8B5CF6" : "rgba(139, 92, 246, 0.35)"}
-              strokeWidth={activeStepIndex === 3 ? "4" : "2"}
-              strokeDasharray="5,3"
-            />
-
-            {/* Route E: Makkah to Madinah (220,340 north to 190,160) */}
-            <path 
-              id="makkahMadinahHwy"
-              d="M 220,340 Q 185,250 190,160"
-              fill="none"
-              stroke={activeStepIndex === 4 ? "#FFD700" : "rgba(255, 215, 0, 0.35)"}
-              strokeWidth={activeStepIndex === 4 ? "4" : "2"}
-            />
-
-            {/* Destination Landmarks in KSA */}
-
-            {/* Jeddah (JED) */}
-            <g id="node-jeddah" transform="translate(170, 300)">
-              <circle cx="0" cy="0" r="8" fill="#F59E0B" />
-              <circle cx="0" cy="0" r="14" fill="none" stroke="rgba(245, 158, 11, 0.5)" strokeWidth="1" />
-              <text x="-15" y="-14" fill="#FDE68A" fontSize="11" fontWeight="800">JEDDAH</text>
-              <text x="-25" y="24" fill="#94A3B8" fontSize="9">Airport (JED)</text>
-            </g>
-
-            {/* Makkah Al-Mukarramah (Kaaba 🕋) */}
-            <g id="node-makkah" transform="translate(220, 340)">
-              <circle cx="0" cy="0" r={activeStepIndex === 2 ? "12" : "9"} fill="#10B981" />
-              <circle cx="0" cy="0" r={activeStepIndex === 2 ? "22" : "15"} fill="none" stroke="rgba(16, 185, 129, 0.6)" strokeWidth="1.5" />
-              {/* Kaaba Symbol Cube */}
-              <rect x="-4" y="-4" width="8" height="8" fill="#000000" stroke="#FFD700" strokeWidth="1" />
-              <text x="18" y="4" fill="#34D399" fontSize="12" fontWeight="900">MAKKAH</text>
-              <text x="18" y="16" fill="#F1F5F9" fontSize="9">Masjid Al-Haram 🕋</text>
-            </g>
-
-            {/* Taif 🏔️ */}
-            <g id="node-taif" transform="translate(280, 390)">
-              <circle cx="0" cy="0" r="7" fill="#8B5CF6" />
-              <circle cx="0" cy="0" r="12" fill="none" stroke="rgba(139, 92, 246, 0.5)" strokeWidth="1" />
-              <text x="14" y="4" fill="#C4B5FD" fontSize="11" fontWeight="800">TAIF</text>
-              <text x="14" y="16" fill="#E2E8F0" fontSize="9">Mountain &amp; Ziyarat 🏔️</text>
-            </g>
-
-            {/* Madinah Al-Munawwarah (Prophet's Mosque 🕌) */}
-            <g id="node-madinah" transform="translate(190, 160)">
-              <circle cx="0" cy="0" r={activeStepIndex === 4 ? "12" : "9"} fill="#FFD700" />
-              <circle cx="0" cy="0" r={activeStepIndex === 4 ? "22" : "15"} fill="none" stroke="rgba(255, 215, 0, 0.6)" strokeWidth="1.5" />
-              {/* Green Dome representation */}
-              <circle cx="0" cy="-2" r="4" fill="#065F46" stroke="#FFD700" strokeWidth="0.8" />
-              <text x="-70" y="-12" fill="#FDE047" fontSize="12" fontWeight="900">MADINAH</text>
-              <text x="-95" y="3" fill="#F1F5F9" fontSize="9">Prophet’s Mosque 🕌</text>
-            </g>
-
-            {/* Active Moving 2D Solid Vehicle Representation */}
+            {/* Step 1: Flight across Arabian Sea */}
             {activeStepIndex === 0 && (
-              /* Flight over the Arabian Sea */
-              <g transform="translate(480, 190)" filter="url(#glowFilter)">
-                <circle cx="0" cy="0" r="22" fill="#FFD700" fillOpacity="0.25" />
-                <circle cx="0" cy="0" r="14" fill="#FFD700" />
-                {/* Airplane Vector */}
+              <g transform="translate(470, 160)" filter="url(#softGlow)">
+                <circle cx="0" cy="0" r="22" fill="#D97706" fillOpacity="0.2" />
+                <circle cx="0" cy="0" r="14" fill="#D97706" />
+                {/* 2D Solid Airplane Vector */}
                 <path 
-                  d="M -6,0 L 0,-6 L 6,0 L 2,2 L 2,6 L -2,6 L -2,2 Z" 
-                  fill="#0A1C2A" 
+                  d="M -7,0 L 0,-8 L 7,0 L 2,3 L 2,7 L -2,7 L -2,3 Z" 
+                  fill="#FFFFFF" 
                   transform="rotate(-15)"
                 />
-                <text x="22" y="5" fill="#FFD700" fontSize="11" fontWeight="800">
+                <rect x="22" y="-12" width="135" height="24" rx="12" fill="#FFFFFF" stroke="#D97706" strokeWidth="1.2" />
+                <text x="32" y="4" fill="#92400E" fontSize="10.5" fontWeight="800">
                   ✈️ Air Flight (~4.5 hrs)
                 </text>
               </g>
             )}
 
+            {/* Step 2: AC Van from Jeddah to Makkah */}
             {activeStepIndex === 1 && (
-              /* AC Van: Jeddah to Makkah Highway */
-              <g transform="translate(195, 318)" filter="url(#glowFilter)">
-                <circle cx="0" cy="0" r="18" fill="#F59E0B" fillOpacity="0.25" />
-                <circle cx="0" cy="0" r="12" fill="#F59E0B" />
-                {/* Van symbol */}
-                <rect x="-5" y="-3" width="10" height="6" rx="2" fill="#0A1C2A" />
-                <circle cx="-3" cy="3" r="1.5" fill="#FFD700" />
-                <circle cx="3" cy="3" r="1.5" fill="#FFD700" />
-                <text x="18" y="4" fill="#F59E0B" fontSize="11" fontWeight="800">
+              <g transform="translate(195, 330)" filter="url(#softGlow)">
+                <circle cx="0" cy="0" r="18" fill="#D97706" fillOpacity="0.2" />
+                <circle cx="0" cy="0" r="12" fill="#D97706" />
+                {/* 2D Solid Van Vector */}
+                <rect x="-6" y="-4" width="12" height="7" rx="2" fill="#FFFFFF" />
+                <circle cx="-3" cy="3" r="1.5" fill="#78350F" />
+                <circle cx="3" cy="3" r="1.5" fill="#78350F" />
+                <rect x="18" y="-12" width="150" height="24" rx="12" fill="#FFFFFF" stroke="#D97706" strokeWidth="1.2" />
+                <text x="26" y="4" fill="#92400E" fontSize="10.5" fontWeight="800">
                   🚐 Private AC Van (75 km)
                 </text>
               </g>
             )}
 
+            {/* Step 3: Walking into Masjid Al-Haram for Umrah */}
             {activeStepIndex === 2 && (
-              /* Walking: Haram & Kaaba Tawaf */
-              <g transform="translate(220, 368)" filter="url(#glowFilter)">
-                <circle cx="0" cy="0" r="16" fill="#10B981" fillOpacity="0.3" />
-                <circle cx="0" cy="0" r="10" fill="#10B981" />
-                {/* Pilgrim in white Ihram */}
-                <circle cx="0" cy="-2" r="2" fill="#FFFFFF" />
-                <rect x="-2" y="0" width="4" height="5" rx="1" fill="#FFFFFF" />
-                <text x="18" y="4" fill="#34D399" fontSize="11" fontWeight="800">
+              <g transform="translate(255, 395)" filter="url(#softGlow)">
+                <circle cx="0" cy="0" r="18" fill="#059669" fillOpacity="0.25" />
+                <circle cx="0" cy="0" r="11" fill="#059669" />
+                {/* Pilgrim in Ihram */}
+                <circle cx="0" cy="-3" r="2.5" fill="#FFFFFF" />
+                <rect x="-3" y="0" width="6" height="6" rx="1.5" fill="#FFFFFF" />
+                <rect x="18" y="-12" width="165" height="24" rx="12" fill="#FFFFFF" stroke="#059669" strokeWidth="1.2" />
+                <text x="26" y="4" fill="#065F46" fontSize="10.5" fontWeight="800">
                   🚶‍♂️ Walking: Umrah Tawaf &amp; Sa&apos;i
                 </text>
               </g>
             )}
 
+            {/* Step 4: Tour Van to Taif & Ziyarat */}
             {activeStepIndex === 3 && (
-              /* Van: Taif Mountain Drive */
-              <g transform="translate(250, 365)" filter="url(#glowFilter)">
-                <circle cx="0" cy="0" r="18" fill="#8B5CF6" fillOpacity="0.25" />
-                <circle cx="0" cy="0" r="12" fill="#8B5CF6" />
-                <rect x="-5" y="-3" width="10" height="6" rx="2" fill="#0A1C2A" />
-                <text x="18" y="4" fill="#C4B5FD" fontSize="11" fontWeight="800">
+              <g transform="translate(290, 395)" filter="url(#softGlow)">
+                <circle cx="0" cy="0" r="18" fill="#7C3AED" fillOpacity="0.2" />
+                <circle cx="0" cy="0" r="12" fill="#7C3AED" />
+                <rect x="-6" y="-4" width="12" height="7" rx="2" fill="#FFFFFF" />
+                <rect x="18" y="-12" width="160" height="24" rx="12" fill="#FFFFFF" stroke="#7C3AED" strokeWidth="1.2" />
+                <text x="26" y="4" fill="#5B21B6" fontSize="10.5" fontWeight="800">
                   🚐 AC Van to Taif &amp; Ziyarat
                 </text>
               </g>
             )}
 
+            {/* Step 5: Van / High-Speed Train to Madinah */}
             {activeStepIndex === 4 && (
-              /* Van / High-Speed Train: Makkah to Madinah */
-              <g transform="translate(205, 250)" filter="url(#glowFilter)">
-                <circle cx="0" cy="0" r="18" fill="#FFD700" fillOpacity="0.25" />
-                <circle cx="0" cy="0" r="12" fill="#FFD700" />
+              <g transform="translate(225, 235)" filter="url(#softGlow)">
+                <circle cx="0" cy="0" r="18" fill="#C59A4E" fillOpacity="0.2" />
+                <circle cx="0" cy="0" r="12" fill="#C59A4E" />
                 {/* Train/Van vector */}
-                <rect x="-6" y="-3" width="12" height="6" rx="2" fill="#0A1C2A" />
-                <text x="20" y="4" fill="#FFD700" fontSize="11" fontWeight="800">
+                <rect x="-7" y="-4" width="14" height="7" rx="2" fill="#FFFFFF" />
+                <rect x="20" y="-12" width="165" height="24" rx="12" fill="#FFFFFF" stroke="#C59A4E" strokeWidth="1.2" />
+                <text x="28" y="4" fill="#854D0E" fontSize="10.5" fontWeight="800">
                   🚐 / 🚄 Van to Madinah (420 km)
                 </text>
               </g>
@@ -502,7 +547,7 @@ export const IndiaToHaramRouteMap: React.FC<IndiaToHaramRouteMapProps> = ({ onPl
 
         </div>
 
-        {/* Detailed Stage Spotlight Card (Solid, High-Contrast Luxury Panel) */}
+        {/* Detailed Stage Spotlight Card (Clean Light Luxury Card) */}
         <div className="india-stage-spotlight-card">
           <div className="spotlight-top-meta">
             <div className="spotlight-mode-badge" style={{ borderColor: currentStage.accentColor, color: currentStage.accentColor }}>
@@ -516,10 +561,10 @@ export const IndiaToHaramRouteMap: React.FC<IndiaToHaramRouteMapProps> = ({ onPl
 
             <div className="spotlight-metrics">
               <span className="spotlight-metric-pill">
-                <Clock className="h-3.5 w-3.5 text-amber-300" /> {currentStage.duration}
+                <Clock className="h-3.5 w-3.5 text-amber-700" /> {currentStage.duration}
               </span>
               <span className="spotlight-metric-pill">
-                <MapPin className="h-3.5 w-3.5 text-amber-300" /> {currentStage.distance}
+                <MapPin className="h-3.5 w-3.5 text-amber-700" /> {currentStage.distance}
               </span>
             </div>
           </div>
@@ -537,13 +582,13 @@ export const IndiaToHaramRouteMap: React.FC<IndiaToHaramRouteMapProps> = ({ onPl
             {currentStage.summary}
           </p>
 
-          {/* Two-Column Spiritual & Practical Indian Pilgrim Guidance */}
+          {/* Two-Column Guidance: Practical Indian Pilgrim Tips & Spiritual Etiquette */}
           <div className="spotlight-advice-grid">
             
             {/* Practical Advice */}
             <div className="spotlight-advice-box practical">
               <div className="advice-box-header">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                <CheckCircle2 className="h-4 w-4 text-emerald-700" />
                 <span>Important Tip for Indian Pilgrims</span>
               </div>
               <p className="advice-box-text">
@@ -554,7 +599,7 @@ export const IndiaToHaramRouteMap: React.FC<IndiaToHaramRouteMapProps> = ({ onPl
             {/* Spiritual Etiquette */}
             <div className="spotlight-advice-box spiritual">
               <div className="advice-box-header">
-                <Sparkles className="h-4 w-4 text-amber-300" />
+                <Sparkles className="h-4 w-4 text-amber-700" />
                 <span>Spiritual Rites &amp; Etiquette</span>
               </div>
               <p className="advice-box-text">
@@ -583,7 +628,7 @@ export const IndiaToHaramRouteMap: React.FC<IndiaToHaramRouteMapProps> = ({ onPl
                 }
               }}
             >
-              <span>View Packages for this Route</span>
+              <span>Explore Packages for this Route</span>
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>

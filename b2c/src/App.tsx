@@ -1439,7 +1439,7 @@ export default function App() {
               <button 
                 type="button"
                 className="nav-link"
-                style={{ background: 'none', border: 'none', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#FFD700' }}
+                style={{ background: 'none', border: 'none', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#B88933' }}
                 onClick={() => {
                   setActiveTab('calculator');
                   setBookingFinished(false);
@@ -1448,31 +1448,32 @@ export default function App() {
                   }
                 }}
               >
-                <Sparkles className="h-4 w-4 text-amber-400" />
+                <Sparkles className="h-4 w-4 text-amber-600" />
                 Calculator
               </button>
 
               <select
                 style={{
-                  padding: '0.45rem 0.75rem',
+                  padding: '0.45rem 0.85rem',
                   fontSize: '0.82rem',
                   fontWeight: 700,
-                  color: '#FFD700',
-                  backgroundColor: 'rgba(13, 24, 37, 0.85)',
-                  border: '1px solid rgba(212, 175, 55, 0.35)',
+                  color: '#0F172A',
+                  backgroundColor: '#FFFFFF',
+                  border: '1.5px solid rgba(212, 175, 55, 0.4)',
                   borderRadius: 'var(--radius-full)',
                   cursor: 'pointer',
-                  outline: 'none'
+                  outline: 'none',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.04)'
                 }}
                 value={selectedCurrency}
                 onChange={(e) => setSelectedCurrency(e.target.value)}
               >
-                <option value="SAR" style={{ background: '#0D1825', color: '#ffffff' }}>🇸🇦 SAR</option>
-                <option value="INR" style={{ background: '#0D1825', color: '#ffffff' }}>🇮🇳 INR</option>
-                <option value="AED" style={{ background: '#0D1825', color: '#ffffff' }}>🇦🇪 AED</option>
-                <option value="QAR" style={{ background: '#0D1825', color: '#ffffff' }}>🇶🇦 QAR</option>
-                <option value="BDT" style={{ background: '#0D1825', color: '#ffffff' }}>🇧🇩 BDT</option>
-                <option value="KWD" style={{ background: '#0D1825', color: '#ffffff' }}>🇰🇼 KWD</option>
+                <option value="SAR">🇸🇦 SAR</option>
+                <option value="INR">🇮🇳 INR</option>
+                <option value="AED">🇦🇪 AED</option>
+                <option value="QAR">🇶🇦 QAR</option>
+                <option value="BDT">🇧🇩 BDT</option>
+                <option value="KWD">🇰🇼 KWD</option>
               </select>
 
               <button 
@@ -2159,62 +2160,51 @@ export default function App() {
             {/* Official Saudi Pilgrimage Ecosystem: Nusuk, Tawakkalna & Guides */}
             <OfficialPortalsGuide />
 
-            {/* Atlys How It Works Section (Only on Landing Page) */}
-            <section className="atlys-how-it-works">
+            {/* Minimalist Trust & Verification Strip (Above Footer) */}
+            <section className="minimal-trust-symbols-strip">
               <div className="section-container">
-                <div className="atlys-section-header">
-                  <span className="atlys-section-badge">Fast &amp; Transparent</span>
-                  <h3 className="atlys-section-title">How Moulavi Direct Works</h3>
-                  <p className="atlys-section-subtitle">
-                    We eliminated complex paperwork and waiting queues. Your pilgrimage visa and stay are secured in three automated steps.
-                  </p>
-                </div>
+                <div className="trust-symbols-grid">
+                  
+                  <div className="trust-symbol-card">
+                    <div className="trust-symbol-icon-box">
+                      <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <div className="trust-symbol-text">
+                      <h4 className="trust-symbol-title">Direct KSA Integration</h4>
+                      <p className="trust-symbol-desc">Official Ministry of Foreign Affairs electronic clearance</p>
+                    </div>
+                  </div>
 
-                <div className="atlys-steps-grid">
-                  <div className="atlys-step-card">
-                    <div className="atlys-step-num">1</div>
-                    <h5>AI Passport Scan</h5>
-                    <p>Upload a photo of your passport. Our automated OCR accurately extracts MRZ details with zero spelling errors.</p>
+                  <div className="trust-symbol-card">
+                    <div className="trust-symbol-icon-box">
+                      <FileCheck className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div className="trust-symbol-text">
+                      <h4 className="trust-symbol-title">100% Confirmed BRNs</h4>
+                      <p className="trust-symbol-desc">Real contracted Makkah &amp; Madinah room allotments</p>
+                    </div>
                   </div>
-                  <div className="atlys-step-card">
-                    <div className="atlys-step-num">2</div>
-                    <h5>Select Contracted Stays</h5>
-                    <p>Choose real inventory in Makkah &amp; Madinah. Direct contracts mean instant BRN voucher numbers locked to your name.</p>
-                  </div>
-                  <div className="atlys-step-card">
-                    <div className="atlys-step-num">3</div>
-                    <h5>Instant e-Visa Manifest</h5>
-                    <p>Receive your digital Ministry of Hajj &amp; Umrah visa manifest directly on WhatsApp and email in under 24 hours.</p>
-                  </div>
-                </div>
-              </div>
-            </section>
 
-            {/* Atlys Trust & Guarantee Strip (Only on Landing Page) */}
-            <section className="atlys-trust-strip">
-              <div className="section-container">
-                <div className="atlys-trust-grid">
-                  <div className="atlys-trust-card">
-                    <div className="atlys-trust-icon-box" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)' }}>
-                      <ShieldCheck className="h-6 w-6" />
+                  <div className="trust-symbol-card">
+                    <div className="trust-symbol-icon-box">
+                      <HeartHandshake className="h-5 w-5 text-amber-600" />
                     </div>
-                    <h4>Official Direct Integration</h4>
-                    <p>Direct electronic integration with the Saudi Ministry of Foreign Affairs ensures immediate border validity and clearance.</p>
-                  </div>
-                  <div className="atlys-trust-card">
-                    <div className="atlys-trust-icon-box" style={{ backgroundColor: '#deebff', color: '#0052cc' }}>
-                      <FileCheck className="h-6 w-6" />
+                    <div className="trust-symbol-text">
+                      <h4 className="trust-symbol-title">Saudi Ground Support</h4>
+                      <p className="trust-symbol-desc">24/7 on-ground assistance at Jeddah &amp; hotel check-ins</p>
                     </div>
-                    <h4>100% Confirmed BRNs</h4>
-                    <p>We do not display hypothetical rooms. Every allotment is contracted inventory with confirmed booking reference numbers.</p>
                   </div>
-                  <div className="atlys-trust-card">
-                    <div className="atlys-trust-icon-box" style={{ backgroundColor: '#fff0b3', color: '#ff8b00' }}>
-                      <HeartHandshake className="h-6 w-6" />
+
+                  <div className="trust-symbol-card">
+                    <div className="trust-symbol-icon-box">
+                      <Zap className="h-5 w-5 text-emerald-600" />
                     </div>
-                    <h4>24/7 Pilgrimage Concierge</h4>
-                    <p>Our dedicated Saudi field operations team assists you upon arrival at Jeddah/Madinah airport and hotel check-in desks.</p>
+                    <div className="trust-symbol-text">
+                      <h4 className="trust-symbol-title">24-Hour e-Visa</h4>
+                      <p className="trust-symbol-desc">Direct digital manifest sent to WhatsApp &amp; Email</p>
+                    </div>
                   </div>
+
                 </div>
               </div>
             </section>

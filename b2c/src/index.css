@@ -78,7 +78,7 @@ body {
 
 /* Header & Navigation - Atlys Clean White Glass Nav */
 header {
-  background-color: rgba(6, 11, 17, 0.94);
+  background-color: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(212, 175, 55, 0.22);
@@ -121,8 +121,8 @@ header {
 }
 
 .logo-icon {
-  background: linear-gradient(135deg, #FFD700 0%, #D4AF37 100%);
-  color: #060B11;
+  background: linear-gradient(135deg, #D4AF37 0%, #B88933 100%);
+  color: #ffffff;
   width: 38px;
   height: 38px;
   border-radius: 10px;
@@ -131,21 +131,21 @@ header {
   justify-content: center;
   font-weight: 900;
   font-size: 1.15rem;
-  box-shadow: 0 4px 14px rgba(212, 175, 55, 0.35);
+  box-shadow: 0 4px 14px rgba(197, 154, 78, 0.3);
 }
 
 .logo-text h1 {
   font-family: var(--font-display);
   font-size: 1.15rem;
   font-weight: 800;
-  color: #ffffff;
+  color: #0F172A;
   letter-spacing: -0.02em;
   line-height: 1.1;
 }
 
 .logo-text span {
   font-size: 0.65rem;
-  color: #FFD700;
+  color: #B88933;
   display: block;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -159,7 +159,7 @@ header {
 }
 
 .nav-link {
-  color: #CBD5E1;
+  color: #334155;
   text-decoration: none;
   font-weight: 600;
   font-size: 0.88rem;
@@ -168,7 +168,7 @@ header {
 }
 
 .nav-link:hover {
-  color: #FFD700;
+  color: #B88933;
 }
 
 .nav-btn {
@@ -228,8 +228,8 @@ main.booking-builder-main {
 .landing-page-root {
   width: 100%;
   min-height: 100vh;
-  background: #060B11;
-  color: #E2E8F0;
+  background: #FAF9F6;
+  color: #0F172A;
   overflow-x: hidden;
   position: relative;
 }
@@ -1823,7 +1823,7 @@ footer {
 /* Unified Pathway Bar Styles - Atlys Commercial Trio Cards */
 .pathways-section {
   width: 100%;
-  background: #060B11;
+  background: #FAF9F6;
   padding: 4.5rem 1.5rem;
   box-sizing: border-box;
 }
@@ -1841,12 +1841,11 @@ footer {
 }
 
 .pathway-card {
-  background-color: rgba(13, 24, 37, 0.75);
-  border: 1px solid rgba(212, 175, 55, 0.22);
+  background-color: #FFFFFF;
+  border: 1.5px solid rgba(212, 175, 55, 0.25);
   border-radius: 20px;
   padding: 2rem 1.75rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(14px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
@@ -1857,13 +1856,13 @@ footer {
 
 .pathway-card:hover {
   transform: translateY(-5px);
-  border-color: #D4AF37;
-  box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.6), 0 0 25px rgba(212, 175, 55, 0.25);
+  border-color: #C59A4E;
+  box-shadow: 0 16px 36px -6px rgba(15, 23, 42, 0.1), 0 0 20px rgba(197, 154, 78, 0.15);
 }
 
 .pathway-card.featured {
   border: 1.5px solid rgba(212, 175, 55, 0.5);
-  box-shadow: 0 12px 35px -5px rgba(212, 175, 55, 0.2), 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 12px 35px -5px rgba(212, 175, 55, 0.2), 0 4px 12px rgba(15, 23, 42, 0.05);
 }
 
 .pathway-card.featured::before {
@@ -1901,16 +1900,16 @@ footer {
 }
 
 .pathway-title {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: 1.25rem;
-  font-weight: 700;
-  color: #FFFFFF;
+  font-weight: 800;
+  color: #0F172A;
   margin: 0;
   letter-spacing: -0.01em;
 }
 
 .pathway-desc {
-  color: #94A3B8;
+  color: #64748B;
   font-size: 0.88rem;
   line-height: 1.6;
   margin: 0.75rem 0 1.5rem 0;
@@ -3187,9 +3186,10 @@ footer {
    ======================================================== */
 .things-todo-section {
   width: 100%;
-  background: #060B11;
+  background: #FFFFFF;
   padding: 5.5rem 1.5rem;
   box-sizing: border-box;
+  border-top: 1px solid rgba(212, 175, 55, 0.2);
 }
 
 .things-todo-container {
@@ -3209,9 +3209,9 @@ footer {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  background: rgba(212, 175, 55, 0.1);
-  border: 1px solid rgba(212, 175, 55, 0.35);
-  color: #FFD700;
+  background: #FFF8E7;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  color: #B45309;
   padding: 0.4rem 1.1rem;
   border-radius: 9999px;
   font-size: 0.72rem;
@@ -3224,8 +3224,8 @@ footer {
 .todo-title {
   font-family: var(--font-display);
   font-size: clamp(2rem, 3.5vw, 2.85rem);
-  font-weight: 700;
-  color: #FFFFFF;
+  font-weight: 800;
+  color: #0F172A;
   letter-spacing: -0.015em;
   margin-bottom: 0.75rem;
   line-height: 1.2;
@@ -3233,7 +3233,7 @@ footer {
 
 .todo-subtitle {
   font-size: 1.05rem;
-  color: #94A3B8;
+  color: #64748B;
   line-height: 1.65;
   margin-bottom: 2rem;
 }
@@ -3246,9 +3246,9 @@ footer {
 }
 
 .filter-btn {
-  background: rgba(13, 24, 37, 0.7);
-  border: 1.5px solid rgba(212, 175, 55, 0.2);
-  color: #94A3B8;
+  background: #F8FAFC;
+  border: 1.5px solid #E2E8F0;
+  color: #475569;
   padding: 0.6rem 1.25rem;
   border-radius: 9999px;
   font-size: 0.82rem;
@@ -3258,15 +3258,15 @@ footer {
 }
 
 .filter-btn:hover {
-  border-color: #D4AF37;
-  color: #FFFFFF;
+  border-color: #C59A4E;
+  color: #0F172A;
 }
 
 .filter-btn.active {
-  background: linear-gradient(135deg, rgba(212, 175, 55, 0.25) 0%, rgba(197, 154, 78, 0.15) 100%);
-  border-color: #FFD700;
-  color: #FFD700;
-  box-shadow: 0 4px 14px rgba(212, 175, 55, 0.2);
+  background: #FFF8E7;
+  border-color: #C59A4E;
+  color: #854D0E;
+  box-shadow: 0 4px 14px rgba(197, 154, 78, 0.2);
 }
 
 .todo-grid {
@@ -3277,12 +3277,11 @@ footer {
 }
 
 .todo-card {
-  background: rgba(13, 24, 37, 0.75);
-  border: 1px solid rgba(212, 175, 55, 0.18);
+  background: #FFFFFF;
+  border: 1px solid rgba(212, 175, 55, 0.22);
   border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
@@ -3291,8 +3290,8 @@ footer {
 
 .todo-card:hover {
   transform: translateY(-5px);
-  border-color: #D4AF37;
-  box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.6), 0 0 25px rgba(212, 175, 55, 0.2);
+  border-color: #C59A4E;
+  box-shadow: 0 16px 36px -6px rgba(15, 23, 42, 0.1), 0 0 20px rgba(197, 154, 78, 0.15);
 }
 
 .todo-card-media {
@@ -3316,7 +3315,7 @@ footer {
 .todo-media-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(0,0,0,0.2) 0%, transparent 40%, rgba(10, 28, 42, 0.75) 100%);
+  background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, transparent 40%, rgba(10, 28, 42, 0.7) 100%);
 }
 
 .todo-category-badge {
@@ -3366,22 +3365,22 @@ footer {
   gap: 0.4rem;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #94A3B8;
+  color: #64748B;
   margin-bottom: 0.5rem;
 }
 
 .todo-card-title {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: 1.25rem;
-  font-weight: 700;
-  color: #FFFFFF;
+  font-weight: 800;
+  color: #0F172A;
   line-height: 1.3;
   margin: 0 0 0.5rem 0;
 }
 
 .todo-card-desc {
   font-size: 0.85rem;
-  color: #94A3B8;
+  color: #64748B;
   line-height: 1.6;
   margin-bottom: 1.25rem;
   flex-grow: 1;
@@ -3391,8 +3390,7 @@ footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-top: 1px solid rgba(212, 175, 55, 0.15);
-  padding-top: 1rem;
+  border-top: 1px solid #E2E8F0;
   padding-top: 1rem;
   margin-top: auto;
 }
@@ -3402,18 +3400,19 @@ footer {
   align-items: center;
   gap: 0.35rem;
   font-size: 0.82rem;
-  color: var(--text-dark);
+  color: #0F172A;
+  font-weight: 700;
 }
 
 .todo-rating span {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: #64748B;
 }
 
 .todo-action-link {
   font-size: 0.82rem;
   font-weight: 800;
-  color: #C59A4E;
+  color: #B88933;
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
@@ -3422,7 +3421,7 @@ footer {
 
 .todo-card:hover .todo-action-link {
   gap: 0.5rem;
-  color: #A67C2E;
+  color: #8C6B28;
 }
 
 /* Modal Dialog */
@@ -3598,23 +3597,12 @@ footer {
 .did-you-know-section {
   width: 100%;
   padding: 5.5rem 1.5rem;
-  background: #060B11;
-  color: #ffffff;
+  background: #FFFFFF;
+  color: #0F172A;
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
-}
-
-.did-you-know-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 1100px;
-  height: 400px;
-  background: radial-gradient(ellipse at 50% 0%, rgba(212, 175, 55, 0.15) 0%, transparent 70%);
-  pointer-events: none;
+  border-top: 1px solid rgba(212, 175, 55, 0.2);
 }
 
 .did-you-know-container {
@@ -3635,9 +3623,9 @@ footer {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  background: rgba(212, 175, 55, 0.1);
-  border: 1px solid rgba(212, 175, 55, 0.35);
-  color: #FFD700;
+  background: #FFF8E7;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  color: #B45309;
   padding: 0.4rem 1.1rem;
   border-radius: 9999px;
   font-size: 0.72rem;
@@ -3650,8 +3638,8 @@ footer {
 .dyk-title {
   font-family: var(--font-display);
   font-size: clamp(2rem, 3.5vw, 2.85rem);
-  font-weight: 700;
-  color: #ffffff;
+  font-weight: 800;
+  color: #0F172A;
   letter-spacing: -0.015em;
   margin-bottom: 0.75rem;
   line-height: 1.2;
@@ -3659,7 +3647,7 @@ footer {
 
 .dyk-subtitle {
   font-size: 1.05rem;
-  color: #94A3B8;
+  color: #64748B;
   line-height: 1.65;
 }
 
@@ -3671,12 +3659,12 @@ footer {
 }
 
 .dyk-fact-card {
-  background: rgba(13, 24, 37, 0.75);
-  border: 1.5px solid rgba(212, 175, 55, 0.22);
+  background: #FFFFFF;
+  border: 1.5px solid rgba(212, 175, 55, 0.25);
   border-radius: 20px;
   padding: 1.75rem;
-  backdrop-filter: blur(12px);
   cursor: pointer;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
@@ -3684,15 +3672,15 @@ footer {
 
 .dyk-fact-card:hover {
   transform: translateY(-4px);
-  border-color: #D4AF37;
-  background: rgba(18, 32, 48, 0.85);
-  box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.6), 0 0 25px rgba(212, 175, 55, 0.2);
+  border-color: #C59A4E;
+  background: #FFFDF9;
+  box-shadow: 0 16px 36px -6px rgba(15, 23, 42, 0.1), 0 0 20px rgba(197, 154, 78, 0.15);
 }
 
 .dyk-fact-card.active {
-  border-color: #FFD700;
-  background: rgba(22, 38, 56, 0.95);
-  box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.7), 0 0 30px rgba(212, 175, 55, 0.25);
+  border-color: #C59A4E;
+  background: #FFFDF7;
+  box-shadow: 0 16px 36px -6px rgba(15, 23, 42, 0.12), 0 0 25px rgba(197, 154, 78, 0.2);
 }
 
 .dyk-card-header {
@@ -3705,7 +3693,7 @@ footer {
 .dyk-number {
   font-size: 1.2rem;
   font-weight: 900;
-  color: #FFD700;
+  color: #B88933;
   letter-spacing: -0.02em;
 }
 
@@ -3715,19 +3703,19 @@ footer {
   text-transform: uppercase;
   padding: 0.25rem 0.65rem;
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #CBD5E1;
+  border: 1px solid #E2E8F0;
+  color: #475569;
 }
 
 .dyk-city-tag.makkah {
-  background: rgba(212, 175, 55, 0.2);
-  color: #FFE082;
-  border-color: rgba(255, 215, 0, 0.35);
+  background: #FFF8E7;
+  color: #B45309;
+  border-color: rgba(212, 175, 55, 0.4);
 }
 
 .dyk-city-tag.madinah {
-  background: rgba(16, 185, 129, 0.2);
-  color: #A7F3D0;
+  background: #ECFDF5;
+  color: #047857;
   border-color: rgba(16, 185, 129, 0.35);
 }
 
@@ -3735,7 +3723,7 @@ footer {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  background: rgba(0, 0, 0, 0.35);
+  background: #F8FAFC;
   border: 1px solid rgba(212, 175, 55, 0.3);
   padding: 0.45rem 0.75rem;
   border-radius: 12px;
@@ -3745,48 +3733,48 @@ footer {
 .dyk-metric-strip strong {
   font-size: 0.85rem;
   font-weight: 800;
-  color: #FFD700;
+  color: #B88933;
 }
 
 .dyk-card-title {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: 1.25rem;
-  font-weight: 700;
-  color: #ffffff;
+  font-weight: 800;
+  color: #0F172A;
   margin: 0 0 0.5rem 0;
   line-height: 1.3;
 }
 
 .dyk-card-text {
   font-size: 0.85rem;
-  color: #94A3B8;
+  color: #64748B;
   line-height: 1.6;
   margin-bottom: 1.25rem;
   flex-grow: 1;
 }
 
 .dyk-card-footer {
-  border-top: 1px solid rgba(212, 175, 55, 0.15);
+  border-top: 1px solid #E2E8F0;
   padding-top: 0.75rem;
   margin-top: auto;
 }
 
 .dyk-context-text {
   font-size: 0.75rem;
-  color: #CBD5E1;
+  color: #475569;
   line-height: 1.45;
   display: block;
 }
 
 /* Spotlight Banner */
 .dyk-spotlight-banner {
-  background: rgba(13, 24, 37, 0.9);
-  border: 1.5px solid rgba(212, 175, 55, 0.4);
+  background: #FFFFFF;
+  border: 1.5px solid rgba(212, 175, 55, 0.35);
   border-radius: 24px;
   overflow: hidden;
   display: grid;
   grid-template-columns: 1fr 1.35fr;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
 }
 
 @media (max-width: 850px) {
@@ -3809,7 +3797,7 @@ footer {
 .dyk-spotlight-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(6, 11, 17, 0.85) 100%);
+  background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(15, 23, 42, 0.6) 100%);
 }
 
 .dyk-spotlight-tag {
@@ -3817,7 +3805,7 @@ footer {
   top: 1.25rem;
   left: 1.25rem;
   z-index: 2;
-  background: rgba(6, 11, 17, 0.9);
+  background: rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 215, 0, 0.5);
   color: #FFD700;
@@ -3848,42 +3836,42 @@ footer {
 .dyk-spotlight-metric {
   font-size: 0.82rem;
   font-weight: 800;
-  color: #FFD700;
+  color: #B88933;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .dyk-spotlight-source {
   font-size: 0.75rem;
-  color: #94A3B8;
+  color: #64748B;
 }
 
 .dyk-spotlight-heading {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: 1.65rem;
-  font-weight: 700;
-  color: #ffffff;
+  font-weight: 800;
+  color: #0F172A;
   margin: 0 0 0.75rem 0;
   line-height: 1.25;
 }
 
 .dyk-spotlight-p {
   font-size: 0.92rem;
-  color: #CBD5E1;
+  color: #475569;
   line-height: 1.6;
   margin-bottom: 0.75rem;
 }
 
 .dyk-spotlight-context {
   font-size: 0.82rem;
-  color: #94A3B8;
+  color: #64748B;
   font-style: italic;
   margin-bottom: 1.5rem;
 }
 
 .dyk-spotlight-btn {
-  background: linear-gradient(135deg, #FFD700 0%, #D4AF37 50%, #B88933 100%);
-  color: #0A1C2A;
+  background: linear-gradient(135deg, #D4AF37 0%, #C59A4E 50%, #A67C2E 100%);
+  color: #ffffff;
   border: none;
   padding: 0.85rem 1.65rem;
   border-radius: 14px;
@@ -3894,22 +3882,23 @@ footer {
   align-items: center;
   gap: 0.5rem;
   align-self: flex-start;
-  box-shadow: 0 4px 16px rgba(212, 175, 55, 0.35);
+  box-shadow: 0 4px 16px rgba(197, 154, 78, 0.35);
   transition: all 0.25s ease;
 }
 
 .dyk-spotlight-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(212, 175, 55, 0.5);
+  box-shadow: 0 8px 25px rgba(197, 154, 78, 0.5);
 }
 
 /* ========================================================
-   Official Government Portals & Pilgrim Guides Section
+   Official Government Portals & Pilgrim Guides Section (Light Luxury Theme)
    ======================================================== */
 .official-portals-section {
-  padding: 6rem 1rem;
-  background: #081018;
-  border-top: 1px solid rgba(212, 175, 55, 0.15);
+  padding: 5.5rem 1rem;
+  background: #FAF9F6;
+  border-top: 1px solid rgba(212, 175, 55, 0.2);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.15);
 }
 
 .official-portals-container {
@@ -3927,9 +3916,9 @@ footer {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.4);
-  color: #34D399;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #059669;
   padding: 0.4rem 1rem;
   border-radius: 9999px;
   font-size: 0.75rem;
@@ -3943,14 +3932,14 @@ footer {
   font-family: var(--font-display);
   font-size: 2.3rem;
   font-weight: 900;
-  color: #ffffff;
+  color: #0F172A;
   letter-spacing: -0.02em;
   margin-bottom: 0.75rem;
 }
 
 .portals-subtitle {
   font-size: 1.05rem;
-  color: #94A3B8;
+  color: #475569;
   line-height: 1.6;
 }
 
@@ -3962,13 +3951,11 @@ footer {
 }
 
 .portal-card {
-  background: rgba(13, 24, 37, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(212, 175, 55, 0.2);
-  border-radius: 22px;
+  background: #FFFFFF;
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 20px;
   padding: 1.75rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -3977,8 +3964,8 @@ footer {
 
 .portal-card:hover {
   transform: translateY(-4px);
-  border-color: #FFD700;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6), 0 0 25px rgba(212, 175, 55, 0.18);
+  border-color: #C59A4E;
+  box-shadow: 0 14px 35px rgba(197, 154, 78, 0.18), 0 4px 12px rgba(15, 23, 42, 0.06);
 }
 
 .portal-authority-row {
@@ -3993,7 +3980,7 @@ footer {
 .portal-authority-tag {
   font-size: 0.7rem;
   font-weight: 800;
-  color: #FFD700;
+  color: #996515;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -4009,14 +3996,14 @@ footer {
   font-family: var(--font-display);
   font-size: 1.25rem;
   font-weight: 800;
-  color: #ffffff;
+  color: #0F172A;
   margin: 0 0 0.5rem 0;
   line-height: 1.3;
 }
 
 .portal-desc {
   font-size: 0.85rem;
-  color: #94A3B8;
+  color: #475569;
   line-height: 1.55;
   margin-bottom: 1.25rem;
 }
@@ -4025,7 +4012,7 @@ footer {
   font-size: 0.72rem;
   font-weight: 800;
   text-transform: uppercase;
-  color: #FFD700;
+  color: #996515;
   letter-spacing: 0.05em;
   margin-bottom: 0.5rem;
 }
@@ -4044,16 +4031,16 @@ footer {
   align-items: flex-start;
   gap: 0.5rem;
   font-size: 0.8rem;
-  color: #CBD5E1;
+  color: #334155;
 }
 
 .portal-toggle-instructions {
   width: 100%;
-  background: rgba(212, 175, 55, 0.08);
+  background: #F8FAFC;
   border: 1px dashed rgba(212, 175, 55, 0.4);
   padding: 0.65rem 0.85rem;
   border-radius: 12px;
-  color: #FFD700;
+  color: #996515;
   font-weight: 800;
   font-size: 0.8rem;
   cursor: pointer;
@@ -4065,13 +4052,13 @@ footer {
 }
 
 .portal-toggle-instructions:hover {
-  background: rgba(212, 175, 55, 0.18);
-  border-color: #FFD700;
+  background: #F1F5F9;
+  border-color: #C59A4E;
 }
 
 .portal-instruction-drawer {
-  background: rgba(6, 11, 17, 0.85);
-  border: 1px solid rgba(212, 175, 55, 0.2);
+  background: #F8FAFC;
+  border: 1px solid rgba(212, 175, 55, 0.25);
   border-radius: 14px;
   padding: 1rem;
   margin-bottom: 0.85rem;
@@ -4091,7 +4078,7 @@ footer {
   align-items: flex-start;
   gap: 0.6rem;
   font-size: 0.78rem;
-  color: #CBD5E1;
+  color: #334155;
   line-height: 1.45;
 }
 
@@ -4099,8 +4086,8 @@ footer {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #FFD700 0%, #D4AF37 100%);
-  color: #060B11;
+  background: linear-gradient(135deg, #D4AF37 0%, #C59A4E 100%);
+  color: #FFFFFF;
   font-size: 0.7rem;
   font-weight: 900;
   display: flex;
@@ -4111,8 +4098,8 @@ footer {
 
 .portal-external-link-btn {
   width: 100%;
-  background: linear-gradient(135deg, #FFD700 0%, #D4AF37 50%, #B88933 100%);
-  color: #060B11;
+  background: linear-gradient(135deg, #D4AF37 0%, #C59A4E 100%);
+  color: #FFFFFF;
   border: none;
   padding: 0.8rem 1rem;
   border-radius: 12px;
@@ -4123,25 +4110,23 @@ footer {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  box-shadow: 0 4px 14px rgba(212, 175, 55, 0.3);
+  box-shadow: 0 4px 14px rgba(197, 154, 78, 0.3);
   transition: all 0.2s ease;
 }
 
 .portal-external-link-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 22px rgba(212, 175, 55, 0.45);
-  color: #000000;
+  box-shadow: 0 8px 22px rgba(197, 154, 78, 0.45);
+  color: #FFFFFF;
 }
 
 /* Digital Guidebook Card */
 .digital-guidebook-card {
-  background: rgba(13, 24, 37, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: #FFFFFF;
   border: 1.5px solid rgba(212, 175, 55, 0.3);
   border-radius: 24px;
   padding: 2.25rem;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.05);
 }
 
 .guidebook-header {
@@ -4155,8 +4140,8 @@ footer {
   font-size: 0.72rem;
   font-weight: 800;
   text-transform: uppercase;
-  color: #FFD700;
-  background: rgba(212, 175, 55, 0.15);
+  color: #996515;
+  background: rgba(212, 175, 55, 0.12);
   border: 1px solid rgba(212, 175, 55, 0.3);
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
@@ -4167,13 +4152,13 @@ footer {
   font-family: var(--font-display);
   font-size: 1.6rem;
   font-weight: 900;
-  color: #ffffff;
+  color: #0F172A;
   margin: 0 0 0.4rem 0;
 }
 
 .guidebook-desc {
   font-size: 0.92rem;
-  color: #94A3B8;
+  color: #475569;
   line-height: 1.6;
   margin: 0;
 }
@@ -4185,21 +4170,21 @@ footer {
 }
 
 .guide-accordion-item {
-  border: 1px solid rgba(212, 175, 55, 0.2);
+  border: 1px solid rgba(212, 175, 55, 0.22);
   border-radius: 16px;
   overflow: hidden;
-  background: rgba(6, 11, 17, 0.6);
+  background: #FFFFFF;
   transition: all 0.2s ease;
 }
 
 .guide-accordion-item.open {
-  border-color: #FFD700;
-  box-shadow: 0 4px 20px rgba(212, 175, 55, 0.2);
+  border-color: #C59A4E;
+  box-shadow: 0 4px 18px rgba(197, 154, 78, 0.12);
 }
 
 .guide-accordion-trigger {
   width: 100%;
-  background: rgba(8, 16, 24, 0.85);
+  background: #FAF9F6;
   border: none;
   padding: 1.15rem 1.35rem;
   display: flex;
@@ -4211,26 +4196,26 @@ footer {
 }
 
 .guide-accordion-item.open .guide-accordion-trigger {
-  background: rgba(13, 24, 37, 0.95);
+  background: #F8FAFC;
 }
 
 .accordion-heading {
   font-family: var(--font-display);
   font-size: 1.05rem;
   font-weight: 800;
-  color: #ffffff;
+  color: #0F172A;
   margin: 0 0 0.2rem 0;
 }
 
 .accordion-sub {
   font-size: 0.78rem;
-  color: #94A3B8;
+  color: #64748B;
   margin: 0;
 }
 
 .guide-accordion-body {
   padding: 1.35rem 1.5rem;
-  background: rgba(6, 11, 17, 0.95);
+  background: #FFFFFF;
   border-top: 1px solid rgba(212, 175, 55, 0.15);
 }
 
@@ -4245,226 +4230,219 @@ footer {
 
 .guide-content-list li {
   font-size: 0.88rem;
-  color: #CBD5E1;
+  color: #334155;
   line-height: 1.6;
 }
 
 /* ========================================================
-   Landing Page Dark Luxury Overrides:
-   Ready Packages, How It Works, Trust Strip & Footer
+   Ready Packages Section (Light Luxury Theme)
    ======================================================== */
 .ready-packages-section {
   padding: 5.5rem 1rem;
-  background: #060B11;
+  background: #FFFFFF;
   border-top: 1px solid rgba(212, 175, 55, 0.15);
 }
 
 .landing-page-root .package-card {
-  background: rgba(13, 24, 37, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: #FFFFFF;
   border: 1px solid rgba(212, 175, 55, 0.25);
   border-radius: 22px;
   overflow: hidden;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.05);
   transition: all 0.25s ease;
 }
 
 .landing-page-root .package-card:hover {
   transform: translateY(-4px);
-  border-color: #FFD700;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(212, 175, 55, 0.2);
+  border-color: #C59A4E;
+  box-shadow: 0 16px 40px rgba(197, 154, 78, 0.16), 0 4px 12px rgba(15, 23, 42, 0.06);
 }
 
 .landing-page-root .package-title {
   font-family: var(--font-display);
   font-size: 1.35rem;
   font-weight: 800;
-  color: #ffffff;
+  color: #0F172A;
 }
 
 .landing-page-root .package-meta {
-  color: #94A3B8;
+  color: #64748B;
 }
 
 .landing-page-root .package-desc {
-  color: #CBD5E1;
+  color: #475569;
 }
 
 .landing-page-root .package-hotel-spec {
-  background: rgba(6, 11, 17, 0.85);
+  background: #FAF9F6;
   border: 1px solid rgba(212, 175, 55, 0.18);
   border-radius: 14px;
 }
 
 .landing-page-root .package-hotel-item {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .landing-page-root .package-hotel-label {
-  color: #94A3B8;
+  color: #64748B;
 }
 
 .landing-page-root .package-hotel-name {
-  color: #F1F5F9;
+  color: #0F172A;
+  font-weight: 700;
 }
 
 .landing-page-root .price-label {
-  color: #94A3B8;
+  color: #64748B;
 }
 
 .landing-page-root .price-val {
-  color: #FFD700;
+  color: #B88933;
   font-weight: 900;
   font-size: 1.55rem;
 }
 
 .landing-page-root .book-btn {
-  background: linear-gradient(135deg, #FFD700 0%, #D4AF37 50%, #B88933 100%);
-  color: #060B11;
+  background: linear-gradient(135deg, #D4AF37 0%, #C59A4E 100%);
+  color: #FFFFFF;
   font-weight: 800;
   border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(212, 175, 55, 0.35);
+  box-shadow: 0 4px 16px rgba(197, 154, 78, 0.3);
   transition: all 0.25s ease;
 }
 
 .landing-page-root .book-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(212, 175, 55, 0.5);
+  box-shadow: 0 8px 24px rgba(197, 154, 78, 0.45);
+  color: #FFFFFF;
 }
 
-/* How It Works (Landing Page Override) */
-.landing-page-root .atlys-how-it-works {
-  background: #081018;
-  border-top: 1px solid rgba(212, 175, 55, 0.15);
+/* ========================================================
+   Minimalist Trust & Verification Symbols Strip (Light Theme)
+   ======================================================== */
+.minimal-trust-symbols-strip {
+  background: #FAF9F6;
+  border-top: 1px solid rgba(212, 175, 55, 0.2);
   border-bottom: 1px solid rgba(212, 175, 55, 0.15);
-  border-radius: 0;
-  margin: 0;
-  padding: 6rem 1rem;
+  padding: 2.75rem 1rem;
 }
 
-.landing-page-root .atlys-section-badge {
-  background: rgba(212, 175, 55, 0.15);
-  border: 1px solid rgba(212, 175, 55, 0.3);
-  color: #FFD700;
+.minimal-trust-symbols-strip .section-container {
+  max-width: 1280px;
+  margin: 0 auto;
 }
 
-.landing-page-root .atlys-section-title {
-  font-family: var(--font-display);
-  color: #ffffff;
-}
-
-.landing-page-root .atlys-section-subtitle {
-  color: #94A3B8;
-}
-
-.landing-page-root .atlys-step-card {
-  background: rgba(13, 24, 37, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(212, 175, 55, 0.2);
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-}
-
-.landing-page-root .atlys-step-card:hover {
-  border-color: #FFD700;
-  transform: translateY(-3px);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
-}
-
-.landing-page-root .atlys-step-num {
-  background: linear-gradient(135deg, #FFD700 0%, #D4AF37 100%);
-  color: #060B11;
-  font-weight: 900;
-}
-
-.landing-page-root .atlys-step-card h5 {
-  font-family: var(--font-display);
-  color: #ffffff;
-}
-
-.landing-page-root .atlys-step-card p {
-  color: #CBD5E1;
-}
-
-/* Trust Strip (Landing Page Override) */
-.landing-page-root .atlys-trust-strip {
-  background: #060B11;
-  margin: 0;
-  padding: 5.5rem 1rem;
-  border-bottom: 1px solid rgba(212, 175, 55, 0.15);
-}
-
-.landing-page-root .atlys-trust-grid {
+.trust-symbols-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
 }
 
-@media (max-width: 860px) {
-  .landing-page-root .atlys-trust-grid {
+@media (max-width: 1024px) {
+  .trust-symbols-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .trust-symbols-grid {
     grid-template-columns: 1fr;
   }
 }
 
-.landing-page-root .atlys-trust-card {
-  background: rgba(13, 24, 37, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(212, 175, 55, 0.2);
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+.trust-symbol-card {
+  display: flex;
+  align-items: center;
+  gap: 0.95rem;
+  background: #FFFFFF;
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  border-radius: 16px;
+  padding: 1.15rem 1.25rem;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+  transition: all 0.2s ease;
 }
 
-.landing-page-root .atlys-trust-card:hover {
-  border-color: #FFD700;
-  transform: translateY(-3px);
+.trust-symbol-card:hover {
+  border-color: #C59A4E;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(197, 154, 78, 0.12);
 }
 
-.landing-page-root .atlys-trust-card h4 {
+.trust-symbol-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(212, 175, 55, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.trust-symbol-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.trust-symbol-title {
   font-family: var(--font-display);
-  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0 0 0.2rem 0;
+  line-height: 1.3;
 }
 
-.landing-page-root .atlys-trust-card p {
-  color: #CBD5E1;
+.trust-symbol-desc {
+  font-size: 0.78rem;
+  color: #64748B;
+  margin: 0;
+  line-height: 1.4;
 }
 
-/* Footer Luxury Overrides */
+/* ========================================================
+   Footer Light Luxury Overrides
+   ======================================================== */
 footer {
-  background-color: #04070B !important;
-  color: #94A3B8 !important;
-  border-top: 1px solid rgba(212, 175, 55, 0.25) !important;
-  padding: 5rem 0 2.5rem !important;
+  background-color: #F8FAFC !important;
+  color: #475569 !important;
+  border-top: 1px solid rgba(212, 175, 55, 0.2) !important;
+  padding: 4.5rem 0 2.5rem !important;
 }
 
 footer .footer-column h4 {
   font-family: var(--font-display) !important;
-  color: #FFD700 !important;
+  color: #0F172A !important;
+  font-weight: 800 !important;
 }
 
 footer .footer-column p {
-  color: #94A3B8 !important;
+  color: #64748B !important;
 }
 
 footer a {
-  color: #CBD5E1 !important;
-  transition: color 0.2s;
+  color: #475569 !important;
+  transition: color 0.2s ease;
 }
 
 footer a:hover {
-  color: #FFD700 !important;
+  color: #B88933 !important;
+}
+
+footer .footer-bottom {
+  border-top: 1px solid #E2E8F0 !important;
+  color: #64748B !important;
 }
 
 /* ========================================================
-   2D Animated Route Map: India to Makkah & Madinah
+   2D Animated Route Map: India to Makkah & Madinah (Light Luxury Theme)
    ======================================================== */
 .india-map-section {
-  padding: 6rem 1rem;
-  background: #060B11;
-  border-top: 1px solid rgba(212, 175, 55, 0.15);
-  border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+  padding: 5.5rem 1rem;
+  background: #FAF9F6;
+  border-top: 1px solid rgba(212, 175, 55, 0.2);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
   position: relative;
   overflow: hidden;
 }
@@ -4477,7 +4455,7 @@ footer a:hover {
 .india-map-header {
   text-align: center;
   max-width: 860px;
-  margin: 0 auto 3.5rem;
+  margin: 0 auto 3rem;
 }
 
 .india-map-badge {
@@ -4486,29 +4464,29 @@ footer a:hover {
   gap: 0.4rem;
   background: rgba(212, 175, 55, 0.12);
   border: 1px solid rgba(212, 175, 55, 0.35);
-  color: #FFD700;
+  color: #996515;
   padding: 0.4rem 1.1rem;
   border-radius: 9999px;
   font-size: 0.78rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  margin-bottom: 1rem;
+  margin-bottom: 0.85rem;
 }
 
 .india-map-title {
   font-family: var(--font-display);
-  font-size: 2.4rem;
+  font-size: 2.3rem;
   font-weight: 900;
-  color: #ffffff;
+  color: #0F172A;
   letter-spacing: -0.02em;
-  margin-bottom: 0.85rem;
-  line-height: 1.2;
+  margin-bottom: 0.75rem;
+  line-height: 1.25;
 }
 
 .india-map-subtitle {
   font-size: 1.05rem;
-  color: #94A3B8;
+  color: #475569;
   line-height: 1.6;
 }
 
@@ -4525,10 +4503,8 @@ footer a:hover {
 .india-step-pill {
   flex: 1;
   min-width: 200px;
-  background: rgba(13, 24, 37, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(212, 175, 55, 0.2);
+  background: #FFFFFF;
+  border: 1px solid rgba(212, 175, 55, 0.25);
   border-radius: 16px;
   padding: 1rem 1.1rem;
   display: flex;
@@ -4538,26 +4514,28 @@ footer a:hover {
   text-align: left;
   transition: all 0.25s ease;
   position: relative;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
 .india-step-pill:hover {
-  background: rgba(18, 32, 49, 0.85);
-  border-color: rgba(212, 175, 55, 0.45);
+  background: #FFFFFF;
+  border-color: #C59A4E;
   transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(197, 154, 78, 0.15);
 }
 
 .india-step-pill.active {
-  background: rgba(20, 36, 56, 0.95);
-  border: 1.5px solid #FFD700;
-  box-shadow: 0 8px 24px rgba(212, 175, 55, 0.22);
+  background: #FFFFFF;
+  border: 2px solid #C59A4E;
+  box-shadow: 0 8px 22px rgba(197, 154, 78, 0.2);
 }
 
 .step-pill-num {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  color: #94A3B8;
+  background: #F1F5F9;
+  color: #64748B;
   font-size: 0.78rem;
   font-weight: 800;
   display: flex;
@@ -4567,8 +4545,8 @@ footer a:hover {
 }
 
 .india-step-pill.active .step-pill-num {
-  background: linear-gradient(135deg, #FFD700 0%, #D4AF37 100%);
-  color: #060B11;
+  background: linear-gradient(135deg, #D4AF37 0%, #C59A4E 100%);
+  color: #FFFFFF;
   font-weight: 900;
 }
 
@@ -4577,6 +4555,7 @@ footer a:hover {
   height: 32px;
   border-radius: 10px;
   background: rgba(212, 175, 55, 0.12);
+  color: #B88933;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4592,7 +4571,7 @@ footer a:hover {
 .step-pill-title {
   font-size: 0.85rem;
   font-weight: 800;
-  color: #ffffff;
+  color: #0F172A;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4600,7 +4579,7 @@ footer a:hover {
 
 .step-pill-sub {
   font-size: 0.72rem;
-  color: #94A3B8;
+  color: #64748B;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4613,20 +4592,20 @@ footer a:hover {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #FFD700;
-  box-shadow: 0 0 10px #FFD700;
+  background: #C59A4E;
+  box-shadow: 0 0 8px #C59A4E;
   animation: pulse 1.5s infinite;
 }
 
 /* 2D Canvas Container & Spotlight Grid */
 .india-map-canvas-container {
   position: relative;
-  background: radial-gradient(circle at 40% 40%, #0F1E2E 0%, #08111B 75%, #050B11 100%);
+  background: #F1F6FA;
   border: 1.5px solid rgba(212, 175, 55, 0.3);
   border-radius: 24px;
   padding: 1rem;
   margin-bottom: 2rem;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
   overflow: hidden;
 }
 
@@ -4638,18 +4617,19 @@ footer a:hover {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: rgba(6, 11, 17, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   padding: 0.35rem 0.65rem;
   border-radius: 12px;
-  border: 1px solid rgba(212, 175, 55, 0.25);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08);
 }
 
 .map-control-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: none;
-  color: #FFD700;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  color: #0F172A;
   padding: 0.45rem 0.65rem;
   border-radius: 8px;
   cursor: pointer;
@@ -4660,13 +4640,15 @@ footer a:hover {
 }
 
 .map-control-btn:hover {
-  background: rgba(212, 175, 55, 0.25);
+  background: rgba(212, 175, 55, 0.15);
+  color: #996515;
+  border-color: #C59A4E;
   transform: scale(1.05);
 }
 
 .map-control-hint {
   font-size: 0.72rem;
-  color: #94A3B8;
+  color: #64748B;
   font-weight: 700;
   margin-left: 0.35rem;
   display: none;
@@ -4684,15 +4666,13 @@ footer a:hover {
   display: block;
 }
 
-/* Stage Spotlight Card */
+/* Stage Spotlight Card (Light Luxury Theme) */
 .india-stage-spotlight-card {
-  background: rgba(13, 24, 37, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: #FFFFFF;
   border: 1.5px solid rgba(212, 175, 55, 0.3);
   border-radius: 24px;
   padding: 2.25rem;
-  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
 }
 
 .spotlight-top-meta {
@@ -4708,12 +4688,12 @@ footer a:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  background: rgba(212, 175, 55, 0.15);
-  border: 1px solid rgba(212, 175, 55, 0.4);
-  color: #FFD700;
-  padding: 0.35rem 0.85rem;
+  background: rgba(212, 175, 55, 0.12);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  color: #996515;
+  padding: 0.4rem 1rem;
   border-radius: 9999px;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -4722,69 +4702,68 @@ footer a:hover {
 .spotlight-metrics {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  gap: 0.65rem;
 }
 
 .spotlight-metric-pill {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #E2E8F0;
-  padding: 0.3rem 0.75rem;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  color: #475569;
+  padding: 0.35rem 0.8rem;
   border-radius: 9999px;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 700;
 }
 
 .spotlight-title {
   font-family: var(--font-display);
-  font-size: 1.75rem;
+  font-size: 1.85rem;
   font-weight: 900;
-  color: #ffffff;
-  margin: 0 0 0.85rem 0;
+  color: #0F172A;
+  margin: 0 0 0.5rem 0;
   line-height: 1.25;
 }
 
+.spotlight-summary {
+  font-size: 0.98rem;
+  color: #475569;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+/* Vehicle Transit Strip */
 .spotlight-vehicle-strip {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  background: rgba(6, 11, 17, 0.65);
-  border: 1px solid rgba(212, 175, 55, 0.2);
-  border-radius: 10px;
-  padding: 0.6rem 1rem;
-  margin-bottom: 1.25rem;
-  font-size: 0.85rem;
-  flex-wrap: wrap;
+  gap: 0.75rem;
+  background: #FAF9F6;
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.75rem;
 }
 
 .vehicle-strip-label {
-  font-weight: 800;
-  color: #FFD700;
-  text-transform: uppercase;
   font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #996515;
   letter-spacing: 0.05em;
 }
 
 .vehicle-strip-val {
-  color: #E2E8F0;
-  font-weight: 600;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0F172A;
 }
 
-.spotlight-summary {
-  font-size: 0.95rem;
-  color: #CBD5E1;
-  line-height: 1.65;
-  margin-bottom: 1.75rem;
-}
-
-/* Two-Column Advice Grid */
+/* Dual Advice Grid */
 .spotlight-advice-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: 1.25rem;
   margin-bottom: 2rem;
 }
@@ -4796,41 +4775,42 @@ footer a:hover {
 }
 
 .spotlight-advice-box {
-  background: rgba(6, 11, 17, 0.85);
+  background: #FAF9F6;
   border-radius: 16px;
   padding: 1.25rem 1.4rem;
+  border: 1px solid #E2E8F0;
 }
 
 .spotlight-advice-box.practical {
-  border: 1px solid rgba(16, 185, 129, 0.35);
-  background: rgba(6, 25, 20, 0.6);
+  border-left: 4px solid #C59A4E;
 }
 
 .spotlight-advice-box.spiritual {
-  border: 1px solid rgba(212, 175, 55, 0.35);
-  background: rgba(28, 22, 10, 0.6);
+  border-left: 4px solid #059669;
 }
 
 .advice-box-header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.82rem;
+  gap: 0.45rem;
+  font-size: 0.78rem;
   font-weight: 800;
-  margin-bottom: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
 }
 
 .spotlight-advice-box.practical .advice-box-header {
-  color: #34D399;
+  color: #996515;
 }
 
 .spotlight-advice-box.spiritual .advice-box-header {
-  color: #FFD700;
+  color: #059669;
 }
 
 .advice-box-text {
-  font-size: 0.85rem;
-  color: #E2E8F0;
+  font-size: 0.86rem;
+  color: #334155;
   line-height: 1.55;
   margin: 0;
 }
@@ -4855,21 +4835,22 @@ footer a:hover {
 }
 
 .location-origin {
-  color: #94A3B8;
+  color: #64748B;
 }
 
 .location-arrow {
-  color: #FFD700;
+  color: #C59A4E;
   font-weight: 900;
 }
 
 .location-dest {
-  color: #ffffff;
+  color: #0F172A;
+  font-weight: 800;
 }
 
 .spotlight-plan-btn {
-  background: linear-gradient(135deg, #FFD700 0%, #D4AF37 50%, #B88933 100%);
-  color: #060B11;
+  background: linear-gradient(135deg, #D4AF37 0%, #C59A4E 100%);
+  color: #FFFFFF;
   border: none;
   padding: 0.85rem 1.65rem;
   border-radius: 14px;
@@ -4879,13 +4860,12 @@ footer a:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  box-shadow: 0 4px 16px rgba(212, 175, 55, 0.35);
+  box-shadow: 0 4px 16px rgba(197, 154, 78, 0.35);
   transition: all 0.25s ease;
 }
 
 .spotlight-plan-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(212, 175, 55, 0.5);
-  color: #000000;
+  box-shadow: 0 8px 25px rgba(197, 154, 78, 0.5);
+  color: #FFFFFF;
 }
-
