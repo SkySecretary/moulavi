@@ -127,6 +127,7 @@ function VoucherServiceContent() {
   const [availableToOptions, setAvailableToOptions] = useState<string[]>([]);
   const [movementSearch, setMovementSearch] = useState('');
   const [selectedMovementDate, setSelectedMovementDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [movementStatusFilter, setMovementStatusFilter] = useState<string>('all');
   
   // Editing & Action States
   const [editingMovements, setEditingMovements] = useState<Map<string, any>>(new Map());
@@ -287,18 +288,22 @@ function VoucherServiceContent() {
       setLoadingMovements(true);
       const from = selectedFrom && selectedFrom !== 'all' ? selectedFrom : undefined;
       const to = selectedTo && selectedTo !== 'all' ? selectedTo : undefined;
-      const response = await api.get('/vouchers/movements/today', {
-        params: { 
-          from, 
-          to, 
-          page: movementPagination.page, 
-          limit: movementPagination.limit,
-          search: movementSearch,
-          clientDate: clientDateStr
-        }
-      });
+      const [response, statsRes] = await Promise.all([
+        api.get('/vouchers/movements/today', {
+          params: { 
+            from, 
+            to, 
+            page: movementPagination.page, 
+            limit: movementPagination.limit,
+            search: movementSearch,
+            clientDate: clientDateStr
+          }
+        }),
+        voucherAPI.getTodayMovementStats(clientDateStr).catch(() => ({ data: {} }))
+      ]);
       setTodayMovements(response.data.movements);
       setMovementPagination(response.data.pagination);
+      if (statsRes?.data) setTodayStats(statsRes.data);
     } catch (error) {
       console.error('Error loading today movements:', error);
     } finally {
@@ -311,18 +316,22 @@ function VoucherServiceContent() {
       setLoadingMovements(true);
       const from = selectedFrom && selectedFrom !== 'all' ? selectedFrom : undefined;
       const to = selectedTo && selectedTo !== 'all' ? selectedTo : undefined;
-      const response = await api.get('/vouchers/movements/tomorrow', {
-        params: { 
-          from, 
-          to, 
-          page: movementPagination.page, 
-          limit: movementPagination.limit,
-          search: movementSearch,
-          clientDate: clientDateStr
-        }
-      });
+      const [response, statsRes] = await Promise.all([
+        api.get('/vouchers/movements/tomorrow', {
+          params: { 
+            from, 
+            to, 
+            page: movementPagination.page, 
+            limit: movementPagination.limit,
+            search: movementSearch,
+            clientDate: clientDateStr
+          }
+        }),
+        voucherAPI.getTomorrowMovementStats(clientDateStr).catch(() => ({ data: {} }))
+      ]);
       setTomorrowMovements(response.data.movements);
       setMovementPagination(response.data.pagination);
+      if (statsRes?.data) setTomorrowStats(statsRes.data);
     } catch (error) {
       console.error('Error loading tomorrow movements:', error);
     } finally {
@@ -335,18 +344,22 @@ function VoucherServiceContent() {
       setLoadingMovements(true);
       const from = selectedFrom && selectedFrom !== 'all' ? selectedFrom : undefined;
       const to = selectedTo && selectedTo !== 'all' ? selectedTo : undefined;
-      const response = await api.get('/vouchers/movements/after-tomorrow', {
-        params: { 
-          from, 
-          to, 
-          page: movementPagination.page, 
-          limit: movementPagination.limit,
-          search: movementSearch,
-          clientDate: clientDateStr
-        }
-      });
+      const [response, statsRes] = await Promise.all([
+        api.get('/vouchers/movements/after-tomorrow', {
+          params: { 
+            from, 
+            to, 
+            page: movementPagination.page, 
+            limit: movementPagination.limit,
+            search: movementSearch,
+            clientDate: clientDateStr
+          }
+        }),
+        voucherAPI.getAfterTomorrowMovementStats(clientDateStr).catch(() => ({ data: {} }))
+      ]);
       setAfterTomorrowMovements(response.data.movements);
       setMovementPagination(response.data.pagination);
+      if (statsRes?.data) setAfterTomorrowStats(statsRes.data);
     } catch (error) {
       console.error('Error loading after tomorrow movements:', error);
     } finally {
@@ -385,6 +398,7 @@ function VoucherServiceContent() {
     if (activeMainTab === 'vouchers' && activeVoucherSubTab === 'all') {
       loadVouchers();
     } else if (activeMainTab === 'movements') {
+      loadStats();
       if (activeMovementSubTab === 'today') loadTodayMovements();
       else if (activeMovementSubTab === 'tomorrow') loadTomorrowMovements();
       else if (activeMovementSubTab === 'after-tomorrow') loadAfterTomorrowMovements();
@@ -524,6 +538,7 @@ function VoucherServiceContent() {
     const title = 'Tafweej Movements - ' + dateLabel;
     const filters = [];
     if (movementSearch) filters.push(`Search: ${movementSearch}`);
+    if (movementStatusFilter && movementStatusFilter !== 'all') filters.push(`Status: ${movementStatusFilter}`);
     if (selectedFrom) filters.push(`From: ${selectedFrom}`);
     if (selectedTo) filters.push(`To: ${selectedTo}`);
     if (selectedRouteFilter) filters.push(`Route: ${selectedRouteFilter}`);
@@ -541,9 +556,13 @@ function VoucherServiceContent() {
     const tableData = currentFilteredMovements.map((m) => {
       const mid = m.movementId || `${m.voucherId}-${m.movementIndex}`;
       const edited = editingMovements.get(mid) || m;
+      const statusText = m.status === 'cancelled_complete' || m.status === 'cancelled' ? 'Cancelled' :
+                         m.status === 'cancelled_arrival' ? 'Arrival Cancelled' :
+                         m.status === 'cancelled_departure' ? 'Departure Cancelled' : 'Active';
       
       return [
         m.voucherNumber,
+        statusText,
         m.umrahCompany || '—',
         m.transportCompany || '—',
         `${m.qty || m.pax} PAX`,
@@ -556,7 +575,7 @@ function VoucherServiceContent() {
 
     autoTable(doc, {
       startY: 80,
-      head: [['Voucher', 'Umrah Co.', 'Transport Co.', 'Qty', 'Timeline', 'Guest Details', 'Location Matrix', 'Driver & Vehicle']],
+      head: [['Voucher', 'Status', 'Umrah Co.', 'Transport Co.', 'Qty', 'Timeline', 'Guest Details', 'Location Matrix', 'Driver & Vehicle']],
       body: tableData,
       theme: 'grid',
       styles: {
@@ -570,8 +589,9 @@ function VoucherServiceContent() {
         halign: 'center'
       },
       columnStyles: {
-        2: { halign: 'center' },
+        1: { halign: 'center' },
         3: { halign: 'center' },
+        4: { halign: 'center' },
       },
       margin: { top: 80, bottom: 40, left: 40, right: 40 },
       didDrawPage: (data) => {
@@ -684,6 +704,13 @@ function VoucherServiceContent() {
                           activeMovementSubTab === 'after-tomorrow' ? afterTomorrowMovements :
                           specificDateMovements;
   const currentFilteredMovements = currentMovements.filter((m: any) => {
+    if (movementStatusFilter && movementStatusFilter !== 'all') {
+      const s = m.status || 'active';
+      if (movementStatusFilter === 'active' && s !== 'active') return false;
+      if (movementStatusFilter === 'cancelled_complete' && s !== 'cancelled_complete' && s !== 'cancelled') return false;
+      if (movementStatusFilter === 'cancelled_arrival' && s !== 'cancelled_arrival') return false;
+      if (movementStatusFilter === 'cancelled_departure' && s !== 'cancelled_departure') return false;
+    }
     if (selectedRouteFilter) {
       const fromCity = formatRouteCity(m.from);
       const toCity = formatRouteCity(m.to);
@@ -1105,24 +1132,37 @@ function VoucherServiceContent() {
 
                 {showFilters && (
                   <Card className="border-dashed border-2 bg-white/50 rounded-2xl animate-in slide-in-from-top-2 duration-200 no-capture">
-                    <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                    <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold uppercase text-gray-500 tracking-widest ml-1">Status</Label>
+                        <Select value={movementStatusFilter} onValueChange={setMovementStatusFilter}>
+                          <SelectTrigger className="h-9"><SelectValue placeholder="All" /></SelectTrigger>
+                          <SelectContent className="rounded-xl border-0 shadow-2xl">
+                            <SelectItem value="all">All Statuses</SelectItem>
+                            <SelectItem value="active">Active Only</SelectItem>
+                            <SelectItem value="cancelled_complete">Cancelled Only</SelectItem>
+                            <SelectItem value="cancelled_arrival">Arrival Cancelled</SelectItem>
+                            <SelectItem value="cancelled_departure">Departure Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-gray-500 tracking-widest ml-1">From Location</Label><Select value={selectedFrom || 'all'} onValueChange={(v) => setSelectedFrom(v === 'all' ? null : v)}><SelectTrigger className="h-9"><SelectValue placeholder="All" /></SelectTrigger><SelectContent className="rounded-xl border-0 shadow-2xl"><SelectItem value="all">All Spectrum</SelectItem>{availableFromOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
                       <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-gray-500 tracking-widest ml-1">To Location</Label><Select value={selectedTo || 'all'} onValueChange={(v) => setSelectedTo(v === 'all' ? null : v)}><SelectTrigger className="h-9"><SelectValue placeholder="All" /></SelectTrigger><SelectContent className="rounded-xl border-0 shadow-2xl"><SelectItem value="all">All Spectrum</SelectItem>{availableToOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
-                      <Button variant="ghost" size="sm" className="h-9 text-xs font-bold text-primary" onClick={() => { setSelectedFrom(null); setSelectedTo(null); }}>Reset All Filters</Button>
+                      <Button variant="ghost" size="sm" className="h-9 text-xs font-bold text-primary" onClick={() => { setSelectedFrom(null); setSelectedTo(null); setMovementStatusFilter('all'); }}>Reset All Filters</Button>
                     </CardContent>
                   </Card>
                 )}
 
                 <Card className="rounded-2xl border-0 shadow-sm overflow-hidden bg-white">
                   <CardHeader className="bg-gray-50/50 border-b pb-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
                         <div className={`h-10 w-10 rounded-lg ${
                           activeMovementSubTab === 'today' ? 'bg-emerald-100 text-emerald-700' : 
                           activeMovementSubTab === 'tomorrow' ? 'bg-amber-100 text-amber-700' : 
                           activeMovementSubTab === 'after-tomorrow' ? 'bg-purple-100 text-purple-700' :
                           'bg-blue-100 text-blue-700'
-                        } flex items-center justify-center font-bold`}>{currentMovements.length}</div>
+                        } flex items-center justify-center font-bold`}>{movementPagination.total || currentMovements.length}</div>
                         <div>
                           <CardTitle className="text-base font-bold text-secondary uppercase tracking-tight">
                             {activeMovementSubTab === 'after-tomorrow' ? 'DAY AFTER TOMORROW' : 
@@ -1139,7 +1179,7 @@ function VoucherServiceContent() {
                           </p>
                         </div>
                       </div>
-                      <div className="flex gap-4">
+                      <div className="flex flex-wrap items-center gap-3 xl:gap-4">
                          <Button variant="outline" size="sm" onClick={handleCopyMovementsImage} className="h-9 border-blue-200 hover:bg-blue-50 text-blue-700 font-bold no-capture">
                            <Copy className="h-4 w-4 mr-2" />
                            Copy Image
@@ -1148,8 +1188,22 @@ function VoucherServiceContent() {
                            <Printer className="h-4 w-4 mr-2" />
                            Print PDF
                          </Button>
-                         <div className="text-right"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Makkah Load</p><p className="font-black text-secondary">{currentMoveStats.makkahMovements || 0} MVMT</p></div>
-                         <div className="text-right"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Madinah Load</p><p className="font-black text-secondary">{currentMoveStats.madinahMovements || 0} MVMT</p></div>
+                         <div className="text-right border-l pl-3 border-gray-200">
+                           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Movements</p>
+                           <p className="font-black text-secondary">{movementPagination.total || currentMovements.length} MVMT</p>
+                         </div>
+                         <div className="text-right border-l pl-3 border-gray-200">
+                           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Pax</p>
+                           <p className="font-black text-secondary">{currentMovements.reduce((sum, m) => sum + (Number(m.qty || m.pax) || 0), 0)} PAX</p>
+                         </div>
+                         <div className="text-right border-l pl-3 border-gray-200">
+                           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Makkah Load</p>
+                           <p className="font-black text-secondary">{currentMoveStats.makkahMovements || 0} MVMT</p>
+                         </div>
+                         <div className="text-right border-l pl-3 border-gray-200">
+                           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Madinah Load</p>
+                           <p className="font-black text-secondary">{currentMoveStats.madinahMovements || 0} MVMT</p>
+                         </div>
                       </div>
                     </div>
                   </CardHeader>
@@ -1287,6 +1341,7 @@ function VoucherServiceContent() {
                     <TableHeader className="bg-gray-50/30">
                       <TableRow className="border-b border-gray-100 hover:bg-transparent uppercase">
                         <TableHead className="px-6 text-[10px] font-black text-gray-400 tracking-widest">Voucher</TableHead>
+                        <TableHead className="text-[10px] font-black text-gray-400 tracking-widest">Status</TableHead>
                         <TableHead className="text-[10px] font-black text-gray-400 tracking-widest">Umrah Co.</TableHead>
                         <TableHead className="text-[10px] font-black text-gray-400 tracking-widest">Transport Co.</TableHead>
                         <TableHead className="text-[10px] font-black text-gray-400 tracking-widest text-center">Qty</TableHead>
@@ -1299,8 +1354,8 @@ function VoucherServiceContent() {
 
                     </TableHeader>
                     <TableBody>
-                      {loadingMovements ? [...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={9} className="px-6"><Skeleton className="h-10 w-full" /></TableCell></TableRow>) : 
-                       currentFilteredMovements.length === 0 ? <TableRow><TableCell colSpan={9} className="text-center py-16 text-gray-400 font-medium tracking-tight">No travel movements matching your filters</TableCell></TableRow> :
+                      {loadingMovements ? [...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={10} className="px-6"><Skeleton className="h-10 w-full" /></TableCell></TableRow>) : 
+                       currentFilteredMovements.length === 0 ? <TableRow><TableCell colSpan={10} className="text-center py-16 text-gray-400 font-medium tracking-tight">No travel movements matching your filters</TableCell></TableRow> :
                        currentFilteredMovements.map(m => {
                         const mid = m.movementId || `${m.voucherId}-${m.movementIndex}`;
                         const edited = editingMovements.get(mid) || m;
@@ -1310,6 +1365,25 @@ function VoucherServiceContent() {
                               <span className="font-black text-secondary bg-secondary/10 px-2.5 py-1.5 rounded-xl text-base border border-secondary/20 shadow-sm inline-block min-w-[100px] text-center">
                                 {m.voucherNumber}
                               </span>
+                            </TableCell>
+                            <TableCell>
+                              {m.status === 'cancelled_complete' || m.status === 'cancelled' ? (
+                                <Badge variant="outline" className="font-bold bg-rose-50 text-rose-700 border-rose-200 text-[10px] whitespace-nowrap">
+                                  Cancelled
+                                </Badge>
+                              ) : m.status === 'cancelled_arrival' ? (
+                                <Badge variant="outline" className="font-bold bg-amber-50 text-amber-700 border-amber-200 text-[10px] whitespace-nowrap">
+                                  Arrival Cancelled
+                                </Badge>
+                              ) : m.status === 'cancelled_departure' ? (
+                                <Badge variant="outline" className="font-bold bg-amber-50 text-amber-700 border-amber-200 text-[10px] whitespace-nowrap">
+                                  Departure Cancelled
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="font-bold bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] whitespace-nowrap">
+                                  Active
+                                </Badge>
+                              )}
                             </TableCell>
                             <TableCell className="text-[10px] font-bold text-gray-600 uppercase max-w-[120px] truncate">{m.umrahCompany || '—'}</TableCell>
                             <TableCell className="text-[10px] font-bold text-gray-600 uppercase max-w-[120px] truncate">{m.transportCompany || '—'}</TableCell>

@@ -11,15 +11,24 @@ import { syncVoucherToBooking } from '../utils/bookingVoucherSync';
 
 const router = Router();
 
-const getClientBaseDate = (clientDate?: any): Date => {
-  let today = new Date();
-  if (clientDate) {
-    const parsed = new Date(clientDate as string);
-    if (!isNaN(parsed.getTime())) {
-      today = parsed;
-    }
+const getUtcDayRange = (clientDate?: any, offsetDays = 0): { start: Date; end: Date } => {
+  let baseDate: Date;
+  if (clientDate && typeof clientDate === 'string' && /^\d{4}-\d{2}-\d{2}/.test(clientDate)) {
+    const parts = clientDate.split('T')[0].split('-').map(Number);
+    baseDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0));
+  } else if (clientDate instanceof Date && !isNaN(clientDate.getTime())) {
+    baseDate = new Date(Date.UTC(clientDate.getUTCFullYear(), clientDate.getUTCMonth(), clientDate.getUTCDate(), 0, 0, 0, 0));
+  } else {
+    const now = new Date();
+    baseDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
   }
-  return today;
+  const start = new Date(baseDate.getTime() + offsetDays * 24 * 60 * 60 * 1000);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  return { start, end };
+};
+
+const getClientBaseDate = (clientDate?: any): Date => {
+  return getUtcDayRange(clientDate, 0).start;
 };
 
 // Get all vouchers with pagination and filters
@@ -178,10 +187,9 @@ router.get(
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const user = req.user!;
     const { clientDate } = req.query;
-    const today = getClientBaseDate(clientDate);
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const { start: today, end: tomorrow } = getUtcDayRange(clientDate, 0);
+    const { start: tomorrowStart, end: tomorrowEnd } = getUtcDayRange(clientDate, 1);
+    const { start: dayAfterTomorrowStart, end: dayAfterTomorrowEnd } = getUtcDayRange(clientDate, 2);
 
     const whereVoucher: any = {};
     const whereMovement: any = {};
@@ -239,8 +247,8 @@ router.get(
         where: {
           ...whereMovement,
           date: {
-            gte: tomorrow,
-            lt: new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000),
+            gte: tomorrowStart,
+            lt: tomorrowEnd,
           },
         },
       }),
@@ -248,8 +256,8 @@ router.get(
         where: {
           ...whereMovement,
           date: {
-            gte: new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000),
-            lt: new Date(tomorrow.getTime() + 2 * 24 * 60 * 60 * 1000),
+            gte: dayAfterTomorrowStart,
+            lt: dayAfterTomorrowEnd,
           },
         },
       }),
@@ -276,10 +284,7 @@ router.get(
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const user = req.user!;
     const { from, to, page = '1', limit = '50', search = '', clientDate } = req.query;
-    const today = getClientBaseDate(clientDate);
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const { start: today, end: tomorrow } = getUtcDayRange(clientDate, 0);
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
     const skip = (pageNum - 1) * limitNum;
@@ -351,10 +356,12 @@ router.get(
       const movementIndex = voucherMovements.findIndex((m) => m.id === movement.id);
       const umrahCompanyName = movement.voucher.umrahCompany?.partyName || movement.voucher.booking?.umrahVisaProvider?.partyName || '—';
       const transportCompanyName = movement.voucher.transportCompany?.partyName || movement.voucher.booking?.transportCompany?.partyName || '—';
+      const paxCount = movement.paxCount || movement.voucher.paxCount || 0;
 
       return {
         voucherId: movement.voucherId,
         voucherNumber: movement.voucher.voucherNumber,
+        status: movement.voucher.status || 'active',
         movementIndex,
         movementId: movement.id,
         routeNumber: movement.route || '',
@@ -363,8 +370,8 @@ router.get(
         agentName: movement.voucher.guestName || 'N/A',
         guestName: movement.voucher.guestName,
         mobile: movement.voucher.guestMobile || '',
-        pax: movement.voucher.paxCount,
-        qty: movement.voucher.paxCount,
+        pax: paxCount,
+        qty: paxCount,
         umrahCompany: umrahCompanyName,
         transportCompany: transportCompanyName,
         from: movement.from || '',
@@ -402,12 +409,7 @@ router.get(
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const user = req.user!;
     const { from, to, page = '1', limit = '50', search = '', clientDate } = req.query;
-    const today = getClientBaseDate(clientDate);
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dayAfterTomorrow = new Date(tomorrow);
-    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+    const { start: tomorrow, end: dayAfterTomorrow } = getUtcDayRange(clientDate, 1);
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
     const skip = (pageNum - 1) * limitNum;
@@ -479,10 +481,12 @@ router.get(
       const movementIndex = voucherMovements.findIndex((m) => m.id === movement.id);
       const umrahCompanyName = movement.voucher.umrahCompany?.partyName || movement.voucher.booking?.umrahVisaProvider?.partyName || '—';
       const transportCompanyName = movement.voucher.transportCompany?.partyName || movement.voucher.booking?.transportCompany?.partyName || '—';
+      const paxCount = movement.paxCount || movement.voucher.paxCount || 0;
 
       return {
         voucherId: movement.voucherId,
         voucherNumber: movement.voucher.voucherNumber,
+        status: movement.voucher.status || 'active',
         movementIndex,
         movementId: movement.id,
         routeNumber: movement.route || '',
@@ -491,8 +495,8 @@ router.get(
         agentName: movement.voucher.guestName || 'N/A',
         guestName: movement.voucher.guestName,
         mobile: movement.voucher.guestMobile || '',
-        pax: movement.voucher.paxCount,
-        qty: movement.voucher.paxCount,
+        pax: paxCount,
+        qty: paxCount,
         umrahCompany: umrahCompanyName,
         transportCompany: transportCompanyName,
         from: movement.from || '',
@@ -530,12 +534,7 @@ router.get(
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const user = req.user!;
     const { from, to, page = '1', limit = '50', search = '', clientDate } = req.query;
-    const today = getClientBaseDate(clientDate);
-    today.setHours(0, 0, 0, 0);
-    const dayAfterTomorrow = new Date(today);
-    dayAfterTomorrow.setDate(today.getDate() + 2);
-    const threeDaysFromNow = new Date(today);
-    threeDaysFromNow.setDate(today.getDate() + 3);
+    const { start: dayAfterTomorrow, end: threeDaysFromNow } = getUtcDayRange(clientDate, 2);
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
     const skip = (pageNum - 1) * limitNum;
@@ -607,10 +606,12 @@ router.get(
       const movementIndex = voucherMovements.findIndex((m) => m.id === movement.id);
       const umrahCompanyName = movement.voucher.umrahCompany?.partyName || movement.voucher.booking?.umrahVisaProvider?.partyName || '—';
       const transportCompanyName = movement.voucher.transportCompany?.partyName || movement.voucher.booking?.transportCompany?.partyName || '—';
+      const paxCount = movement.paxCount || movement.voucher.paxCount || 0;
 
       return {
         voucherId: movement.voucherId,
         voucherNumber: movement.voucher.voucherNumber,
+        status: movement.voucher.status || 'active',
         movementIndex,
         movementId: movement.id,
         routeNumber: movement.route || '',
@@ -619,8 +620,8 @@ router.get(
         agentName: movement.voucher.guestName || 'N/A',
         guestName: movement.voucher.guestName,
         mobile: movement.voucher.guestMobile || '',
-        pax: movement.voucher.paxCount,
-        qty: movement.voucher.paxCount,
+        pax: paxCount,
+        qty: paxCount,
         umrahCompany: umrahCompanyName,
         transportCompany: transportCompanyName,
         from: movement.from || '',
@@ -663,11 +664,7 @@ router.get(
       return res.status(400).json({ error: 'Date is required' });
     }
 
-    const targetDate = new Date(date as string);
-    targetDate.setHours(0, 0, 0, 0);
-    const nextDay = new Date(targetDate);
-    nextDay.setDate(nextDay.getDate() + 1);
-
+    const { start: targetDate, end: nextDay } = getUtcDayRange(date as string, 0);
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
     const skip = (pageNum - 1) * limitNum;
@@ -739,10 +736,12 @@ router.get(
       const movementIndex = voucherMovements.findIndex((m) => m.id === movement.id);
       const umrahCompanyName = movement.voucher.umrahCompany?.partyName || movement.voucher.booking?.umrahVisaProvider?.partyName || '—';
       const transportCompanyName = movement.voucher.transportCompany?.partyName || movement.voucher.booking?.transportCompany?.partyName || '—';
+      const paxCount = movement.paxCount || movement.voucher.paxCount || 0;
 
       return {
         voucherId: movement.voucherId,
         voucherNumber: movement.voucher.voucherNumber,
+        status: movement.voucher.status || 'active',
         movementIndex,
         movementId: movement.id,
         routeNumber: movement.route || '',
@@ -751,8 +750,8 @@ router.get(
         agentName: movement.voucher.guestName || 'N/A',
         guestName: movement.voucher.guestName,
         mobile: movement.voucher.guestMobile || '',
-        pax: movement.voucher.paxCount,
-        qty: movement.voucher.paxCount,
+        pax: paxCount,
+        qty: paxCount,
         umrahCompany: umrahCompanyName,
         transportCompany: transportCompanyName,
         from: movement.from || '',
@@ -834,21 +833,12 @@ router.get(
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const user = req.user!;
     const { clientDate } = req.query;
-    const today = getClientBaseDate(clientDate);
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const { start: today, end: tomorrow } = getUtcDayRange(clientDate, 0);
 
     const where: any = {
       date: {
         gte: today,
         lt: tomorrow,
-      },
-      from: {
-        not: '',
-      },
-      to: {
-        not: '',
       },
     };
 
@@ -870,13 +860,17 @@ router.get(
     let madinahMovements = 0;
 
     movementsData.forEach((movement) => {
-      const key = `${movement.from}|||${movement.to}`;
+      const fromStr = movement.from || 'N/A';
+      const toStr = movement.to || 'N/A';
+      const key = `${fromStr}|||${toStr}`;
       statsMap.set(key, (statsMap.get(key) || 0) + 1);
       
-      const fromCity = (movement.from || '').toUpperCase();
-      if (fromCity.includes('MAKKAH')) {
+      const fromCity = fromStr.toUpperCase();
+      const toCity = toStr.toUpperCase();
+      if (fromCity.includes('MAKKAH') || toCity.includes('MAKKAH') || fromCity.includes('MECCA') || toCity.includes('MECCA')) {
         makkahMovements++;
-      } else if (fromCity.includes('MADINAH')) {
+      }
+      if (fromCity.includes('MADINAH') || toCity.includes('MADINAH') || fromCity.includes('MEDINA') || toCity.includes('MEDINA')) {
         madinahMovements++;
       }
     });
@@ -903,23 +897,12 @@ router.get(
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const user = req.user!;
     const { clientDate } = req.query;
-    const today = getClientBaseDate(clientDate);
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dayAfterTomorrow = new Date(tomorrow);
-    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+    const { start: tomorrow, end: dayAfterTomorrow } = getUtcDayRange(clientDate, 1);
 
     const where: any = {
       date: {
         gte: tomorrow,
         lt: dayAfterTomorrow,
-      },
-      from: {
-        not: '',
-      },
-      to: {
-        not: '',
       },
     };
 
@@ -941,13 +924,17 @@ router.get(
     let madinahMovements = 0;
 
     movementsData.forEach((movement) => {
-      const key = `${movement.from}|||${movement.to}`;
+      const fromStr = movement.from || 'N/A';
+      const toStr = movement.to || 'N/A';
+      const key = `${fromStr}|||${toStr}`;
       statsMap.set(key, (statsMap.get(key) || 0) + 1);
       
-      const fromCity = (movement.from || '').toUpperCase();
-      if (fromCity.includes('MAKKAH')) {
+      const fromCity = fromStr.toUpperCase();
+      const toCity = toStr.toUpperCase();
+      if (fromCity.includes('MAKKAH') || toCity.includes('MAKKAH') || fromCity.includes('MECCA') || toCity.includes('MECCA')) {
         makkahMovements++;
-      } else if (fromCity.includes('MADINAH')) {
+      }
+      if (fromCity.includes('MADINAH') || toCity.includes('MADINAH') || fromCity.includes('MEDINA') || toCity.includes('MEDINA')) {
         madinahMovements++;
       }
     });
@@ -974,23 +961,12 @@ router.get(
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const user = req.user!;
     const { clientDate } = req.query;
-    const today = getClientBaseDate(clientDate);
-    today.setHours(0, 0, 0, 0);
-    const dayAfterTomorrow = new Date(today);
-    dayAfterTomorrow.setDate(today.getDate() + 2);
-    const threeDaysFromNow = new Date(today);
-    threeDaysFromNow.setDate(today.getDate() + 3);
+    const { start: dayAfterTomorrow, end: threeDaysFromNow } = getUtcDayRange(clientDate, 2);
 
     const where: any = {
       date: {
         gte: dayAfterTomorrow,
         lt: threeDaysFromNow,
-      },
-      from: {
-        not: '',
-      },
-      to: {
-        not: '',
       },
     };
 
@@ -1012,13 +988,17 @@ router.get(
     let madinahMovements = 0;
 
     movementsData.forEach((movement) => {
-      const key = `${movement.from}|||${movement.to}`;
+      const fromStr = movement.from || 'N/A';
+      const toStr = movement.to || 'N/A';
+      const key = `${fromStr}|||${toStr}`;
       statsMap.set(key, (statsMap.get(key) || 0) + 1);
       
-      const fromCity = (movement.from || '').toUpperCase();
-      if (fromCity.includes('MAKKAH')) {
+      const fromCity = fromStr.toUpperCase();
+      const toCity = toStr.toUpperCase();
+      if (fromCity.includes('MAKKAH') || toCity.includes('MAKKAH') || fromCity.includes('MECCA') || toCity.includes('MECCA')) {
         makkahMovements++;
-      } else if (fromCity.includes('MADINAH')) {
+      }
+      if (fromCity.includes('MADINAH') || toCity.includes('MADINAH') || fromCity.includes('MEDINA') || toCity.includes('MEDINA')) {
         madinahMovements++;
       }
     });
@@ -1036,6 +1016,7 @@ router.get(
     });
   })
 );
+
 // Get movement statistics by specific date
 router.get(
   '/movements/stats/by-date',
@@ -1049,21 +1030,12 @@ router.get(
       return res.status(400).json({ error: 'Date is required' });
     }
 
-    const targetDate = new Date(date as string);
-    targetDate.setHours(0, 0, 0, 0);
-    const nextDay = new Date(targetDate);
-    nextDay.setDate(nextDay.getDate() + 1);
+    const { start: targetDate, end: nextDay } = getUtcDayRange(date as string, 0);
 
     const where: any = {
       date: {
         gte: targetDate,
         lt: nextDay,
-      },
-      from: {
-        not: '',
-      },
-      to: {
-        not: '',
       },
     };
 
@@ -1085,13 +1057,17 @@ router.get(
     let madinahMovements = 0;
 
     movementsData.forEach((movement) => {
-      const key = `${movement.from}|||${movement.to}`;
+      const fromStr = movement.from || 'N/A';
+      const toStr = movement.to || 'N/A';
+      const key = `${fromStr}|||${toStr}`;
       statsMap.set(key, (statsMap.get(key) || 0) + 1);
 
-      const fromCity = (movement.from || '').toUpperCase();
-      if (fromCity.includes('MAKKAH')) {
+      const fromCity = fromStr.toUpperCase();
+      const toCity = toStr.toUpperCase();
+      if (fromCity.includes('MAKKAH') || toCity.includes('MAKKAH') || fromCity.includes('MECCA') || toCity.includes('MECCA')) {
         makkahMovements++;
-      } else if (fromCity.includes('MADINAH')) {
+      }
+      if (fromCity.includes('MADINAH') || toCity.includes('MADINAH') || fromCity.includes('MEDINA') || toCity.includes('MEDINA')) {
         madinahMovements++;
       }
     });
