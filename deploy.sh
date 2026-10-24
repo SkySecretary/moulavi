@@ -132,7 +132,11 @@ $SSH_CMD -o ControlMaster=auto -o ControlPath=/tmp/ssh-%r@%h:%p $SERVER_USER@$SE
 
     # Frontend Setup
     cd $RELEASE_PATH/frontend
-    npm install --production --silent
+    npm install --omit=dev
+    if [ ! -f "./node_modules/.bin/next" ]; then
+        echo "⚠️  next binary missing in node_modules, installing next..."
+        npm install next@14.0.4
+    fi
 
     # Atomic switch
     ln -sfn $RELEASE_PATH $CURRENT_PATH
