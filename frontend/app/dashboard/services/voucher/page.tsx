@@ -410,17 +410,16 @@ function VoucherServiceContent() {
   const loadStats = async () => {
     try {
       setLoadingStats(true);
-      const response = await voucherAPI.getVoucherStats(clientDateStr);
-      setStats(response.data);
-      
-      const tStats = await voucherAPI.getTodayMovementStats(clientDateStr);
-      setTodayStats(tStats.data);
-      
-      const tomStats = await voucherAPI.getTomorrowMovementStats(clientDateStr);
-      setTomorrowStats(tomStats.data);
-
-      const afterTomStats = await voucherAPI.getAfterTomorrowMovementStats(clientDateStr);
-      setAfterTomorrowStats(afterTomStats.data);
+      const [vStatsRes, tStatsRes, tomStatsRes, afterTomStatsRes] = await Promise.allSettled([
+        voucherAPI.getVoucherStats(clientDateStr),
+        voucherAPI.getTodayMovementStats(clientDateStr),
+        voucherAPI.getTomorrowMovementStats(clientDateStr),
+        voucherAPI.getAfterTomorrowMovementStats(clientDateStr),
+      ]);
+      if (vStatsRes.status === 'fulfilled') setStats(vStatsRes.value.data);
+      if (tStatsRes.status === 'fulfilled') setTodayStats(tStatsRes.value.data);
+      if (tomStatsRes.status === 'fulfilled') setTomorrowStats(tomStatsRes.value.data);
+      if (afterTomStatsRes.status === 'fulfilled') setAfterTomorrowStats(afterTomStatsRes.value.data);
     } catch (error) {
       console.error('Error loading stats:', error);
     } finally {
@@ -1110,7 +1109,7 @@ function VoucherServiceContent() {
                   {movementSearch && `Search: ${movementSearch} | `} {selectedFrom && `From: ${selectedFrom} | `} {selectedTo && `To: ${selectedTo}`}
                 </p>
               </div>
-              <Tabs value={activeMovementSubTab} onValueChange={(v: any) => { setActiveMovementSubTab(v); setSelectedRouteFilter(null); setSelectedUmrahCompanyFilter(null); setSelectedTransportCompanyFilter(null); }} className="space-y-4">
+              <Tabs value={activeMovementSubTab} onValueChange={(v: any) => { setActiveMovementSubTab(v); setSelectedRouteFilter(null); setSelectedUmrahCompanyFilter(null); setSelectedTransportCompanyFilter(null); setMovementPagination(prev => ({ ...prev, page: 1 })); }} className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-2 rounded-xl border shadow-sm no-capture">
                   <TabsList className="bg-gray-100 border p-1 h-9 rounded-lg">
                     <TabsTrigger value="today" className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-8 h-7 rounded-md transition-all">Today</TabsTrigger>

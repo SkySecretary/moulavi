@@ -31,6 +31,47 @@ const getClientBaseDate = (clientDate?: any): Date => {
   return getUtcDayRange(clientDate, 0).start;
 };
 
+const resolveUserPartyId = async (user: any): Promise<string | undefined> => {
+  if (user.partyId) return user.partyId;
+  if (user.role === 'party') {
+    let party = await prisma.party.findFirst({ where: { userId: user.id } });
+    if (!party && user.email) {
+      party = await prisma.party.findFirst({ where: { email: user.email } });
+    }
+    if (party) {
+      user.partyId = party.id;
+      return party.id;
+    }
+  }
+  return undefined;
+};
+
+const getPartyVoucherCondition = (partyId?: string) => {
+  if (!partyId) return {};
+  return {
+    OR: [
+      { partyId },
+      { umrahCompanyId: partyId },
+      { transportCompanyId: partyId },
+      { booking: { partyId } },
+      { booking: { umrahVisaProviderId: partyId } },
+      { booking: { transportCompanyId: partyId } },
+    ],
+  };
+};
+
+const isPartyAuthorizedForVoucher = (voucher: any, partyId?: string) => {
+  if (!partyId) return false;
+  return (
+    voucher.partyId === partyId ||
+    voucher.umrahCompanyId === partyId ||
+    voucher.transportCompanyId === partyId ||
+    voucher.booking?.partyId === partyId ||
+    voucher.booking?.umrahVisaProviderId === partyId ||
+    voucher.booking?.transportCompanyId === partyId
+  );
+};
+
 // Get all vouchers with pagination and filters
 router.get(
   '/',
@@ -47,7 +88,10 @@ router.get(
 
     // If user is a party, only show their own vouchers
     if (user.role === 'party') {
-      conditions.push({ partyId: user.partyId });
+      const pId = await resolveUserPartyId(user);
+      if (pId) {
+        conditions.push(getPartyVoucherCondition(pId));
+      }
     }
 
     if (voucherNumber && (voucherNumber as string).trim()) {
@@ -82,13 +126,7 @@ router.get(
     }
 
     if (status && status !== 'all') {
-      if (status === 'active') {
-        conditions.push({
-          OR: [{ status: 'active' }, { status: null }],
-        });
-      } else {
-        conditions.push({ status: status as string });
-      }
+      conditions.push({ status: status as string });
     }
 
     const where = conditions.length > 0 ? { AND: conditions } : {};
@@ -195,8 +233,12 @@ router.get(
     const whereMovement: any = {};
 
     if (user.role === 'party') {
-      whereVoucher.partyId = user.partyId;
-      whereMovement.voucher = { partyId: user.partyId };
+      const pId = await resolveUserPartyId(user);
+      if (pId) {
+        const partyCond = getPartyVoucherCondition(pId);
+        whereVoucher.AND = [partyCond];
+        whereMovement.voucher = partyCond;
+      }
     }
 
     const [
@@ -213,7 +255,7 @@ router.get(
       prisma.voucher.count({
         where: {
           ...whereVoucher,
-          OR: [{ status: 'active' }, { status: null }],
+          status: 'active',
         },
       }),
       prisma.voucher.count({
@@ -297,7 +339,10 @@ router.get(
     };
 
     if (user.role === 'party') {
-      where.voucher = { partyId: user.partyId };
+      const pId = await resolveUserPartyId(user);
+      if (pId) {
+        where.voucher = getPartyVoucherCondition(pId);
+      }
     }
 
     if (from) where.from = from as string;
@@ -422,7 +467,10 @@ router.get(
     };
 
     if (user.role === 'party') {
-      where.voucher = { partyId: user.partyId };
+      const pId = await resolveUserPartyId(user);
+      if (pId) {
+        where.voucher = getPartyVoucherCondition(pId);
+      }
     }
 
     if (from) where.from = from as string;
@@ -547,7 +595,10 @@ router.get(
     };
 
     if (user.role === 'party') {
-      where.voucher = { partyId: user.partyId };
+      const pId = await resolveUserPartyId(user);
+      if (pId) {
+        where.voucher = getPartyVoucherCondition(pId);
+      }
     }
 
     if (from) where.from = from as string;
@@ -677,7 +728,10 @@ router.get(
     };
 
     if (user.role === 'party') {
-      where.voucher = { partyId: user.partyId };
+      const pId = await resolveUserPartyId(user);
+      if (pId) {
+        where.voucher = getPartyVoucherCondition(pId);
+      }
     }
 
     if (from) where.from = from as string;
@@ -792,8 +846,12 @@ router.get(
     const whereTo: any = { to: { not: '' } };
     
     if (user.role === 'party') {
-      where.voucher = { partyId: user.partyId };
-      whereTo.voucher = { partyId: user.partyId };
+      const pId = await resolveUserPartyId(user);
+      if (pId) {
+        const partyCond = getPartyVoucherCondition(pId);
+        where.voucher = partyCond;
+        whereTo.voucher = partyCond;
+      }
     }
 
     const fromOptions = await prisma.voucherMovement.findMany({
@@ -843,7 +901,10 @@ router.get(
     };
 
     if (user.role === 'party') {
-      where.voucher = { partyId: user.partyId };
+      const pId = await resolveUserPartyId(user);
+      if (pId) {
+        where.voucher = getPartyVoucherCondition(pId);
+      }
     }
 
     const movementsData = await prisma.voucherMovement.findMany({
@@ -907,7 +968,10 @@ router.get(
     };
 
     if (user.role === 'party') {
-      where.voucher = { partyId: user.partyId };
+      const pId = await resolveUserPartyId(user);
+      if (pId) {
+        where.voucher = getPartyVoucherCondition(pId);
+      }
     }
 
     const movementsData = await prisma.voucherMovement.findMany({
@@ -971,7 +1035,10 @@ router.get(
     };
 
     if (user.role === 'party') {
-      where.voucher = { partyId: user.partyId };
+      const pId = await resolveUserPartyId(user);
+      if (pId) {
+        where.voucher = getPartyVoucherCondition(pId);
+      }
     }
 
     const movementsData = await prisma.voucherMovement.findMany({
@@ -1040,7 +1107,10 @@ router.get(
     };
 
     if (user.role === 'party') {
-      where.voucher = { partyId: user.partyId };
+      const pId = await resolveUserPartyId(user);
+      if (pId) {
+        where.voucher = getPartyVoucherCondition(pId);
+      }
     }
 
     const movementsData = await prisma.voucherMovement.findMany({
@@ -1852,8 +1922,11 @@ router.get(
     }
 
     // Access control for party role
-    if (user.role === 'party' && voucher.partyId !== user.partyId) {
-      return res.status(403).json({ error: 'Access denied' });
+    if (user.role === 'party') {
+      const pId = await resolveUserPartyId(user);
+      if (!isPartyAuthorizedForVoucher(voucher, pId)) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
     }
 
     const umrahCompany = voucher.umrahCompany || voucher.booking?.umrahVisaProvider || null;
@@ -2106,6 +2179,14 @@ router.put(
       include: {
         party: true,
         transportCompany: true,
+        umrahCompany: true,
+        booking: {
+          select: {
+            partyId: true,
+            umrahVisaProviderId: true,
+            transportCompanyId: true,
+          },
+        },
         movements: {
           orderBy: {
             sr: 'asc',
@@ -2119,8 +2200,11 @@ router.put(
     }
 
     // Access control for party role
-    if (user.role === 'party' && voucher.partyId !== user.partyId) {
-      return res.status(403).json({ error: 'Access denied' });
+    if (user.role === 'party') {
+      const pId = await resolveUserPartyId(user);
+      if (!isPartyAuthorizedForVoucher(voucher, pId)) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
     }
 
     const index = parseInt(movementIndex, 10);
@@ -2273,6 +2357,14 @@ router.post(
       include: {
         party: true,
         transportCompany: true,
+        umrahCompany: true,
+        booking: {
+          select: {
+            partyId: true,
+            umrahVisaProviderId: true,
+            transportCompanyId: true,
+          },
+        },
         movements: {
           orderBy: {
             sr: 'asc',
@@ -2675,6 +2767,15 @@ router.get(
         id: true,
         voucherNumber: true,
         partyId: true,
+        umrahCompanyId: true,
+        transportCompanyId: true,
+        booking: {
+          select: {
+            partyId: true,
+            umrahVisaProviderId: true,
+            transportCompanyId: true,
+          },
+        },
         guestName: true,
         groupCode: true,
         status: true,
@@ -2689,8 +2790,11 @@ router.get(
       return res.status(404).json({ error: 'Voucher not found' });
     }
 
-    if (user.role === 'party' && voucher.partyId !== user.partyId) {
-      return res.status(403).json({ error: 'Access denied' });
+    if (user.role === 'party') {
+      const pId = await resolveUserPartyId(user);
+      if (!isPartyAuthorizedForVoucher(voucher, pId)) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
     }
 
     const logs = await prisma.auditLog.findMany({
