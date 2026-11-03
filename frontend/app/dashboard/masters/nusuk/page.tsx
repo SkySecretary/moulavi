@@ -60,6 +60,10 @@ export default function NusukSettingsPage() {
     allowReEntryOneWayTicket: false,
     allowReEntryWithoutTicket: false,
     isValid: true,
+    isTokenExpired: false,
+    tokenExpiresAt: null as string | null,
+    tokenIssuedAt: null as string | null,
+    tokenPayload: null as any,
     lastSyncedAt: null as string | null,
     stats: {
       totalSyncedMutamers: 0,
@@ -138,6 +142,10 @@ export default function NusukSettingsPage() {
           allowReEntryOneWayTicket: res.data.allowReEntryOneWayTicket ?? false,
           allowReEntryWithoutTicket: res.data.allowReEntryWithoutTicket ?? false,
           isValid: res.data.isValid ?? true,
+          isTokenExpired: res.data.isTokenExpired ?? false,
+          tokenExpiresAt: res.data.tokenExpiresAt || null,
+          tokenIssuedAt: res.data.tokenIssuedAt || null,
+          tokenPayload: res.data.tokenPayload || null,
           lastSyncedAt: res.data.lastSyncedAt || null,
           stats: res.data.stats || {
             totalSyncedMutamers: 0,
@@ -621,15 +629,15 @@ export default function NusukSettingsPage() {
                   </CardDescription>
                 </div>
                 <div>
-                  {settingsData.isValid ? (
+                  {!settingsData.isTokenExpired && settingsData.isValid ? (
                     <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 flex items-center gap-1">
                       <CheckCircle className="h-3.5 w-3.5" />
-                      Active & Valid
+                      Active {settingsData.tokenExpiresAt ? `(Expires at ${new Date(settingsData.tokenExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : ''}
                     </Badge>
                   ) : (
                     <Badge variant="destructive" className="flex items-center gap-1">
                       <AlertTriangle className="h-3.5 w-3.5" />
-                      Token Expired / Invalid
+                      Token Expired {settingsData.tokenExpiresAt ? `(${new Date(settingsData.tokenExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : ''}
                     </Badge>
                   )}
                 </div>
@@ -637,6 +645,24 @@ export default function NusukSettingsPage() {
             </CardHeader>
 
             <CardContent className="p-6 space-y-6">
+              {/* Token Expired Warning Alert */}
+              {settingsData.isTokenExpired && (
+                <div className="p-4 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div className="space-y-1">
+                    <h4 className="font-semibold text-sm">Nusuk Authorization Bearer Token Has Expired</h4>
+                    <p className="text-xs text-amber-800">
+                      Nusuk portal security tokens expire every ~100 minutes. This token expired at{' '}
+                      <strong>{settingsData.tokenExpiresAt ? new Date(settingsData.tokenExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'earlier'}</strong>.
+                      Live syncing will fail until refreshed.
+                    </p>
+                    <p className="text-xs text-amber-900 font-medium">
+                      To renew: log into <a href="https://masar.nusuk.sa" target="_blank" rel="noreferrer" className="underline font-bold text-indigo-700">masar.nusuk.sa</a>, open DevTools Network tab, copy the Bearer token from any request header, paste it below, and click <strong>Save Token & Settings</strong>.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Token Input */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">

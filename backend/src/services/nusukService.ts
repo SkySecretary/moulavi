@@ -318,8 +318,40 @@ export class NusukService {
       where: { mutamerStateId: 11 }
     });
 
+    let tokenExpiresAt: string | null = null;
+    let isTokenExpired = false;
+    let tokenIssuedAt: string | null = null;
+    let tokenPayload: any = null;
+
+    if (setting.token) {
+      try {
+        const cleanTok = setting.token.replace(/^Bearer\s+/i, '').trim();
+        const parts = cleanTok.split('.');
+        if (parts.length >= 2) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+          if (payload.exp) {
+            tokenExpiresAt = new Date(payload.exp * 1000).toISOString();
+            isTokenExpired = Date.now() > payload.exp * 1000;
+          }
+          if (payload.iat) {
+            tokenIssuedAt = new Date(payload.iat * 1000).toISOString();
+          }
+          tokenPayload = {
+            name: payload.name || payload.nameAr,
+            sub: payload.sub,
+            userId: payload.userId,
+          };
+        }
+      } catch (e) {}
+    }
+
     return {
       ...setting,
+      isValid: setting.isValid && !isTokenExpired,
+      tokenExpiresAt,
+      isTokenExpired,
+      tokenIssuedAt,
+      tokenPayload,
       externalAgents,
       stats: {
         totalSyncedMutamers,
@@ -734,8 +766,11 @@ export class NusukService {
       console.log(`[NUSUK SYNC] Total mutamer records collected across all EAs: ${allSyncedRows.length}. Processing rows into database...`);
       this.syncStage = `Persisting ${allSyncedRows.length} records into database & calculating compliance...`;
 
+      const allAgentsSucceeded = agentSyncResults.length > 0 && agentSyncResults.every(r => r.success);
+      const syncScope = agentId ? { agentId } : (!allAgentsSucceeded ? { partialSync: true } : undefined);
+
       // Process rows into database records, passenger matching, and mismatch audit
-      const syncResult = await this.processRowsSync(allSyncedRows, settings);
+      const syncResult = await this.processRowsSync(allSyncedRows, settings, syncScope);
 
       await prisma.nusukSetting.update({
         where: { id: settings.id },
@@ -796,7 +831,11 @@ export class NusukService {
     const rows = XLSX.utils.sheet_to_json(worksheet) as any[];
     console.log(`[NUSUK SYNC] Parsed ${rows.length} rows from manual Excel upload.`);
 
-    const syncResult = await this.processRowsSync(rows, settings);
+    if (!rows || rows.length === 0) {
+      throw new Error('No data rows found in the uploaded Excel file. Please ensure the file has valid column headers and data rows.');
+    }
+
+    const syncResult = await this.processRowsSync(rows, settings, { isExcelUpload: true });
     return syncResult;
   }
 
@@ -804,9 +843,27 @@ export class NusukService {
    * Process and persist Mutamer rows into NusukMutamerRecord,
    * match against UmrahPassenger records, and compute travel discrepancies / 85+ days overstay.
    */
-  static async processRowsSync(rows: any[], settings?: any) {
+  static async processRowsSync(
+    rows: any[],
+    settings?: any,
+    syncScope?: { agentId?: string; isExcelUpload?: boolean; partialSync?: boolean }
+  ) {
     if (!settings) {
       settings = await prisma.nusukSetting.findFirst();
+    }
+
+    if (!rows || rows.length === 0) {
+      console.warn('[NUSUK SYNC] processRowsSync called with 0 rows. Skipping update to preserve existing cache.');
+      return {
+        success: true,
+        mutamersCount: 0,
+        over85DaysCount: 0,
+        consulateReviewCount: 0,
+        matchedPassengers: 0,
+        newPassengersCreated: 0,
+        updatedBookingsCount: 0,
+        syncedAt: new Date().toISOString(),
+      };
     }
 
     const now = new Date();
@@ -1353,11 +1410,31 @@ export class NusukService {
     console.log(`[NUSUK SYNC] Batch upsert completed: ${upsertedCount} mutamers. Over 85 days in KSA: ${over85DaysCount}, Consulate Review: ${consulateReviewCount}.`);
 
     // 4. Clean up stale historical rows from previous sync runs
-    await prisma.nusukMutamerRecord.deleteMany({
-      where: {
-        syncedAt: { lt: now }
+    if (distinctRecords.length > 0) {
+      if (syncScope?.isExcelUpload) {
+        // Excel uploads only merge/upsert rows; NEVER delete existing mutamers
+        console.log('[NUSUK SYNC] Excel sync: keeping all existing historical records intact.');
+      } else if (syncScope?.partialSync) {
+        // Some agents failed during API sync; do not delete stale rows to prevent losing mutamers of failed agents
+        console.log('[NUSUK SYNC] Partial sync: keeping existing records for agents that could not be reached.');
+      } else if (syncScope?.agentId) {
+        // Scoped sync for a specific external agent: only delete stale rows for this agent
+        console.log(`[NUSUK SYNC] Scoped cleanup: purging stale mutamers for EA ${syncScope.agentId}...`);
+        await prisma.nusukMutamerRecord.deleteMany({
+          where: {
+            externalAgentId: syncScope.agentId,
+            syncedAt: { lt: now }
+          }
+        }).catch(() => {});
+      } else {
+        // Full successful global sync across all active agents
+        await prisma.nusukMutamerRecord.deleteMany({
+          where: {
+            syncedAt: { lt: now }
+          }
+        }).catch(() => {});
       }
-    }).catch(() => {});
+    }
 
     // 5. Clear stale Nusuk fields for passengers that were flagged for consulate review but no longer present in report
     if (processedPassportSet.size > 0) {

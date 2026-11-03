@@ -190,10 +190,10 @@ app.listen(PORT, () => {
         const isListing = settings.syncType === 'listing';
 
         if (isListing) {
-          // Trigger listing-based sync every 5 minutes
-          if (now.getMinutes() % 5 === 0) {
+          // Trigger listing-based sync every 30 minutes to conserve server resources
+          if (now.getMinutes() % 30 === 0) {
             lastSyncMinute = currentMinKey;
-            console.log(`[SERVER] Scheduled 5-minute listing sync triggered at: ${currentHrMin}`);
+            console.log(`[SERVER] Scheduled 30-minute listing sync triggered at: ${currentHrMin}`);
             try {
               await NusukService.triggerSync();
               console.log(`[SERVER] Scheduled Nusuk listing synchronization completed.`);

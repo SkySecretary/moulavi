@@ -148,6 +148,7 @@ $SSH_CMD -o ControlMaster=auto -o ControlPath=/tmp/ssh-%r@%h:%p $SERVER_USER@$SE
 
     # Cleanup
     cd $REMOTE_ROOT/releases && ls -1t | tail -n +4 | xargs rm -rf 2>/dev/null || true
+    ls -1t $SHARED_PATH/dev.db.bak_* 2>/dev/null | tail -n +3 | xargs rm -f 2>/dev/null || true
     
     echo "SUCCESS_MARKER"
 EOF
