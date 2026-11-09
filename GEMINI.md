@@ -70,5 +70,11 @@ Due to server memory limitations, both the frontend and backend are compiled loc
 - **Prisma Regeneration:** After any schema change, always run `npx prisma generate` in the `backend` folder to update the client.
 - **Disk Space:** PM2 logs on this server can grow rapidly (e.g., `wa.linalapro`). Use `pm2 flush` if builds fail with `SIGBUS`.
 
+## 📚 Operational Skills & Documentation
+- **Operational Antigravity Skill:** [nusync-ops](file:///Users/awadnejil/Desktop/moulavi-erp/.agents/skills/nusync-ops/SKILL.md)
+- **External APIs Reference:** [EXTERNAL_APIS_REFERENCE.md](file:///Users/awadnejil/Desktop/moulavi-erp/docs/EXTERNAL_APIS_REFERENCE.md) (Nusuk, UmrahBus, Linala WhatsApp, WizWat, ZeptoMail)
+- **Infrastructure & Fleet:** [INFRASTRUCTURE_AND_SERVERS.md](file:///Users/awadnejil/Desktop/moulavi-erp/docs/INFRASTRUCTURE_AND_SERVERS.md) (Server list, reverse proxies, PM2 daemons)
+- **Machine Reset & Preservation:** [MACHINE_RESET_PRESERVATION_GUIDE.md](file:///Users/awadnejil/Desktop/moulavi-erp/docs/MACHINE_RESET_PRESERVATION_GUIDE.md) (Pre-wipe backup checklist)
+
 ---
-*Last updated: June 30, 2026*
+*Last updated: November 2026*
